@@ -1852,11 +1852,12 @@ function startGame() {
   stopSpeak();
   state.score = 0;
   state.usedQuizIds = [];
-  state.levelIndex = 0;
-  state.pendingLevelIndex = 1;
+  // TEST: doğrudan 4. seviyeden başla
+  state.levelIndex = 3;
+  state.pendingLevelIndex = 3;
   state.fillMapIndex = 0;
   setBoosting(false);
-  startLevel(0, true);
+  startLevel(3, true);
 }
 
 function startLevel(levelIndex, fromMenu = false) {
