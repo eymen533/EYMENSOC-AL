@@ -1,0 +1,15 @@
+{
+  "appId": "com.eymensocial.balonpatlat",
+  "appName": "Balon Patlat",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#7EC8F8"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "LIGHT",
+      "backgroundColor": "#7EC8F8"
+    }
+  }
+}

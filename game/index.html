@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#7EC8F8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Balon Patlat!</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎈</text></svg>" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="sky" aria-hidden="true"></canvas>
+
+    <header class="hud" id="hud" hidden>
+      <div class="hud-pill score-pill">
+        <span class="label">Skor</span>
+        <strong id="score">0</strong>
+      </div>
+      <div class="hud-pill time-pill">
+        <span class="label">Süre</span>
+        <strong id="time">60</strong>
+      </div>
+      <div class="hud-pill combo-pill" id="comboWrap" hidden>
+        <span class="label">Kombo</span>
+        <strong id="combo">x1</strong>
+      </div>
+    </header>
+
+    <main class="screens">
+      <section class="screen" id="home" aria-label="Ana menü">
+        <div class="home-sky">
+          <div class="sun" aria-hidden="true"></div>
+          <div class="cloud c1" aria-hidden="true"></div>
+          <div class="cloud c2" aria-hidden="true"></div>
+          <div class="cloud c3" aria-hidden="true"></div>
+        </div>
+        <div class="brand-block">
+          <p class="eyebrow">Çocuklar için</p>
+          <h1 class="brand">Balon Patlat!</h1>
+          <p class="tagline">Renkli balonları dokunarak patlat, skorunu yükselt!</p>
+        </div>
+        <div class="home-actions">
+          <button class="btn primary pulse" id="btnPlay" type="button">Oyna</button>
+          <button class="btn ghost" id="btnHow" type="button">Nasıl Oynanır?</button>
+        </div>
+        <p class="best" id="bestHome">En iyi: 0</p>
+      </section>
+
+      <section class="screen overlay" id="how" hidden aria-label="Nasıl oynanır">
+        <div class="panel">
+          <h2>Nasıl Oynanır?</h2>
+          <ul class="howto">
+            <li><span class="dot coral"></span> Balonlara dokunarak patlat</li>
+            <li><span class="dot gold"></span> Altın balon = ekstra puan</li>
+            <li><span class="dot mint"></span> Üst üste patlat = kombo</li>
+            <li><span class="dot sky"></span> 60 saniyede en yüksek skoru yakala</li>
+          </ul>
+          <button class="btn primary" id="btnHowClose" type="button">Anladım!</button>
+        </div>
+      </section>
+
+      <section class="screen overlay" id="pause" hidden aria-label="Duraklatıldı">
+        <div class="panel">
+          <h2>Duraklatıldı</h2>
+          <button class="btn primary" id="btnResume" type="button">Devam</button>
+          <button class="btn ghost" id="btnQuit" type="button">Ana Menü</button>
+        </div>
+      </section>
+
+      <section class="screen overlay" id="result" hidden aria-label="Sonuç">
+        <div class="panel celebrate">
+          <p class="result-emoji" id="resultEmoji" aria-hidden="true">🎉</p>
+          <h2 id="resultTitle">Harika!</h2>
+          <p class="result-score">Skorun: <strong id="finalScore">0</strong></p>
+          <p class="result-best" id="resultBest">Yeni rekor değil</p>
+          <div class="result-actions">
+            <button class="btn primary" id="btnAgain" type="button">Tekrar Oyna</button>
+            <button class="btn ghost" id="btnHome" type="button">Ana Menü</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <button class="pause-btn" id="btnPause" type="button" hidden aria-label="Duraklat">❚❚</button>
+  </div>
+
+  <script src="game.js" defer></script>
+</body>
+</html>
