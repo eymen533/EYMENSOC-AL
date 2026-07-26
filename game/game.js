@@ -32,6 +32,14 @@ const LEVELS = [
     label: "Tesla Yarışı",
     desc: "Tesla ile sağa sola git, balonları ez!",
   },
+  {
+    id: 4,
+    name: "Seviye 4",
+    time: 0,
+    mode: "fill",
+    label: "Balon Uzat",
+    desc: "Balonu kaydır, tüm boşluğu doldur!",
+  },
 ];
 
 const HOP_TILE_COLORS = ["#ff6b6b", "#4ecdc4", "#5bb8f0", "#ffd166", "#f78fb3", "#6bcb77"];
@@ -114,6 +122,43 @@ const QUIZZES = [
       { text: "Kırmızı", correct: true, visual: `<div class="v-shape round big" style="background:#ff6b6b"></div>` },
       { text: "Yeşil", correct: false, visual: `<div class="v-shape round small" style="background:#4ecdc4"></div>` },
       { text: "Sarı", correct: false, visual: `<div class="v-shape round" style="background:#ffd166"></div>` },
+    ],
+  },
+  {
+    id: "count-circles",
+    afterLevel: 3,
+    question: "Kaç tane yuvarlak var?",
+    speak: "Resme bak. Kaç tane yuvarlak balon var?",
+    visual: `
+      <div class="v-row">
+        <div class="v-shape round" style="background:#ff6b6b"></div>
+        <div class="v-shape" style="background:#ffd166"></div>
+        <div class="v-shape round" style="background:#4ecdc4"></div>
+        <div class="v-shape round" style="background:#5bb8f0"></div>
+      </div>
+    `,
+    choices: [
+      { text: "2", correct: false, visual: `<div class="choice-num">●●</div>` },
+      { text: "3", correct: true, visual: `<div class="choice-num">●●●</div>` },
+      { text: "4", correct: false, visual: `<div class="choice-num">●●●●</div>` },
+    ],
+  },
+  {
+    id: "odd-color",
+    afterLevel: 3,
+    question: "Hangisi farklı renk?",
+    speak: "Üç şekilden hangisi farklı renkte?",
+    visual: `
+      <div class="v-row">
+        <div class="v-shape round" style="background:#ff6b6b"></div>
+        <div class="v-shape round" style="background:#ff6b6b"></div>
+        <div class="v-shape round" style="background:#5bb8f0"></div>
+      </div>
+    `,
+    choices: [
+      { text: "Mavi", correct: true, visual: `<div class="v-shape round" style="background:#5bb8f0"></div>` },
+      { text: "Kırmızı sol", correct: false, visual: `<div class="v-shape round" style="background:#ff6b6b"></div>` },
+      { text: "Kırmızı sağ", correct: false, visual: `<div class="v-shape round" style="background:#ff6b6b"></div>` },
     ],
   },
 ];
@@ -213,6 +258,8 @@ const state = {
   beatT: 0,
   hop: null,
   drive: null,
+  fill: null,
+  swipe: null,
 };
 
 let audioCtx = null;
@@ -254,6 +301,318 @@ function isHopMode() {
 function isDriveMode() {
   return currentLevel().mode === "drive";
 }
+
+
+function isFillMode() {
+  return currentLevel().mode === "fill";
+}
+
+const FILL_MAPS = [
+  [
+    "######",
+    "#S...#",
+    "#.##.#",
+    "#....#",
+    "######",
+  ],
+  [
+    "#######",
+    "#S....#",
+    "#.###.#",
+    "#...#.#",
+    "#.#...#",
+    "#.....#",
+    "#######",
+  ],
+  [
+    "########",
+    "#S.....#",
+    "##.###.#",
+    "#....#.#",
+    "#.##...#",
+    "#.....##",
+    "########",
+  ],
+];
+
+function parseFillMap(rows) {
+  const grid = [];
+  let head = null;
+  let empty = 0;
+  for (let r = 0; r < rows.length; r++) {
+    const line = [];
+    for (let c = 0; c < rows[r].length; c++) {
+      const ch = rows[r][c];
+      if (ch === "#") line.push(0);
+      else if (ch === "S") {
+        line.push(3); // head
+        head = { c, r };
+        empty += 1;
+      } else {
+        line.push(1); // empty
+        empty += 1;
+      }
+    }
+    grid.push(line);
+  }
+  return { grid, head, emptyTotal: empty };
+}
+
+function initFillMode() {
+  state.hop = null;
+  state.drive = null;
+  state.balloons = [];
+  const mapIndex = Math.min(state.fillMapIndex || 0, FILL_MAPS.length - 1);
+  const parsed = parseFillMap(FILL_MAPS[mapIndex]);
+  const rows = parsed.grid.length;
+  const cols = parsed.grid[0].length;
+  const pad = 24;
+  const cell = Math.floor(Math.min((state.width - pad * 2) / cols, (state.height - 160) / rows));
+  const boardW = cell * cols;
+  const boardH = cell * rows;
+  state.fill = {
+    mapIndex,
+    grid: parsed.grid.map((row) => row.slice()),
+    head: { ...parsed.head },
+    body: [{ ...parsed.head }],
+    emptyTotal: parsed.emptyTotal,
+    filled: 1,
+    cols,
+    rows,
+    cell,
+    originX: Math.floor((state.width - boardW) / 2),
+    originY: Math.floor((state.height - boardH) / 2 + 20),
+    won: false,
+    moveFlash: 0,
+    hintPulse: 0,
+  };
+  // head cell counts as filled path start
+  state.fill.grid[parsed.head.r][parsed.head.c] = 3;
+}
+
+function fillCellCenter(c, r) {
+  const f = state.fill;
+  return {
+    x: f.originX + c * f.cell + f.cell / 2,
+    y: f.originY + r * f.cell + f.cell / 2,
+  };
+}
+
+function tryFillMove(dc, dr) {
+  const f = state.fill;
+  if (!f || f.won || (!dc && !dr)) return;
+  let { c, r } = f.head;
+  let moved = false;
+  while (true) {
+    const nc = c + dc;
+    const nr = r + dr;
+    if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols) break;
+    const cell = f.grid[nr][nc];
+    if (cell !== 1) break; // wall or body
+    // extend
+    f.grid[r][c] = 2; // old head becomes body
+    f.grid[nr][nc] = 3;
+    c = nc;
+    r = nr;
+    f.head = { c, r };
+    f.body.push({ c, r });
+    f.filled += 1;
+    moved = true;
+    const p = fillCellCenter(c, r);
+    burst(p.x, p.y, "#ffd166", false);
+  }
+  if (!moved) {
+    playSkullBuzz();
+    haptic("light");
+    return;
+  }
+  f.moveFlash = 0.25;
+  playHopMelody();
+  playPop(1.1);
+  haptic("medium");
+  state.score += 8 * Math.max(1, Math.abs(dc) + Math.abs(dr));
+  bumpScore();
+  updateHud();
+
+  if (f.filled >= f.emptyTotal) {
+    f.won = true;
+    showBanner("DOLDU!", "combo");
+    playCheer();
+    speak("Harika! Tüm boşluk doldu.");
+    state.score += 100;
+    updateHud();
+    setTimeout(() => {
+      // sonraki harita veya seviye bitiş
+      state.fillMapIndex = (f.mapIndex + 1);
+      if (state.fillMapIndex < FILL_MAPS.length) {
+        showBanner(`Harita ${state.fillMapIndex + 1}`, "boost");
+        initFillMode();
+        speak(`Harita ${state.fillMapIndex + 1}`);
+      } else {
+        state.fillMapIndex = 0;
+        completeLevel();
+      }
+    }, 1100);
+  }
+}
+
+function updateFill(dt) {
+  const f = state.fill;
+  if (!f) return;
+  f.hintPulse += dt;
+  if (f.moveFlash > 0) f.moveFlash = Math.max(0, f.moveFlash - dt);
+  // sonsuz süre — süre göstergesini gizle/dondur
+  state.timeLeft = 0;
+  updateHud();
+}
+
+function drawFillWorld() {
+  const f = state.fill;
+  if (!f) return;
+
+  // Longcat benzeri yeşil çimen arka plan
+  const bg = ctx.createLinearGradient(0, 0, 0, state.height);
+  bg.addColorStop(0, "#7bed9f");
+  bg.addColorStop(1, "#2ed573");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, state.width, state.height);
+
+  // çiçekler
+  for (let i = 0; i < 18; i++) {
+    const fx = (i * 73 + 20) % state.width;
+    const fy = (i * 97 + 40) % state.height;
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.beginPath();
+    ctx.arc(fx, fy, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffa502";
+    ctx.beginPath();
+    ctx.arc(fx, fy, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // tahta gölgesi
+  ctx.fillStyle = "rgba(0,0,0,0.12)";
+  roundRectPath(f.originX - 8, f.originY - 8, f.cols * f.cell + 16, f.rows * f.cell + 16, 18);
+  ctx.fill();
+
+  // tahta
+  ctx.fillStyle = "#fff8ef";
+  roundRectPath(f.originX - 6, f.originY - 6, f.cols * f.cell + 12, f.rows * f.cell + 12, 16);
+  ctx.fill();
+
+  for (let r = 0; r < f.rows; r++) {
+    for (let c = 0; c < f.cols; c++) {
+      const x = f.originX + c * f.cell;
+      const y = f.originY + r * f.cell;
+      const v = f.grid[r][c];
+      if (v === 0) {
+        // duvar / toprak
+        ctx.fillStyle = "#a0522d";
+        roundRectPath(x + 2, y + 2, f.cell - 4, f.cell - 4, 8);
+        ctx.fill();
+        ctx.fillStyle = "#6b3f1d";
+        roundRectPath(x + 6, y + f.cell - 12, f.cell - 12, 6, 3);
+        ctx.fill();
+      } else if (v === 1) {
+        ctx.fillStyle = "#badc58";
+        roundRectPath(x + 3, y + 3, f.cell - 6, f.cell - 6, 8);
+        ctx.fill();
+      } else {
+        // body / head path
+        ctx.fillStyle = "#ffd166";
+        roundRectPath(x + 3, y + 3, f.cell - 6, f.cell - 6, 10);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 159, 67, 0.7)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        roundRectPath(x + 5, y + 5, f.cell - 10, f.cell - 10, 8);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+  }
+
+  // balon kafa
+  const hx = f.originX + f.head.c * f.cell + f.cell / 2;
+  const hy = f.originY + f.head.r * f.cell + f.cell / 2;
+  const hr = f.cell * 0.38;
+  const grad = ctx.createRadialGradient(hx - hr * 0.3, hy - hr * 0.35, 2, hx, hy, hr);
+  grad.addColorStop(0, "#ffffff");
+  grad.addColorStop(0.25, "#ff6b6b");
+  grad.addColorStop(1, "#e84118");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+  ctx.fill();
+  // yüz
+  ctx.fillStyle = "#1e272e";
+  ctx.beginPath();
+  ctx.arc(hx - hr * 0.28, hy - hr * 0.1, hr * 0.12, 0, Math.PI * 2);
+  ctx.arc(hx + hr * 0.28, hy - hr * 0.1, hr * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ff9ff3";
+  ctx.beginPath();
+  ctx.arc(hx, hy + hr * 0.18, hr * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+
+  // yön ipuçları
+  const dirs = [
+    { dc: 0, dr: -1, label: "▲" },
+    { dc: 0, dr: 1, label: "▼" },
+    { dc: -1, dr: 0, label: "◀" },
+    { dc: 1, dr: 0, label: "▶" },
+  ];
+  const pulse = 0.5 + 0.5 * Math.sin(f.hintPulse * 4);
+  for (const d of dirs) {
+    const nc = f.head.c + d.dc;
+    const nr = f.head.r + d.dr;
+    if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols) continue;
+    if (f.grid[nr][nc] !== 1) continue;
+    const p = fillCellCenter(nc, nr);
+    ctx.fillStyle = `rgba(255,255,255,${0.35 + pulse * 0.35})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, f.cell * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(30,39,46,${0.55 + pulse * 0.3})`;
+    ctx.font = `900 ${Math.floor(f.cell * 0.28)}px Fredoka, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(d.label, p.x, p.y + 1);
+  }
+
+  ctx.fillStyle = "rgba(255,248,239,0.95)";
+  ctx.font = "800 16px Nunito, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Kaydır veya ok yönüne dokun", state.width * 0.5, Math.max(28, f.originY - 28));
+  ctx.fillText(`${f.filled}/${f.emptyTotal}`, state.width * 0.5, Math.min(state.height - 24, f.originY + f.rows * f.cell + 28));
+}
+
+function handleFillPointer(x, y) {
+  const f = state.fill;
+  if (!f || f.won) return;
+  // yön hücrelerine dokunma
+  const dirs = [
+    { dc: 0, dr: -1 },
+    { dc: 0, dr: 1 },
+    { dc: -1, dr: 0 },
+    { dc: 1, dr: 0 },
+  ];
+  for (const d of dirs) {
+    const nc = f.head.c + d.dc;
+    const nr = f.head.r + d.dr;
+    if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols) continue;
+    if (f.grid[nr][nc] !== 1) continue;
+    const p = fillCellCenter(nc, nr);
+    const hit = f.cell * 0.55;
+    if (Math.abs(x - p.x) < hit && Math.abs(y - p.y) < hit) {
+      tryFillMove(d.dc, d.dr);
+      return;
+    }
+  }
+  // tahta dışına / genel kaydırma için swipe kullanacağız
+}
+
 
 function initDriveMode() {
   state.hop = null;
@@ -303,107 +662,85 @@ function spawnDriveBalloon(initial = false) {
 }
 
 function drawTesla(x, y, steer = 0) {
-  const lean = Math.max(-0.12, Math.min(0.12, steer * 0.04));
+  // Üstten görünüm — araç düz, öne (yukarı) bakıyor
+  const lean = Math.max(-0.18, Math.min(0.18, steer * 0.05));
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(lean);
 
-  // shadow
-  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  // gölge
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
   ctx.beginPath();
-  ctx.ellipse(0, 38, 62, 14, 0, 0, Math.PI * 2);
+  ctx.ellipse(4, 10, 34, 58, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // body - Tesla Model 3 inspired white/silver
-  const bodyGrad = ctx.createLinearGradient(-70, -20, 70, 40);
-  bodyGrad.addColorStop(0, "#f5f6fa");
-  bodyGrad.addColorStop(0.45, "#dfe4ea");
-  bodyGrad.addColorStop(1, "#a4b0be");
-  roundRectPath(-68, -18, 136, 48, 18);
-  ctx.fillStyle = bodyGrad;
+  // gövde (Model 3 / Y üstten)
+  const body = ctx.createLinearGradient(-32, -60, 32, 60);
+  body.addColorStop(0, "#ffffff");
+  body.addColorStop(0.5, "#dfe6e9");
+  body.addColorStop(1, "#b2bec3");
+  roundRectPath(-30, -58, 60, 116, 22);
+  ctx.fillStyle = body;
   ctx.fill();
 
-  // dark glass roof / canopy
-  const glass = ctx.createLinearGradient(0, -28, 0, 8);
+  // cam tavan
+  const glass = ctx.createLinearGradient(0, -40, 0, 20);
   glass.addColorStop(0, "#1e272e");
-  glass.addColorStop(1, "#485460");
-  roundRectPath(-48, -30, 96, 28, 14);
+  glass.addColorStop(1, "#576574");
+  roundRectPath(-22, -36, 44, 58, 14);
   ctx.fillStyle = glass;
   ctx.fill();
-
-  // windshield highlight
-  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.fillStyle = "rgba(255,255,255,0.2)";
   ctx.beginPath();
-  ctx.ellipse(-18, -18, 22, 8, -0.4, 0, Math.PI * 2);
+  ctx.ellipse(-8, -20, 12, 8, -0.3, 0, Math.PI * 2);
   ctx.fill();
 
-  // front bumper / nose
-  ctx.fillStyle = "#ced6e0";
-  roundRectPath(-58, 18, 116, 14, 8);
+  // ön far şeridi (üstte = ileri)
+  const pulse = 0.7 + Math.sin(state.beatT * 9) * 0.25;
+  const light = ctx.createLinearGradient(-20, -56, 20, -56);
+  light.addColorStop(0, "rgba(116,185,255,0)");
+  light.addColorStop(0.5, `rgba(116,185,255,${pulse})`);
+  light.addColorStop(1, "rgba(116,185,255,0)");
+  ctx.fillStyle = light;
+  roundRectPath(-18, -56, 36, 7, 3);
   ctx.fill();
 
-  // Tesla light bar (front)
-  const lightPulse = 0.65 + Math.sin(state.beatT * 8) * 0.2;
-  const lightGrad = ctx.createLinearGradient(-40, 22, 40, 22);
-  lightGrad.addColorStop(0, "rgba(116, 185, 255, 0)");
-  lightGrad.addColorStop(0.5, `rgba(116, 185, 255, ${lightPulse})`);
-  lightGrad.addColorStop(1, "rgba(116, 185, 255, 0)");
-  ctx.fillStyle = lightGrad;
-  roundRectPath(-42, 20, 84, 6, 3);
-  ctx.fill();
-
-  // headlights glow on road
-  const beam = ctx.createRadialGradient(0, 55, 4, 0, 90, 110);
-  beam.addColorStop(0, `rgba(116, 185, 255, ${0.35 * lightPulse})`);
-  beam.addColorStop(1, "rgba(116, 185, 255, 0)");
+  // ışık huzmesi ileri
+  const beam = ctx.createRadialGradient(0, -70, 2, 0, -120, 80);
+  beam.addColorStop(0, `rgba(116,185,255,${0.4 * pulse})`);
+  beam.addColorStop(1, "rgba(116,185,255,0)");
   ctx.fillStyle = beam;
   ctx.beginPath();
-  ctx.moveTo(-30, 28);
-  ctx.lineTo(30, 28);
-  ctx.lineTo(70, 130);
-  ctx.lineTo(-70, 130);
+  ctx.moveTo(-16, -58);
+  ctx.lineTo(16, -58);
+  ctx.lineTo(50, -150);
+  ctx.lineTo(-50, -150);
   ctx.closePath();
   ctx.fill();
 
-  // wheels
-  const drive = state.drive;
-  const wa = drive ? drive.wheelAngle : 0;
-  drawWheel(-42, 30, wa);
-  drawWheel(42, 30, wa);
-
-  // side mirrors
-  ctx.fillStyle = "#2f3542";
-  roundRectPath(-74, -6, 10, 8, 3);
-  ctx.fill();
-  roundRectPath(64, -6, 10, 8, 3);
+  // arka stop
+  ctx.fillStyle = "#ff6b6b";
+  roundRectPath(-16, 50, 32, 5, 2);
   ctx.fill();
 
-  // Tesla T badge
+  // tekerlekler
+  ctx.fillStyle = "#1e272e";
+  roundRectPath(-34, -38, 10, 22, 4);
+  ctx.fill();
+  roundRectPath(24, -38, 10, 22, 4);
+  ctx.fill();
+  roundRectPath(-34, 20, 10, 22, 4);
+  ctx.fill();
+  roundRectPath(24, 20, 10, 22, 4);
+  ctx.fill();
+
+  // Tesla T
   ctx.fillStyle = "#2f3542";
-  ctx.font = "900 16px Fredoka, sans-serif";
+  ctx.font = "900 15px Fredoka, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("T", 0, 4);
+  ctx.fillText("T", 0, 36);
 
-  ctx.restore();
-}
-
-function drawWheel(x, y, angle) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.fillStyle = "#1e272e";
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 14, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.rotate(angle);
-  ctx.strokeStyle = "#747d8c";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(-8, 0);
-  ctx.lineTo(8, 0);
-  ctx.moveTo(0, -6);
-  ctx.lineTo(0, 6);
-  ctx.stroke();
   ctx.restore();
 }
 
@@ -1465,7 +1802,9 @@ function startBoost() {
 function updateHud() {
   const level = currentLevel();
   ui.score.textContent = String(state.score);
-  ui.time.textContent = String(Math.max(0, Math.ceil(state.timeLeft)));
+  ui.time.textContent = isFillMode()
+    ? `${(state.fill && state.fill.mapIndex + 1) || 1}/3`
+    : String(Math.max(0, Math.ceil(state.timeLeft)));
   if (ui.level) ui.level.textContent = String(level.id);
 
   if (state.running && state.boostLeft > 0) {
@@ -1515,6 +1854,7 @@ function startGame() {
   state.usedQuizIds = [];
   state.levelIndex = 0;
   state.pendingLevelIndex = 1;
+  state.fillMapIndex = 0;
   setBoosting(false);
   startLevel(0, true);
 }
@@ -1554,12 +1894,20 @@ function startLevel(levelIndex, fromMenu = false) {
   if (level.mode === "hop") {
     initHopMode();
     state.drive = null;
+    state.fill = null;
   } else if (level.mode === "drive") {
     state.hop = null;
+    state.fill = null;
     initDriveMode();
+  } else if (level.mode === "fill") {
+    state.hop = null;
+    state.drive = null;
+    if (state.fillMapIndex == null) state.fillMapIndex = 0;
+    initFillMode();
   } else {
     state.hop = null;
     state.drive = null;
+    state.fill = null;
     for (let i = 0; i < (levelIndex === 0 ? 5 : 7); i++) spawnBalloon();
   }
 }
@@ -1572,6 +1920,7 @@ function completeLevel() {
   state.balloons = [];
   state.hop = null;
   state.drive = null;
+  state.fill = null;
 
   const finishedId = currentLevel().id;
   const nextIndex = state.levelIndex + 1;
@@ -2064,6 +2413,8 @@ function update(dt) {
     updateHop(dt);
   } else if (isDriveMode()) {
     updateDrive(dt);
+  } else if (isFillMode()) {
+    updateFill(dt);
   } else {
     // Boost sırasında ana süre dondurulur
     if (state.boostLeft > 0) {
@@ -2158,6 +2509,8 @@ function frame(ts) {
     drawDriveWorld(dt);
     for (const b of state.balloons) drawBalloon(b);
     if (state.drive) drawTesla(state.drive.carX, state.drive.carY, state.drive.steer);
+  } else if (state.mode === "play" && isFillMode()) {
+    drawFillWorld();
   } else {
     drawBackground(dt);
     for (const b of state.balloons) drawBalloon(b);
@@ -2180,6 +2533,11 @@ function onPointer(e) {
   if (state.mode !== "play" || !state.running) return;
   e.preventDefault();
   const { x, y } = pointerPos(e);
+  if (isFillMode()) {
+    state.swipe = { x, y };
+    handleFillPointer(x, y);
+    return;
+  }
   if (isHopMode()) {
     const tile = hopHitTest(x, y);
     if (!tile) return;
@@ -2199,16 +2557,36 @@ function onPointer(e) {
 }
 
 function onPointerMove(e) {
-  if (state.mode !== "play" || !state.running || !isDriveMode() || !state.drive) return;
-  if (e.buttons === 0 && e.type === "pointermove" && !e.pressure) {
-    // allow touchmove without buttons
+  if (state.mode !== "play" || !state.running) return;
+  if (isDriveMode() && state.drive) {
+    const { x } = pointerPos(e);
+    state.drive.targetX = x;
   }
-  const { x } = pointerPos(e);
-  state.drive.targetX = x;
 }
 
-function onPointerUp() {
+function onPointerUp(e) {
   if (state.drive) state.drive.pointerActive = false;
+  if (!isFillMode() || !state.swipe || !state.running || state.mode !== "play") {
+    state.swipe = null;
+    return;
+  }
+  const { x, y } = pointerPos(e.changedTouches ? e : e);
+  // touchend may need changedTouches
+  let ux = x;
+  let uy = y;
+  if (e.changedTouches && e.changedTouches[0]) {
+    ux = e.changedTouches[0].clientX;
+    uy = e.changedTouches[0].clientY;
+  } else if (e.clientX != null) {
+    ux = e.clientX;
+    uy = e.clientY;
+  }
+  const dx = ux - state.swipe.x;
+  const dy = uy - state.swipe.y;
+  state.swipe = null;
+  if (Math.hypot(dx, dy) < 28) return;
+  if (Math.abs(dx) > Math.abs(dy)) tryFillMove(dx > 0 ? 1 : -1, 0);
+  else tryFillMove(0, dy > 0 ? 1 : -1);
 }
 
 function bindUi() {
