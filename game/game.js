@@ -198,6 +198,7 @@ const ui = {
   btnHow: $("btnHow"),
   btnHowClose: $("btnHowClose"),
   btnPause: $("btnPause"),
+  btnFillRestart: $("btnFillRestart"),
   btnResume: $("btnResume"),
   btnQuit: $("btnQuit"),
   btnAgain: $("btnAgain"),

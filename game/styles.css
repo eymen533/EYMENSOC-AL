@@ -340,6 +340,30 @@ html, body {
   cursor: pointer;
 }
 
+.restart-btn {
+  position: absolute;
+  left: 50%;
+  bottom: calc(28px + var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: 7;
+  border: 0;
+  border-radius: 22px;
+  min-height: 56px;
+  padding: 12px 28px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, #ff8a7a, #ff6b6b);
+  box-shadow: 0 10px 0 #d94f4f, 0 16px 28px rgba(217, 79, 79, 0.28);
+  cursor: pointer;
+  animation: popIn 0.28s ease, pulse 1.6s ease-in-out infinite;
+}
+
+.restart-btn[hidden] {
+  display: none !important;
+}
+
 .bonus-banner {
   position: absolute;
   inset: 0;
