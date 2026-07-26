@@ -261,6 +261,7 @@ const state = {
   drive: null,
   fill: null,
   fillMapIndex: 0,
+  fillStuckCount: 0,
   fillTipTimer: null,
   swipe: null,
 };
@@ -319,6 +320,11 @@ const FILL_LEVELS = [
       "Sadece ok yönlerine gidebilirsin",
       "Duvara çarpma — yolunu planla",
     ],
+    stuckHints: [
+      "Kenarlardan dolaş, ortayı sona bırak",
+      "Her zaman çıkışın olan kareye git",
+      "Uzun kenarı önce dolaş",
+    ],
     facts: [
       "Balonlar sıcak havayla yükselir!",
       "Renkler gökkuşağında sırayla dizilir",
@@ -336,9 +342,8 @@ const FILL_LEVELS = [
     rows: [
       "#######",
       "#S....#",
-      "#.#.#.#",
       "#.....#",
-      "#.#.#.#",
+      "#.....#",
       "#.....#",
       "#######",
     ],
@@ -350,6 +355,11 @@ const FILL_LEVELS = [
       "Köprüden geç, tüm yolu doldur!",
       "Dar geçitlerde yavaş düşün",
       "Sıkışırsan Yeniden dene",
+    ],
+    stuckHints: [
+      "Zikzak koridoru takip et",
+      "Önce sağa git, sonra aşağı in",
+      "Dar yolda geri dönüş yok",
     ],
     facts: [
       "Gökkuşağında 7 ana renk vardır",
@@ -366,15 +376,13 @@ const FILL_LEVELS = [
       decor: "rainbow",
     },
     rows: [
-      "#########",
-      "#S......#",
-      "###.###.#",
-      "#...#...#",
-      "#.#.###.#",
-      "#.#.....#",
-      "#.#####.#",
-      "#.......#",
-      "#########",
+      "########",
+      "#S.....#",
+      "######.#",
+      "#......#",
+      "#.######",
+      "#......#",
+      "########",
     ],
   },
   {
@@ -384,6 +392,11 @@ const FILL_LEVELS = [
       "Yıldız yolunu tamamen boya!",
       "Önce uzun yolları düşün",
       "Son kareye kadar devam et",
+    ],
+    stuckHints: [
+      "Zikzak yolu sırayla doldur",
+      "Sağa kaydırarak başla",
+      "Koridorun dışına çıkma",
     ],
     facts: [
       "Yıldızlar çok uzakta ateş toplarıdır",
@@ -402,11 +415,11 @@ const FILL_LEVELS = [
     rows: [
       "#########",
       "#S......#",
-      "#.###.#.#",
-      "#.#...#.#",
-      "#...#...#",
-      "#.#...#.#",
-      "#.#.###.#",
+      "#######.#",
+      "#.......#",
+      "#.#######",
+      "#.......#",
+      "#######.#",
       "#.......#",
       "#########",
     ],
@@ -415,9 +428,14 @@ const FILL_LEVELS = [
     id: "spiral",
     name: "Şeker Spiral",
     tips: [
-      "Spirali dıştan içe doldur!",
+      "U şeklinde dolan, hepsini boya!",
       "Tek yanlış hamle = yeniden başla",
       "Sabırlı ol, şampiyon ol!",
+    ],
+    stuckHints: [
+      "Önce sağa, sonra U çiz",
+      "İç koridora erken girme",
+      "Kenarlardan içeri kıvrıl",
     ],
     facts: [
       "Spiral doğada sık görülür",
@@ -434,15 +452,14 @@ const FILL_LEVELS = [
       decor: "candy",
     },
     rows: [
-      "#########",
-      "#S......#",
-      "#......##",
-      "##.###..#",
-      "#..#.#..#",
-      "#..#...##",
-      "##.####.#",
-      "#.......#",
-      "#########",
+      "########",
+      "#S.....#",
+      "#.####.#",
+      "#.#....#",
+      "#.#.####",
+      "#.#....#",
+      "#......#",
+      "########",
     ],
   },
 ];
@@ -494,6 +511,131 @@ function canFillMove() {
   return false;
 }
 
+function cloneFillGrid(grid) {
+  return grid.map((row) => row.slice());
+}
+
+function simulateFillLine(grid, head, dc, dr, rows, cols) {
+  const nc = head.c + dc;
+  const nr = head.r + dr;
+  if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) return null;
+  if (grid[nr][nc] !== 1) return null;
+  grid[head.r][head.c] = 2;
+  grid[nr][nc] = 3;
+  return { head: { c: nc, r: nr }, steps: 1 };
+}
+
+function countFillExits(grid, head, rows, cols) {
+  let n = 0;
+  const dirs = [
+    [0, -1],
+    [0, 1],
+    [-1, 0],
+    [1, 0],
+  ];
+  for (const [dc, dr] of dirs) {
+    const nc = head.c + dc;
+    const nr = head.r + dr;
+    if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+    if (grid[nr][nc] === 1) n += 1;
+  }
+  return n;
+}
+
+function solveFillPath(mapRows) {
+  const parsed = parseFillMap(mapRows);
+  const rows = parsed.grid.length;
+  const cols = parsed.grid[0].length;
+  const emptyTotal = parsed.emptyTotal;
+  const dirs = [
+    { dc: 0, dr: -1, name: "yukarı", label: "▲" },
+    { dc: 0, dr: 1, name: "aşağı", label: "▼" },
+    { dc: -1, dr: 0, name: "sola", label: "◀" },
+    { dc: 1, dr: 0, name: "sağa", label: "▶" },
+  ];
+
+  function dfs(grid, head, filled) {
+    if (filled >= emptyTotal) return [];
+    const options = [];
+    for (const d of dirs) {
+      const g2 = cloneFillGrid(grid);
+      const res = simulateFillLine(g2, head, d.dc, d.dr, rows, cols);
+      if (!res) continue;
+      const exits = countFillExits(g2, res.head, rows, cols);
+      // dead-end guard: if not finished and zero exits, skip
+      if (filled + 1 < emptyTotal && exits === 0) continue;
+      options.push({
+        ...d,
+        grid: g2,
+        head: res.head,
+        filled: filled + 1,
+        exits,
+      });
+    }
+    // Warnsdorff: az çıkışlı yönleri önce dene
+    options.sort((a, b) => a.exits - b.exits);
+    for (const opt of options) {
+      const rest = dfs(opt.grid, opt.head, opt.filled);
+      if (rest) {
+        return [{ dc: opt.dc, dr: opt.dr, name: opt.name, label: opt.label }, ...rest];
+      }
+    }
+    return null;
+  }
+
+  return dfs(cloneFillGrid(parsed.grid), { ...parsed.head }, 1);
+}
+
+function dirHintText(step) {
+  if (!step) return "İpucu: yolu yeniden planla";
+  return `İpucu: önce ${step.name} kaydır ${step.label}`;
+}
+
+function offerStuckHint(reason = "stuck") {
+  const f = state.fill;
+  if (!f) return;
+  const level = getFillLevel(f.mapIndex);
+  if (!f.solution) {
+    f.solution = solveFillPath(level.rows);
+  }
+  f.stuckCount = (f.stuckCount || 0) + 1;
+  state.fillStuckCount = f.stuckCount;
+  const sol = f.solution || [];
+  const first = sol[0];
+  const second = sol[1];
+
+  f.hintDir = first ? { dc: first.dc, dr: first.dr, label: first.label } : null;
+  f.hintFlash = 4.5;
+
+  const tips = [];
+  if (reason === "wrong") {
+    tips.push("Yanlış yön — duvara gittin");
+  } else {
+    tips.push("Sıkıştın! Yol kapandı");
+  }
+  tips.push(dirHintText(first));
+  if (f.stuckCount >= 2 && second) {
+    tips.push(`Sonra ${second.name} git ${second.label}`);
+  } else if (level.stuckHints && level.stuckHints.length) {
+    tips.push(level.stuckHints[(f.stuckCount - 1) % level.stuckHints.length]);
+  } else {
+    tips.push("Yeniden dene, ipucunu takip et");
+  }
+
+  const colors = ["#ff7675", "#ffeaa7", "#74b9ff"];
+  tips.forEach((tip, i) => {
+    setTimeout(() => {
+      if (!state.fill) return;
+      popFillTip(tip, colors[i % colors.length], { mega: i < 2, life: 1.65, yOff: i * 8 });
+    }, i * 420);
+  });
+
+  const speakText = first
+    ? `Sıkıştın. İpucu: önce ${first.name} kaydır. Yeniden dene.`
+    : "Sıkıştın. Yeniden dene.";
+  speak(speakText);
+}
+
 function setFillRestartVisible(show) {
   if (!ui.btnFillRestart) return;
   ui.btnFillRestart.hidden = !show;
@@ -539,6 +681,10 @@ function initFillMode() {
     needsRestart: false,
     tipCooldown: 0,
     factIndex: 0,
+    stuckCount: state.fillStuckCount || 0,
+    solution: solveFillPath(level.rows),
+    hintDir: null,
+    hintFlash: 0,
     sparkles: Array.from({ length: 18 }, (_, i) => ({
       x: Math.random(),
       y: Math.random(),
@@ -554,6 +700,17 @@ function initFillMode() {
   state.rings = [];
   showBanner(level.name, "combo");
   speak(level.name);
+  // önceki sıkışmadan gelen ipucu varsa hemen göster
+  if (state.fillStuckCount > 0 && state.fill.solution && state.fill.solution[0]) {
+    const first = state.fill.solution[0];
+    state.fill.hintDir = { dc: first.dc, dr: first.dr, label: first.label };
+    state.fill.hintFlash = 5;
+    setTimeout(() => {
+      if (!state.fill || state.fill.mapIndex !== mapIndex) return;
+      popFillTip(dirHintText(first), "#ffeaa7", { mega: true, life: 1.8 });
+      speak(`İpucu: önce ${first.name} kaydır`);
+    }, 700);
+  }
   setTimeout(() => {
     if (!state.fill || state.fill.mapIndex !== mapIndex) return;
     const tips = [
@@ -595,63 +752,61 @@ function fillCellCenter(c, r) {
 
 function tryFillMove(dc, dr) {
   const f = state.fill;
-  if (!f || f.won || (!dc && !dr)) return;
+  if (!f || f.won || f.needsRestart || (!dc && !dr)) return;
   let { c, r } = f.head;
-  let moved = false;
-  let steps = 0;
-  while (true) {
-    const nc = c + dc;
-    const nr = r + dr;
-    if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols) break;
-    const cell = f.grid[nr][nc];
-    if (cell !== 1) break;
-    f.grid[r][c] = 2;
-    f.grid[nr][nc] = 3;
-    c = nc;
-    r = nr;
-    f.head = { c, r };
-    f.body.push({ c, r });
-    f.filled += 1;
-    steps += 1;
-    moved = true;
-    const p = fillCellCenter(c, r);
-    burst(p.x, p.y, (f.theme.fill && f.theme.fill[1]) || "#ffd166", steps > 2 && steps % 3 === 0);
-    if (steps % 2 === 0) {
-      state.rings.push({
-        x: p.x,
-        y: p.y,
-        r: 6,
-        max: f.cell * 0.9,
-        life: 0.35,
-        age: 0,
-        color: (f.theme && f.theme.accent) || "#74b9ff",
-        width: 4,
-      });
+  const nc = c + dc;
+  const nr = r + dr;
+  if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols || f.grid[nr][nc] !== 1) {
+    // hâlâ başka yol varsa soft uyarı; yoksa sıkışma
+    if (canFillMove()) {
+      popFillTip("Bu yöne gidemezsin", "#ff7675");
+      playSkullBuzz();
+      haptic("light");
+      return;
     }
-  }
-  if (!moved) {
     f.needsRestart = true;
     setFillRestartVisible(true);
-    showBanner("YANLIŞ!", "boost");
-    popFillTip("Bu yoldan gidemezsin!", "#ff7675", { mega: true });
-    popFillTip("Yeniden dene butonuna bas", "#ffeaa7");
+    showBanner("SIKIŞTIN!", "boost");
+    offerStuckHint("stuck");
     playSkullBuzz();
     haptic("light");
-    speak("Yanlış hareket. Yeniden dene.");
     return;
   }
+
+  // Longcat tarzı: her hamlede 1 kare uzat
+  f.grid[r][c] = 2;
+  f.grid[nr][nc] = 3;
+  f.head = { c: nc, r: nr };
+  f.body.push({ c: nc, r: nr });
+  f.filled += 1;
+  const steps = 1;
+  const p = fillCellCenter(nc, nr);
+  burst(p.x, p.y, (f.theme.fill && f.theme.fill[1]) || "#ffd166", false);
+  state.rings.push({
+    x: p.x,
+    y: p.y,
+    r: 6,
+    max: f.cell * 0.9,
+    life: 0.35,
+    age: 0,
+    color: (f.theme && f.theme.accent) || "#74b9ff",
+    width: 4,
+  });
+
   f.moveFlash = 0.28;
   playHopMelody();
   playPop(1.1);
   haptic("medium");
-  const gained = 8 * Math.max(1, steps);
+  const gained = 8;
   state.score += gained;
   bumpScore();
   updateHud();
   const progress = Math.round((f.filled / f.emptyTotal) * 100);
-  popFillTip(`+${gained} puan!`, "#ffeaa7", { size: 30 });
-  if (steps >= 3) {
-    setTimeout(() => popFillTip(`${steps} kare birden!`, "#55efc4", { mega: true }), 180);
+  popFillTip(`+${gained}`, "#ffeaa7", { size: 28 });
+
+  // doğru yoldaysa ipucu ışığını azalt
+  if (f.hintDir && f.hintDir.dc === dc && f.hintDir.dr === dr) {
+    f.hintFlash = Math.max(0, f.hintFlash - 1.2);
   }
 
   if (f.filled >= f.emptyTotal) {
@@ -671,6 +826,7 @@ function tryFillMove(dc, dr) {
     updateHud();
     setTimeout(() => {
       state.fillMapIndex = f.mapIndex + 1;
+      state.fillStuckCount = 0;
       if (state.fillMapIndex < FILL_LEVELS.length) {
         const next = getFillLevel(state.fillMapIndex);
         showBanner(next.name, "boost");
@@ -688,8 +844,9 @@ function tryFillMove(dc, dr) {
     f.needsRestart = true;
     setFillRestartVisible(true);
     showBanner("SIKIŞTIN!", "boost");
-    popFillTip("Sıkıştın! Yeniden dene", "#ff7675", { mega: true });
-    speak("Sıkıştın. Yeniden başlat.");
+    offerStuckHint("stuck");
+    playSkullBuzz();
+    haptic("medium");
   } else if (progress === 25) {
     popFillTip("Güzel başlangıç!", "#74b9ff", { mega: true });
   } else if (progress === 50) {
@@ -706,6 +863,7 @@ function updateFill(dt) {
   if (!f) return;
   f.hintPulse += dt;
   if (f.moveFlash > 0) f.moveFlash = Math.max(0, f.moveFlash - dt);
+  if (f.hintFlash > 0) f.hintFlash = Math.max(0, f.hintFlash - dt);
   // sonsuz süre — süre göstergesini gizle/dondur
   state.timeLeft = 0;
   updateHud();
@@ -893,19 +1051,55 @@ function drawFillWorld() {
     if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols) continue;
     if (f.grid[nr][nc] !== 1) continue;
     const p = fillCellCenter(nc, nr);
-    const ring = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, f.cell * 0.38);
-    ring.addColorStop(0, "rgba(255,255,255,0.9)");
-    ring.addColorStop(0.5, hexToRgba(theme.accent || "#74b9ff", 0.45 + pulse * 0.4));
-    ring.addColorStop(1, hexToRgba(theme.accent || "#74b9ff", 0));
+    const isHint =
+      f.hintFlash > 0 &&
+      f.hintDir &&
+      f.hintDir.dc === d.dc &&
+      f.hintDir.dr === d.dr;
+    const ring = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, f.cell * (isHint ? 0.48 : 0.38));
+    if (isHint) {
+      const blink = 0.55 + 0.45 * Math.sin(f.hintPulse * 8);
+      ring.addColorStop(0, "rgba(255,255,255,0.95)");
+      ring.addColorStop(0.45, `rgba(255, 209, 102, ${0.55 + blink * 0.4})`);
+      ring.addColorStop(1, "rgba(255, 118, 117, 0)");
+    } else {
+      ring.addColorStop(0, "rgba(255,255,255,0.9)");
+      ring.addColorStop(0.5, hexToRgba(theme.accent || "#74b9ff", 0.45 + pulse * 0.4));
+      ring.addColorStop(1, hexToRgba(theme.accent || "#74b9ff", 0));
+    }
     ctx.fillStyle = ring;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, f.cell * 0.38, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, f.cell * (isHint ? 0.48 : 0.38), 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = theme.accent || "#0984e3";
-    ctx.font = `900 ${Math.floor(f.cell * 0.34)}px Fredoka, sans-serif`;
+    if (isHint) {
+      ctx.strokeStyle = "#ffeaa7";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, f.cell * 0.42, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = isHint ? "#d63031" : theme.accent || "#0984e3";
+    ctx.font = `900 ${Math.floor(f.cell * (isHint ? 0.4 : 0.34))}px Fredoka, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(d.label, p.x, p.y + 1);
+  }
+
+  // floating hint chip while flashing
+  if (f.hintFlash > 0 && f.hintDir) {
+    const alpha = Math.min(1, f.hintFlash / 1.2);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const chipY = Math.max(52, f.originY - 58);
+    ctx.fillStyle = "rgba(45,52,54,0.72)";
+    roundRectPath(state.width * 0.5 - 110, chipY - 16, 220, 32, 16);
+    ctx.fill();
+    ctx.fillStyle = "#ffeaa7";
+    ctx.font = "900 15px Fredoka, Nunito, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`İPUCU ${f.hintDir.label}  bu yöne git!`, state.width * 0.5, chipY);
+    ctx.restore();
   }
 
   // title + progress
@@ -2357,6 +2551,7 @@ function startGame() {
   state.levelIndex = 3;
   state.pendingLevelIndex = 3;
   state.fillMapIndex = 0;
+  state.fillStuckCount = 0;
   setBoosting(false);
   startLevel(3, true);
 }
@@ -3113,9 +3308,10 @@ function bindUi() {
     ui.btnFillRestart.addEventListener("click", () => {
       if (!isFillMode()) return;
       playPop(0.9);
+      const hadStuck = (state.fillStuckCount || 0) > 0;
       initFillMode();
-      showBanner("YENİDEN!", "bonus");
-      speak("Yeniden başlıyoruz.");
+      showBanner(hadStuck ? "İPUCU!" : "YENİDEN!", hadStuck ? "boost" : "bonus");
+      if (!hadStuck) speak("Yeniden başlıyoruz.");
     });
   }
   ui.btnResume.addEventListener("click", () => {
