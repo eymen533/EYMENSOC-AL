@@ -12,7 +12,7 @@ const LEVELS = [
     spawnBase: 0.85,
     speedMul: 1,
     label: "Isınma",
-    desc: "Balonları patlat! Kurukafalılara basma!",
+    desc: "Balonları patlat, renk kombo yap!",
   },
   {
     id: 2,
@@ -26,11 +26,11 @@ const LEVELS = [
     id: 3,
     name: "Seviye 3",
     time: 55,
-    mode: "balloons",
-    spawnBase: 0.36,
-    speedMul: 1.55,
-    label: "Şampiyonluk",
-    desc: "Son seviye! En yüksek skoru yakala!",
+    mode: "drive",
+    spawnBase: 0.42,
+    speedMul: 1.2,
+    label: "Tesla Yarışı",
+    desc: "Tesla ile sağa sola git, balonları ez!",
   },
 ];
 
@@ -212,6 +212,7 @@ const state = {
   bonusTimer: 0,
   beatT: 0,
   hop: null,
+  drive: null,
 };
 
 let audioCtx = null;
@@ -248,6 +249,320 @@ function pickQuiz(afterLevel) {
 
 function isHopMode() {
   return currentLevel().mode === "hop";
+}
+
+function isDriveMode() {
+  return currentLevel().mode === "drive";
+}
+
+function initDriveMode() {
+  state.hop = null;
+  state.balloons = [];
+  state.drive = {
+    carX: state.width * 0.5,
+    targetX: state.width * 0.5,
+    carY: state.height * 0.78,
+    steer: 0,
+    roadOffset: 0,
+    speed: 280,
+    wheelAngle: 0,
+    headlightPulse: 0,
+    trail: [],
+    pointerActive: false,
+  };
+  for (let i = 0; i < 6; i++) spawnDriveBalloon(true);
+}
+
+function spawnDriveBalloon(initial = false) {
+  const boosting = state.boostLeft > 0;
+  let color;
+  if (boosting && Math.random() < 0.28) {
+    color = COLORS.find((c) => c.skull);
+  } else if (Math.random() < 0.14) {
+    color = COLORS.find((c) => c.gold);
+  } else {
+    color = pick(COLORS.filter((c) => !c.gold && !c.skull));
+  }
+  const r = color.gold || color.skull ? rand(36, 50) : rand(30, 44);
+  const margin = 36;
+  state.balloons.push({
+    x: rand(margin + r, state.width - margin - r),
+    y: initial ? rand(-state.height * 0.2, state.height * 0.45) : -r - rand(10, 120),
+    r,
+    vy: rand(90, 150) + (boosting ? 70 : 0) + Math.min(80, state.score / 50),
+    wobble: rand(0, Math.PI * 2),
+    wobbleSpeed: rand(1.8, 3.5),
+    wobbleAmp: rand(18, 40),
+    color,
+    popped: false,
+    scale: 1,
+    pulse: rand(0, Math.PI * 2),
+    birth: performance.now(),
+    driveMode: true,
+  });
+}
+
+function drawTesla(x, y, steer = 0) {
+  const lean = Math.max(-0.12, Math.min(0.12, steer * 0.04));
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(lean);
+
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  ctx.beginPath();
+  ctx.ellipse(0, 38, 62, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // body - Tesla Model 3 inspired white/silver
+  const bodyGrad = ctx.createLinearGradient(-70, -20, 70, 40);
+  bodyGrad.addColorStop(0, "#f5f6fa");
+  bodyGrad.addColorStop(0.45, "#dfe4ea");
+  bodyGrad.addColorStop(1, "#a4b0be");
+  roundRectPath(-68, -18, 136, 48, 18);
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+
+  // dark glass roof / canopy
+  const glass = ctx.createLinearGradient(0, -28, 0, 8);
+  glass.addColorStop(0, "#1e272e");
+  glass.addColorStop(1, "#485460");
+  roundRectPath(-48, -30, 96, 28, 14);
+  ctx.fillStyle = glass;
+  ctx.fill();
+
+  // windshield highlight
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.beginPath();
+  ctx.ellipse(-18, -18, 22, 8, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // front bumper / nose
+  ctx.fillStyle = "#ced6e0";
+  roundRectPath(-58, 18, 116, 14, 8);
+  ctx.fill();
+
+  // Tesla light bar (front)
+  const lightPulse = 0.65 + Math.sin(state.beatT * 8) * 0.2;
+  const lightGrad = ctx.createLinearGradient(-40, 22, 40, 22);
+  lightGrad.addColorStop(0, "rgba(116, 185, 255, 0)");
+  lightGrad.addColorStop(0.5, `rgba(116, 185, 255, ${lightPulse})`);
+  lightGrad.addColorStop(1, "rgba(116, 185, 255, 0)");
+  ctx.fillStyle = lightGrad;
+  roundRectPath(-42, 20, 84, 6, 3);
+  ctx.fill();
+
+  // headlights glow on road
+  const beam = ctx.createRadialGradient(0, 55, 4, 0, 90, 110);
+  beam.addColorStop(0, `rgba(116, 185, 255, ${0.35 * lightPulse})`);
+  beam.addColorStop(1, "rgba(116, 185, 255, 0)");
+  ctx.fillStyle = beam;
+  ctx.beginPath();
+  ctx.moveTo(-30, 28);
+  ctx.lineTo(30, 28);
+  ctx.lineTo(70, 130);
+  ctx.lineTo(-70, 130);
+  ctx.closePath();
+  ctx.fill();
+
+  // wheels
+  const drive = state.drive;
+  const wa = drive ? drive.wheelAngle : 0;
+  drawWheel(-42, 30, wa);
+  drawWheel(42, 30, wa);
+
+  // side mirrors
+  ctx.fillStyle = "#2f3542";
+  roundRectPath(-74, -6, 10, 8, 3);
+  ctx.fill();
+  roundRectPath(64, -6, 10, 8, 3);
+  ctx.fill();
+
+  // Tesla T badge
+  ctx.fillStyle = "#2f3542";
+  ctx.font = "900 16px Fredoka, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("T", 0, 4);
+
+  ctx.restore();
+}
+
+function drawWheel(x, y, angle) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = "#1e272e";
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 14, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.rotate(angle);
+  ctx.strokeStyle = "#747d8c";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-8, 0);
+  ctx.lineTo(8, 0);
+  ctx.moveTo(0, -6);
+  ctx.lineTo(0, 6);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function roundRectPath(x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function drawDriveWorld(dt) {
+  const drive = state.drive;
+  if (!drive) return;
+
+  // sunset / neon highway sky
+  const sky = ctx.createLinearGradient(0, 0, 0, state.height);
+  sky.addColorStop(0, "#0f0c29");
+  sky.addColorStop(0.35, "#302b63");
+  sky.addColorStop(0.7, "#ff6b6b");
+  sky.addColorStop(1, "#feca57");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, state.width, state.height);
+
+  // sun
+  const sun = ctx.createRadialGradient(state.width * 0.5, state.height * 0.42, 10, state.width * 0.5, state.height * 0.42, 90);
+  sun.addColorStop(0, "rgba(255, 234, 167, 0.95)");
+  sun.addColorStop(0.5, "rgba(255, 159, 67, 0.55)");
+  sun.addColorStop(1, "rgba(255, 107, 107, 0)");
+  ctx.fillStyle = sun;
+  ctx.beginPath();
+  ctx.arc(state.width * 0.5, state.height * 0.42, 90, 0, Math.PI * 2);
+  ctx.fill();
+
+  // city silhouettes
+  ctx.fillStyle = "rgba(20, 20, 40, 0.85)";
+  const baseY = state.height * 0.52;
+  for (let i = 0; i < 12; i++) {
+    const bx = ((i * 70 - drive.roadOffset * 0.15) % (state.width + 80)) - 40;
+    const bh = 40 + (i % 5) * 18;
+    ctx.fillRect(bx, baseY - bh, 48, bh);
+  }
+
+  // road
+  const roadTop = state.height * 0.55;
+  ctx.fillStyle = "#2f3542";
+  ctx.beginPath();
+  ctx.moveTo(0, state.height);
+  ctx.lineTo(0, roadTop + 40);
+  ctx.lineTo(state.width * 0.15, roadTop);
+  ctx.lineTo(state.width * 0.85, roadTop);
+  ctx.lineTo(state.width, roadTop + 40);
+  ctx.lineTo(state.width, state.height);
+  ctx.closePath();
+  ctx.fill();
+
+  // road edge glow
+  ctx.strokeStyle = "rgba(116, 185, 255, 0.45)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(state.width * 0.18, roadTop + 8);
+  ctx.lineTo(24, state.height);
+  ctx.moveTo(state.width * 0.82, roadTop + 8);
+  ctx.lineTo(state.width - 24, state.height);
+  ctx.stroke();
+
+  // dashed center lines
+  ctx.strokeStyle = "#f1c40f";
+  ctx.lineWidth = 5;
+  ctx.setLineDash([28, 26]);
+  ctx.lineDashOffset = -drive.roadOffset;
+  ctx.beginPath();
+  ctx.moveTo(state.width * 0.5, roadTop + 10);
+  ctx.lineTo(state.width * 0.5, state.height + 20);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // motion streaks when boosting
+  if (state.boostLeft > 0) {
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 14; i++) {
+      const sx = (i * 97 + drive.roadOffset * 2) % state.width;
+      const sy = (i * 53 + drive.roadOffset) % state.height;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx, sy + 28);
+      ctx.stroke();
+    }
+  }
+
+  // balloons drawn by caller after this, then car on top
+}
+
+function updateDrive(dt) {
+  const drive = state.drive;
+  if (!drive) return;
+
+  // timer / boost
+  if (state.boostLeft > 0) {
+    state.boostLeft -= dt;
+    if (state.boostLeft <= 0) {
+      state.boostLeft = 0;
+      setBoosting(false);
+      showBanner("BOOST BİTTİ", "bonus");
+    }
+  } else {
+    state.timeLeft -= dt;
+    if (state.timeLeft <= 0) {
+      state.timeLeft = 0;
+      updateHud();
+      endGame();
+      return;
+    }
+  }
+
+  state.comboTimer -= dt;
+  if (state.comboTimer <= 0) state.combo = 0;
+
+  // steer toward target
+  const maxX = state.width - 70;
+  const minX = 70;
+  drive.targetX = Math.max(minX, Math.min(maxX, drive.targetX));
+  const prevX = drive.carX;
+  drive.carX += (drive.targetX - drive.carX) * Math.min(1, dt * 10);
+  drive.steer = (drive.carX - prevX) / Math.max(dt, 0.001) / 200;
+  drive.carY = state.height * 0.78;
+  drive.speed = state.boostLeft > 0 ? 420 : 280;
+  drive.roadOffset = (drive.roadOffset + drive.speed * dt) % 1000;
+  drive.wheelAngle += drive.speed * dt * 0.05;
+  drive.headlightPulse += dt;
+
+  // spawn balloons from top
+  const boosting = state.boostLeft > 0;
+  const spawnRate = boosting ? 0.18 : Math.max(0.28, 0.55 - state.score / 2000);
+  state.spawnTimer -= dt;
+  if (state.spawnTimer <= 0) {
+    spawnDriveBalloon();
+    if (Math.random() < 0.4) spawnDriveBalloon();
+    if (boosting && Math.random() < 0.5) spawnDriveBalloon();
+    state.spawnTimer = spawnRate;
+  }
+
+  // collide car with balloons
+  const carHitY = drive.carY - 10;
+  const carW = 70;
+  for (const b of state.balloons) {
+    if (b.popped) continue;
+    const dx = b.x - drive.carX;
+    const dy = b.y - carHitY;
+    if (Math.abs(dx) < carW * 0.7 + b.r * 0.35 && Math.abs(dy) < 36 + b.r * 0.4) {
+      popBalloon(b);
+    }
+  }
+
+  updateHud();
 }
 
 function playHopBeat(intensity = 1) {
@@ -1238,8 +1553,13 @@ function startLevel(levelIndex, fromMenu = false) {
   if (!fromMenu) speak(`${level.name}. ${level.desc}`);
   if (level.mode === "hop") {
     initHopMode();
+    state.drive = null;
+  } else if (level.mode === "drive") {
+    state.hop = null;
+    initDriveMode();
   } else {
     state.hop = null;
+    state.drive = null;
     for (let i = 0; i < (levelIndex === 0 ? 5 : 7); i++) spawnBalloon();
   }
 }
@@ -1251,6 +1571,7 @@ function completeLevel() {
   stopBoostMusic();
   state.balloons = [];
   state.hop = null;
+  state.drive = null;
 
   const finishedId = currentLevel().id;
   const nextIndex = state.levelIndex + 1;
@@ -1741,6 +2062,8 @@ function update(dt) {
     }
   } else if (isHopMode()) {
     updateHop(dt);
+  } else if (isDriveMode()) {
+    updateDrive(dt);
   } else {
     // Boost sırasında ana süre dondurulur
     if (state.boostLeft > 0) {
@@ -1787,11 +2110,16 @@ function update(dt) {
     b.wobble += b.wobbleSpeed * dt;
     b.pulse = (b.pulse || 0) + dt * (b.color.gold || b.color.skull ? 6 : 3);
     b.x += Math.sin(b.wobble) * b.wobbleAmp * dt;
-    b.y += b.vy * dt * (state.boostLeft > 0 ? 1.15 : 1);
+    if (b.driveMode) {
+      b.y += b.vy * dt * (state.boostLeft > 0 ? 1.25 : 1);
+    } else {
+      b.y += b.vy * dt * (state.boostLeft > 0 ? 1.15 : 1);
+    }
   }
 
   state.balloons = state.balloons.filter((b) => {
     if (b.popped) return b.scale > 0.08;
+    if (b.driveMode) return b.y - b.r < state.height + 60;
     return b.y + b.r > -40;
   });
 
@@ -1826,6 +2154,10 @@ function frame(ts) {
 
   if (state.mode === "play" && isHopMode()) {
     drawHopWorld();
+  } else if (state.mode === "play" && isDriveMode()) {
+    drawDriveWorld(dt);
+    for (const b of state.balloons) drawBalloon(b);
+    if (state.drive) drawTesla(state.drive.carX, state.drive.carY, state.drive.steer);
   } else {
     drawBackground(dt);
     for (const b of state.balloons) drawBalloon(b);
@@ -1855,8 +2187,28 @@ function onPointer(e) {
     else onHopSuccess(tile);
     return;
   }
+  if (isDriveMode()) {
+    if (state.drive) {
+      state.drive.targetX = x;
+      state.drive.pointerActive = true;
+    }
+    return;
+  }
   const hit = hitTest(x, y);
   if (hit) popBalloon(hit, x, y);
+}
+
+function onPointerMove(e) {
+  if (state.mode !== "play" || !state.running || !isDriveMode() || !state.drive) return;
+  if (e.buttons === 0 && e.type === "pointermove" && !e.pressure) {
+    // allow touchmove without buttons
+  }
+  const { x } = pointerPos(e);
+  state.drive.targetX = x;
+}
+
+function onPointerUp() {
+  if (state.drive) state.drive.pointerActive = false;
 }
 
 function bindUi() {
@@ -1906,6 +2258,14 @@ function bindUi() {
 
   canvas.addEventListener("pointerdown", onPointer, { passive: false });
   canvas.addEventListener("touchstart", onPointer, { passive: false });
+  canvas.addEventListener("pointermove", onPointerMove, { passive: false });
+  canvas.addEventListener("touchmove", (e) => {
+    if (state.mode !== "play" || !isDriveMode()) return;
+    e.preventDefault();
+    onPointerMove(e);
+  }, { passive: false });
+  window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("touchend", onPointerUp);
 }
 
 function setupNative() {
