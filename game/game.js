@@ -37,8 +37,8 @@ const LEVELS = [
     name: "Seviye 4",
     time: 0,
     mode: "fill",
-    label: "Balon Uzat",
-    desc: "Balonu kaydır, tüm boşluğu doldur!",
+    label: "Balon Bahçesi",
+    desc: "4 unique harita: kaydır, doldur, bilgi patlasın!",
   },
 ];
 
@@ -260,6 +260,8 @@ const state = {
   hop: null,
   drive: null,
   fill: null,
+  fillMapIndex: 0,
+  fillTipTimer: null,
   swipe: null,
 };
 
@@ -308,33 +310,148 @@ function isFillMode() {
   return currentLevel().mode === "fill";
 }
 
-const FILL_MAPS = [
-  [
-    "######",
-    "#S...#",
-    "#.##.#",
-    "#....#",
-    "######",
-  ],
-  [
-    "#######",
-    "#S....#",
-    "#.###.#",
-    "#...#.#",
-    "#.#...#",
-    "#.....#",
-    "#######",
-  ],
-  [
-    "########",
-    "#S.....#",
-    "##.###.#",
-    "#....#.#",
-    "#.##...#",
-    "#.....##",
-    "########",
-  ],
+const FILL_LEVELS = [
+  {
+    id: "bahce",
+    name: "Balon Bahçesi",
+    tips: [
+      "Balonu kaydır, boşları doldur!",
+      "Sadece ok yönlerine gidebilirsin",
+      "Duvara çarpma — yolunu planla",
+    ],
+    facts: [
+      "Balonlar sıcak havayla yükselir!",
+      "Renkler gökkuşağında sırayla dizilir",
+      "Her hücre bir adım = bir balon",
+    ],
+    theme: {
+      sky: ["#7ec8f8", "#b8e0ff", "#ffe8a3"],
+      wall: ["#ff8fab", "#ff5d8f"],
+      empty: ["#e8f4ff", "#74b9ff"],
+      fill: ["#fff7d1", "#ffd166", "#ff9f43"],
+      head: ["#ffffff", "#ff7675", "#d63031"],
+      accent: "#0984e3",
+      decor: "balloons",
+    },
+    rows: [
+      "#######",
+      "#S....#",
+      "#.#.#.#",
+      "#.....#",
+      "#.#.#.#",
+      "#.....#",
+      "#######",
+    ],
+  },
+  {
+    id: "kopru",
+    name: "Gökkuşağı Köprü",
+    tips: [
+      "Köprüden geç, tüm yolu doldur!",
+      "Dar geçitlerde yavaş düşün",
+      "Sıkışırsan Yeniden dene",
+    ],
+    facts: [
+      "Gökkuşağında 7 ana renk vardır",
+      "Kırmızı en dışta, mor en içte",
+      "Işık kırılınca renkler ayrılır",
+    ],
+    theme: {
+      sky: ["#a29bfe", "#fd79a8", "#ffeaa7"],
+      wall: ["#6c5ce7", "#4834d4"],
+      empty: ["#fff0f6", "#fd79a8"],
+      fill: ["#e8fff5", "#55efc4", "#00b894"],
+      head: ["#ffffff", "#a29bfe", "#6c5ce7"],
+      accent: "#e84393",
+      decor: "rainbow",
+    },
+    rows: [
+      "#########",
+      "#S......#",
+      "###.###.#",
+      "#...#...#",
+      "#.#.###.#",
+      "#.#.....#",
+      "#.#####.#",
+      "#.......#",
+      "#########",
+    ],
+  },
+  {
+    id: "yildiz",
+    name: "Yıldız Labirent",
+    tips: [
+      "Yıldız yolunu tamamen boya!",
+      "Önce uzun yolları düşün",
+      "Son kareye kadar devam et",
+    ],
+    facts: [
+      "Yıldızlar çok uzakta ateş toplarıdır",
+      "Güneş de bir yıldızdır!",
+      "Gece gökyüzü bir harita gibidir",
+    ],
+    theme: {
+      sky: ["#0f1c3f", "#2d3436", "#6c5ce7"],
+      wall: ["#2d3436", "#636e72"],
+      empty: ["#1e2a4a", "#74b9ff"],
+      fill: ["#fff9c4", "#ffeaa7", "#fdcb6e"],
+      head: ["#ffffff", "#ffeaa7", "#fdcb6e"],
+      accent: "#fdcb6e",
+      decor: "stars",
+    },
+    rows: [
+      "#########",
+      "#S......#",
+      "#.###.#.#",
+      "#.#...#.#",
+      "#...#...#",
+      "#.#...#.#",
+      "#.#.###.#",
+      "#.......#",
+      "#########",
+    ],
+  },
+  {
+    id: "spiral",
+    name: "Şeker Spiral",
+    tips: [
+      "Spirali dıştan içe doldur!",
+      "Tek yanlış hamle = yeniden başla",
+      "Sabırlı ol, şampiyon ol!",
+    ],
+    facts: [
+      "Spiral doğada sık görülür",
+      "Salyangoz kabuğu spiraldir",
+      "Galaksiler de spiral döner!",
+    ],
+    theme: {
+      sky: ["#55efc4", "#81ecec", "#ffeaa7"],
+      wall: ["#00cec9", "#00b894"],
+      empty: ["#fff8ef", "#fab1a0"],
+      fill: ["#ffeaa7", "#fd79a8", "#e84393"],
+      head: ["#ffffff", "#fd79a8", "#d63031"],
+      accent: "#00b894",
+      decor: "candy",
+    },
+    rows: [
+      "#########",
+      "#S......#",
+      "#......##",
+      "##.###..#",
+      "#..#.#..#",
+      "#..#...##",
+      "##.####.#",
+      "#.......#",
+      "#########",
+    ],
+  },
 ];
+
+const FILL_MAPS = FILL_LEVELS; // geriye uyumluluk
+
+function getFillLevel(mapIndex) {
+  return FILL_LEVELS[Math.min(mapIndex || 0, FILL_LEVELS.length - 1)];
+}
 
 function parseFillMap(rows) {
   const grid = [];
@@ -386,16 +503,26 @@ function initFillMode() {
   state.hop = null;
   state.drive = null;
   state.balloons = [];
-  const mapIndex = Math.min(state.fillMapIndex || 0, FILL_MAPS.length - 1);
-  const parsed = parseFillMap(FILL_MAPS[mapIndex]);
+  const mapIndex = Math.min(state.fillMapIndex || 0, FILL_LEVELS.length - 1);
+  const level = getFillLevel(mapIndex);
+  const parsed = parseFillMap(level.rows);
   const rows = parsed.grid.length;
   const cols = parsed.grid[0].length;
   const pad = 24;
-  const cell = Math.floor(Math.min((state.width - pad * 2) / cols, (state.height - 160) / rows));
+  const cell = Math.floor(Math.min((state.width - pad * 2) / cols, (state.height - 170) / rows));
   const boardW = cell * cols;
   const boardH = cell * rows;
+  if (state.fillTipTimer) {
+    clearTimeout(state.fillTipTimer);
+    state.fillTipTimer = null;
+  }
   state.fill = {
     mapIndex,
+    levelId: level.id,
+    title: level.name,
+    theme: level.theme,
+    facts: level.facts.slice(),
+    tips: level.tips.slice(),
     grid: parsed.grid.map((row) => row.slice()),
     head: { ...parsed.head },
     body: [{ ...parsed.head }],
@@ -405,28 +532,57 @@ function initFillMode() {
     rows,
     cell,
     originX: Math.floor((state.width - boardW) / 2),
-    originY: Math.floor((state.height - boardH) / 2 + 20),
+    originY: Math.floor((state.height - boardH) / 2 + 28),
     won: false,
     moveFlash: 0,
     hintPulse: 0,
     needsRestart: false,
+    tipCooldown: 0,
+    factIndex: 0,
+    sparkles: Array.from({ length: 18 }, (_, i) => ({
+      x: Math.random(),
+      y: Math.random(),
+      s: 0.4 + Math.random() * 0.8,
+      sp: 0.2 + Math.random() * 0.6,
+      phase: Math.random() * Math.PI * 2,
+    })),
   };
   state.fill.grid[parsed.head.r][parsed.head.c] = 3;
   setFillRestartVisible(false);
   state.floatTexts = [];
   state.particles = [];
   state.rings = [];
+  showBanner(level.name, "combo");
+  speak(level.name);
   setTimeout(() => {
     if (!state.fill || state.fill.mapIndex !== mapIndex) return;
     const tips = [
-      "Balonu kaydır!",
-      "Boş yeşil kareleri doldur",
-      `Harita ${mapIndex + 1} / ${FILL_MAPS.length}`,
+      level.name,
+      ...level.tips.slice(0, 2),
+      `Harita ${mapIndex + 1} / ${FILL_LEVELS.length}`,
     ];
+    const colors = ["#ffeaa7", "#fff8ef", "#74b9ff", "#55efc4"];
     tips.forEach((tip, i) => {
-      setTimeout(() => popFillTip(tip, i === 1 ? "#ffeaa7" : "#fff8ef"), i * 480);
+      setTimeout(() => popFillTip(tip, colors[i % colors.length], { mega: i === 0 }), i * 520);
     });
-  }, 200);
+    scheduleFillFactBurst();
+  }, 180);
+}
+
+function scheduleFillFactBurst() {
+  const f = state.fill;
+  if (!f || f.won || f.needsRestart) return;
+  if (state.fillTipTimer) clearTimeout(state.fillTipTimer);
+  state.fillTipTimer = setTimeout(() => {
+    if (!state.fill || state.fill.won || state.fill.needsRestart) return;
+    const facts = state.fill.facts || [];
+    if (!facts.length) return;
+    const fact = facts[state.fill.factIndex % facts.length];
+    state.fill.factIndex += 1;
+    popFillTip(fact, "#fff8ef", { mega: true, life: 1.7 });
+    speak(fact);
+    scheduleFillFactBurst();
+  }, 5200 + Math.random() * 1800);
 }
 
 function fillCellCenter(c, r) {
@@ -442,6 +598,7 @@ function tryFillMove(dc, dr) {
   if (!f || f.won || (!dc && !dr)) return;
   let { c, r } = f.head;
   let moved = false;
+  let steps = 0;
   while (true) {
     const nc = c + dc;
     const nr = r + dr;
@@ -455,52 +612,75 @@ function tryFillMove(dc, dr) {
     f.head = { c, r };
     f.body.push({ c, r });
     f.filled += 1;
+    steps += 1;
     moved = true;
     const p = fillCellCenter(c, r);
-    burst(p.x, p.y, "#ffd166", false);
+    burst(p.x, p.y, (f.theme.fill && f.theme.fill[1]) || "#ffd166", steps > 2 && steps % 3 === 0);
+    if (steps % 2 === 0) {
+      state.rings.push({
+        x: p.x,
+        y: p.y,
+        r: 6,
+        max: f.cell * 0.9,
+        life: 0.35,
+        age: 0,
+        color: (f.theme && f.theme.accent) || "#74b9ff",
+        width: 4,
+      });
+    }
   }
   if (!moved) {
     f.needsRestart = true;
     setFillRestartVisible(true);
     showBanner("YANLIŞ!", "boost");
-    popFillTip("Bu yoldan gidemezsin!", "#ff7675");
+    popFillTip("Bu yoldan gidemezsin!", "#ff7675", { mega: true });
+    popFillTip("Yeniden dene butonuna bas", "#ffeaa7");
     playSkullBuzz();
     haptic("light");
     speak("Yanlış hareket. Yeniden dene.");
     return;
   }
-  f.moveFlash = 0.25;
+  f.moveFlash = 0.28;
   playHopMelody();
   playPop(1.1);
   haptic("medium");
-  const gained = 8 * Math.max(1, Math.abs(dc) + Math.abs(dr));
+  const gained = 8 * Math.max(1, steps);
   state.score += gained;
   bumpScore();
   updateHud();
   const progress = Math.round((f.filled / f.emptyTotal) * 100);
-  popFillTip(`+${gained}  ·  %${progress}`, "#ffeaa7");
+  popFillTip(`+${gained} puan!`, "#ffeaa7", { size: 30 });
+  if (steps >= 3) {
+    setTimeout(() => popFillTip(`${steps} kare birden!`, "#55efc4", { mega: true }), 180);
+  }
 
   if (f.filled >= f.emptyTotal) {
     f.won = true;
     f.needsRestart = false;
     setFillRestartVisible(false);
+    if (state.fillTipTimer) {
+      clearTimeout(state.fillTipTimer);
+      state.fillTipTimer = null;
+    }
     showBanner("DOLDU!", "combo");
-    popFillTip("Tüm boşluk doldu!", "#55efc4");
+    popFillTip("Tüm boşluk doldu!", "#55efc4", { mega: true, life: 1.6 });
+    setTimeout(() => popFillTip(`${f.title} tamam!`, "#ffeaa7", { mega: true }), 350);
     playCheer();
     speak("Harika! Tüm boşluk doldu.");
     state.score += 100;
     updateHud();
     setTimeout(() => {
       state.fillMapIndex = f.mapIndex + 1;
-      if (state.fillMapIndex < FILL_MAPS.length) {
-        showBanner(`Harita ${state.fillMapIndex + 1}`, "boost");
+      if (state.fillMapIndex < FILL_LEVELS.length) {
+        const next = getFillLevel(state.fillMapIndex);
+        showBanner(next.name, "boost");
         initFillMode();
-        speak(`Harita ${state.fillMapIndex + 1}`);
+        speak(next.name);
       } else {
         state.fillMapIndex = 0;
         completeLevel();
       }
-    }, 1100);
+    }, 1200);
     return;
   }
 
@@ -508,10 +688,16 @@ function tryFillMove(dc, dr) {
     f.needsRestart = true;
     setFillRestartVisible(true);
     showBanner("SIKIŞTIN!", "boost");
-    popFillTip("Sıkıştın! Yeniden dene", "#ff7675");
+    popFillTip("Sıkıştın! Yeniden dene", "#ff7675", { mega: true });
     speak("Sıkıştın. Yeniden başlat.");
-  } else if (progress === 50 || progress === 75) {
-    popFillTip(progress === 50 ? "Yarıyoldasın!" : "Neredeyse bitti!", "#74b9ff");
+  } else if (progress === 25) {
+    popFillTip("Güzel başlangıç!", "#74b9ff", { mega: true });
+  } else if (progress === 50) {
+    popFillTip("Yarıyoldasın!", "#74b9ff", { mega: true });
+  } else if (progress === 75) {
+    popFillTip("Neredeyse bitti!", "#55efc4", { mega: true });
+  } else if (progress >= 90) {
+    popFillTip("Son birkaç kare!", "#ffeaa7", { mega: true });
   }
 }
 
@@ -528,41 +714,39 @@ function updateFill(dt) {
 function drawFillWorld() {
   const f = state.fill;
   if (!f) return;
+  const theme = f.theme || {
+    sky: ["#a29bfe", "#74b9ff", "#ffeaa7"],
+    wall: ["#e17055", "#d63031"],
+    empty: ["#dfe6e9", "#74b9ff"],
+    fill: ["#fff5c8", "#ffd166", "#e17055"],
+    head: ["#ffffff", "#ff7675", "#d63031"],
+    accent: "#0984e3",
+    decor: "balloons",
+  };
 
-  // Unique candy-sky garden (not Longcat clone)
+  // Unique themed sky per map
   const bg = ctx.createLinearGradient(0, 0, 0, state.height);
-  bg.addColorStop(0, "#a29bfe");
-  bg.addColorStop(0.45, "#74b9ff");
-  bg.addColorStop(1, "#ffeaa7");
+  bg.addColorStop(0, theme.sky[0]);
+  bg.addColorStop(0.5, theme.sky[1] || theme.sky[0]);
+  bg.addColorStop(1, theme.sky[2] || theme.sky[1] || theme.sky[0]);
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, state.width, state.height);
 
-  // floating decorative balloons
-  for (let i = 0; i < 8; i++) {
-    const t = f.hintPulse * (0.3 + i * 0.05) + i;
-    const bx = ((i * 89 + Math.sin(t) * 18) % (state.width + 40)) - 20;
-    const by = 40 + (i * 37) % (state.height * 0.35);
-    const br = 10 + (i % 3) * 4;
-    const cols = ["#ff7675", "#55efc4", "#ffeaa7", "#fd79a8", "#74b9ff"];
-    ctx.globalAlpha = 0.35;
-    ctx.fillStyle = cols[i % cols.length];
-    ctx.beginPath();
-    ctx.ellipse(bx, by + Math.sin(t * 1.4) * 6, br * 0.85, br, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  }
+  // soft vignette
+  const vig = ctx.createRadialGradient(
+    state.width * 0.5,
+    state.height * 0.45,
+    Math.min(state.width, state.height) * 0.2,
+    state.width * 0.5,
+    state.height * 0.5,
+    Math.max(state.width, state.height) * 0.75
+  );
+  vig.addColorStop(0, "rgba(255,255,255,0)");
+  vig.addColorStop(1, "rgba(20,20,40,0.18)");
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, state.width, state.height);
 
-  // soft clouds
-  ctx.fillStyle = "rgba(255,255,255,0.55)";
-  for (let i = 0; i < 5; i++) {
-    const cx = (i * 120 + f.hintPulse * 12) % (state.width + 80) - 40;
-    const cy = 30 + i * 28;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 18, 0, Math.PI * 2);
-    ctx.arc(cx + 16, cy - 6, 14, 0, Math.PI * 2);
-    ctx.arc(cx + 28, cy + 2, 12, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  drawFillDecor(f, theme);
 
   // board outer glow
   const glow = ctx.createRadialGradient(
@@ -571,7 +755,7 @@ function drawFillWorld() {
     20,
     state.width * 0.5,
     f.originY + (f.rows * f.cell) / 2,
-    Math.max(f.cols, f.rows) * f.cell * 0.85
+    Math.max(f.cols, f.rows) * f.cell * 0.9
   );
   glow.addColorStop(0, "rgba(255,255,255,0.55)");
   glow.addColorStop(1, "rgba(255,255,255,0)");
@@ -579,12 +763,12 @@ function drawFillWorld() {
   ctx.fillRect(0, 0, state.width, state.height);
 
   // board frame
-  ctx.fillStyle = "rgba(45, 52, 54, 0.18)";
-  roundRectPath(f.originX - 12, f.originY - 12, f.cols * f.cell + 24, f.rows * f.cell + 24, 22);
+  ctx.fillStyle = "rgba(45, 52, 54, 0.22)";
+  roundRectPath(f.originX - 14, f.originY - 14, f.cols * f.cell + 28, f.rows * f.cell + 28, 24);
   ctx.fill();
   const boardGrad = ctx.createLinearGradient(0, f.originY, 0, f.originY + f.rows * f.cell);
-  boardGrad.addColorStop(0, "#fff9f0");
-  boardGrad.addColorStop(1, "#ffe8cc");
+  boardGrad.addColorStop(0, "rgba(255,255,255,0.92)");
+  boardGrad.addColorStop(1, "rgba(255,248,239,0.88)");
   ctx.fillStyle = boardGrad;
   roundRectPath(f.originX - 8, f.originY - 8, f.cols * f.cell + 16, f.rows * f.cell + 16, 18);
   ctx.fill();
@@ -595,29 +779,33 @@ function drawFillWorld() {
       const y = f.originY + r * f.cell;
       const v = f.grid[r][c];
       if (v === 0) {
-        // candy brick wall
-        const brick = ctx.createLinearGradient(x, y, x, y + f.cell);
-        brick.addColorStop(0, "#e17055");
-        brick.addColorStop(1, "#d63031");
+        const brick = ctx.createLinearGradient(x, y, x + f.cell, y + f.cell);
+        brick.addColorStop(0, theme.wall[0]);
+        brick.addColorStop(1, theme.wall[1] || theme.wall[0]);
         ctx.fillStyle = brick;
-        roundRectPath(x + 2, y + 2, f.cell - 4, f.cell - 4, 7);
+        roundRectPath(x + 2, y + 2, f.cell - 4, f.cell - 4, 8);
         ctx.fill();
-        ctx.strokeStyle = "rgba(255,255,255,0.25)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(x + 6, y + f.cell / 2);
-        ctx.lineTo(x + f.cell - 6, y + f.cell / 2);
+        ctx.fillStyle = "rgba(255,255,255,0.22)";
+        roundRectPath(x + 5, y + 5, f.cell - 14, f.cell * 0.28, 5);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.12)";
+        ctx.lineWidth = 1.5;
+        roundRectPath(x + 2, y + 2, f.cell - 4, f.cell - 4, 8);
         ctx.stroke();
       } else if (v === 1) {
-        // soft empty pad
-        ctx.fillStyle = "#dfe6e9";
+        ctx.fillStyle = theme.empty[0];
         roundRectPath(x + 4, y + 4, f.cell - 8, f.cell - 8, 10);
         ctx.fill();
-        ctx.fillStyle = "rgba(116, 185, 255, 0.35)";
-        roundRectPath(x + 8, y + 8, f.cell - 16, f.cell - 16, 8);
+        const pulse = 0.25 + 0.2 * Math.sin(f.hintPulse * 3 + c * 0.4 + r * 0.3);
+        ctx.fillStyle = hexToRgba(theme.empty[1] || "#74b9ff", pulse);
+        roundRectPath(x + 9, y + 9, f.cell - 18, f.cell - 18, 8);
+        ctx.fill();
+        // tiny empty sparkle
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        ctx.beginPath();
+        ctx.arc(x + f.cell * 0.32, y + f.cell * 0.32, 2.2, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        // filled balloon path - glossy jelly
         const jelly = ctx.createRadialGradient(
           x + f.cell * 0.35,
           y + f.cell * 0.3,
@@ -626,13 +814,13 @@ function drawFillWorld() {
           y + f.cell / 2,
           f.cell * 0.55
         );
-        jelly.addColorStop(0, "#fff5c8");
-        jelly.addColorStop(0.45, "#ffd166");
-        jelly.addColorStop(1, "#e17055");
+        jelly.addColorStop(0, theme.fill[0]);
+        jelly.addColorStop(0.45, theme.fill[1] || theme.fill[0]);
+        jelly.addColorStop(1, theme.fill[2] || theme.fill[1] || theme.fill[0]);
         ctx.fillStyle = jelly;
         roundRectPath(x + 3, y + 3, f.cell - 6, f.cell - 6, 12);
         ctx.fill();
-        ctx.fillStyle = "rgba(255,255,255,0.45)";
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
         ctx.beginPath();
         ctx.ellipse(x + f.cell * 0.35, y + f.cell * 0.32, f.cell * 0.12, f.cell * 0.08, -0.5, 0, Math.PI * 2);
         ctx.fill();
@@ -640,36 +828,41 @@ function drawFillWorld() {
     }
   }
 
-  // balloon head (cute unique face)
+  // move flash overlay
+  if (f.moveFlash > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${f.moveFlash * 0.35})`;
+    roundRectPath(f.originX - 8, f.originY - 8, f.cols * f.cell + 16, f.rows * f.cell + 16, 18);
+    ctx.fill();
+  }
+
+  // balloon head
   const hx = f.originX + f.head.c * f.cell + f.cell / 2;
   const hy = f.originY + f.head.r * f.cell + f.cell / 2;
-  const hr = f.cell * 0.42;
-  const bob = Math.sin(f.hintPulse * 5) * 2;
-  const aura = ctx.createRadialGradient(hx, hy + bob, hr * 0.2, hx, hy + bob, hr * 1.6);
-  aura.addColorStop(0, "rgba(255, 118, 117, 0.55)");
-  aura.addColorStop(1, "rgba(255, 118, 117, 0)");
+  const hr = f.cell * 0.44;
+  const bob = Math.sin(f.hintPulse * 5) * 2.5;
+  const aura = ctx.createRadialGradient(hx, hy + bob, hr * 0.2, hx, hy + bob, hr * 1.75);
+  aura.addColorStop(0, hexToRgba(theme.head[1] || "#ff7675", 0.55));
+  aura.addColorStop(1, hexToRgba(theme.head[1] || "#ff7675", 0));
   ctx.fillStyle = aura;
   ctx.beginPath();
-  ctx.arc(hx, hy + bob, hr * 1.6, 0, Math.PI * 2);
+  ctx.arc(hx, hy + bob, hr * 1.75, 0, Math.PI * 2);
   ctx.fill();
 
   const grad = ctx.createRadialGradient(hx - hr * 0.3, hy - hr * 0.35 + bob, 2, hx, hy + bob, hr);
-  grad.addColorStop(0, "#ffffff");
-  grad.addColorStop(0.22, "#ff7675");
-  grad.addColorStop(1, "#d63031");
+  grad.addColorStop(0, theme.head[0] || "#fff");
+  grad.addColorStop(0.25, theme.head[1] || "#ff7675");
+  grad.addColorStop(1, theme.head[2] || "#d63031");
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(hx, hy + bob, hr, 0, Math.PI * 2);
   ctx.fill();
-  // knot
-  ctx.fillStyle = "#d63031";
+  ctx.fillStyle = theme.head[2] || "#d63031";
   ctx.beginPath();
   ctx.moveTo(hx, hy + bob + hr * 0.85);
   ctx.lineTo(hx - 5, hy + bob + hr * 1.15);
   ctx.lineTo(hx + 5, hy + bob + hr * 1.15);
   ctx.closePath();
   ctx.fill();
-  // face
   ctx.fillStyle = "#2d3436";
   ctx.beginPath();
   ctx.arc(hx - hr * 0.28, hy + bob - hr * 0.08, hr * 0.11, 0, Math.PI * 2);
@@ -700,31 +893,165 @@ function drawFillWorld() {
     if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols) continue;
     if (f.grid[nr][nc] !== 1) continue;
     const p = fillCellCenter(nc, nr);
-    const ring = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, f.cell * 0.35);
-    ring.addColorStop(0, `rgba(255,255,255,${0.85})`);
-    ring.addColorStop(0.5, `rgba(116,185,255,${0.45 + pulse * 0.35})`);
-    ring.addColorStop(1, "rgba(116,185,255,0)");
+    const ring = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, f.cell * 0.38);
+    ring.addColorStop(0, "rgba(255,255,255,0.9)");
+    ring.addColorStop(0.5, hexToRgba(theme.accent || "#74b9ff", 0.45 + pulse * 0.4));
+    ring.addColorStop(1, hexToRgba(theme.accent || "#74b9ff", 0));
     ctx.fillStyle = ring;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, f.cell * 0.35, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, f.cell * 0.38, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#0984e3";
-    ctx.font = `900 ${Math.floor(f.cell * 0.32)}px Fredoka, sans-serif`;
+    ctx.fillStyle = theme.accent || "#0984e3";
+    ctx.font = `900 ${Math.floor(f.cell * 0.34)}px Fredoka, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(d.label, p.x, p.y + 1);
   }
 
-  // progress chip
+  // title + progress
   const pct = Math.round((f.filled / f.emptyTotal) * 100);
-  ctx.fillStyle = "rgba(45,52,54,0.55)";
-  roundRectPath(state.width * 0.5 - 70, Math.min(state.height - 36, f.originY + f.rows * f.cell + 14), 140, 28, 14);
-  ctx.fill();
-  ctx.fillStyle = "#fff";
-  ctx.font = "800 15px Nunito, sans-serif";
+  const titleY = Math.max(58, f.originY - 34);
+  ctx.save();
+  ctx.font = "900 20px Fredoka, Nunito, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(`Dolu: ${f.filled}/${f.emptyTotal}  ·  %${pct}`, state.width * 0.5, Math.min(state.height - 22, f.originY + f.rows * f.cell + 28));
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "rgba(31,58,77,0.28)";
+  ctx.fillStyle = "#fff8ef";
+  ctx.strokeText(f.title || "Balon Uzat", state.width * 0.5, titleY);
+  ctx.fillText(f.title || "Balon Uzat", state.width * 0.5, titleY);
+  ctx.restore();
+
+  const barW = Math.min(220, state.width * 0.62);
+  const barX = state.width * 0.5 - barW / 2;
+  const barY = Math.min(state.height - 42, f.originY + f.rows * f.cell + 16);
+  ctx.fillStyle = "rgba(45,52,54,0.45)";
+  roundRectPath(barX, barY, barW, 22, 11);
+  ctx.fill();
+  const fillW = Math.max(10, (barW - 6) * (pct / 100));
+  const barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+  barGrad.addColorStop(0, theme.fill[1] || "#ffd166");
+  barGrad.addColorStop(1, theme.head[1] || "#ff7675");
+  ctx.fillStyle = barGrad;
+  roundRectPath(barX + 3, barY + 3, fillW, 16, 8);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.font = "800 13px Nunito, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`%${pct}  ·  ${f.filled}/${f.emptyTotal}`, state.width * 0.5, barY + 11);
+}
+
+function drawFillDecor(f, theme) {
+  const decor = theme.decor || "balloons";
+  if (decor === "stars") {
+    for (const s of f.sparkles || []) {
+      const x = s.x * state.width;
+      const y = ((s.y + f.hintPulse * s.sp * 0.04) % 1) * state.height * 0.95;
+      const tw = 0.35 + 0.65 * Math.abs(Math.sin(f.hintPulse * 3 + s.phase));
+      ctx.globalAlpha = tw;
+      ctx.fillStyle = "#ffeaa7";
+      drawStar(x, y, 5, 3 * s.s, 1.4 * s.s);
+      ctx.globalAlpha = 1;
+    }
+    return;
+  }
+  if (decor === "rainbow") {
+    for (let i = 0; i < 6; i++) {
+      const colors = ["#ff7675", "#fdcb6e", "#ffeaa7", "#55efc4", "#74b9ff", "#a29bfe"];
+      ctx.strokeStyle = colors[i];
+      ctx.globalAlpha = 0.28;
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.arc(state.width * 0.5, state.height * 0.95, state.width * 0.55 - i * 12, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+  if (decor === "candy") {
+    for (let i = 0; i < 10; i++) {
+      const t = f.hintPulse * (0.4 + i * 0.03) + i;
+      const x = ((i * 97 + Math.cos(t) * 20) % (state.width + 30)) - 15;
+      const y = 50 + (i * 41) % (state.height * 0.4);
+      ctx.save();
+      ctx.translate(x, y + Math.sin(t * 1.3) * 5);
+      ctx.rotate(t * 0.4);
+      ctx.fillStyle = i % 2 ? "#fd79a8" : "#55efc4";
+      ctx.globalAlpha = 0.45;
+      roundRectPath(-8, -4, 16, 8, 4);
+      ctx.fill();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+  }
+  // floating balloons for balloons / rainbow fallback accents
+  if (decor === "balloons" || decor === "rainbow") {
+    const cols = ["#ff7675", "#55efc4", "#ffeaa7", "#fd79a8", "#74b9ff", "#a29bfe"];
+    for (let i = 0; i < 9; i++) {
+      const t = f.hintPulse * (0.28 + i * 0.04) + i;
+      const bx = ((i * 89 + Math.sin(t) * 22) % (state.width + 50)) - 25;
+      const by = 36 + (i * 39) % (state.height * 0.38);
+      const br = 11 + (i % 3) * 4;
+      ctx.globalAlpha = 0.38;
+      ctx.fillStyle = cols[i % cols.length];
+      ctx.beginPath();
+      ctx.ellipse(bx, by + Math.sin(t * 1.4) * 7, br * 0.85, br, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(bx, by + br);
+      ctx.quadraticCurveTo(bx + 4, by + br + 12, bx - 2, by + br + 22);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+  // soft clouds (not for night star map)
+  if (decor !== "stars") {
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    for (let i = 0; i < 5; i++) {
+      const cx = (i * 130 + f.hintPulse * 14) % (state.width + 90) - 45;
+      const cy = 28 + i * 30;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+      ctx.arc(cx + 16, cy - 6, 14, 0, Math.PI * 2);
+      ctx.arc(cx + 28, cy + 2, 12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawStar(x, y, points, outer, inner) {
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (Math.PI / points) * i - Math.PI / 2;
+    const px = x + Math.cos(a) * r;
+    const py = y + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function hexToRgba(hex, a) {
+  if (!hex || hex[0] !== "#" || (hex.length !== 7 && hex.length !== 4)) {
+    return `rgba(116,185,255,${a})`;
+  }
+  let r;
+  let g;
+  let b;
+  if (hex.length === 4) {
+    r = parseInt(hex[1] + hex[1], 16);
+    g = parseInt(hex[2] + hex[2], 16);
+    b = parseInt(hex[3] + hex[3], 16);
+  } else {
+    r = parseInt(hex.slice(1, 3), 16);
+    g = parseInt(hex.slice(3, 5), 16);
+    b = parseInt(hex.slice(5, 7), 16);
+  }
+  return `rgba(${r},${g},${b},${a})`;
 }
 
 function handleFillPointer(x, y) {
@@ -1861,21 +2188,36 @@ function floatText(x, y, text, color = "#1f3a4d", opts = {}) {
   });
 }
 
-function popFillTip(text, color = "#fff8ef") {
+function popFillTip(text, color = "#fff8ef", opts = {}) {
   const f = state.fill;
-  const x = state.width * 0.5;
-  const y = f ? f.originY - 10 : state.height * 0.22;
-  burst(x, y + 20, color, true);
-  burst(x, y + 20, "#ffd166", false);
+  const x = state.width * 0.5 + (opts.jitter ? rand(-40, 40) : rand(-18, 18));
+  const y = (f ? f.originY - 18 : state.height * 0.22) + (opts.yOff || 0);
+  const mega = !!opts.mega;
+  burst(x, y + 24, color, mega);
+  burst(x, y + 24, "#ffd166", mega);
+  if (mega) {
+    state.rings.push({
+      x,
+      y: y + 24,
+      r: 10,
+      max: 150,
+      life: 0.7,
+      age: 0,
+      color,
+      width: 8,
+    });
+    state.flash = Math.max(state.flash, 0.28);
+  } else {
+    state.flash = Math.max(state.flash, 0.14);
+  }
   floatText(x, y, text, color, {
-    size: 34,
+    size: opts.size || (mega ? 38 : 30),
     bold: true,
-    life: 1.35,
-    rise: 70,
+    life: opts.life || (mega ? 1.55 : 1.25),
+    rise: mega ? 90 : 68,
     pop: true,
-    stroke: "rgba(31,58,77,0.35)",
+    stroke: "rgba(31,58,77,0.4)",
   });
-  state.flash = Math.max(state.flash, 0.18);
 }
 
 function showBanner(text, mode = "bonus") {
