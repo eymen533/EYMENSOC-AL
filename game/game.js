@@ -42,7 +42,7 @@ const LONGCAT_LEVELS = [
     time: 0,
     mode: "fill",
     label: "Elektrikli Uzama",
-    desc: "Arabayı kaydır, yolu doldur, ekranı patlat!",
+    desc: "Tek kaydırmada uzat, yolu doldur, ekranı patlat!",
   },
 ];
 
@@ -540,13 +540,22 @@ function cloneFillGrid(grid) {
 }
 
 function simulateFillLine(grid, head, dc, dr, rows, cols) {
-  const nc = head.c + dc;
-  const nr = head.r + dr;
-  if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) return null;
-  if (grid[nr][nc] !== 1) return null;
-  grid[head.r][head.c] = 2;
-  grid[nr][nc] = 3;
-  return { head: { c: nc, r: nr }, steps: 1 };
+  let c = head.c;
+  let r = head.r;
+  let steps = 0;
+  while (true) {
+    const nc = c + dc;
+    const nr = r + dr;
+    if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) break;
+    if (grid[nr][nc] !== 1) break;
+    grid[r][c] = 2;
+    grid[nr][nc] = 3;
+    c = nc;
+    r = nr;
+    steps += 1;
+  }
+  if (!steps) return null;
+  return { head: { c, r }, steps };
 }
 
 function countFillExits(grid, head, rows, cols) {
@@ -586,18 +595,18 @@ function solveFillPath(mapRows) {
       const res = simulateFillLine(g2, head, d.dc, d.dr, rows, cols);
       if (!res) continue;
       const exits = countFillExits(g2, res.head, rows, cols);
-      // dead-end guard: if not finished and zero exits, skip
-      if (filled + 1 < emptyTotal && exits === 0) continue;
+      if (filled + res.steps < emptyTotal && exits === 0) continue;
       options.push({
         ...d,
         grid: g2,
         head: res.head,
-        filled: filled + 1,
+        filled: filled + res.steps,
+        steps: res.steps,
         exits,
       });
     }
-    // Warnsdorff: az çıkışlı yönleri önce dene
-    options.sort((a, b) => a.exits - b.exits);
+    // uzun atışları önce dene (Longcat hissi)
+    options.sort((a, b) => b.steps - a.steps || a.exits - b.exits);
     for (const opt of options) {
       const rest = dfs(opt.grid, opt.head, opt.filled);
       if (rest) {
@@ -781,10 +790,9 @@ function tryFillMove(dc, dr) {
   const f = state.fill;
   if (!f || f.won || f.needsRestart || (!dc && !dr)) return;
   let { c, r } = f.head;
-  const nc = c + dc;
-  const nr = r + dr;
-  if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols || f.grid[nr][nc] !== 1) {
-    // hâlâ başka yol varsa soft uyarı; yoksa sıkışma
+  const firstNc = c + dc;
+  const firstNr = r + dr;
+  if (firstNr < 0 || firstNc < 0 || firstNr >= f.rows || firstNc >= f.cols || f.grid[firstNr][firstNc] !== 1) {
     if (canFillMove()) {
       popFillTip("Bu yöne gidemezsin", "#ff7675");
       playSkullBuzz();
@@ -800,55 +808,71 @@ function tryFillMove(dc, dr) {
     return;
   }
 
-  // Longcat tarzı: her hamlede 1 kare uzat (elektrikli araba)
-  f.grid[r][c] = 2;
-  f.grid[nr][nc] = 3;
-  f.head = { c: nc, r: nr };
-  f.body.push({ c: nc, r: nr });
-  f.filled += 1;
+  // Longcat: tek kaydırmada duvara/doluya kadar uzar
+  let steps = 0;
+  const neon = (f.theme && f.theme.accent) || "#00cec9";
+  while (true) {
+    const nc = c + dc;
+    const nr = r + dr;
+    if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols) break;
+    if (f.grid[nr][nc] !== 1) break;
+    f.grid[r][c] = 2;
+    f.grid[nr][nc] = 3;
+    c = nc;
+    r = nr;
+    f.head = { c, r };
+    f.body.push({ c, r });
+    f.filled += 1;
+    steps += 1;
+    const p = fillCellCenter(c, r);
+    burst(p.x, p.y, neon, steps === 1 || steps % 2 === 0);
+    if (steps % 2 === 0) {
+      state.rings.push({
+        x: p.x,
+        y: p.y,
+        r: 6,
+        max: f.cell * 1.2,
+        life: 0.4,
+        age: 0,
+        color: neon,
+        width: 5,
+      });
+    }
+  }
+
   state.fillFacing = { dc, dr };
   f.lastDir = { dc, dr };
-  const p = fillCellCenter(nc, nr);
-  const neon = (f.theme && f.theme.accent) || "#00cec9";
-  burst(p.x, p.y, neon, true);
-  burst(p.x, p.y, "#ffeaa7", false);
-  burst(p.x, p.y, "#74b9ff", f.filled % 3 === 0);
+  const end = fillCellCenter(c, r);
+  burst(end.x, end.y, "#ffeaa7", true);
+  burst(end.x, end.y, "#74b9ff", steps >= 3);
   state.rings.push({
-    x: p.x,
-    y: p.y,
-    r: 8,
-    max: f.cell * 1.35,
-    life: 0.45,
-    age: 0,
-    color: neon,
-    width: 6,
-  });
-  state.rings.push({
-    x: p.x,
-    y: p.y,
-    r: 4,
-    max: f.cell * 2.1,
+    x: end.x,
+    y: end.y,
+    r: 10,
+    max: f.cell * (1.4 + Math.min(2, steps * 0.2)),
     life: 0.55,
     age: 0,
     color: "#ffffff",
-    width: 3,
+    width: 4,
   });
-  state.flash = Math.max(state.flash, 0.22);
+  state.flash = Math.max(state.flash, steps >= 4 ? 0.35 : 0.2);
 
   f.moveFlash = 0.32;
   playHopMelody();
-  playPop(1.15);
+  playPop(1.05 + Math.min(0.35, steps * 0.05));
   haptic("medium");
-  const gained = 10;
+  const gained = 8 * steps;
   state.score += gained;
   bumpScore();
   updateHud();
   const progress = Math.round((f.filled / f.emptyTotal) * 100);
-  popFillTip(`+${gained} ⚡`, "#ffeaa7", { size: 30, mega: true });
+  popFillTip(`+${gained} ⚡`, "#ffeaa7", { size: 32, mega: true });
+  if (steps >= 3) {
+    setTimeout(() => popFillTip(`${steps} kare birden!`, "#55efc4", { mega: true }), 160);
+  }
 
-  // doğru yoldaysa ipucu ışığını azalt
   if (f.hintDir && f.hintDir.dc === dc && f.hintDir.dr === dr) {
-    f.hintFlash = Math.max(0, f.hintFlash - 1.2);
+    f.hintFlash = Math.max(0, f.hintFlash - 1.5);
   }
 
   if (f.filled >= f.emptyTotal) {
@@ -860,7 +884,6 @@ function tryFillMove(dc, dr) {
       state.fillTipTimer = null;
     }
     showBanner("ŞARJ!", "combo");
-    // zafer patlaması
     for (let i = 0; i < 5; i++) {
       setTimeout(() => {
         burst(state.width * (0.2 + i * 0.15), state.height * 0.35, pick(["#00cec9", "#74b9ff", "#ffeaa7", "#fd79a8"]), true);
@@ -1123,8 +1146,8 @@ function drawFillWorld() {
   ctx.lineWidth = 5;
   ctx.strokeStyle = "rgba(31,58,77,0.28)";
   ctx.fillStyle = "#fff8ef";
-  ctx.strokeText(f.title || "Balon Uzat", state.width * 0.5, titleY);
-  ctx.fillText(f.title || "Balon Uzat", state.width * 0.5, titleY);
+  ctx.strokeText(f.title || "Longcat Araba", state.width * 0.5, titleY);
+  ctx.fillText(f.title || "Longcat Araba", state.width * 0.5, titleY);
   ctx.restore();
 
   const barW = Math.min(220, state.width * 0.62);
