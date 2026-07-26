@@ -23,9 +23,17 @@
         <span class="label">Süre</span>
         <strong id="time">60</strong>
       </div>
+      <div class="hud-pill streak-pill" id="streakWrap" hidden>
+        <span class="label">Renk</span>
+        <strong id="streak">0/3</strong>
+      </div>
       <div class="hud-pill combo-pill" id="comboWrap" hidden>
         <span class="label">Kombo</span>
         <strong id="combo">x1</strong>
+      </div>
+      <div class="hud-pill boost-pill" id="boostWrap" hidden>
+        <span class="label">Boost</span>
+        <strong id="boostTime">30</strong>
       </div>
     </header>
 
@@ -54,9 +62,9 @@
           <h2>Nasıl Oynanır?</h2>
           <ul class="howto">
             <li><span class="dot coral"></span> Balonlara dokunarak patlat</li>
-            <li><span class="dot gold"></span> Altın balon = ekstra puan</li>
-            <li><span class="dot mint"></span> Üst üste patlat = kombo</li>
-            <li><span class="dot sky"></span> 60 saniyede en yüksek skoru yakala</li>
+            <li><span class="dot gold"></span> Altın balon = BONUS puan</li>
+            <li><span class="dot mint"></span> Aynı renkten 3 patlat = Renk Kombo</li>
+            <li><span class="dot sky"></span> Kombo sonrası Boost: hızlı patlat, çok puan!</li>
           </ul>
           <button class="btn primary" id="btnHowClose" type="button">Anladım!</button>
         </div>
@@ -87,8 +95,9 @@
     <button class="pause-btn" id="btnPause" type="button" hidden aria-label="Duraklat">❚❚</button>
     <div id="bonusBanner" class="bonus-banner" hidden aria-hidden="true">
       <span class="bonus-burst" aria-hidden="true"></span>
-      <strong>BONUS!</strong>
+      <strong id="bannerText">BONUS!</strong>
     </div>
+    <div id="boostOverlay" class="boost-overlay" hidden aria-hidden="true"></div>
   </div>
 
   <script src="game.js" defer></script>

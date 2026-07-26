@@ -1,13 +1,16 @@
 const STORAGE_KEY = "balonPatlatBest";
+const COLOR_STREAK_NEED = 3;
+const BOOST_DURATION = 30; // hızlı müzik/boost modu (sn) — ana süre bu sırada durur
+const BOOST_SCORE_MULT = 3;
 
 const COLORS = [
-  { fill: "#ff6b6b", stroke: "#e84e4e", points: 10 },
-  { fill: "#4ecdc4", stroke: "#2fb3aa", points: 10 },
-  { fill: "#ffd166", stroke: "#e0b340", points: 15, gold: true },
-  { fill: "#ff9f68", stroke: "#ef7f42", points: 10 },
-  { fill: "#6bcb77", stroke: "#4eae5b", points: 10 },
-  { fill: "#5bb8f0", stroke: "#3a9ad4", points: 12 },
-  { fill: "#f78fb3", stroke: "#e06d97", points: 12 },
+  { fill: "#ff6b6b", stroke: "#e84e4e", points: 10, name: "kırmızı" },
+  { fill: "#4ecdc4", stroke: "#2fb3aa", points: 10, name: "mint" },
+  { fill: "#ffd166", stroke: "#e0b340", points: 15, gold: true, name: "altın" },
+  { fill: "#ff9f68", stroke: "#ef7f42", points: 10, name: "turuncu" },
+  { fill: "#6bcb77", stroke: "#4eae5b", points: 10, name: "yeşil" },
+  { fill: "#5bb8f0", stroke: "#3a9ad4", points: 12, name: "mavi" },
+  { fill: "#f78fb3", stroke: "#e06d97", points: 12, name: "pembe" },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -22,6 +25,11 @@ const ui = {
   time: $("time"),
   combo: $("combo"),
   comboWrap: $("comboWrap"),
+  streak: $("streak"),
+  streakWrap: $("streakWrap"),
+  boostWrap: $("boostWrap"),
+  boostTime: $("boostTime"),
+  boostOverlay: $("boostOverlay"),
   btnPlay: $("btnPlay"),
   btnHow: $("btnHow"),
   btnHowClose: $("btnHowClose"),
@@ -36,6 +44,7 @@ const ui = {
   resultTitle: $("resultTitle"),
   resultEmoji: $("resultEmoji"),
   bonusBanner: $("bonusBanner"),
+  bannerText: $("bannerText"),
   app: $("app"),
   scorePill: document.querySelector(".score-pill"),
 };
@@ -56,6 +65,10 @@ const state = {
   score: 0,
   combo: 0,
   comboTimer: 0,
+  colorStreak: 0,
+  lastColor: null,
+  streakColor: null,
+  boostLeft: 0,
   timeLeft: 60,
   spawnTimer: 0,
   lastTs: 0,
@@ -63,9 +76,11 @@ const state = {
   hillsOffset: 0,
   flash: 0,
   bonusTimer: 0,
+  beatT: 0,
 };
 
 let audioCtx = null;
+let boostMusicTimer = null;
 
 function ensureAudio() {
   if (!audioCtx) {
@@ -160,18 +175,90 @@ function playBonusFanfare() {
   });
 }
 
-function spawnBalloon() {
-  // Altın balonları biraz daha sık göster (bonus hissi için)
-  const color = Math.random() < 0.18 ? COLORS.find((c) => c.gold) : pick(COLORS);
-  const r = color.gold ? rand(42, 58) : rand(34, 52);
-  const speed = rand(55, 110) + Math.min(40, state.score / 40);
+function playComboFanfare() {
+  ensureAudio();
+  if (!audioCtx) return;
+  [261.63, 329.63, 392, 523.25, 659.25, 783.99].forEach((freq, i) => {
+    const t = audioCtx.currentTime + i * 0.045;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "square";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.12, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.24);
+  });
+}
+
+function playBoostBeat() {
+  ensureAudio();
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  // kick
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(150, t);
+  osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.28, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.17);
+
+  // hi clap / spark
+  const n = audioCtx.createOscillator();
+  const ng = audioCtx.createGain();
+  n.type = "triangle";
+  n.frequency.value = 880 + Math.random() * 200;
+  ng.gain.setValueAtTime(0.0001, t + 0.12);
+  ng.gain.exponentialRampToValueAtTime(0.08, t + 0.13);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+  n.connect(ng);
+  ng.connect(audioCtx.destination);
+  n.start(t + 0.12);
+  n.stop(t + 0.23);
+}
+
+function startBoostMusic() {
+  stopBoostMusic();
+  playBoostBeat();
+  boostMusicTimer = setInterval(() => {
+    if (state.boostLeft > 0 && state.running && state.mode === "play") playBoostBeat();
+    else stopBoostMusic();
+  }, 280);
+}
+
+function stopBoostMusic() {
+  if (boostMusicTimer) {
+    clearInterval(boostMusicTimer);
+    boostMusicTimer = null;
+  }
+}
+
+function spawnBalloon(forceBoostStyle = false) {
+  const boosting = state.boostLeft > 0 || forceBoostStyle;
+  let color;
+  if (Math.random() < (boosting ? 0.1 : 0.16)) {
+    color = COLORS.find((c) => c.gold);
+  } else {
+    color = pick(COLORS.filter((c) => !c.gold));
+  }
+  const r = color.gold ? rand(42, 58) : rand(boosting ? 30 : 34, boosting ? 48 : 52);
+  const speed = (boosting ? rand(140, 240) : rand(55, 110)) + Math.min(40, state.score / 40);
   state.balloons.push({
     x: rand(r + 10, state.width - r - 10),
-    y: state.height + r + rand(10, 80),
+    y: state.height + r + rand(10, boosting ? 40 : 80),
     r,
     vy: -speed,
     wobble: rand(0, Math.PI * 2),
-    wobbleSpeed: rand(1.5, 3.2),
+    wobbleSpeed: rand(1.5, boosting ? 5 : 3.2),
     wobbleAmp: rand(12, 28),
     color,
     popped: false,
@@ -270,19 +357,24 @@ function floatText(x, y, text, color = "#1f3a4d", opts = {}) {
   });
 }
 
-function showBonusBanner() {
+function showBanner(text, mode = "bonus") {
   const el = ui.bonusBanner;
   if (!el) return;
+  if (ui.bannerText) ui.bannerText.textContent = text;
+  el.classList.remove("combo-mode", "boost-mode");
+  if (mode === "combo") el.classList.add("combo-mode");
+  if (mode === "boost") el.classList.add("boost-mode");
   el.hidden = false;
-  el.classList.remove("show");
-  // restart CSS animations
   void el.offsetWidth;
-  el.classList.add("show");
-  clearTimeout(showBonusBanner._t);
-  showBonusBanner._t = setTimeout(() => {
+  clearTimeout(showBanner._t);
+  showBanner._t = setTimeout(() => {
     el.hidden = true;
-    el.classList.remove("show");
-  }, 900);
+    el.classList.remove("combo-mode", "boost-mode");
+  }, 950);
+}
+
+function showBonusBanner() {
+  showBanner("BONUS!", "bonus");
 }
 
 function bumpScore() {
@@ -299,9 +391,73 @@ function shakeScreen() {
   ui.app.classList.add("shake");
 }
 
+function setBoosting(on) {
+  if (ui.app) ui.app.classList.toggle("boosting", on);
+  if (ui.boostOverlay) ui.boostOverlay.hidden = !on;
+  if (on) startBoostMusic();
+  else stopBoostMusic();
+}
+
+function triggerColorCombo(atX, atY, color) {
+  state.flash = 0.45;
+  shakeScreen();
+  burst(atX, atY, color.fill, true);
+  // ekstra renk fırtınası
+  for (let i = 0; i < 3; i++) {
+    setTimeout(() => {
+      burst(
+        atX + rand(-40, 40),
+        atY + rand(-30, 30),
+        color.fill,
+        true
+      );
+    }, 80 * (i + 1));
+  }
+  showBanner("RENK KOMBO!", "combo");
+  floatText(atX, atY - 30, "RENK KOMBO!", color.stroke, { size: 34, bold: true, life: 1.15, rise: 70 });
+  playComboFanfare();
+  haptic("heavy");
+
+  // seriyi sıfırla, boost başlat
+  state.colorStreak = 0;
+  state.lastColor = null;
+  state.streakColor = null;
+  startBoost();
+}
+
+function startBoost() {
+  const wasBoosting = state.boostLeft > 0;
+  state.boostLeft = BOOST_DURATION;
+  setBoosting(true);
+  if (!wasBoosting) {
+    showBanner("BOOST!", "boost");
+    // hemen ekstra balon yağmuru
+    for (let i = 0; i < 8; i++) spawnBalloon(true);
+  }
+}
+
 function updateHud() {
   ui.score.textContent = String(state.score);
   ui.time.textContent = String(Math.max(0, Math.ceil(state.timeLeft)));
+
+  if (state.running && state.boostLeft > 0) {
+    ui.boostWrap.hidden = false;
+    ui.boostTime.textContent = String(Math.ceil(state.boostLeft));
+  } else {
+    ui.boostWrap.hidden = true;
+  }
+
+  if (state.running && state.colorStreak > 0 && state.boostLeft <= 0) {
+    ui.streakWrap.hidden = false;
+    ui.streak.textContent = `${state.colorStreak}/${COLOR_STREAK_NEED}`;
+    if (ui.streakWrap && state.streakColor) {
+      ui.streakWrap.style.boxShadow = `0 0 0 3px ${state.streakColor}55, 0 8px 20px var(--shadow)`;
+    }
+  } else {
+    ui.streakWrap.hidden = true;
+    if (ui.streakWrap) ui.streakWrap.style.boxShadow = "";
+  }
+
   if (state.running && state.combo >= 2) {
     ui.comboWrap.hidden = false;
     ui.combo.textContent = `x${state.combo}`;
@@ -322,10 +478,15 @@ function showScreen(name) {
 
 function startGame() {
   ensureAudio();
+  stopBoostMusic();
   state.running = true;
   state.score = 0;
   state.combo = 0;
   state.comboTimer = 0;
+  state.colorStreak = 0;
+  state.lastColor = null;
+  state.streakColor = null;
+  state.boostLeft = 0;
   state.timeLeft = 60;
   state.spawnTimer = 0;
   state.balloons = [];
@@ -334,8 +495,10 @@ function startGame() {
   state.floatTexts = [];
   state.flash = 0;
   state.bonusTimer = 0;
+  state.beatT = 0;
   state.lastTs = performance.now();
   if (ui.bonusBanner) ui.bonusBanner.hidden = true;
+  setBoosting(false);
   showScreen("play");
   updateHud();
   for (let i = 0; i < 5; i++) spawnBalloon();
@@ -343,6 +506,9 @@ function startGame() {
 
 function endGame() {
   state.running = false;
+  state.boostLeft = 0;
+  setBoosting(false);
+  stopBoostMusic();
   const isNewBest = state.score > state.best;
   if (isNewBest) {
     state.best = state.score;
@@ -350,10 +516,10 @@ function endGame() {
   }
   ui.finalScore.textContent = String(state.score);
   ui.bestHome.textContent = `En iyi: ${state.best}`;
-  if (state.score >= 400) {
+  if (state.score >= 600) {
     ui.resultTitle.textContent = "Muhteşem!";
     ui.resultEmoji.textContent = "🏆";
-  } else if (state.score >= 200) {
+  } else if (state.score >= 300) {
     ui.resultTitle.textContent = "Harika!";
     ui.resultEmoji.textContent = "🎉";
   } else {
@@ -371,18 +537,38 @@ function popBalloon(b) {
   b.popped = true;
   const base = b.color.points;
   const isBonus = !!b.color.gold;
-  state.comboTimer = 1.1;
+  const boosting = state.boostLeft > 0;
+  state.comboTimer = boosting ? 1.4 : 1.1;
   state.combo += 1;
   const mult = Math.min(5, 1 + Math.floor((state.combo - 1) / 2));
   const bonusExtra = isBonus ? 25 : 0;
-  const gained = base * mult + bonusExtra;
+  let gained = (base * mult + bonusExtra) * (boosting ? BOOST_SCORE_MULT : 1);
+  gained = Math.round(gained);
   state.score += gained;
 
-  burst(b.x, b.y, b.color.fill, isBonus);
+  burst(b.x, b.y, b.color.fill, isBonus || boosting);
   bumpScore();
 
-  if (isBonus) {
-    state.flash = 0.35;
+  // Aynı renk serisi (altın seriyi bozmaz)
+  let triggeredColorCombo = false;
+  if (!isBonus) {
+    if (state.lastColor === b.color.fill) {
+      state.colorStreak += 1;
+    } else {
+      state.colorStreak = 1;
+      state.lastColor = b.color.fill;
+    }
+    state.streakColor = b.color.fill;
+    if (state.colorStreak >= COLOR_STREAK_NEED && !boosting) {
+      triggeredColorCombo = true;
+      triggerColorCombo(b.x, b.y, b.color);
+    }
+  }
+
+  if (triggeredColorCombo) {
+    floatText(b.x, b.y + 18, `+${gained}`, "#fff8ef", { size: 26, bold: true, life: 0.9, rise: 50 });
+  } else if (isBonus) {
+    state.flash = Math.max(state.flash, 0.35);
     state.bonusTimer = 0.9;
     showBonusBanner();
     shakeScreen();
@@ -390,13 +576,18 @@ function popBalloon(b) {
     floatText(b.x, b.y + 8, `+${gained}`, "#fff8ef", { size: 28, bold: true, life: 1, rise: 55 });
     playBonusFanfare();
     haptic("heavy");
+  } else if (boosting) {
+    floatText(b.x, b.y - b.r, `+${gained}`, "#fff8ef", { size: 28, bold: true, life: 0.7, rise: 70 });
+    playPop(1.2 + Math.random() * 0.5);
+    haptic("light");
   } else {
+    const streakLabel = state.colorStreak > 1 ? ` ${state.colorStreak}/${COLOR_STREAK_NEED}` : "";
     floatText(
       b.x,
       b.y - b.r,
-      mult > 1 ? `+${gained} x${mult}` : `+${gained}`,
-      "#1f3a4d",
-      { size: mult > 1 ? 26 : 22, bold: mult > 1, life: 0.85, rise: 55 }
+      (mult > 1 ? `+${gained} x${mult}` : `+${gained}`) + streakLabel,
+      state.colorStreak > 1 ? b.color.stroke : "#1f3a4d",
+      { size: mult > 1 || state.colorStreak > 1 ? 24 : 22, bold: mult > 1 || state.colorStreak > 1, life: 0.85, rise: 55 }
     );
     playPop(0.9 + Math.random() * 0.4);
     haptic("medium");
@@ -416,28 +607,53 @@ function hitTest(x, y) {
 }
 
 function drawBackground(dt) {
+  const boosting = state.boostLeft > 0 && state.mode === "play";
+  const beat = boosting ? 0.5 + 0.5 * Math.sin(state.beatT * Math.PI * 2 * 3.4) : 0;
+
   const g = ctx.createLinearGradient(0, 0, 0, state.height);
-  g.addColorStop(0, "#9ad7ff");
-  g.addColorStop(0.55, "#7ec8f8");
-  g.addColorStop(1, "#ffe8b0");
+  if (boosting) {
+    g.addColorStop(0, "#ff9aa8");
+    g.addColorStop(0.35, "#7ec8f8");
+    g.addColorStop(0.7, "#ffd166");
+    g.addColorStop(1, "#ffe8b0");
+  } else {
+    g.addColorStop(0, "#9ad7ff");
+    g.addColorStop(0.55, "#7ec8f8");
+    g.addColorStop(1, "#ffe8b0");
+  }
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, state.width, state.height);
+
+  if (boosting) {
+    const pulse = ctx.createRadialGradient(
+      state.width * 0.5,
+      state.height * 0.4,
+      10,
+      state.width * 0.5,
+      state.height * 0.4,
+      180 + beat * 80
+    );
+    pulse.addColorStop(0, `rgba(255,248,239,${0.22 + beat * 0.2})`);
+    pulse.addColorStop(1, "rgba(255,248,239,0)");
+    ctx.fillStyle = pulse;
+    ctx.fillRect(0, 0, state.width, state.height);
+  }
 
   // soft sun during play
   if (state.mode === "play" || state.mode === "pause" || state.mode === "result") {
     const sx = state.width * 0.82;
     const sy = state.height * 0.12;
-    const sun = ctx.createRadialGradient(sx, sy, 8, sx, sy, 70);
+    const sun = ctx.createRadialGradient(sx, sy, 8, sx, sy, 70 + beat * 20);
     sun.addColorStop(0, "rgba(255, 247, 194, 0.95)");
     sun.addColorStop(0.5, "rgba(255, 209, 102, 0.75)");
     sun.addColorStop(1, "rgba(255, 209, 102, 0)");
     ctx.fillStyle = sun;
     ctx.beginPath();
-    ctx.arc(sx, sy, 70, 0, Math.PI * 2);
+    ctx.arc(sx, sy, 70 + beat * 20, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  state.hillsOffset = (state.hillsOffset + dt * 8) % state.width;
+  state.hillsOffset = (state.hillsOffset + dt * (boosting ? 28 : 8)) % state.width;
   drawHills(state.height * 0.78, "#8fd48f", 38, 0);
   drawHills(state.height * 0.84, "#6bcb6f", 48, 40);
   drawHills(state.height * 0.9, "#57b35c", 56, 80);
@@ -623,9 +839,9 @@ function drawFlash() {
 function update(dt) {
   if (state.flash > 0) state.flash = Math.max(0, state.flash - dt);
   if (state.bonusTimer > 0) state.bonusTimer = Math.max(0, state.bonusTimer - dt);
+  state.beatT += dt;
 
   if (!state.running) {
-    // idle decorative balloons on home
     if (state.mode === "home") {
       state.spawnTimer -= dt;
       if (state.spawnTimer <= 0 && state.balloons.length < 8) {
@@ -634,22 +850,36 @@ function update(dt) {
       }
     }
   } else {
-    state.timeLeft -= dt;
-    if (state.timeLeft <= 0) {
-      state.timeLeft = 0;
-      updateHud();
-      endGame();
-      return;
+    // Boost sırasında ana süre dondurulur (Tiles Hop tarzı frenzy)
+    if (state.boostLeft > 0) {
+      state.boostLeft -= dt;
+      if (state.boostLeft <= 0) {
+        state.boostLeft = 0;
+        setBoosting(false);
+        showBanner("BOOST BİTTİ", "bonus");
+      }
+    } else {
+      state.timeLeft -= dt;
+      if (state.timeLeft <= 0) {
+        state.timeLeft = 0;
+        updateHud();
+        endGame();
+        return;
+      }
     }
 
     state.comboTimer -= dt;
     if (state.comboTimer <= 0) state.combo = 0;
 
-    const spawnRate = Math.max(0.28, 0.85 - state.score / 1200);
+    const boosting = state.boostLeft > 0;
+    const spawnRate = boosting
+      ? 0.12
+      : Math.max(0.28, 0.85 - state.score / 1200);
     state.spawnTimer -= dt;
     if (state.spawnTimer <= 0) {
       spawnBalloon();
-      if (Math.random() < 0.35) spawnBalloon();
+      if (boosting || Math.random() < 0.35) spawnBalloon();
+      if (boosting && Math.random() < 0.55) spawnBalloon();
       state.spawnTimer = spawnRate;
     }
     updateHud();
@@ -663,7 +893,7 @@ function update(dt) {
     b.wobble += b.wobbleSpeed * dt;
     b.pulse = (b.pulse || 0) + dt * (b.color.gold ? 6 : 3);
     b.x += Math.sin(b.wobble) * b.wobbleAmp * dt;
-    b.y += b.vy * dt;
+    b.y += b.vy * dt * (state.boostLeft > 0 ? 1.15 : 1);
   }
 
   state.balloons = state.balloons.filter((b) => {
@@ -732,20 +962,26 @@ function bindUi() {
   ui.btnPause.addEventListener("click", () => {
     if (!state.running) return;
     state.running = false;
+    stopBoostMusic();
     showScreen("pause");
   });
   ui.btnResume.addEventListener("click", () => {
     state.running = true;
     state.lastTs = performance.now();
+    if (state.boostLeft > 0) setBoosting(true);
     showScreen("play");
   });
   ui.btnQuit.addEventListener("click", () => {
     state.running = false;
+    state.boostLeft = 0;
+    setBoosting(false);
     state.balloons = [];
     showScreen("home");
   });
   ui.btnAgain.addEventListener("click", () => startGame());
   ui.btnHome.addEventListener("click", () => {
+    state.boostLeft = 0;
+    setBoosting(false);
     state.balloons = [];
     showScreen("home");
   });
