@@ -582,8 +582,40 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: min(280px, 100%);
+  width: min(300px, 100%);
   animation: riseIn 0.8s ease 0.08s both;
+}
+
+.game-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 72px;
+  line-height: 1.15;
+}
+
+.game-pick .pick-title {
+  font-size: 24px;
+}
+
+.game-pick .pick-sub {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.92;
+}
+
+.btn.longcat-pick {
+  color: var(--white);
+  background: linear-gradient(135deg, #00cec9, #0984e3 55%, #6c5ce7);
+  box-shadow: 0 10px 0 #0652dd, 0 16px 28px rgba(9, 132, 227, 0.35);
+  animation: longcatPulse 1.9s ease-in-out infinite;
+}
+
+@keyframes longcatPulse {
+  0%, 100% { transform: translateY(0); filter: brightness(1); }
+  50% { transform: translateY(-3px); filter: brightness(1.08); }
 }
 
 .btn {

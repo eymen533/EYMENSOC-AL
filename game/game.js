@@ -1,9 +1,10 @@
 const STORAGE_KEY = "balonPatlatBest";
+const STORAGE_KEY_LONGCAT = "longcatArabaBest";
 const COLOR_STREAK_NEED = 3;
 const BOOST_DURATION = 10; // hızlı müzik/boost modu (sn)
 const BOOST_SCORE_MULT = 3;
 
-const LEVELS = [
+const BALLOON_LEVELS = [
   {
     id: 1,
     name: "Seviye 1",
@@ -32,15 +33,20 @@ const LEVELS = [
     label: "Tesla Yarışı",
     desc: "Tesla ile sağa sola git, balonları ez!",
   },
+];
+
+const LONGCAT_LEVELS = [
   {
-    id: 4,
-    name: "Seviye 4",
+    id: 1,
+    name: "Longcat Araba",
     time: 0,
     mode: "fill",
-    label: "Balon Bahçesi",
-    desc: "4 unique harita: kaydır, doldur, bilgi patlasın!",
+    label: "Elektrikli Uzama",
+    desc: "Arabayı kaydır, yolu doldur, ekranı patlat!",
   },
 ];
+
+const LEVELS = BALLOON_LEVELS;
 
 const HOP_TILE_COLORS = ["#ff6b6b", "#4ecdc4", "#5bb8f0", "#ffd166", "#f78fb3", "#6bcb77"];
 const HOP_LANES = 3;
@@ -195,6 +201,7 @@ const ui = {
   boostTime: $("boostTime"),
   boostOverlay: $("boostOverlay"),
   btnPlay: $("btnPlay"),
+  btnLongcat: $("btnLongcat"),
   btnHow: $("btnHow"),
   btnHowClose: $("btnHowClose"),
   btnPause: $("btnPause"),
@@ -230,6 +237,7 @@ const ctx = canvas.getContext("2d");
 
 const state = {
   mode: "home",
+  pack: "balloon", // balloon | longcat
   running: false,
   width: 0,
   height: 0,
@@ -253,6 +261,7 @@ const state = {
   spawnTimer: 0,
   lastTs: 0,
   best: Number(localStorage.getItem(STORAGE_KEY) || 0),
+  bestLongcat: Number(localStorage.getItem(STORAGE_KEY_LONGCAT) || 0),
   hillsOffset: 0,
   flash: 0,
   bonusTimer: 0,
@@ -264,13 +273,28 @@ const state = {
   fillStuckCount: 0,
   fillTipTimer: null,
   swipe: null,
+  fillFacing: { dc: 1, dr: 0 },
 };
 
 let audioCtx = null;
 let boostMusicTimer = null;
 
+function activeLevels() {
+  return state.pack === "longcat" ? LONGCAT_LEVELS : BALLOON_LEVELS;
+}
+
 function currentLevel() {
-  return LEVELS[state.levelIndex] || LEVELS[0];
+  const levels = activeLevels();
+  return levels[state.levelIndex] || levels[0];
+}
+
+function isLongcatPack() {
+  return state.pack === "longcat";
+}
+
+function updateHomeBest() {
+  if (!ui.bestHome) return;
+  ui.bestHome.textContent = `Balon en iyi: ${state.best} · Longcat: ${state.bestLongcat}`;
 }
 
 function speak(text) {
@@ -316,7 +340,7 @@ const FILL_LEVELS = [
     id: "bahce",
     name: "Balon Bahçesi",
     tips: [
-      "Balonu kaydır, boşları doldur!",
+      "Arabayı kaydır, yolu doldur!",
       "Sadece ok yönlerine gidebilirsin",
       "Duvara çarpma — yolunu planla",
     ],
@@ -326,9 +350,9 @@ const FILL_LEVELS = [
       "Uzun kenarı önce dolaş",
     ],
     facts: [
-      "Balonlar sıcak havayla yükselir!",
+      "Elektrikli arabalar sessiz ve hızlıdır!",
       "Renkler gökkuşağında sırayla dizilir",
-      "Her hücre bir adım = bir balon",
+      "Her kare = bir şarj adımı ⚡",
     ],
     theme: {
       sky: ["#7ec8f8", "#b8e0ff", "#ffe8a3"],
@@ -631,7 +655,9 @@ function offerStuckHint(reason = "stuck") {
   });
 
   const speakText = first
-    ? `Sıkıştın. İpucu: önce ${first.name} kaydır. Yeniden dene.`
+    ? reason === "wrong"
+      ? `Yanlış yön. İpucu: önce ${first.name} kaydır.`
+      : `Sıkıştın. İpucu: önce ${first.name} kaydır. Yeniden dene.`
     : "Sıkıştın. Yeniden dene.";
   speak(speakText);
 }
@@ -682,6 +708,7 @@ function initFillMode() {
     tipCooldown: 0,
     factIndex: 0,
     stuckCount: state.fillStuckCount || 0,
+    lastDir: { dc: 1, dr: 0 },
     solution: solveFillPath(level.rows),
     hintDir: null,
     hintFlash: 0,
@@ -773,36 +800,51 @@ function tryFillMove(dc, dr) {
     return;
   }
 
-  // Longcat tarzı: her hamlede 1 kare uzat
+  // Longcat tarzı: her hamlede 1 kare uzat (elektrikli araba)
   f.grid[r][c] = 2;
   f.grid[nr][nc] = 3;
   f.head = { c: nc, r: nr };
   f.body.push({ c: nc, r: nr });
   f.filled += 1;
-  const steps = 1;
+  state.fillFacing = { dc, dr };
+  f.lastDir = { dc, dr };
   const p = fillCellCenter(nc, nr);
-  burst(p.x, p.y, (f.theme.fill && f.theme.fill[1]) || "#ffd166", false);
+  const neon = (f.theme && f.theme.accent) || "#00cec9";
+  burst(p.x, p.y, neon, true);
+  burst(p.x, p.y, "#ffeaa7", false);
+  burst(p.x, p.y, "#74b9ff", f.filled % 3 === 0);
   state.rings.push({
     x: p.x,
     y: p.y,
-    r: 6,
-    max: f.cell * 0.9,
-    life: 0.35,
+    r: 8,
+    max: f.cell * 1.35,
+    life: 0.45,
     age: 0,
-    color: (f.theme && f.theme.accent) || "#74b9ff",
-    width: 4,
+    color: neon,
+    width: 6,
   });
+  state.rings.push({
+    x: p.x,
+    y: p.y,
+    r: 4,
+    max: f.cell * 2.1,
+    life: 0.55,
+    age: 0,
+    color: "#ffffff",
+    width: 3,
+  });
+  state.flash = Math.max(state.flash, 0.22);
 
-  f.moveFlash = 0.28;
+  f.moveFlash = 0.32;
   playHopMelody();
-  playPop(1.1);
+  playPop(1.15);
   haptic("medium");
-  const gained = 8;
+  const gained = 10;
   state.score += gained;
   bumpScore();
   updateHud();
   const progress = Math.round((f.filled / f.emptyTotal) * 100);
-  popFillTip(`+${gained}`, "#ffeaa7", { size: 28 });
+  popFillTip(`+${gained} ⚡`, "#ffeaa7", { size: 30, mega: true });
 
   // doğru yoldaysa ipucu ışığını azalt
   if (f.hintDir && f.hintDir.dc === dc && f.hintDir.dr === dr) {
@@ -817,12 +859,19 @@ function tryFillMove(dc, dr) {
       clearTimeout(state.fillTipTimer);
       state.fillTipTimer = null;
     }
-    showBanner("DOLDU!", "combo");
-    popFillTip("Tüm boşluk doldu!", "#55efc4", { mega: true, life: 1.6 });
-    setTimeout(() => popFillTip(`${f.title} tamam!`, "#ffeaa7", { mega: true }), 350);
+    showBanner("ŞARJ!", "combo");
+    // zafer patlaması
+    for (let i = 0; i < 5; i++) {
+      setTimeout(() => {
+        burst(state.width * (0.2 + i * 0.15), state.height * 0.35, pick(["#00cec9", "#74b9ff", "#ffeaa7", "#fd79a8"]), true);
+      }, i * 90);
+    }
+    popFillTip("Tüm yol doldu!", "#55efc4", { mega: true, life: 1.7 });
+    setTimeout(() => popFillTip(`${f.title} · süper!`, "#ffeaa7", { mega: true }), 320);
     playCheer();
-    speak("Harika! Tüm boşluk doldu.");
-    state.score += 100;
+    speak("Harika! Tüm yol doldu.");
+    state.score += 120;
+    state.flash = Math.max(state.flash, 0.55);
     updateHud();
     setTimeout(() => {
       state.fillMapIndex = f.mapIndex + 1;
@@ -848,13 +897,13 @@ function tryFillMove(dc, dr) {
     playSkullBuzz();
     haptic("medium");
   } else if (progress === 25) {
-    popFillTip("Güzel başlangıç!", "#74b9ff", { mega: true });
+    popFillTip("Güzel sürüş!", "#74b9ff", { mega: true });
   } else if (progress === 50) {
-    popFillTip("Yarıyoldasın!", "#74b9ff", { mega: true });
+    popFillTip("Yarı şarj!", "#74b9ff", { mega: true });
   } else if (progress === 75) {
-    popFillTip("Neredeyse bitti!", "#55efc4", { mega: true });
+    popFillTip("Neredeyse dolu!", "#55efc4", { mega: true });
   } else if (progress >= 90) {
-    popFillTip("Son birkaç kare!", "#ffeaa7", { mega: true });
+    popFillTip("Son viraj!", "#ffeaa7", { mega: true });
   }
 }
 
@@ -964,23 +1013,23 @@ function drawFillWorld() {
         ctx.arc(x + f.cell * 0.32, y + f.cell * 0.32, 2.2, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        const jelly = ctx.createRadialGradient(
-          x + f.cell * 0.35,
-          y + f.cell * 0.3,
-          2,
-          x + f.cell / 2,
-          y + f.cell / 2,
-          f.cell * 0.55
-        );
-        jelly.addColorStop(0, theme.fill[0]);
-        jelly.addColorStop(0.45, theme.fill[1] || theme.fill[0]);
-        jelly.addColorStop(1, theme.fill[2] || theme.fill[1] || theme.fill[0]);
-        ctx.fillStyle = jelly;
-        roundRectPath(x + 3, y + 3, f.cell - 6, f.cell - 6, 12);
+        // elektrikli yol izi — neon asfalt
+        const road = ctx.createLinearGradient(x, y, x + f.cell, y + f.cell);
+        road.addColorStop(0, theme.fill[0]);
+        road.addColorStop(0.45, theme.fill[1] || theme.fill[0]);
+        road.addColorStop(1, theme.fill[2] || theme.fill[1] || theme.fill[0]);
+        ctx.fillStyle = road;
+        roundRectPath(x + 3, y + 3, f.cell - 6, f.cell - 6, 10);
         ctx.fill();
-        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        // şarj çizgisi
+        ctx.strokeStyle = "rgba(255,255,255,0.55)";
+        ctx.lineWidth = Math.max(2, f.cell * 0.08);
         ctx.beginPath();
-        ctx.ellipse(x + f.cell * 0.35, y + f.cell * 0.32, f.cell * 0.12, f.cell * 0.08, -0.5, 0, Math.PI * 2);
+        ctx.moveTo(x + f.cell * 0.22, y + f.cell * 0.5);
+        ctx.lineTo(x + f.cell * 0.78, y + f.cell * 0.5);
+        ctx.stroke();
+        ctx.fillStyle = hexToRgba(theme.accent || "#00cec9", 0.35 + 0.2 * Math.sin(f.hintPulse * 6 + c + r));
+        roundRectPath(x + 8, y + 8, f.cell - 16, f.cell - 16, 8);
         ctx.fill();
       }
     }
@@ -993,49 +1042,11 @@ function drawFillWorld() {
     ctx.fill();
   }
 
-  // balloon head
+  // elektrikli araba kafası (Longcat head)
   const hx = f.originX + f.head.c * f.cell + f.cell / 2;
   const hy = f.originY + f.head.r * f.cell + f.cell / 2;
-  const hr = f.cell * 0.44;
-  const bob = Math.sin(f.hintPulse * 5) * 2.5;
-  const aura = ctx.createRadialGradient(hx, hy + bob, hr * 0.2, hx, hy + bob, hr * 1.75);
-  aura.addColorStop(0, hexToRgba(theme.head[1] || "#ff7675", 0.55));
-  aura.addColorStop(1, hexToRgba(theme.head[1] || "#ff7675", 0));
-  ctx.fillStyle = aura;
-  ctx.beginPath();
-  ctx.arc(hx, hy + bob, hr * 1.75, 0, Math.PI * 2);
-  ctx.fill();
-
-  const grad = ctx.createRadialGradient(hx - hr * 0.3, hy - hr * 0.35 + bob, 2, hx, hy + bob, hr);
-  grad.addColorStop(0, theme.head[0] || "#fff");
-  grad.addColorStop(0.25, theme.head[1] || "#ff7675");
-  grad.addColorStop(1, theme.head[2] || "#d63031");
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(hx, hy + bob, hr, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = theme.head[2] || "#d63031";
-  ctx.beginPath();
-  ctx.moveTo(hx, hy + bob + hr * 0.85);
-  ctx.lineTo(hx - 5, hy + bob + hr * 1.15);
-  ctx.lineTo(hx + 5, hy + bob + hr * 1.15);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "#2d3436";
-  ctx.beginPath();
-  ctx.arc(hx - hr * 0.28, hy + bob - hr * 0.08, hr * 0.11, 0, Math.PI * 2);
-  ctx.arc(hx + hr * 0.28, hy + bob - hr * 0.08, hr * 0.11, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#fff";
-  ctx.beginPath();
-  ctx.arc(hx - hr * 0.24, hy + bob - hr * 0.12, hr * 0.04, 0, Math.PI * 2);
-  ctx.arc(hx + hr * 0.32, hy + bob - hr * 0.12, hr * 0.04, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#2d3436";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(hx, hy + bob + hr * 0.2, hr * 0.22, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.stroke();
+  const facing = f.lastDir || state.fillFacing || { dc: 1, dr: 0 };
+  drawFillCar(hx, hy, f.cell, facing, theme, f.hintPulse);
 
   // glowing direction pads
   const dirs = [
@@ -1246,6 +1257,107 @@ function hexToRgba(hex, a) {
     b = parseInt(hex.slice(5, 7), 16);
   }
   return `rgba(${r},${g},${b},${a})`;
+}
+
+function drawFillCar(x, y, cell, facing, theme, pulseT) {
+  const bob = Math.sin((pulseT || 0) * 6) * 1.5;
+  let angle = 0;
+  if (facing.dc === 1) angle = Math.PI / 2;
+  else if (facing.dc === -1) angle = -Math.PI / 2;
+  else if (facing.dr === 1) angle = Math.PI;
+  else angle = 0; // yukarı
+
+  const s = cell * 0.42;
+  const neon = theme.accent || "#00cec9";
+  const aura = ctx.createRadialGradient(x, y + bob, s * 0.2, x, y + bob, s * 2.1);
+  aura.addColorStop(0, hexToRgba(neon, 0.65));
+  aura.addColorStop(0.55, hexToRgba("#74b9ff", 0.28));
+  aura.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = aura;
+  ctx.beginPath();
+  ctx.arc(x, y + bob, s * 2.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.translate(x, y + bob);
+  ctx.rotate(angle);
+
+  // gölge
+  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  ctx.beginPath();
+  ctx.ellipse(2, 3, s * 0.72, s * 1.05, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // gövde
+  const body = ctx.createLinearGradient(-s, -s, s, s);
+  body.addColorStop(0, "#ffffff");
+  body.addColorStop(0.45, "#dfe6e9");
+  body.addColorStop(1, "#636e72");
+  roundRectPath(-s * 0.62, -s * 1.05, s * 1.24, s * 2.1, s * 0.38);
+  ctx.fillStyle = body;
+  ctx.fill();
+
+  // neon kenar
+  ctx.strokeStyle = neon;
+  ctx.lineWidth = Math.max(2, s * 0.12);
+  roundRectPath(-s * 0.62, -s * 1.05, s * 1.24, s * 2.1, s * 0.38);
+  ctx.stroke();
+
+  // cam
+  const glass = ctx.createLinearGradient(0, -s * 0.7, 0, s * 0.2);
+  glass.addColorStop(0, "#1e272e");
+  glass.addColorStop(1, "#576574");
+  roundRectPath(-s * 0.42, -s * 0.55, s * 0.84, s * 0.95, s * 0.22);
+  ctx.fillStyle = glass;
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.28)";
+  ctx.beginPath();
+  ctx.ellipse(-s * 0.12, -s * 0.28, s * 0.2, s * 0.12, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // far
+  const blink = 0.65 + 0.35 * Math.sin((pulseT || 0) * 10);
+  ctx.fillStyle = `rgba(116,185,255,${blink})`;
+  roundRectPath(-s * 0.32, -s * 1.02, s * 0.64, s * 0.14, s * 0.06);
+  ctx.fill();
+
+  // ışık huzmesi
+  const beam = ctx.createRadialGradient(0, -s * 1.1, 2, 0, -s * 2.2, s * 1.6);
+  beam.addColorStop(0, `rgba(116,185,255,${0.45 * blink})`);
+  beam.addColorStop(1, "rgba(116,185,255,0)");
+  ctx.fillStyle = beam;
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.28, -s * 1.05);
+  ctx.lineTo(s * 0.28, -s * 1.05);
+  ctx.lineTo(s * 0.9, -s * 2.4);
+  ctx.lineTo(-s * 0.9, -s * 2.4);
+  ctx.closePath();
+  ctx.fill();
+
+  // stop
+  ctx.fillStyle = "#ff6b6b";
+  roundRectPath(-s * 0.28, s * 0.88, s * 0.56, s * 0.1, 2);
+  ctx.fill();
+
+  // tekerlek
+  ctx.fillStyle = "#1e272e";
+  roundRectPath(-s * 0.72, -s * 0.55, s * 0.18, s * 0.38, 3);
+  ctx.fill();
+  roundRectPath(s * 0.54, -s * 0.55, s * 0.18, s * 0.38, 3);
+  ctx.fill();
+  roundRectPath(-s * 0.72, s * 0.22, s * 0.18, s * 0.38, 3);
+  ctx.fill();
+  roundRectPath(s * 0.54, s * 0.22, s * 0.18, s * 0.38, 3);
+  ctx.fill();
+
+  // şimşek
+  ctx.fillStyle = neon;
+  ctx.font = `900 ${Math.floor(s * 0.55)}px Fredoka, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("⚡", 0, s * 0.55);
+
+  ctx.restore();
 }
 
 function handleFillPointer(x, y) {
@@ -2497,9 +2609,9 @@ function updateHud() {
   const level = currentLevel();
   ui.score.textContent = String(state.score);
   ui.time.textContent = isFillMode()
-    ? `${(state.fill && state.fill.mapIndex + 1) || 1}/3`
+    ? `${(state.fill && state.fill.mapIndex + 1) || 1}/${FILL_LEVELS.length}`
     : String(Math.max(0, Math.ceil(state.timeLeft)));
-  if (ui.level) ui.level.textContent = String(level.id);
+  if (ui.level) ui.level.textContent = isLongcatPack() ? "L" : String(level.id);
 
   if (state.running && state.boostLeft > 0) {
     ui.boostWrap.hidden = false;
@@ -2541,23 +2653,47 @@ function showScreen(name) {
   if (name !== "quiz") stopSpeak();
 }
 
-function startGame() {
+function startBalloonGame() {
   ensureAudio();
   stopBoostMusic();
   stopSpeak();
+  state.pack = "balloon";
   state.score = 0;
   state.usedQuizIds = [];
-  // TEST: doğrudan 4. seviyeden başla
-  state.levelIndex = 3;
-  state.pendingLevelIndex = 3;
+  state.levelIndex = 0;
+  state.pendingLevelIndex = 0;
   state.fillMapIndex = 0;
   state.fillStuckCount = 0;
   setBoosting(false);
-  startLevel(3, true);
+  startLevel(0, true);
+}
+
+function startLongcatGame() {
+  ensureAudio();
+  stopBoostMusic();
+  stopSpeak();
+  state.pack = "longcat";
+  state.score = 0;
+  state.usedQuizIds = [];
+  state.levelIndex = 0;
+  state.pendingLevelIndex = 0;
+  state.fillMapIndex = 0;
+  state.fillStuckCount = 0;
+  state.fillFacing = { dc: 1, dr: 0 };
+  setBoosting(false);
+  startLevel(0, true);
+  showBanner("LONGCAT!", "combo");
+  speak("Longcat araba. Elektrikli arabayı kaydır, yolu doldur!");
+}
+
+/** @deprecated use startBalloonGame */
+function startGame() {
+  startBalloonGame();
 }
 
 function startLevel(levelIndex, fromMenu = false) {
-  const level = LEVELS[levelIndex];
+  const levels = activeLevels();
+  const level = levels[levelIndex];
   if (!level) {
     finishRun();
     return;
@@ -2622,7 +2758,13 @@ function completeLevel() {
   const finishedId = currentLevel().id;
   const nextIndex = state.levelIndex + 1;
 
-  if (nextIndex >= LEVELS.length) {
+  if (nextIndex >= activeLevels().length) {
+    finishRun();
+    return;
+  }
+
+  // Longcat'te quiz yok — haritalar fill içinde akar
+  if (isLongcatPack()) {
     finishRun();
     return;
   }
@@ -2695,7 +2837,7 @@ function answerQuiz(choice, btn) {
 }
 
 function showLevelIntro(levelIndex) {
-  const level = LEVELS[levelIndex];
+  const level = activeLevels()[levelIndex];
   if (!level) {
     finishRun();
     return;
@@ -2713,24 +2855,49 @@ function finishRun() {
   setBoosting(false);
   stopBoostMusic();
   stopSpeak();
-  const isNewBest = state.score > state.best;
-  if (isNewBest) {
-    state.best = state.score;
-    localStorage.setItem(STORAGE_KEY, String(state.best));
+  let isNewBest = false;
+  if (isLongcatPack()) {
+    isNewBest = state.score > state.bestLongcat;
+    if (isNewBest) {
+      state.bestLongcat = state.score;
+      localStorage.setItem(STORAGE_KEY_LONGCAT, String(state.bestLongcat));
+    }
+  } else {
+    isNewBest = state.score > state.best;
+    if (isNewBest) {
+      state.best = state.score;
+      localStorage.setItem(STORAGE_KEY, String(state.best));
+    }
   }
   ui.finalScore.textContent = String(state.score);
-  ui.bestHome.textContent = `En iyi: ${state.best}`;
-  if (state.score >= 900) {
+  updateHomeBest();
+  if (isLongcatPack()) {
+    if (state.score >= 600) {
+      ui.resultTitle.textContent = "Şarj Şampiyonu!";
+      ui.resultEmoji.textContent = "⚡";
+    } else if (state.score >= 300) {
+      ui.resultTitle.textContent = "Harika Sürüş!";
+      ui.resultEmoji.textContent = "🚗";
+    } else {
+      ui.resultTitle.textContent = "İyi yol!";
+      ui.resultEmoji.textContent = "🔋";
+    }
+    ui.resultBest.textContent = isNewBest
+      ? "Yeni Longcat rekoru!"
+      : `Longcat en iyi: ${state.bestLongcat}`;
+  } else if (state.score >= 900) {
     ui.resultTitle.textContent = "Şampiyon!";
     ui.resultEmoji.textContent = "🏆";
+    ui.resultBest.textContent = isNewBest ? "Yeni rekor kırdın!" : `En iyi skor: ${state.best}`;
   } else if (state.score >= 500) {
     ui.resultTitle.textContent = "Harika!";
     ui.resultEmoji.textContent = "🎉";
+    ui.resultBest.textContent = isNewBest ? "Yeni rekor kırdın!" : `En iyi skor: ${state.best}`;
   } else {
     ui.resultTitle.textContent = "İyi iş!";
     ui.resultEmoji.textContent = "🎈";
+    ui.resultBest.textContent = isNewBest ? "Yeni rekor kırdın!" : `En iyi skor: ${state.best}`;
   }
-  ui.resultBest.textContent = isNewBest ? "Yeni rekor kırdın!" : `En iyi skor: ${state.best}`;
   showScreen("result");
   playCheer();
   speak(isNewBest ? `Tebrikler! Yeni rekorun ${state.score}` : `Skorun ${state.score}. Tekrar oynamak ister misin?`);
@@ -3293,9 +3460,10 @@ function onPointerUp(e) {
 }
 
 function bindUi() {
-  ui.bestHome.textContent = `En iyi: ${state.best}`;
+  updateHomeBest();
 
-  ui.btnPlay.addEventListener("click", () => startGame());
+  ui.btnPlay.addEventListener("click", () => startBalloonGame());
+  if (ui.btnLongcat) ui.btnLongcat.addEventListener("click", () => startLongcatGame());
   ui.btnHow.addEventListener("click", () => showScreen("how"));
   ui.btnHowClose.addEventListener("click", () => showScreen("home"));
   ui.btnPause.addEventListener("click", () => {
@@ -3327,14 +3495,19 @@ function bindUi() {
     stopSpeak();
     state.balloons = [];
     showScreen("home");
+    updateHomeBest();
   });
-  ui.btnAgain.addEventListener("click", () => startGame());
+  ui.btnAgain.addEventListener("click", () => {
+    if (isLongcatPack()) startLongcatGame();
+    else startBalloonGame();
+  });
   ui.btnHome.addEventListener("click", () => {
     state.boostLeft = 0;
     setBoosting(false);
     stopSpeak();
     state.balloons = [];
     showScreen("home");
+    updateHomeBest();
   });
   if (ui.btnSpeak) {
     ui.btnSpeak.addEventListener("click", () => {

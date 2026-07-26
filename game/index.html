@@ -52,23 +52,30 @@
         <div class="brand-block">
           <p class="eyebrow">Çocuklar için</p>
           <h1 class="brand">Balon Patlat!</h1>
-          <p class="tagline">4 seviye oyna, akıl sorularını çöz, şampiyon ol!</p>
+          <p class="tagline">İki oyun seç · eğlen · şampiyon ol!</p>
         </div>
-        <div class="home-actions">
-          <button class="btn primary pulse" id="btnPlay" type="button">Oyna</button>
+        <div class="home-actions game-picks">
+          <button class="btn primary pulse game-pick" id="btnPlay" type="button">
+            <span class="pick-title">Balon Oyunu</span>
+            <span class="pick-sub">3 seviye · sorular · boost</span>
+          </button>
+          <button class="btn longcat-pick game-pick" id="btnLongcat" type="button">
+            <span class="pick-title">Longcat Araba</span>
+            <span class="pick-sub">Elektrikli araba uzat · patlat!</span>
+          </button>
           <button class="btn ghost" id="btnHow" type="button">Nasıl Oynanır?</button>
         </div>
-        <p class="best" id="bestHome">En iyi: 0</p>
+        <p class="best" id="bestHome">Balon en iyi: 0</p>
       </section>
 
       <section class="screen overlay" id="how" hidden aria-label="Nasıl oynanır">
         <div class="panel">
           <h2>Nasıl Oynanır?</h2>
           <ul class="howto">
-            <li><span class="dot coral"></span> 1: Balon patlat · 2: Tiles Hop</li>
-            <li><span class="dot mint"></span> 3: Tesla ile balon ez (düz görünüm)</li>
-            <li><span class="dot gold"></span> 4: Unique haritalarda balonu uzat, bilgi yazıları patlar</li>
-            <li><span class="dot sky"></span> Boost’ta ☠ — çarpma / basma!</li>
+            <li><span class="dot coral"></span> <strong>Balon Oyunu:</strong> patlat, Tiles Hop, Tesla</li>
+            <li><span class="dot mint"></span> Boost’ta ☠ — çarpma / basma!</li>
+            <li><span class="dot gold"></span> <strong>Longcat Araba:</strong> elektrikli arabayı kaydır</li>
+            <li><span class="dot sky"></span> Tüm boş yolu doldur · efektler patlar!</li>
           </ul>
           <button class="btn primary" id="btnHowClose" type="button">Anladım!</button>
         </div>
