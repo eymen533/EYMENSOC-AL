@@ -11,7 +11,7 @@ const LEVELS = [
     spawnBase: 0.85,
     speedMul: 1,
     label: "Isınma",
-    desc: "Balonları patlat, aynı renkten 3 yap!",
+    desc: "Balonları patlat! Kurukafalılara basma!",
   },
   {
     id: 2,
@@ -48,9 +48,9 @@ const QUIZZES = [
       </div>
     `,
     choices: [
-      { text: "Sarı kare", correct: true },
-      { text: "Kırmızı yuvarlak", correct: false },
-      { text: "Mavi yuvarlak", correct: false },
+      { text: "Sarı kare", correct: true, visual: `<div class="v-shape" style="background:#ffd166"></div>` },
+      { text: "Kırmızı yuvarlak", correct: false, visual: `<div class="v-shape round" style="background:#ff6b6b"></div>` },
+      { text: "Mavi yuvarlak", correct: false, visual: `<div class="v-shape round" style="background:#5bb8f0"></div>` },
     ],
   },
   {
@@ -69,9 +69,9 @@ const QUIZZES = [
       </div>
     `,
     choices: [
-      { text: "Kırmızı", correct: true },
-      { text: "Yeşil", correct: false },
-      { text: "Sarı", correct: false },
+      { text: "Kırmızı", correct: true, visual: `<div class="v-shape round" style="background:#ff6b6b"></div>` },
+      { text: "Yeşil", correct: false, visual: `<div class="v-shape round" style="background:#6bcb77"></div>` },
+      { text: "Sarı", correct: false, visual: `<div class="v-shape round" style="background:#ffd166"></div>` },
     ],
   },
   {
@@ -89,9 +89,9 @@ const QUIZZES = [
       </div>
     `,
     choices: [
-      { text: "3", correct: false },
-      { text: "4", correct: true },
-      { text: "5", correct: false },
+      { text: "3", correct: false, visual: `<div class="choice-num">★★★</div>` },
+      { text: "4", correct: true, visual: `<div class="choice-num">★★★★</div>` },
+      { text: "5", correct: false, visual: `<div class="choice-num">★★★★★</div>` },
     ],
   },
   {
@@ -107,9 +107,9 @@ const QUIZZES = [
       </div>
     `,
     choices: [
-      { text: "Kırmızı", correct: true },
-      { text: "Yeşil", correct: false },
-      { text: "Sarı", correct: false },
+      { text: "Kırmızı", correct: true, visual: `<div class="v-shape round big" style="background:#ff6b6b"></div>` },
+      { text: "Yeşil", correct: false, visual: `<div class="v-shape round small" style="background:#4ecdc4"></div>` },
+      { text: "Sarı", correct: false, visual: `<div class="v-shape round" style="background:#ffd166"></div>` },
     ],
   },
 ];
@@ -122,6 +122,7 @@ const COLORS = [
   { fill: "#6bcb77", stroke: "#4eae5b", points: 10, name: "yeşil" },
   { fill: "#5bb8f0", stroke: "#3a9ad4", points: 12, name: "mavi" },
   { fill: "#f78fb3", stroke: "#e06d97", points: 12, name: "pembe" },
+  { fill: "#2d3436", stroke: "#111111", points: -25, skull: true, name: "kurukafa" },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -398,16 +399,37 @@ function stopBoostMusic() {
   }
 }
 
+function playSkullBuzz() {
+  ensureAudio();
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(180, t);
+  osc.frequency.exponentialRampToValueAtTime(70, t + 0.28);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.34);
+}
+
 function spawnBalloon(forceBoostStyle = false) {
   const boosting = state.boostLeft > 0 || forceBoostStyle;
   const level = currentLevel();
   let color;
-  if (Math.random() < (boosting ? 0.1 : 0.16)) {
+  const skullChance = state.mode === "play" ? 0.1 + level.id * 0.03 : 0;
+  if (skullChance && Math.random() < skullChance) {
+    color = COLORS.find((c) => c.skull);
+  } else if (Math.random() < (boosting ? 0.1 : 0.16)) {
     color = COLORS.find((c) => c.gold);
   } else {
-    color = pick(COLORS.filter((c) => !c.gold));
+    color = pick(COLORS.filter((c) => !c.gold && !c.skull));
   }
-  const r = color.gold ? rand(42, 58) : rand(boosting ? 30 : 34, boosting ? 48 : 52);
+  const r = color.gold || color.skull ? rand(42, 58) : rand(boosting ? 30 : 34, boosting ? 48 : 52);
   const speed =
     ((boosting ? rand(140, 240) : rand(55, 110)) + Math.min(40, state.score / 40)) * (level.speedMul || 1);
   state.balloons.push({
@@ -723,8 +745,12 @@ function openQuiz(afterLevelId) {
   shuffled.forEach((choice) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "quiz-choice";
-    btn.textContent = choice.text;
+    btn.className = "quiz-choice visual-choice";
+    btn.setAttribute("aria-label", choice.text);
+    btn.innerHTML = `
+      <span class="choice-visual">${choice.visual || ""}</span>
+      <span class="choice-sr">${choice.text}</span>
+    `;
     btn.addEventListener("click", () => answerQuiz(choice, btn));
     ui.quizChoices.appendChild(btn);
   });
@@ -750,8 +776,8 @@ function answerQuiz(choice, btn) {
   } else {
     btn.classList.add("wrong");
     const correctBtn = buttons.find((b) => {
-      const text = b.textContent;
-      return state.currentQuiz.choices.some((c) => c.correct && c.text === text);
+      const label = b.getAttribute("aria-label");
+      return state.currentQuiz.choices.some((c) => c.correct && c.text === label);
     });
     if (correctBtn) correctBtn.classList.add("correct");
     ui.quizFeedback.hidden = false;
@@ -815,9 +841,33 @@ function endGame() {
 function popBalloon(b) {
   if (b.popped) return;
   b.popped = true;
-  const base = b.color.points;
   const isBonus = !!b.color.gold;
+  const isSkull = !!b.color.skull;
   const boosting = state.boostLeft > 0;
+
+  if (isSkull) {
+    const lost = Math.abs(b.color.points);
+    state.score = Math.max(0, state.score - lost);
+    state.combo = 0;
+    state.comboTimer = 0;
+    state.colorStreak = 0;
+    state.lastColor = null;
+    state.streakColor = null;
+    burst(b.x, b.y, "#111111", true);
+    // dark smoke-ish extra burst
+    burst(b.x, b.y, "#636e72", false);
+    shakeScreen();
+    state.flash = 0.2;
+    floatText(b.x, b.y - b.r - 8, "☠", "#111111", { size: 40, bold: true, life: 1, rise: 60 });
+    floatText(b.x, b.y + 10, `-${lost}`, "#ff6b6b", { size: 30, bold: true, life: 1, rise: 50 });
+    playSkullBuzz();
+    haptic("heavy");
+    bumpScore();
+    updateHud();
+    return;
+  }
+
+  const base = b.color.points;
   state.comboTimer = boosting ? 1.4 : 1.1;
   state.combo += 1;
   const mult = Math.min(5, 1 + Math.floor((state.combo - 1) / 2));
@@ -956,7 +1006,7 @@ function drawHills(baseY, color, amp, phase) {
 }
 
 function drawBalloon(b) {
-  const pulse = b.color.gold ? 1 + Math.sin(b.pulse) * 0.08 : 1;
+  const pulse = b.color.gold || b.color.skull ? 1 + Math.sin(b.pulse) * 0.08 : 1;
   const x = b.x + Math.sin(b.wobble) * b.wobbleAmp * 0.15;
   const y = b.y;
   const r = b.r * b.scale * pulse;
@@ -972,8 +1022,19 @@ function drawBalloon(b) {
     ctx.fill();
   }
 
+  if (b.color.skull && !b.popped) {
+    const glow = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 1.6);
+    glow.addColorStop(0, "rgba(99, 110, 114, 0.45)");
+    glow.addColorStop(0.55, "rgba(45, 52, 54, 0.25)");
+    glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // string
-  ctx.strokeStyle = "rgba(31,58,77,0.35)";
+  ctx.strokeStyle = b.color.skull ? "rgba(0,0,0,0.45)" : "rgba(31,58,77,0.35)";
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(x, y + r * 0.9);
@@ -982,9 +1043,15 @@ function drawBalloon(b) {
 
   // body
   const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
-  grad.addColorStop(0, "#ffffff");
-  grad.addColorStop(0.18, b.color.fill);
-  grad.addColorStop(1, b.color.stroke);
+  if (b.color.skull) {
+    grad.addColorStop(0, "#636e72");
+    grad.addColorStop(0.35, b.color.fill);
+    grad.addColorStop(1, b.color.stroke);
+  } else {
+    grad.addColorStop(0, "#ffffff");
+    grad.addColorStop(0.18, b.color.fill);
+    grad.addColorStop(1, b.color.stroke);
+  }
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.ellipse(x, y, r * 0.86, r, 0, 0, Math.PI * 2);
@@ -1000,7 +1067,7 @@ function drawBalloon(b) {
   ctx.fill();
 
   // shine
-  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.fillStyle = b.color.skull ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.55)";
   ctx.beginPath();
   ctx.ellipse(x - r * 0.28, y - r * 0.35, r * 0.18, r * 0.28, -0.5, 0, Math.PI * 2);
   ctx.fill();
@@ -1011,7 +1078,6 @@ function drawBalloon(b) {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("★", x, y);
-    // orbiting sparkles
     for (let i = 0; i < 3; i++) {
       const a = b.pulse * 1.8 + (i * Math.PI * 2) / 3;
       const sx = x + Math.cos(a) * r * 1.15;
@@ -1021,6 +1087,14 @@ function drawBalloon(b) {
       ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  if (b.color.skull) {
+    ctx.fillStyle = "#dfe6e9";
+    ctx.font = `700 ${Math.floor(r * 0.78)}px Fredoka, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("☠", x, y + r * 0.05);
   }
 }
 
@@ -1173,7 +1247,7 @@ function update(dt) {
       continue;
     }
     b.wobble += b.wobbleSpeed * dt;
-    b.pulse = (b.pulse || 0) + dt * (b.color.gold ? 6 : 3);
+    b.pulse = (b.pulse || 0) + dt * (b.color.gold || b.color.skull ? 6 : 3);
     b.x += Math.sin(b.wobble) * b.wobbleAmp * dt;
     b.y += b.vy * dt * (state.boostLeft > 0 ? 1.15 : 1);
   }
