@@ -1,5 +1,5 @@
 const STORAGE_KEY = "balonPatlatBest";
-const STORAGE_KEY_LONGCAT = "longcatArabaBest";
+const STORAGE_KEY_LONGCAR = "longcarBest";
 const COLOR_STREAK_NEED = 3;
 const BOOST_DURATION = 10; // hızlı müzik/boost modu (sn)
 const BOOST_SCORE_MULT = 3;
@@ -35,14 +35,14 @@ const BALLOON_LEVELS = [
   },
 ];
 
-const LONGCAT_LEVELS = [
+const LONGCAR_LEVELS = [
   {
     id: 1,
-    name: "Longcat Araba",
+    name: "Longcar",
     time: 0,
     mode: "fill",
-    label: "Elektrikli Uzama",
-    desc: "Tek kaydırmada uzat, yolu doldur, ekranı patlat!",
+    label: "Tesla Model Y",
+    desc: "Model Y’yi kaydır, Longcat gibi uzat, yolu doldur!",
   },
 ];
 
@@ -201,7 +201,7 @@ const ui = {
   boostTime: $("boostTime"),
   boostOverlay: $("boostOverlay"),
   btnPlay: $("btnPlay"),
-  btnLongcat: $("btnLongcat"),
+  btnLongcar: $("btnLongcar"),
   btnHow: $("btnHow"),
   btnHowClose: $("btnHowClose"),
   btnPause: $("btnPause"),
@@ -237,7 +237,7 @@ const ctx = canvas.getContext("2d");
 
 const state = {
   mode: "home",
-  pack: "balloon", // balloon | longcat
+  pack: "balloon", // balloon | longcar
   running: false,
   width: 0,
   height: 0,
@@ -261,7 +261,7 @@ const state = {
   spawnTimer: 0,
   lastTs: 0,
   best: Number(localStorage.getItem(STORAGE_KEY) || 0),
-  bestLongcat: Number(localStorage.getItem(STORAGE_KEY_LONGCAT) || 0),
+  bestLongcar: Number(localStorage.getItem(STORAGE_KEY_LONGCAR) || 0),
   hillsOffset: 0,
   flash: 0,
   bonusTimer: 0,
@@ -280,7 +280,7 @@ let audioCtx = null;
 let boostMusicTimer = null;
 
 function activeLevels() {
-  return state.pack === "longcat" ? LONGCAT_LEVELS : BALLOON_LEVELS;
+  return state.pack === "longcar" ? LONGCAR_LEVELS : BALLOON_LEVELS;
 }
 
 function currentLevel() {
@@ -288,13 +288,13 @@ function currentLevel() {
   return levels[state.levelIndex] || levels[0];
 }
 
-function isLongcatPack() {
-  return state.pack === "longcat";
+function isLongcarPack() {
+  return state.pack === "longcar";
 }
 
 function updateHomeBest() {
   if (!ui.bestHome) return;
-  ui.bestHome.textContent = `Balon en iyi: ${state.best} · Longcat: ${state.bestLongcat}`;
+  ui.bestHome.textContent = `Balon en iyi: ${state.best} · Longcar: ${state.bestLongcar}`;
 }
 
 function speak(text) {
@@ -355,12 +355,12 @@ const FILL_LEVELS = [
       "Her kare = bir şarj adımı ⚡",
     ],
     theme: {
-      sky: ["#7ec8f8", "#b8e0ff", "#ffe8a3"],
-      wall: ["#ff8fab", "#ff5d8f"],
-      empty: ["#e8f4ff", "#74b9ff"],
-      fill: ["#fff7d1", "#ffd166", "#ff9f43"],
-      head: ["#ffffff", "#ff7675", "#d63031"],
-      accent: "#0984e3",
+      sky: ["#ffeaa7", "#fd79a8", "#a29bfe"],
+      wall: ["#fd79a8", "#e84393"],
+      empty: ["#f1f2f6", "#fab1a0"],
+      fill: ["#ffffff", "#f5f6fa", "#dfe6e9"],
+      head: ["#ffffff", "#dfe6e9", "#636e72"],
+      accent: "#fd79a8",
       decor: "balloons",
     },
     rows: [
@@ -391,12 +391,12 @@ const FILL_LEVELS = [
       "Işık kırılınca renkler ayrılır",
     ],
     theme: {
-      sky: ["#a29bfe", "#fd79a8", "#ffeaa7"],
-      wall: ["#6c5ce7", "#4834d4"],
-      empty: ["#fff0f6", "#fd79a8"],
-      fill: ["#e8fff5", "#55efc4", "#00b894"],
-      head: ["#ffffff", "#a29bfe", "#6c5ce7"],
-      accent: "#e84393",
+      sky: ["#a29bfe", "#81ecec", "#ffeaa7"],
+      wall: ["#a29bfe", "#6c5ce7"],
+      empty: ["#f1f2f6", "#a29bfe"],
+      fill: ["#ffffff", "#f5f6fa", "#dfe6e9"],
+      head: ["#ffffff", "#dfe6e9", "#636e72"],
+      accent: "#a29bfe",
       decor: "rainbow",
     },
     rows: [
@@ -428,12 +428,12 @@ const FILL_LEVELS = [
       "Gece gökyüzü bir harita gibidir",
     ],
     theme: {
-      sky: ["#0f1c3f", "#2d3436", "#6c5ce7"],
-      wall: ["#2d3436", "#636e72"],
-      empty: ["#1e2a4a", "#74b9ff"],
-      fill: ["#fff9c4", "#ffeaa7", "#fdcb6e"],
-      head: ["#ffffff", "#ffeaa7", "#fdcb6e"],
-      accent: "#fdcb6e",
+      sky: ["#dfe6e9", "#a29bfe", "#74b9ff"],
+      wall: ["#636e72", "#2d3436"],
+      empty: ["#f1f2f6", "#74b9ff"],
+      fill: ["#ffffff", "#f5f6fa", "#dfe6e9"],
+      head: ["#ffffff", "#dfe6e9", "#636e72"],
+      accent: "#74b9ff",
       decor: "stars",
     },
     rows: [
@@ -469,9 +469,9 @@ const FILL_LEVELS = [
     theme: {
       sky: ["#55efc4", "#81ecec", "#ffeaa7"],
       wall: ["#00cec9", "#00b894"],
-      empty: ["#fff8ef", "#fab1a0"],
-      fill: ["#ffeaa7", "#fd79a8", "#e84393"],
-      head: ["#ffffff", "#fd79a8", "#d63031"],
+      empty: ["#f1f2f6", "#55efc4"],
+      fill: ["#ffffff", "#f5f6fa", "#dfe6e9"],
+      head: ["#ffffff", "#dfe6e9", "#636e72"],
       accent: "#00b894",
       decor: "candy",
     },
@@ -605,7 +605,7 @@ function solveFillPath(mapRows) {
         exits,
       });
     }
-    // uzun atışları önce dene (Longcat hissi)
+    // uzun atışları önce dene (Longcar hissi)
     options.sort((a, b) => b.steps - a.steps || a.exits - b.exits);
     for (const opt of options) {
       const rest = dfs(opt.grid, opt.head, opt.filled);
@@ -808,7 +808,7 @@ function tryFillMove(dc, dr) {
     return;
   }
 
-  // Longcat: tek kaydırmada duvara/doluya kadar uzar
+  // Longcar: tek kaydırmada duvara/doluya kadar uzar
   let steps = 0;
   const neon = (f.theme && f.theme.accent) || "#00cec9";
   while (true) {
@@ -992,16 +992,17 @@ function drawFillWorld() {
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, state.width, state.height);
 
-  // board frame
-  ctx.fillStyle = "rgba(45, 52, 54, 0.22)";
-  roundRectPath(f.originX - 14, f.originY - 14, f.cols * f.cell + 28, f.rows * f.cell + 28, 24);
+  // board frame — Longcat soft mat
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  roundRectPath(f.originX - 16, f.originY - 16, f.cols * f.cell + 32, f.rows * f.cell + 32, 28);
   ctx.fill();
-  const boardGrad = ctx.createLinearGradient(0, f.originY, 0, f.originY + f.rows * f.cell);
-  boardGrad.addColorStop(0, "rgba(255,255,255,0.92)");
-  boardGrad.addColorStop(1, "rgba(255,248,239,0.88)");
-  ctx.fillStyle = boardGrad;
-  roundRectPath(f.originX - 8, f.originY - 8, f.cols * f.cell + 16, f.rows * f.cell + 16, 18);
+  ctx.fillStyle = "#fffdf8";
+  roundRectPath(f.originX - 8, f.originY - 8, f.cols * f.cell + 16, f.rows * f.cell + 16, 20);
   ctx.fill();
+  ctx.strokeStyle = "rgba(255, 182, 193, 0.55)";
+  ctx.lineWidth = 4;
+  roundRectPath(f.originX - 8, f.originY - 8, f.cols * f.cell + 16, f.rows * f.cell + 16, 20);
+  ctx.stroke();
 
   for (let r = 0; r < f.rows; r++) {
     for (let c = 0; c < f.cols; c++) {
@@ -1009,67 +1010,42 @@ function drawFillWorld() {
       const y = f.originY + r * f.cell;
       const v = f.grid[r][c];
       if (v === 0) {
-        const brick = ctx.createLinearGradient(x, y, x + f.cell, y + f.cell);
-        brick.addColorStop(0, theme.wall[0]);
-        brick.addColorStop(1, theme.wall[1] || theme.wall[0]);
-        ctx.fillStyle = brick;
-        roundRectPath(x + 2, y + 2, f.cell - 4, f.cell - 4, 8);
+        ctx.fillStyle = theme.wall[1] || "#dfe6e9";
+        roundRectPath(x + 3, y + 3, f.cell - 6, f.cell - 6, f.cell * 0.28);
         ctx.fill();
-        ctx.fillStyle = "rgba(255,255,255,0.22)";
-        roundRectPath(x + 5, y + 5, f.cell - 14, f.cell * 0.28, 5);
+        const wall = ctx.createLinearGradient(x, y, x, y + f.cell);
+        wall.addColorStop(0, theme.wall[0]);
+        wall.addColorStop(1, theme.wall[1] || theme.wall[0]);
+        ctx.fillStyle = wall;
+        roundRectPath(x + 5, y + 5, f.cell - 10, f.cell - 10, f.cell * 0.24);
         ctx.fill();
-        ctx.strokeStyle = "rgba(0,0,0,0.12)";
-        ctx.lineWidth = 1.5;
-        roundRectPath(x + 2, y + 2, f.cell - 4, f.cell - 4, 8);
-        ctx.stroke();
+        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        roundRectPath(x + 8, y + 8, f.cell - 18, f.cell * 0.22, 6);
+        ctx.fill();
       } else if (v === 1) {
-        ctx.fillStyle = theme.empty[0];
-        roundRectPath(x + 4, y + 4, f.cell - 8, f.cell - 8, 10);
+        ctx.fillStyle = "#f1f2f6";
+        roundRectPath(x + 5, y + 5, f.cell - 10, f.cell - 10, f.cell * 0.3);
         ctx.fill();
-        const pulse = 0.25 + 0.2 * Math.sin(f.hintPulse * 3 + c * 0.4 + r * 0.3);
-        ctx.fillStyle = hexToRgba(theme.empty[1] || "#74b9ff", pulse);
-        roundRectPath(x + 9, y + 9, f.cell - 18, f.cell - 18, 8);
-        ctx.fill();
-        // tiny empty sparkle
-        ctx.fillStyle = "rgba(255,255,255,0.55)";
-        ctx.beginPath();
-        ctx.arc(x + f.cell * 0.32, y + f.cell * 0.32, 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = hexToRgba(theme.empty[1] || "#fab1a0", 0.22 + 0.12 * Math.sin(f.hintPulse * 3 + c + r));
+        roundRectPath(x + 10, y + 10, f.cell - 20, f.cell - 20, f.cell * 0.24);
         ctx.fill();
       } else {
-        // elektrikli yol izi — neon asfalt
-        const road = ctx.createLinearGradient(x, y, x + f.cell, y + f.cell);
-        road.addColorStop(0, theme.fill[0]);
-        road.addColorStop(0.45, theme.fill[1] || theme.fill[0]);
-        road.addColorStop(1, theme.fill[2] || theme.fill[1] || theme.fill[0]);
-        ctx.fillStyle = road;
-        roundRectPath(x + 3, y + 3, f.cell - 6, f.cell - 6, 10);
-        ctx.fill();
-        // şarj çizgisi
-        ctx.strokeStyle = "rgba(255,255,255,0.55)";
-        ctx.lineWidth = Math.max(2, f.cell * 0.08);
-        ctx.beginPath();
-        ctx.moveTo(x + f.cell * 0.22, y + f.cell * 0.5);
-        ctx.lineTo(x + f.cell * 0.78, y + f.cell * 0.5);
-        ctx.stroke();
-        ctx.fillStyle = hexToRgba(theme.accent || "#00cec9", 0.35 + 0.2 * Math.sin(f.hintPulse * 6 + c + r));
-        roundRectPath(x + 8, y + 8, f.cell - 16, f.cell - 16, 8);
-        ctx.fill();
+        drawLongcarBodySegment(x, y, f.cell, theme, c + r);
       }
     }
   }
 
-  // move flash overlay
   if (f.moveFlash > 0) {
     ctx.fillStyle = `rgba(255,255,255,${f.moveFlash * 0.35})`;
     roundRectPath(f.originX - 8, f.originY - 8, f.cols * f.cell + 16, f.rows * f.cell + 16, 18);
     ctx.fill();
   }
 
-  // elektrikli araba kafası (Longcat head)
+  // Tesla Model Y head (Longcat-style stretch head)
   const hx = f.originX + f.head.c * f.cell + f.cell / 2;
   const hy = f.originY + f.head.r * f.cell + f.cell / 2;
   const facing = f.lastDir || state.fillFacing || { dc: 1, dr: 0 };
-  drawFillCar(hx, hy, f.cell, facing, theme, f.hintPulse);
+  drawModelY(hx, hy, f.cell, facing, f.hintPulse);
 
   // glowing direction pads
   const dirs = [
@@ -1146,8 +1122,8 @@ function drawFillWorld() {
   ctx.lineWidth = 5;
   ctx.strokeStyle = "rgba(31,58,77,0.28)";
   ctx.fillStyle = "#fff8ef";
-  ctx.strokeText(f.title || "Longcat Araba", state.width * 0.5, titleY);
-  ctx.fillText(f.title || "Longcat Araba", state.width * 0.5, titleY);
+  ctx.strokeText(f.title || "Longcar", state.width * 0.5, titleY);
+  ctx.fillText(f.title || "Longcar", state.width * 0.5, titleY);
   ctx.restore();
 
   const barW = Math.min(220, state.width * 0.62);
@@ -1282,105 +1258,159 @@ function hexToRgba(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-function drawFillCar(x, y, cell, facing, theme, pulseT) {
-  const bob = Math.sin((pulseT || 0) * 6) * 1.5;
+function drawLongcarBodySegment(x, y, cell, theme, seed) {
+  const pad = cell * 0.08;
+  const rr = cell * 0.42;
+  // Longcat chunky blob body in Model Y pearl white
+  ctx.fillStyle = "rgba(0,0,0,0.08)";
+  roundRectPath(x + pad + 2, y + pad + 3, cell - pad * 2, cell - pad * 2, rr);
+  ctx.fill();
+  const body = ctx.createRadialGradient(
+    x + cell * 0.35,
+    y + cell * 0.3,
+    2,
+    x + cell / 2,
+    y + cell / 2,
+    cell * 0.55
+  );
+  body.addColorStop(0, "#ffffff");
+  body.addColorStop(0.55, "#f5f6fa");
+  body.addColorStop(1, "#dcdde1");
+  ctx.fillStyle = body;
+  roundRectPath(x + pad, y + pad, cell - pad * 2, cell - pad * 2, rr);
+  ctx.fill();
+  // soft pink Longcat outline
+  ctx.strokeStyle = "rgba(255, 159, 243, 0.55)";
+  ctx.lineWidth = Math.max(2, cell * 0.06);
+  roundRectPath(x + pad, y + pad, cell - pad * 2, cell - pad * 2, rr);
+  ctx.stroke();
+  // highlight
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.beginPath();
+  ctx.ellipse(x + cell * 0.35, y + cell * 0.32, cell * 0.14, cell * 0.09, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  // tiny Tesla stripe
+  ctx.fillStyle = seed % 2 === 0 ? "rgba(116,185,255,0.35)" : "rgba(45,52,54,0.12)";
+  roundRectPath(x + cell * 0.28, y + cell * 0.62, cell * 0.44, cell * 0.1, 4);
+  ctx.fill();
+}
+
+function drawModelY(x, y, cell, facing, pulseT) {
+  const bob = Math.sin((pulseT || 0) * 6) * 1.4;
   let angle = 0;
   if (facing.dc === 1) angle = Math.PI / 2;
   else if (facing.dc === -1) angle = -Math.PI / 2;
   else if (facing.dr === 1) angle = Math.PI;
-  else angle = 0; // yukarı
+  else angle = 0;
 
-  const s = cell * 0.42;
-  const neon = theme.accent || "#00cec9";
-  const aura = ctx.createRadialGradient(x, y + bob, s * 0.2, x, y + bob, s * 2.1);
-  aura.addColorStop(0, hexToRgba(neon, 0.65));
-  aura.addColorStop(0.55, hexToRgba("#74b9ff", 0.28));
+  const s = cell * 0.46;
+  // Longcat-like soft aura
+  const aura = ctx.createRadialGradient(x, y + bob, s * 0.2, x, y + bob, s * 2.2);
+  aura.addColorStop(0, "rgba(255, 182, 193, 0.55)");
+  aura.addColorStop(0.45, "rgba(116, 185, 255, 0.25)");
   aura.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = aura;
   ctx.beginPath();
-  ctx.arc(x, y + bob, s * 2.1, 0, Math.PI * 2);
+  ctx.arc(x, y + bob, s * 2.2, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.save();
   ctx.translate(x, y + bob);
   ctx.rotate(angle);
 
-  // gölge
-  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
   ctx.beginPath();
-  ctx.ellipse(2, 3, s * 0.72, s * 1.05, 0, 0, Math.PI * 2);
+  ctx.ellipse(2, 4, s * 0.85, s * 1.15, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // gövde
+  // Model Y body — wider crossover proportions
   const body = ctx.createLinearGradient(-s, -s, s, s);
   body.addColorStop(0, "#ffffff");
-  body.addColorStop(0.45, "#dfe6e9");
-  body.addColorStop(1, "#636e72");
-  roundRectPath(-s * 0.62, -s * 1.05, s * 1.24, s * 2.1, s * 0.38);
+  body.addColorStop(0.4, "#f5f6fa");
+  body.addColorStop(1, "#b2bec3");
+  roundRectPath(-s * 0.72, -s * 1.12, s * 1.44, s * 2.24, s * 0.42);
   ctx.fillStyle = body;
   ctx.fill();
-
-  // neon kenar
-  ctx.strokeStyle = neon;
-  ctx.lineWidth = Math.max(2, s * 0.12);
-  roundRectPath(-s * 0.62, -s * 1.05, s * 1.24, s * 2.1, s * 0.38);
+  ctx.strokeStyle = "rgba(255, 159, 243, 0.65)";
+  ctx.lineWidth = Math.max(2, s * 0.1);
+  roundRectPath(-s * 0.72, -s * 1.12, s * 1.44, s * 2.24, s * 0.42);
   ctx.stroke();
 
-  // cam
-  const glass = ctx.createLinearGradient(0, -s * 0.7, 0, s * 0.2);
+  // panoramic glass roof (Model Y signature)
+  const glass = ctx.createLinearGradient(0, -s * 0.85, 0, s * 0.35);
   glass.addColorStop(0, "#1e272e");
-  glass.addColorStop(1, "#576574");
-  roundRectPath(-s * 0.42, -s * 0.55, s * 0.84, s * 0.95, s * 0.22);
+  glass.addColorStop(0.55, "#485460");
+  glass.addColorStop(1, "#747d8c");
+  roundRectPath(-s * 0.5, -s * 0.72, s * 1.0, s * 1.15, s * 0.28);
   ctx.fillStyle = glass;
   ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.28)";
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
   ctx.beginPath();
-  ctx.ellipse(-s * 0.12, -s * 0.28, s * 0.2, s * 0.12, -0.4, 0, Math.PI * 2);
+  ctx.ellipse(-s * 0.15, -s * 0.4, s * 0.28, s * 0.14, -0.35, 0, Math.PI * 2);
   ctx.fill();
+  // roof cross seam
+  ctx.strokeStyle = "rgba(255,255,255,0.2)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 0.65);
+  ctx.lineTo(0, s * 0.3);
+  ctx.stroke();
 
-  // far
+  // front light bar
   const blink = 0.65 + 0.35 * Math.sin((pulseT || 0) * 10);
   ctx.fillStyle = `rgba(116,185,255,${blink})`;
-  roundRectPath(-s * 0.32, -s * 1.02, s * 0.64, s * 0.14, s * 0.06);
+  roundRectPath(-s * 0.38, -s * 1.08, s * 0.76, s * 0.14, s * 0.06);
   ctx.fill();
 
-  // ışık huzmesi
-  const beam = ctx.createRadialGradient(0, -s * 1.1, 2, 0, -s * 2.2, s * 1.6);
-  beam.addColorStop(0, `rgba(116,185,255,${0.45 * blink})`);
+  // headlight beam
+  const beam = ctx.createRadialGradient(0, -s * 1.15, 2, 0, -s * 2.3, s * 1.7);
+  beam.addColorStop(0, `rgba(116,185,255,${0.5 * blink})`);
   beam.addColorStop(1, "rgba(116,185,255,0)");
   ctx.fillStyle = beam;
   ctx.beginPath();
-  ctx.moveTo(-s * 0.28, -s * 1.05);
-  ctx.lineTo(s * 0.28, -s * 1.05);
-  ctx.lineTo(s * 0.9, -s * 2.4);
-  ctx.lineTo(-s * 0.9, -s * 2.4);
+  ctx.moveTo(-s * 0.32, -s * 1.1);
+  ctx.lineTo(s * 0.32, -s * 1.1);
+  ctx.lineTo(s, -s * 2.5);
+  ctx.lineTo(-s, -s * 2.5);
   ctx.closePath();
   ctx.fill();
 
-  // stop
+  // rear light
   ctx.fillStyle = "#ff6b6b";
-  roundRectPath(-s * 0.28, s * 0.88, s * 0.56, s * 0.1, 2);
+  roundRectPath(-s * 0.34, s * 0.95, s * 0.68, s * 0.11, 2);
   ctx.fill();
 
-  // tekerlek
+  // wheels — Model Y stance
   ctx.fillStyle = "#1e272e";
-  roundRectPath(-s * 0.72, -s * 0.55, s * 0.18, s * 0.38, 3);
+  roundRectPath(-s * 0.82, -s * 0.62, s * 0.2, s * 0.42, 4);
   ctx.fill();
-  roundRectPath(s * 0.54, -s * 0.55, s * 0.18, s * 0.38, 3);
+  roundRectPath(s * 0.62, -s * 0.62, s * 0.2, s * 0.42, 4);
   ctx.fill();
-  roundRectPath(-s * 0.72, s * 0.22, s * 0.18, s * 0.38, 3);
+  roundRectPath(-s * 0.82, s * 0.18, s * 0.2, s * 0.42, 4);
   ctx.fill();
-  roundRectPath(s * 0.54, s * 0.22, s * 0.18, s * 0.38, 3);
+  roundRectPath(s * 0.62, s * 0.18, s * 0.2, s * 0.42, 4);
   ctx.fill();
+  // wheel hubs
+  ctx.fillStyle = "#dfe6e9";
+  for (const [wx, wy] of [[-s*0.72,-s*0.41],[s*0.72,-s*0.41],[-s*0.72,s*0.39],[s*0.72,s*0.39]]) {
+    ctx.beginPath();
+    ctx.arc(wx, wy, s * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-  // şimşek
-  ctx.fillStyle = neon;
-  ctx.font = `900 ${Math.floor(s * 0.55)}px Fredoka, sans-serif`;
+  // Tesla T mark
+  ctx.fillStyle = "#2f3542";
+  ctx.font = `900 ${Math.floor(s * 0.42)}px Fredoka, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("⚡", 0, s * 0.55);
+  ctx.fillText("Y", 0, s * 0.58);
 
   ctx.restore();
+}
+
+function drawFillCar(x, y, cell, facing, theme, pulseT) {
+  drawModelY(x, y, cell, facing, pulseT);
 }
 
 function handleFillPointer(x, y) {
@@ -2634,7 +2664,7 @@ function updateHud() {
   ui.time.textContent = isFillMode()
     ? `${(state.fill && state.fill.mapIndex + 1) || 1}/${FILL_LEVELS.length}`
     : String(Math.max(0, Math.ceil(state.timeLeft)));
-  if (ui.level) ui.level.textContent = isLongcatPack() ? "L" : String(level.id);
+  if (ui.level) ui.level.textContent = isLongcarPack() ? "Y" : String(level.id);
 
   if (state.running && state.boostLeft > 0) {
     ui.boostWrap.hidden = false;
@@ -2691,11 +2721,11 @@ function startBalloonGame() {
   startLevel(0, true);
 }
 
-function startLongcatGame() {
+function startLongcarGame() {
   ensureAudio();
   stopBoostMusic();
   stopSpeak();
-  state.pack = "longcat";
+  state.pack = "longcar";
   state.score = 0;
   state.usedQuizIds = [];
   state.levelIndex = 0;
@@ -2705,8 +2735,8 @@ function startLongcatGame() {
   state.fillFacing = { dc: 1, dr: 0 };
   setBoosting(false);
   startLevel(0, true);
-  showBanner("LONGCAT!", "combo");
-  speak("Longcat araba. Elektrikli arabayı kaydır, yolu doldur!");
+  showBanner("LONGCAR!", "combo");
+  speak("Longcar. Tesla Model Y ile Longcat gibi uzat, yolu doldur!");
 }
 
 /** @deprecated use startBalloonGame */
@@ -2786,8 +2816,8 @@ function completeLevel() {
     return;
   }
 
-  // Longcat'te quiz yok — haritalar fill içinde akar
-  if (isLongcatPack()) {
+  // Longcar'te quiz yok — haritalar fill içinde akar
+  if (isLongcarPack()) {
     finishRun();
     return;
   }
@@ -2879,11 +2909,11 @@ function finishRun() {
   stopBoostMusic();
   stopSpeak();
   let isNewBest = false;
-  if (isLongcatPack()) {
-    isNewBest = state.score > state.bestLongcat;
+  if (isLongcarPack()) {
+    isNewBest = state.score > state.bestLongcar;
     if (isNewBest) {
-      state.bestLongcat = state.score;
-      localStorage.setItem(STORAGE_KEY_LONGCAT, String(state.bestLongcat));
+      state.bestLongcar = state.score;
+      localStorage.setItem(STORAGE_KEY_LONGCAR, String(state.bestLongcar));
     }
   } else {
     isNewBest = state.score > state.best;
@@ -2894,7 +2924,7 @@ function finishRun() {
   }
   ui.finalScore.textContent = String(state.score);
   updateHomeBest();
-  if (isLongcatPack()) {
+  if (isLongcarPack()) {
     if (state.score >= 600) {
       ui.resultTitle.textContent = "Şarj Şampiyonu!";
       ui.resultEmoji.textContent = "⚡";
@@ -2906,8 +2936,8 @@ function finishRun() {
       ui.resultEmoji.textContent = "🔋";
     }
     ui.resultBest.textContent = isNewBest
-      ? "Yeni Longcat rekoru!"
-      : `Longcat en iyi: ${state.bestLongcat}`;
+      ? "Yeni Longcar rekoru!"
+      : `Longcar en iyi: ${state.bestLongcar}`;
   } else if (state.score >= 900) {
     ui.resultTitle.textContent = "Şampiyon!";
     ui.resultEmoji.textContent = "🏆";
@@ -3486,7 +3516,7 @@ function bindUi() {
   updateHomeBest();
 
   ui.btnPlay.addEventListener("click", () => startBalloonGame());
-  if (ui.btnLongcat) ui.btnLongcat.addEventListener("click", () => startLongcatGame());
+  if (ui.btnLongcar) ui.btnLongcar.addEventListener("click", () => startLongcarGame());
   ui.btnHow.addEventListener("click", () => showScreen("how"));
   ui.btnHowClose.addEventListener("click", () => showScreen("home"));
   ui.btnPause.addEventListener("click", () => {
@@ -3521,7 +3551,7 @@ function bindUi() {
     updateHomeBest();
   });
   ui.btnAgain.addEventListener("click", () => {
-    if (isLongcatPack()) startLongcatGame();
+    if (isLongcarPack()) startLongcarGame();
     else startBalloonGame();
   });
   ui.btnHome.addEventListener("click", () => {

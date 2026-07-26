@@ -606,14 +606,14 @@ html, body {
   opacity: 0.92;
 }
 
-.btn.longcat-pick {
+.btn.longcar-pick {
   color: var(--white);
   background: linear-gradient(135deg, #00cec9, #0984e3 55%, #6c5ce7);
   box-shadow: 0 10px 0 #0652dd, 0 16px 28px rgba(9, 132, 227, 0.35);
-  animation: longcatPulse 1.9s ease-in-out infinite;
+  animation: longcarPulse 1.9s ease-in-out infinite;
 }
 
-@keyframes longcatPulse {
+@keyframes longcarPulse {
   0%, 100% { transform: translateY(0); filter: brightness(1); }
   50% { transform: translateY(-3px); filter: brightness(1.08); }
 }
