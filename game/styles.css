@@ -127,6 +127,52 @@ html, body {
   cursor: pointer;
 }
 
+.bonus-banner {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.bonus-banner[hidden] {
+  display: none !important;
+}
+
+.bonus-banner strong {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: clamp(52px, 16vw, 88px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff8ef;
+  text-shadow:
+    0 4px 0 #e0a800,
+    0 10px 0 rgba(196, 138, 0, 0.45),
+    0 0 28px rgba(255, 209, 102, 0.9),
+    0 0 60px rgba(255, 107, 107, 0.55);
+  animation: bonusPop 0.9s cubic-bezier(0.16, 1.2, 0.3, 1) both;
+}
+
+.bonus-burst {
+  position: absolute;
+  width: min(70vw, 280px);
+  height: min(70vw, 280px);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 248, 239, 0.95) 0%, rgba(255, 209, 102, 0.7) 28%, rgba(255, 107, 107, 0.35) 55%, transparent 72%);
+  animation: bonusFlash 0.9s ease-out both;
+}
+
+.score-pill.pop {
+  animation: scoreBump 0.35s ease;
+}
+
+#app.shake {
+  animation: screenShake 0.45s ease;
+}
+
 .screens {
   position: absolute;
   inset: 0;
@@ -430,6 +476,33 @@ html, body {
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
+}
+
+@keyframes bonusPop {
+  0% { opacity: 0; transform: scale(0.2) rotate(-8deg); }
+  35% { opacity: 1; transform: scale(1.22) rotate(3deg); }
+  60% { transform: scale(0.94) rotate(-2deg); }
+  100% { opacity: 0; transform: scale(1.35) translateY(-18px); }
+}
+
+@keyframes bonusFlash {
+  0% { opacity: 0; transform: scale(0.2); }
+  25% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1.8); }
+}
+
+@keyframes scoreBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+@keyframes screenShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-6px, 3px); }
+  40% { transform: translate(7px, -4px); }
+  60% { transform: translate(-4px, -3px); }
+  80% { transform: translate(5px, 2px); }
 }
 
 @media (min-width: 768px) {

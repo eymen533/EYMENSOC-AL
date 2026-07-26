@@ -35,6 +35,9 @@ const ui = {
   resultBest: $("resultBest"),
   resultTitle: $("resultTitle"),
   resultEmoji: $("resultEmoji"),
+  bonusBanner: $("bonusBanner"),
+  app: $("app"),
+  scorePill: document.querySelector(".score-pill"),
 };
 
 const canvas = $("sky");
@@ -48,6 +51,7 @@ const state = {
   dpr: 1,
   balloons: [],
   particles: [],
+  rings: [],
   floatTexts: [],
   score: 0,
   combo: 0,
@@ -57,6 +61,8 @@ const state = {
   lastTs: 0,
   best: Number(localStorage.getItem(STORAGE_KEY) || 0),
   hillsOffset: 0,
+  flash: 0,
+  bonusTimer: 0,
 };
 
 let audioCtx = null;
@@ -135,9 +141,29 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function playBonusFanfare() {
+  ensureAudio();
+  if (!audioCtx) return;
+  [392, 523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+    const t = audioCtx.currentTime + i * 0.05;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = i % 2 ? "triangle" : "sine";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.2, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.3);
+  });
+}
+
 function spawnBalloon() {
-  const color = pick(COLORS);
-  const r = rand(34, 52);
+  // Altın balonları biraz daha sık göster (bonus hissi için)
+  const color = Math.random() < 0.18 ? COLORS.find((c) => c.gold) : pick(COLORS);
+  const r = color.gold ? rand(42, 58) : rand(34, 52);
   const speed = rand(55, 110) + Math.min(40, state.score / 40);
   state.balloons.push({
     x: rand(r + 10, state.width - r - 10),
@@ -150,28 +176,127 @@ function spawnBalloon() {
     color,
     popped: false,
     scale: 1,
+    pulse: rand(0, Math.PI * 2),
+    birth: performance.now(),
   });
 }
 
-function burst(x, y, color) {
-  for (let i = 0; i < 14; i++) {
-    const angle = (Math.PI * 2 * i) / 14 + rand(-0.2, 0.2);
-    const speed = rand(80, 220);
+function burst(x, y, color, mega = false) {
+  const count = mega ? 42 : 18;
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + rand(-0.25, 0.25);
+    const speed = mega ? rand(140, 420) : rand(90, 260);
     state.particles.push({
       x,
       y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      life: rand(0.35, 0.7),
+      life: mega ? rand(0.55, 1.05) : rand(0.35, 0.75),
       age: 0,
-      size: rand(4, 9),
-      color,
+      size: mega ? rand(6, 14) : rand(4, 10),
+      color: mega && Math.random() < 0.35 ? pick(["#ffd166", "#fff8ef", "#ff6b6b", "#ff9f68"]) : color,
+      kind: mega && Math.random() < 0.45 ? "star" : "dot",
+      spin: rand(0, Math.PI * 2),
+      spinSpeed: rand(-10, 10),
+    });
+  }
+
+  // confetti shards
+  const shards = mega ? 28 : 10;
+  for (let i = 0; i < shards; i++) {
+    const angle = rand(0, Math.PI * 2);
+    const speed = mega ? rand(120, 380) : rand(70, 200);
+    state.particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - rand(40, 120),
+      life: mega ? rand(0.7, 1.2) : rand(0.4, 0.8),
+      age: 0,
+      size: mega ? rand(8, 16) : rand(5, 10),
+      color: pick(["#ff6b6b", "#4ecdc4", "#ffd166", "#ff9f68", "#5bb8f0", "#f78fb3", "#fff8ef"]),
+      kind: "shard",
+      spin: rand(0, Math.PI * 2),
+      spinSpeed: rand(-14, 14),
+    });
+  }
+
+  state.rings.push({
+    x,
+    y,
+    r: 8,
+    max: mega ? 160 : 70,
+    life: mega ? 0.7 : 0.4,
+    age: 0,
+    color: mega ? "#ffd166" : color,
+    width: mega ? 10 : 5,
+  });
+
+  if (mega) {
+    state.rings.push({
+      x,
+      y,
+      r: 4,
+      max: 220,
+      life: 0.85,
+      age: 0,
+      color: "#fff8ef",
+      width: 6,
+    });
+    state.rings.push({
+      x,
+      y,
+      r: 2,
+      max: 110,
+      life: 0.5,
+      age: 0,
+      color: "#ff6b6b",
+      width: 8,
     });
   }
 }
 
-function floatText(x, y, text, color = "#1f3a4d") {
-  state.floatTexts.push({ x, y, text, color, age: 0, life: 0.8 });
+function floatText(x, y, text, color = "#1f3a4d", opts = {}) {
+  state.floatTexts.push({
+    x,
+    y,
+    text,
+    color,
+    age: 0,
+    life: opts.life || 0.9,
+    size: opts.size || 22,
+    bold: !!opts.bold,
+    rise: opts.rise || 50,
+  });
+}
+
+function showBonusBanner() {
+  const el = ui.bonusBanner;
+  if (!el) return;
+  el.hidden = false;
+  el.classList.remove("show");
+  // restart CSS animations
+  void el.offsetWidth;
+  el.classList.add("show");
+  clearTimeout(showBonusBanner._t);
+  showBonusBanner._t = setTimeout(() => {
+    el.hidden = true;
+    el.classList.remove("show");
+  }, 900);
+}
+
+function bumpScore() {
+  if (!ui.scorePill) return;
+  ui.scorePill.classList.remove("pop");
+  void ui.scorePill.offsetWidth;
+  ui.scorePill.classList.add("pop");
+}
+
+function shakeScreen() {
+  if (!ui.app) return;
+  ui.app.classList.remove("shake");
+  void ui.app.offsetWidth;
+  ui.app.classList.add("shake");
 }
 
 function updateHud() {
@@ -205,8 +330,12 @@ function startGame() {
   state.spawnTimer = 0;
   state.balloons = [];
   state.particles = [];
+  state.rings = [];
   state.floatTexts = [];
+  state.flash = 0;
+  state.bonusTimer = 0;
   state.lastTs = performance.now();
+  if (ui.bonusBanner) ui.bonusBanner.hidden = true;
   showScreen("play");
   updateHud();
   for (let i = 0; i < 5; i++) spawnBalloon();
@@ -237,19 +366,41 @@ function endGame() {
   haptic("heavy");
 }
 
-function popBalloon(b, clientX, clientY) {
+function popBalloon(b) {
   if (b.popped) return;
   b.popped = true;
   const base = b.color.points;
+  const isBonus = !!b.color.gold;
   state.comboTimer = 1.1;
   state.combo += 1;
   const mult = Math.min(5, 1 + Math.floor((state.combo - 1) / 2));
-  const gained = base * mult;
+  const bonusExtra = isBonus ? 25 : 0;
+  const gained = base * mult + bonusExtra;
   state.score += gained;
-  burst(b.x, b.y, b.color.fill);
-  floatText(b.x, b.y - b.r, mult > 1 ? `+${gained} x${mult}` : `+${gained}`, b.color.gold ? "#c48a00" : "#1f3a4d");
-  playPop(b.color.gold ? 1.35 : 0.9 + Math.random() * 0.4);
-  haptic(b.color.gold ? "heavy" : "medium");
+
+  burst(b.x, b.y, b.color.fill, isBonus);
+  bumpScore();
+
+  if (isBonus) {
+    state.flash = 0.35;
+    state.bonusTimer = 0.9;
+    showBonusBanner();
+    shakeScreen();
+    floatText(b.x, b.y - b.r - 10, "BONUS!", "#c48a00", { size: 36, bold: true, life: 1.1, rise: 70 });
+    floatText(b.x, b.y + 8, `+${gained}`, "#fff8ef", { size: 28, bold: true, life: 1, rise: 55 });
+    playBonusFanfare();
+    haptic("heavy");
+  } else {
+    floatText(
+      b.x,
+      b.y - b.r,
+      mult > 1 ? `+${gained} x${mult}` : `+${gained}`,
+      "#1f3a4d",
+      { size: mult > 1 ? 26 : 22, bold: mult > 1, life: 0.85, rise: 55 }
+    );
+    playPop(0.9 + Math.random() * 0.4);
+    haptic("medium");
+  }
   updateHud();
 }
 
@@ -309,9 +460,21 @@ function drawHills(baseY, color, amp, phase) {
 }
 
 function drawBalloon(b) {
+  const pulse = b.color.gold ? 1 + Math.sin(b.pulse) * 0.08 : 1;
   const x = b.x + Math.sin(b.wobble) * b.wobbleAmp * 0.15;
   const y = b.y;
-  const r = b.r * b.scale;
+  const r = b.r * b.scale * pulse;
+
+  if (b.color.gold && !b.popped) {
+    const glow = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 1.7);
+    glow.addColorStop(0, "rgba(255, 209, 102, 0.55)");
+    glow.addColorStop(0.55, "rgba(255, 159, 104, 0.2)");
+    glow.addColorStop(1, "rgba(255, 209, 102, 0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.7, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // string
   ctx.strokeStyle = "rgba(31,58,77,0.35)";
@@ -347,12 +510,38 @@ function drawBalloon(b) {
   ctx.fill();
 
   if (b.color.gold) {
-    ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.font = `700 ${Math.floor(r * 0.7)}px Fredoka, sans-serif`;
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.font = `700 ${Math.floor(r * 0.72)}px Fredoka, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("★", x, y);
+    // orbiting sparkles
+    for (let i = 0; i < 3; i++) {
+      const a = b.pulse * 1.8 + (i * Math.PI * 2) / 3;
+      const sx = x + Math.cos(a) * r * 1.15;
+      const sy = y + Math.sin(a) * r * 0.9;
+      ctx.fillStyle = `rgba(255,248,239,${0.55 + Math.sin(b.pulse + i) * 0.35})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
+}
+
+function drawStar(x, y, size, rotation) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a = (i * Math.PI * 2) / 5 - Math.PI / 2;
+    const a2 = a + Math.PI / 5;
+    ctx.lineTo(Math.cos(a) * size, Math.sin(a) * size);
+    ctx.lineTo(Math.cos(a2) * size * 0.45, Math.sin(a2) * size * 0.45);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawParticles() {
@@ -360,26 +549,81 @@ function drawParticles() {
     const alpha = 1 - p.age / p.life;
     ctx.globalAlpha = Math.max(0, alpha);
     ctx.fillStyle = p.color;
+    if (p.kind === "star") {
+      drawStar(p.x, p.y, p.size, p.spin);
+    } else if (p.kind === "shard") {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.spin);
+      ctx.fillRect(-p.size * 0.25, -p.size * 0.6, p.size * 0.5, p.size * 1.2);
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.7 + alpha * 0.3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawRings() {
+  for (const ring of state.rings) {
+    const t = ring.age / ring.life;
+    const alpha = Math.max(0, 1 - t);
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = ring.color;
+    ctx.lineWidth = Math.max(1, ring.width * (1 - t * 0.7));
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2);
+    ctx.stroke();
   }
   ctx.globalAlpha = 1;
 }
 
 function drawFloatTexts() {
   for (const t of state.floatTexts) {
-    const alpha = 1 - t.age / t.life;
-    ctx.globalAlpha = Math.max(0, alpha);
+    const p = t.age / t.life;
+    const alpha = p < 0.15 ? p / 0.15 : Math.max(0, 1 - (p - 0.15) / 0.85);
+    const scale = p < 0.2 ? 0.6 + (p / 0.2) * 0.55 : 1.05 - (p - 0.2) * 0.15;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(t.x, t.y);
+    ctx.scale(scale, scale);
     ctx.fillStyle = t.color;
-    ctx.font = "800 22px Nunito, sans-serif";
+    ctx.strokeStyle = "rgba(31,58,77,0.25)";
+    ctx.lineWidth = 4;
+    ctx.font = `${t.bold ? 900 : 800} ${t.size}px Fredoka, Nunito, sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText(t.text, t.x, t.y);
+    ctx.textBaseline = "middle";
+    if (t.bold) ctx.strokeText(t.text, 0, 0);
+    ctx.fillText(t.text, 0, 0);
+    ctx.restore();
   }
   ctx.globalAlpha = 1;
 }
 
+function drawFlash() {
+  if (state.flash <= 0) return;
+  const a = Math.min(1, state.flash * 2.2);
+  const g = ctx.createRadialGradient(
+    state.width * 0.5,
+    state.height * 0.42,
+    20,
+    state.width * 0.5,
+    state.height * 0.42,
+    Math.max(state.width, state.height) * 0.7
+  );
+  g.addColorStop(0, `rgba(255, 248, 239, ${0.55 * a})`);
+  g.addColorStop(0.45, `rgba(255, 209, 102, ${0.28 * a})`);
+  g.addColorStop(1, `rgba(255, 107, 107, 0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, state.width, state.height);
+}
+
 function update(dt) {
+  if (state.flash > 0) state.flash = Math.max(0, state.flash - dt);
+  if (state.bonusTimer > 0) state.bonusTimer = Math.max(0, state.bonusTimer - dt);
+
   if (!state.running) {
     // idle decorative balloons on home
     if (state.mode === "home") {
@@ -413,10 +657,11 @@ function update(dt) {
 
   for (const b of state.balloons) {
     if (b.popped) {
-      b.scale *= 0.82;
+      b.scale *= 0.78;
       continue;
     }
     b.wobble += b.wobbleSpeed * dt;
+    b.pulse = (b.pulse || 0) + dt * (b.color.gold ? 6 : 3);
     b.x += Math.sin(b.wobble) * b.wobbleAmp * dt;
     b.y += b.vy * dt;
   }
@@ -430,13 +675,22 @@ function update(dt) {
     p.age += dt;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
-    p.vy += 280 * dt;
+    p.vy += (p.kind === "shard" ? 360 : 280) * dt;
+    p.vx *= 0.99;
+    if (p.spinSpeed) p.spin += p.spinSpeed * dt;
   }
   state.particles = state.particles.filter((p) => p.age < p.life);
 
+  for (const ring of state.rings) {
+    ring.age += dt;
+    const t = Math.min(1, ring.age / ring.life);
+    ring.r = ring.max * (0.15 + t * 0.85);
+  }
+  state.rings = state.rings.filter((r) => r.age < r.life);
+
   for (const t of state.floatTexts) {
     t.age += dt;
-    t.y -= 40 * dt;
+    t.y -= (t.rise || 45) * dt;
   }
   state.floatTexts = state.floatTexts.filter((t) => t.age < t.life);
 }
@@ -447,8 +701,10 @@ function frame(ts) {
   if (state.mode !== "pause") update(dt);
   drawBackground(dt);
   for (const b of state.balloons) drawBalloon(b);
+  drawRings();
   drawParticles();
   drawFloatTexts();
+  drawFlash();
   requestAnimationFrame(frame);
 }
 
