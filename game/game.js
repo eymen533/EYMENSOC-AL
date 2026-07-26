@@ -359,6 +359,29 @@ function parseFillMap(rows) {
   return { grid, head, emptyTotal: empty };
 }
 
+function canFillMove() {
+  const f = state.fill;
+  if (!f || f.won) return false;
+  const dirs = [
+    [0, -1],
+    [0, 1],
+    [-1, 0],
+    [1, 0],
+  ];
+  for (const [dc, dr] of dirs) {
+    const nc = f.head.c + dc;
+    const nr = f.head.r + dr;
+    if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols) continue;
+    if (f.grid[nr][nc] === 1) return true;
+  }
+  return false;
+}
+
+function setFillRestartVisible(show) {
+  if (!ui.btnFillRestart) return;
+  ui.btnFillRestart.hidden = !show;
+}
+
 function initFillMode() {
   state.hop = null;
   state.drive = null;
@@ -386,9 +409,24 @@ function initFillMode() {
     won: false,
     moveFlash: 0,
     hintPulse: 0,
+    needsRestart: false,
   };
-  // head cell counts as filled path start
   state.fill.grid[parsed.head.r][parsed.head.c] = 3;
+  setFillRestartVisible(false);
+  state.floatTexts = [];
+  state.particles = [];
+  state.rings = [];
+  setTimeout(() => {
+    if (!state.fill || state.fill.mapIndex !== mapIndex) return;
+    const tips = [
+      "Balonu kaydır!",
+      "Boş yeşil kareleri doldur",
+      `Harita ${mapIndex + 1} / ${FILL_MAPS.length}`,
+    ];
+    tips.forEach((tip, i) => {
+      setTimeout(() => popFillTip(tip, i === 1 ? "#ffeaa7" : "#fff8ef"), i * 480);
+    });
+  }, 200);
 }
 
 function fillCellCenter(c, r) {
@@ -409,9 +447,8 @@ function tryFillMove(dc, dr) {
     const nr = r + dr;
     if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols) break;
     const cell = f.grid[nr][nc];
-    if (cell !== 1) break; // wall or body
-    // extend
-    f.grid[r][c] = 2; // old head becomes body
+    if (cell !== 1) break;
+    f.grid[r][c] = 2;
     f.grid[nr][nc] = 3;
     c = nc;
     r = nr;
@@ -423,28 +460,38 @@ function tryFillMove(dc, dr) {
     burst(p.x, p.y, "#ffd166", false);
   }
   if (!moved) {
+    f.needsRestart = true;
+    setFillRestartVisible(true);
+    showBanner("YANLIŞ!", "boost");
+    popFillTip("Bu yoldan gidemezsin!", "#ff7675");
     playSkullBuzz();
     haptic("light");
+    speak("Yanlış hareket. Yeniden dene.");
     return;
   }
   f.moveFlash = 0.25;
   playHopMelody();
   playPop(1.1);
   haptic("medium");
-  state.score += 8 * Math.max(1, Math.abs(dc) + Math.abs(dr));
+  const gained = 8 * Math.max(1, Math.abs(dc) + Math.abs(dr));
+  state.score += gained;
   bumpScore();
   updateHud();
+  const progress = Math.round((f.filled / f.emptyTotal) * 100);
+  popFillTip(`+${gained}  ·  %${progress}`, "#ffeaa7");
 
   if (f.filled >= f.emptyTotal) {
     f.won = true;
+    f.needsRestart = false;
+    setFillRestartVisible(false);
     showBanner("DOLDU!", "combo");
+    popFillTip("Tüm boşluk doldu!", "#55efc4");
     playCheer();
     speak("Harika! Tüm boşluk doldu.");
     state.score += 100;
     updateHud();
     setTimeout(() => {
-      // sonraki harita veya seviye bitiş
-      state.fillMapIndex = (f.mapIndex + 1);
+      state.fillMapIndex = f.mapIndex + 1;
       if (state.fillMapIndex < FILL_MAPS.length) {
         showBanner(`Harita ${state.fillMapIndex + 1}`, "boost");
         initFillMode();
@@ -454,6 +501,17 @@ function tryFillMove(dc, dr) {
         completeLevel();
       }
     }, 1100);
+    return;
+  }
+
+  if (!canFillMove()) {
+    f.needsRestart = true;
+    setFillRestartVisible(true);
+    showBanner("SIKIŞTIN!", "boost");
+    popFillTip("Sıkıştın! Yeniden dene", "#ff7675");
+    speak("Sıkıştın. Yeniden başlat.");
+  } else if (progress === 50 || progress === 75) {
+    popFillTip(progress === 50 ? "Yarıyoldasın!" : "Neredeyse bitti!", "#74b9ff");
   }
 }
 
@@ -471,35 +529,64 @@ function drawFillWorld() {
   const f = state.fill;
   if (!f) return;
 
-  // Longcat benzeri yeşil çimen arka plan
+  // Unique candy-sky garden (not Longcat clone)
   const bg = ctx.createLinearGradient(0, 0, 0, state.height);
-  bg.addColorStop(0, "#7bed9f");
-  bg.addColorStop(1, "#2ed573");
+  bg.addColorStop(0, "#a29bfe");
+  bg.addColorStop(0.45, "#74b9ff");
+  bg.addColorStop(1, "#ffeaa7");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, state.width, state.height);
 
-  // çiçekler
-  for (let i = 0; i < 18; i++) {
-    const fx = (i * 73 + 20) % state.width;
-    const fy = (i * 97 + 40) % state.height;
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
+  // floating decorative balloons
+  for (let i = 0; i < 8; i++) {
+    const t = f.hintPulse * (0.3 + i * 0.05) + i;
+    const bx = ((i * 89 + Math.sin(t) * 18) % (state.width + 40)) - 20;
+    const by = 40 + (i * 37) % (state.height * 0.35);
+    const br = 10 + (i % 3) * 4;
+    const cols = ["#ff7675", "#55efc4", "#ffeaa7", "#fd79a8", "#74b9ff"];
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = cols[i % cols.length];
     ctx.beginPath();
-    ctx.arc(fx, fy, 3, 0, Math.PI * 2);
+    ctx.ellipse(bx, by + Math.sin(t * 1.4) * 6, br * 0.85, br, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#ffa502";
+    ctx.globalAlpha = 1;
+  }
+
+  // soft clouds
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  for (let i = 0; i < 5; i++) {
+    const cx = (i * 120 + f.hintPulse * 12) % (state.width + 80) - 40;
+    const cy = 30 + i * 28;
     ctx.beginPath();
-    ctx.arc(fx, fy, 1.5, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+    ctx.arc(cx + 16, cy - 6, 14, 0, Math.PI * 2);
+    ctx.arc(cx + 28, cy + 2, 12, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // tahta gölgesi
-  ctx.fillStyle = "rgba(0,0,0,0.12)";
-  roundRectPath(f.originX - 8, f.originY - 8, f.cols * f.cell + 16, f.rows * f.cell + 16, 18);
-  ctx.fill();
+  // board outer glow
+  const glow = ctx.createRadialGradient(
+    state.width * 0.5,
+    f.originY + (f.rows * f.cell) / 2,
+    20,
+    state.width * 0.5,
+    f.originY + (f.rows * f.cell) / 2,
+    Math.max(f.cols, f.rows) * f.cell * 0.85
+  );
+  glow.addColorStop(0, "rgba(255,255,255,0.55)");
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, state.width, state.height);
 
-  // tahta
-  ctx.fillStyle = "#fff8ef";
-  roundRectPath(f.originX - 6, f.originY - 6, f.cols * f.cell + 12, f.rows * f.cell + 12, 16);
+  // board frame
+  ctx.fillStyle = "rgba(45, 52, 54, 0.18)";
+  roundRectPath(f.originX - 12, f.originY - 12, f.cols * f.cell + 24, f.rows * f.cell + 24, 22);
+  ctx.fill();
+  const boardGrad = ctx.createLinearGradient(0, f.originY, 0, f.originY + f.rows * f.cell);
+  boardGrad.addColorStop(0, "#fff9f0");
+  boardGrad.addColorStop(1, "#ffe8cc");
+  ctx.fillStyle = boardGrad;
+  roundRectPath(f.originX - 8, f.originY - 8, f.cols * f.cell + 16, f.rows * f.cell + 16, 18);
   ctx.fill();
 
   for (let r = 0; r < f.rows; r++) {
@@ -508,85 +595,136 @@ function drawFillWorld() {
       const y = f.originY + r * f.cell;
       const v = f.grid[r][c];
       if (v === 0) {
-        // duvar / toprak
-        ctx.fillStyle = "#a0522d";
-        roundRectPath(x + 2, y + 2, f.cell - 4, f.cell - 4, 8);
+        // candy brick wall
+        const brick = ctx.createLinearGradient(x, y, x, y + f.cell);
+        brick.addColorStop(0, "#e17055");
+        brick.addColorStop(1, "#d63031");
+        ctx.fillStyle = brick;
+        roundRectPath(x + 2, y + 2, f.cell - 4, f.cell - 4, 7);
         ctx.fill();
-        ctx.fillStyle = "#6b3f1d";
-        roundRectPath(x + 6, y + f.cell - 12, f.cell - 12, 6, 3);
-        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.25)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 6, y + f.cell / 2);
+        ctx.lineTo(x + f.cell - 6, y + f.cell / 2);
+        ctx.stroke();
       } else if (v === 1) {
-        ctx.fillStyle = "#badc58";
-        roundRectPath(x + 3, y + 3, f.cell - 6, f.cell - 6, 8);
+        // soft empty pad
+        ctx.fillStyle = "#dfe6e9";
+        roundRectPath(x + 4, y + 4, f.cell - 8, f.cell - 8, 10);
+        ctx.fill();
+        ctx.fillStyle = "rgba(116, 185, 255, 0.35)";
+        roundRectPath(x + 8, y + 8, f.cell - 16, f.cell - 16, 8);
         ctx.fill();
       } else {
-        // body / head path
-        ctx.fillStyle = "#ffd166";
-        roundRectPath(x + 3, y + 3, f.cell - 6, f.cell - 6, 10);
+        // filled balloon path - glossy jelly
+        const jelly = ctx.createRadialGradient(
+          x + f.cell * 0.35,
+          y + f.cell * 0.3,
+          2,
+          x + f.cell / 2,
+          y + f.cell / 2,
+          f.cell * 0.55
+        );
+        jelly.addColorStop(0, "#fff5c8");
+        jelly.addColorStop(0.45, "#ffd166");
+        jelly.addColorStop(1, "#e17055");
+        ctx.fillStyle = jelly;
+        roundRectPath(x + 3, y + 3, f.cell - 6, f.cell - 6, 12);
         ctx.fill();
-        ctx.strokeStyle = "rgba(255, 159, 67, 0.7)";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        roundRectPath(x + 5, y + 5, f.cell - 10, f.cell - 10, 8);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(255,255,255,0.45)";
+        ctx.beginPath();
+        ctx.ellipse(x + f.cell * 0.35, y + f.cell * 0.32, f.cell * 0.12, f.cell * 0.08, -0.5, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
   }
 
-  // balon kafa
+  // balloon head (cute unique face)
   const hx = f.originX + f.head.c * f.cell + f.cell / 2;
   const hy = f.originY + f.head.r * f.cell + f.cell / 2;
-  const hr = f.cell * 0.38;
-  const grad = ctx.createRadialGradient(hx - hr * 0.3, hy - hr * 0.35, 2, hx, hy, hr);
-  grad.addColorStop(0, "#ffffff");
-  grad.addColorStop(0.25, "#ff6b6b");
-  grad.addColorStop(1, "#e84118");
-  ctx.fillStyle = grad;
+  const hr = f.cell * 0.42;
+  const bob = Math.sin(f.hintPulse * 5) * 2;
+  const aura = ctx.createRadialGradient(hx, hy + bob, hr * 0.2, hx, hy + bob, hr * 1.6);
+  aura.addColorStop(0, "rgba(255, 118, 117, 0.55)");
+  aura.addColorStop(1, "rgba(255, 118, 117, 0)");
+  ctx.fillStyle = aura;
   ctx.beginPath();
-  ctx.arc(hx, hy, hr, 0, Math.PI * 2);
-  ctx.fill();
-  // yüz
-  ctx.fillStyle = "#1e272e";
-  ctx.beginPath();
-  ctx.arc(hx - hr * 0.28, hy - hr * 0.1, hr * 0.12, 0, Math.PI * 2);
-  ctx.arc(hx + hr * 0.28, hy - hr * 0.1, hr * 0.12, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#ff9ff3";
-  ctx.beginPath();
-  ctx.arc(hx, hy + hr * 0.18, hr * 0.12, 0, Math.PI * 2);
+  ctx.arc(hx, hy + bob, hr * 1.6, 0, Math.PI * 2);
   ctx.fill();
 
-  // yön ipuçları
+  const grad = ctx.createRadialGradient(hx - hr * 0.3, hy - hr * 0.35 + bob, 2, hx, hy + bob, hr);
+  grad.addColorStop(0, "#ffffff");
+  grad.addColorStop(0.22, "#ff7675");
+  grad.addColorStop(1, "#d63031");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(hx, hy + bob, hr, 0, Math.PI * 2);
+  ctx.fill();
+  // knot
+  ctx.fillStyle = "#d63031";
+  ctx.beginPath();
+  ctx.moveTo(hx, hy + bob + hr * 0.85);
+  ctx.lineTo(hx - 5, hy + bob + hr * 1.15);
+  ctx.lineTo(hx + 5, hy + bob + hr * 1.15);
+  ctx.closePath();
+  ctx.fill();
+  // face
+  ctx.fillStyle = "#2d3436";
+  ctx.beginPath();
+  ctx.arc(hx - hr * 0.28, hy + bob - hr * 0.08, hr * 0.11, 0, Math.PI * 2);
+  ctx.arc(hx + hr * 0.28, hy + bob - hr * 0.08, hr * 0.11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(hx - hr * 0.24, hy + bob - hr * 0.12, hr * 0.04, 0, Math.PI * 2);
+  ctx.arc(hx + hr * 0.32, hy + bob - hr * 0.12, hr * 0.04, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#2d3436";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(hx, hy + bob + hr * 0.2, hr * 0.22, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+
+  // glowing direction pads
   const dirs = [
     { dc: 0, dr: -1, label: "▲" },
     { dc: 0, dr: 1, label: "▼" },
     { dc: -1, dr: 0, label: "◀" },
     { dc: 1, dr: 0, label: "▶" },
   ];
-  const pulse = 0.5 + 0.5 * Math.sin(f.hintPulse * 4);
+  const pulse = 0.5 + 0.5 * Math.sin(f.hintPulse * 5);
   for (const d of dirs) {
     const nc = f.head.c + d.dc;
     const nr = f.head.r + d.dr;
     if (nr < 0 || nc < 0 || nr >= f.rows || nc >= f.cols) continue;
     if (f.grid[nr][nc] !== 1) continue;
     const p = fillCellCenter(nc, nr);
-    ctx.fillStyle = `rgba(255,255,255,${0.35 + pulse * 0.35})`;
+    const ring = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, f.cell * 0.35);
+    ring.addColorStop(0, `rgba(255,255,255,${0.85})`);
+    ring.addColorStop(0.5, `rgba(116,185,255,${0.45 + pulse * 0.35})`);
+    ring.addColorStop(1, "rgba(116,185,255,0)");
+    ctx.fillStyle = ring;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, f.cell * 0.18, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, f.cell * 0.35, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = `rgba(30,39,46,${0.55 + pulse * 0.3})`;
-    ctx.font = `900 ${Math.floor(f.cell * 0.28)}px Fredoka, sans-serif`;
+    ctx.fillStyle = "#0984e3";
+    ctx.font = `900 ${Math.floor(f.cell * 0.32)}px Fredoka, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(d.label, p.x, p.y + 1);
   }
 
-  ctx.fillStyle = "rgba(255,248,239,0.95)";
-  ctx.font = "800 16px Nunito, sans-serif";
+  // progress chip
+  const pct = Math.round((f.filled / f.emptyTotal) * 100);
+  ctx.fillStyle = "rgba(45,52,54,0.55)";
+  roundRectPath(state.width * 0.5 - 70, Math.min(state.height - 36, f.originY + f.rows * f.cell + 14), 140, 28, 14);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.font = "800 15px Nunito, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("Kaydır veya ok yönüne dokun", state.width * 0.5, Math.max(28, f.originY - 28));
-  ctx.fillText(`${f.filled}/${f.emptyTotal}`, state.width * 0.5, Math.min(state.height - 24, f.originY + f.rows * f.cell + 28));
+  ctx.textBaseline = "middle";
+  ctx.fillText(`Dolu: ${f.filled}/${f.emptyTotal}  ·  %${pct}`, state.width * 0.5, Math.min(state.height - 22, f.originY + f.rows * f.cell + 28));
 }
 
 function handleFillPointer(x, y) {
@@ -1718,7 +1856,26 @@ function floatText(x, y, text, color = "#1f3a4d", opts = {}) {
     size: opts.size || 22,
     bold: !!opts.bold,
     rise: opts.rise || 50,
+    pop: !!opts.pop,
+    stroke: opts.stroke || "rgba(31,58,77,0.25)",
   });
+}
+
+function popFillTip(text, color = "#fff8ef") {
+  const f = state.fill;
+  const x = state.width * 0.5;
+  const y = f ? f.originY - 10 : state.height * 0.22;
+  burst(x, y + 20, color, true);
+  burst(x, y + 20, "#ffd166", false);
+  floatText(x, y, text, color, {
+    size: 34,
+    bold: true,
+    life: 1.35,
+    rise: 70,
+    pop: true,
+    stroke: "rgba(31,58,77,0.35)",
+  });
+  state.flash = Math.max(state.flash, 0.18);
 }
 
 function showBanner(text, mode = "bonus") {
@@ -1843,6 +2000,7 @@ function showScreen(name) {
   if (ui.levelIntro) ui.levelIntro.hidden = name !== "levelIntro";
   ui.hud.hidden = name !== "play";
   ui.btnPause.hidden = name !== "play";
+  if (ui.btnFillRestart && name !== "play") ui.btnFillRestart.hidden = true;
   state.mode = name;
   if (name !== "quiz") stopSpeak();
 }
@@ -2361,19 +2519,25 @@ function drawRings() {
 function drawFloatTexts() {
   for (const t of state.floatTexts) {
     const p = t.age / t.life;
-    const alpha = p < 0.15 ? p / 0.15 : Math.max(0, 1 - (p - 0.15) / 0.85);
-    const scale = p < 0.2 ? 0.6 + (p / 0.2) * 0.55 : 1.05 - (p - 0.2) * 0.15;
+    const alpha = p < 0.12 ? p / 0.12 : Math.max(0, 1 - (p - 0.12) / 0.88);
+    let scale;
+    if (t.pop) {
+      scale = p < 0.18 ? 0.2 + (p / 0.18) * 1.15 : p < 0.35 ? 1.35 - ((p - 0.18) / 0.17) * 0.25 : 1.05;
+    } else {
+      scale = p < 0.2 ? 0.6 + (p / 0.2) * 0.55 : 1.05 - (p - 0.2) * 0.15;
+    }
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(t.x, t.y);
     ctx.scale(scale, scale);
+    ctx.rotate(t.pop ? Math.sin(p * 12) * 0.04 : 0);
     ctx.fillStyle = t.color;
-    ctx.strokeStyle = "rgba(31,58,77,0.25)";
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = t.stroke || "rgba(31,58,77,0.25)";
+    ctx.lineWidth = t.pop ? 6 : 4;
     ctx.font = `${t.bold ? 900 : 800} ${t.size}px Fredoka, Nunito, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    if (t.bold) ctx.strokeText(t.text, 0, 0);
+    if (t.bold || t.pop) ctx.strokeText(t.text, 0, 0);
     ctx.fillText(t.text, 0, 0);
     ctx.restore();
   }
@@ -2603,6 +2767,15 @@ function bindUi() {
     stopBoostMusic();
     showScreen("pause");
   });
+  if (ui.btnFillRestart) {
+    ui.btnFillRestart.addEventListener("click", () => {
+      if (!isFillMode()) return;
+      playPop(0.9);
+      initFillMode();
+      showBanner("YENİDEN!", "bonus");
+      speak("Yeniden başlıyoruz.");
+    });
+  }
   ui.btnResume.addEventListener("click", () => {
     state.running = true;
     state.lastTs = performance.now();
