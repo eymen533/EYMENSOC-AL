@@ -1,7 +1,118 @@
 const STORAGE_KEY = "balonPatlatBest";
 const COLOR_STREAK_NEED = 3;
-const BOOST_DURATION = 30; // hızlı müzik/boost modu (sn) — ana süre bu sırada durur
+const BOOST_DURATION = 10; // hızlı müzik/boost modu (sn)
 const BOOST_SCORE_MULT = 3;
+
+const LEVELS = [
+  {
+    id: 1,
+    name: "Seviye 1",
+    time: 45,
+    spawnBase: 0.85,
+    speedMul: 1,
+    label: "Isınma",
+    desc: "Balonları patlat, aynı renkten 3 yap!",
+  },
+  {
+    id: 2,
+    name: "Seviye 2",
+    time: 50,
+    spawnBase: 0.55,
+    speedMul: 1.3,
+    label: "Hızlanıyor",
+    desc: "Balonlar daha hızlı ve daha çok!",
+  },
+  {
+    id: 3,
+    name: "Seviye 3",
+    time: 55,
+    spawnBase: 0.36,
+    speedMul: 1.55,
+    label: "Şampiyonluk",
+    desc: "Son seviye! En yüksek skoru yakala!",
+  },
+];
+
+const QUIZZES = [
+  {
+    id: "odd-shape",
+    afterLevel: 1,
+    question: "Hangisi diğerlerinden farklı?",
+    speak: "Hangisi diğerlerinden farklı? Üç yuvarlak ve bir kare var. Farklı olanı seç.",
+    visual: `
+      <div class="v-row">
+        <div class="v-shape round" style="background:#ff6b6b"></div>
+        <div class="v-shape round" style="background:#4ecdc4"></div>
+        <div class="v-shape" style="background:#ffd166"></div>
+        <div class="v-shape round" style="background:#5bb8f0"></div>
+      </div>
+    `,
+    choices: [
+      { text: "Sarı kare", correct: true },
+      { text: "Kırmızı yuvarlak", correct: false },
+      { text: "Mavi yuvarlak", correct: false },
+    ],
+  },
+  {
+    id: "pattern-color",
+    afterLevel: 1,
+    question: "Sıradaki renk hangisi?",
+    speak: "Desene bak. Kırmızı, mavi, kırmızı, mavi. Sıradaki renk hangisi?",
+    visual: `
+      <div class="v-row">
+        <div class="v-shape round" style="background:#ff6b6b"></div>
+        <div class="v-shape round" style="background:#5bb8f0"></div>
+        <div class="v-shape round" style="background:#ff6b6b"></div>
+        <div class="v-shape round" style="background:#5bb8f0"></div>
+        <span class="v-arrow">→</span>
+        <div class="v-shape round" style="background:#d9e2ec;color:#1f3a4d">?</div>
+      </div>
+    `,
+    choices: [
+      { text: "Kırmızı", correct: true },
+      { text: "Yeşil", correct: false },
+      { text: "Sarı", correct: false },
+    ],
+  },
+  {
+    id: "count-stars",
+    afterLevel: 2,
+    question: "Kaç tane yıldız var?",
+    speak: "Resme dikkatlice bak. Kaç tane yıldız var?",
+    visual: `
+      <div class="v-row">
+        <div class="v-shape round" style="background:#ffd166">★</div>
+        <div class="v-shape round" style="background:#ff6b6b">★</div>
+        <div class="v-shape round" style="background:#4ecdc4">●</div>
+        <div class="v-shape round" style="background:#ff9f68">★</div>
+        <div class="v-shape round" style="background:#5bb8f0">★</div>
+      </div>
+    `,
+    choices: [
+      { text: "3", correct: false },
+      { text: "4", correct: true },
+      { text: "5", correct: false },
+    ],
+  },
+  {
+    id: "biggest",
+    afterLevel: 2,
+    question: "Hangisi en büyük?",
+    speak: "Üç balona bak. Hangisi en büyük?",
+    visual: `
+      <div class="v-row">
+        <div class="v-shape round small" style="background:#4ecdc4"></div>
+        <div class="v-shape round big" style="background:#ff6b6b"></div>
+        <div class="v-shape round" style="background:#ffd166"></div>
+      </div>
+    `,
+    choices: [
+      { text: "Kırmızı", correct: true },
+      { text: "Yeşil", correct: false },
+      { text: "Sarı", correct: false },
+    ],
+  },
+];
 
 const COLORS = [
   { fill: "#ff6b6b", stroke: "#e84e4e", points: 10, name: "kırmızı" },
@@ -19,10 +130,13 @@ const ui = {
   home: $("home"),
   how: $("how"),
   pause: $("pause"),
+  quiz: $("quiz"),
+  levelIntro: $("levelIntro"),
   result: $("result"),
   hud: $("hud"),
   score: $("score"),
   time: $("time"),
+  level: $("level"),
   combo: $("combo"),
   comboWrap: $("comboWrap"),
   streak: $("streak"),
@@ -38,6 +152,8 @@ const ui = {
   btnQuit: $("btnQuit"),
   btnAgain: $("btnAgain"),
   btnHome: $("btnHome"),
+  btnSpeak: $("btnSpeak"),
+  btnStartLevel: $("btnStartLevel"),
   bestHome: $("bestHome"),
   finalScore: $("finalScore"),
   resultBest: $("resultBest"),
@@ -45,6 +161,15 @@ const ui = {
   resultEmoji: $("resultEmoji"),
   bonusBanner: $("bonusBanner"),
   bannerText: $("bannerText"),
+  quizStage: $("quizStage"),
+  quizTitle: $("quizTitle"),
+  quizQuestion: $("quizQuestion"),
+  quizVisual: $("quizVisual"),
+  quizChoices: $("quizChoices"),
+  quizFeedback: $("quizFeedback"),
+  introEyebrow: $("introEyebrow"),
+  introTitle: $("introTitle"),
+  introText: $("introText"),
   app: $("app"),
   scorePill: document.querySelector(".score-pill"),
 };
@@ -69,7 +194,11 @@ const state = {
   lastColor: null,
   streakColor: null,
   boostLeft: 0,
-  timeLeft: 60,
+  timeLeft: 45,
+  levelIndex: 0,
+  pendingLevelIndex: 1,
+  currentQuiz: null,
+  usedQuizIds: [],
   spawnTimer: 0,
   lastTs: 0,
   best: Number(localStorage.getItem(STORAGE_KEY) || 0),
@@ -81,6 +210,33 @@ const state = {
 
 let audioCtx = null;
 let boostMusicTimer = null;
+
+function currentLevel() {
+  return LEVELS[state.levelIndex] || LEVELS[0];
+}
+
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "tr-TR";
+  utter.rate = 0.92;
+  utter.pitch = 1.08;
+  const voices = window.speechSynthesis.getVoices();
+  const tr = voices.find((v) => v.lang?.startsWith("tr"));
+  if (tr) utter.voice = tr;
+  window.speechSynthesis.speak(utter);
+}
+
+function stopSpeak() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+function pickQuiz(afterLevel) {
+  const pool = QUIZZES.filter((q) => q.afterLevel === afterLevel && !state.usedQuizIds.includes(q.id));
+  const list = pool.length ? pool : QUIZZES.filter((q) => q.afterLevel === afterLevel);
+  return pick(list);
+}
 
 function ensureAudio() {
   if (!audioCtx) {
@@ -244,6 +400,7 @@ function stopBoostMusic() {
 
 function spawnBalloon(forceBoostStyle = false) {
   const boosting = state.boostLeft > 0 || forceBoostStyle;
+  const level = currentLevel();
   let color;
   if (Math.random() < (boosting ? 0.1 : 0.16)) {
     color = COLORS.find((c) => c.gold);
@@ -251,7 +408,8 @@ function spawnBalloon(forceBoostStyle = false) {
     color = pick(COLORS.filter((c) => !c.gold));
   }
   const r = color.gold ? rand(42, 58) : rand(boosting ? 30 : 34, boosting ? 48 : 52);
-  const speed = (boosting ? rand(140, 240) : rand(55, 110)) + Math.min(40, state.score / 40);
+  const speed =
+    ((boosting ? rand(140, 240) : rand(55, 110)) + Math.min(40, state.score / 40)) * (level.speedMul || 1);
   state.balloons.push({
     x: rand(r + 10, state.width - r - 10),
     y: state.height + r + rand(10, boosting ? 40 : 80),
@@ -437,8 +595,10 @@ function startBoost() {
 }
 
 function updateHud() {
+  const level = currentLevel();
   ui.score.textContent = String(state.score);
   ui.time.textContent = String(Math.max(0, Math.ceil(state.timeLeft)));
+  if (ui.level) ui.level.textContent = String(level.id);
 
   if (state.running && state.boostLeft > 0) {
     ui.boostWrap.hidden = false;
@@ -471,23 +631,43 @@ function showScreen(name) {
   ui.how.hidden = name !== "how";
   ui.pause.hidden = name !== "pause";
   ui.result.hidden = name !== "result";
+  if (ui.quiz) ui.quiz.hidden = name !== "quiz";
+  if (ui.levelIntro) ui.levelIntro.hidden = name !== "levelIntro";
   ui.hud.hidden = name !== "play";
   ui.btnPause.hidden = name !== "play";
   state.mode = name;
+  if (name !== "quiz") stopSpeak();
 }
 
 function startGame() {
   ensureAudio();
   stopBoostMusic();
-  state.running = true;
+  stopSpeak();
   state.score = 0;
+  state.usedQuizIds = [];
+  state.levelIndex = 0;
+  state.pendingLevelIndex = 1;
+  setBoosting(false);
+  startLevel(0, true);
+}
+
+function startLevel(levelIndex, fromMenu = false) {
+  const level = LEVELS[levelIndex];
+  if (!level) {
+    finishRun();
+    return;
+  }
+  ensureAudio();
+  stopBoostMusic();
+  state.levelIndex = levelIndex;
+  state.running = true;
   state.combo = 0;
   state.comboTimer = 0;
   state.colorStreak = 0;
   state.lastColor = null;
   state.streakColor = null;
   state.boostLeft = 0;
-  state.timeLeft = 60;
+  state.timeLeft = level.time;
   state.spawnTimer = 0;
   state.balloons = [];
   state.particles = [];
@@ -501,14 +681,108 @@ function startGame() {
   setBoosting(false);
   showScreen("play");
   updateHud();
-  for (let i = 0; i < 5; i++) spawnBalloon();
+  showBanner(level.name, "boost");
+  if (!fromMenu) speak(`${level.name}. ${level.desc}`);
+  for (let i = 0; i < (levelIndex === 0 ? 5 : 7); i++) spawnBalloon();
 }
 
-function endGame() {
+function completeLevel() {
   state.running = false;
   state.boostLeft = 0;
   setBoosting(false);
   stopBoostMusic();
+  state.balloons = [];
+
+  const finishedId = currentLevel().id;
+  const nextIndex = state.levelIndex + 1;
+
+  if (nextIndex >= LEVELS.length) {
+    finishRun();
+    return;
+  }
+
+  // Sonraki seviyeye geçmek için akıl sorusu
+  state.pendingLevelIndex = nextIndex;
+  openQuiz(finishedId);
+}
+
+function openQuiz(afterLevelId) {
+  const quiz = pickQuiz(afterLevelId);
+  state.currentQuiz = quiz;
+  state.usedQuizIds.push(quiz.id);
+
+  ui.quizStage.textContent = `${afterLevelId}. Aşama Tamam!`;
+  ui.quizTitle.textContent = "Akıl Sorusu";
+  ui.quizQuestion.textContent = quiz.question;
+  ui.quizVisual.innerHTML = quiz.visual;
+  ui.quizFeedback.hidden = true;
+  ui.quizFeedback.classList.remove("ok");
+  ui.quizChoices.innerHTML = "";
+
+  const shuffled = [...quiz.choices].sort(() => Math.random() - 0.5);
+  shuffled.forEach((choice) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "quiz-choice";
+    btn.textContent = choice.text;
+    btn.addEventListener("click", () => answerQuiz(choice, btn));
+    ui.quizChoices.appendChild(btn);
+  });
+
+  showScreen("quiz");
+  setTimeout(() => speak(`${afterLevelId}. aşama tamam. ${quiz.speak}`), 250);
+}
+
+function answerQuiz(choice, btn) {
+  const buttons = [...ui.quizChoices.querySelectorAll(".quiz-choice")];
+  buttons.forEach((b) => {
+    b.disabled = true;
+  });
+
+  if (choice.correct) {
+    btn.classList.add("correct");
+    ui.quizFeedback.hidden = false;
+    ui.quizFeedback.classList.add("ok");
+    ui.quizFeedback.textContent = "Doğru! Sonraki seviyeye geçiyoruz.";
+    playCheer();
+    speak("Doğru cevap! Sonraki seviyeye geçiyoruz.");
+    setTimeout(() => showLevelIntro(state.pendingLevelIndex), 1400);
+  } else {
+    btn.classList.add("wrong");
+    const correctBtn = buttons.find((b) => {
+      const text = b.textContent;
+      return state.currentQuiz.choices.some((c) => c.correct && c.text === text);
+    });
+    if (correctBtn) correctBtn.classList.add("correct");
+    ui.quizFeedback.hidden = false;
+    ui.quizFeedback.classList.remove("ok");
+    ui.quizFeedback.textContent = "Tekrar dene! Soruyu dinle ve görsele bak.";
+    speak("Bu olmadı. Tekrar dene. Soruyu dinle ve görsele bak.");
+    setTimeout(() => {
+      openQuiz(currentLevel().id);
+    }, 1600);
+  }
+}
+
+function showLevelIntro(levelIndex) {
+  const level = LEVELS[levelIndex];
+  if (!level) {
+    finishRun();
+    return;
+  }
+  ui.introEyebrow.textContent = level.label;
+  ui.introTitle.textContent = level.name;
+  ui.introText.textContent = level.desc;
+  showScreen("levelIntro");
+  speak(`${level.name}. ${level.desc}. Başla demen yeterli.`);
+}
+
+function finishRun() {
+  state.running = false;
+  state.boostLeft = 0;
+  setBoosting(false);
+  stopBoostMusic();
+  stopSpeak();
   const isNewBest = state.score > state.best;
   if (isNewBest) {
     state.best = state.score;
@@ -516,10 +790,10 @@ function endGame() {
   }
   ui.finalScore.textContent = String(state.score);
   ui.bestHome.textContent = `En iyi: ${state.best}`;
-  if (state.score >= 600) {
-    ui.resultTitle.textContent = "Muhteşem!";
+  if (state.score >= 900) {
+    ui.resultTitle.textContent = "Şampiyon!";
     ui.resultEmoji.textContent = "🏆";
-  } else if (state.score >= 300) {
+  } else if (state.score >= 500) {
     ui.resultTitle.textContent = "Harika!";
     ui.resultEmoji.textContent = "🎉";
   } else {
@@ -529,7 +803,13 @@ function endGame() {
   ui.resultBest.textContent = isNewBest ? "Yeni rekor kırdın!" : `En iyi skor: ${state.best}`;
   showScreen("result");
   playCheer();
+  speak(isNewBest ? `Tebrikler! Yeni rekorun ${state.score}` : `Skorun ${state.score}. Tekrar oynamak ister misin?`);
   haptic("heavy");
+}
+
+function endGame() {
+  // seviye süresi bittiğinde
+  completeLevel();
 }
 
 function popBalloon(b) {
@@ -872,14 +1152,16 @@ function update(dt) {
     if (state.comboTimer <= 0) state.combo = 0;
 
     const boosting = state.boostLeft > 0;
+    const level = currentLevel();
     const spawnRate = boosting
       ? 0.12
-      : Math.max(0.28, 0.85 - state.score / 1200);
+      : Math.max(0.2, level.spawnBase - state.score / 1600);
     state.spawnTimer -= dt;
     if (state.spawnTimer <= 0) {
       spawnBalloon();
-      if (boosting || Math.random() < 0.35) spawnBalloon();
+      if (boosting || Math.random() < 0.35 + level.id * 0.08) spawnBalloon();
       if (boosting && Math.random() < 0.55) spawnBalloon();
+      if (!boosting && level.id >= 3 && Math.random() < 0.25) spawnBalloon();
       state.spawnTimer = spawnRate;
     }
     updateHud();
@@ -975,6 +1257,7 @@ function bindUi() {
     state.running = false;
     state.boostLeft = 0;
     setBoosting(false);
+    stopSpeak();
     state.balloons = [];
     showScreen("home");
   });
@@ -982,9 +1265,20 @@ function bindUi() {
   ui.btnHome.addEventListener("click", () => {
     state.boostLeft = 0;
     setBoosting(false);
+    stopSpeak();
     state.balloons = [];
     showScreen("home");
   });
+  if (ui.btnSpeak) {
+    ui.btnSpeak.addEventListener("click", () => {
+      if (state.currentQuiz) speak(state.currentQuiz.speak);
+    });
+  }
+  if (ui.btnStartLevel) {
+    ui.btnStartLevel.addEventListener("click", () => {
+      startLevel(state.pendingLevelIndex);
+    });
+  }
 
   canvas.addEventListener("pointerdown", onPointer, { passive: false });
   canvas.addEventListener("touchstart", onPointer, { passive: false });
@@ -1000,10 +1294,18 @@ function setupNative() {
     plugins.App.addListener("backButton", ({ canGoBack }) => {
       if (state.mode === "play") {
         state.running = false;
+        stopBoostMusic();
         showScreen("pause");
+      } else if (state.mode === "quiz") {
+        // quiz sırasında geri = ana menü
+        stopSpeak();
+        showScreen("home");
+      } else if (state.mode === "levelIntro") {
+        startLevel(state.pendingLevelIndex);
       } else if (state.mode === "pause" || state.mode === "how" || state.mode === "result") {
         state.running = false;
         state.balloons = [];
+        stopSpeak();
         showScreen("home");
       } else if (!canGoBack) {
         plugins.App.exitApp?.();
@@ -1018,5 +1320,11 @@ showScreen("home");
 for (let i = 0; i < 6; i++) spawnBalloon();
 requestAnimationFrame(frame);
 setupNative();
+if (window.speechSynthesis) {
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.addEventListener("voiceschanged", () => {
+    window.speechSynthesis.getVoices();
+  });
+}
 window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", () => setTimeout(resize, 120));

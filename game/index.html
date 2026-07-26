@@ -15,13 +15,17 @@
     <canvas id="sky" aria-hidden="true"></canvas>
 
     <header class="hud" id="hud" hidden>
+      <div class="hud-pill level-pill">
+        <span class="label">Seviye</span>
+        <strong id="level">1</strong>
+      </div>
       <div class="hud-pill score-pill">
         <span class="label">Skor</span>
         <strong id="score">0</strong>
       </div>
       <div class="hud-pill time-pill">
         <span class="label">Süre</span>
-        <strong id="time">60</strong>
+        <strong id="time">45</strong>
       </div>
       <div class="hud-pill streak-pill" id="streakWrap" hidden>
         <span class="label">Renk</span>
@@ -33,7 +37,7 @@
       </div>
       <div class="hud-pill boost-pill" id="boostWrap" hidden>
         <span class="label">Boost</span>
-        <strong id="boostTime">30</strong>
+        <strong id="boostTime">10</strong>
       </div>
     </header>
 
@@ -48,7 +52,7 @@
         <div class="brand-block">
           <p class="eyebrow">Çocuklar için</p>
           <h1 class="brand">Balon Patlat!</h1>
-          <p class="tagline">Renkli balonları dokunarak patlat, skorunu yükselt!</p>
+          <p class="tagline">3 seviye oyna, akıl sorularını çöz, şampiyon ol!</p>
         </div>
         <div class="home-actions">
           <button class="btn primary pulse" id="btnPlay" type="button">Oyna</button>
@@ -61,10 +65,10 @@
         <div class="panel">
           <h2>Nasıl Oynanır?</h2>
           <ul class="howto">
-            <li><span class="dot coral"></span> Balonlara dokunarak patlat</li>
-            <li><span class="dot gold"></span> Altın balon = BONUS puan</li>
-            <li><span class="dot mint"></span> Aynı renkten 3 patlat = Renk Kombo</li>
-            <li><span class="dot sky"></span> Kombo sonrası Boost: hızlı patlat, çok puan!</li>
+            <li><span class="dot coral"></span> 3 seviye balon patlatma</li>
+            <li><span class="dot mint"></span> Aynı renkten 3 = Renk Kombo + 10 sn Boost</li>
+            <li><span class="dot gold"></span> Seviye bitince görsel akıl sorusu</li>
+            <li><span class="dot sky"></span> Soru sesli okunur, doğru cevapla ilerle</li>
           </ul>
           <button class="btn primary" id="btnHowClose" type="button">Anladım!</button>
         </div>
@@ -75,6 +79,27 @@
           <h2>Duraklatıldı</h2>
           <button class="btn primary" id="btnResume" type="button">Devam</button>
           <button class="btn ghost" id="btnQuit" type="button">Ana Menü</button>
+        </div>
+      </section>
+
+      <section class="screen overlay" id="quiz" hidden aria-label="Akıl sorusu">
+        <div class="panel quiz-panel">
+          <p class="quiz-stage" id="quizStage">1. Aşama Tamam!</p>
+          <h2 id="quizTitle">Akıl Sorusu</h2>
+          <p class="quiz-question" id="quizQuestion">Soru yükleniyor...</p>
+          <div class="quiz-visual" id="quizVisual" aria-hidden="true"></div>
+          <div class="quiz-choices" id="quizChoices"></div>
+          <button class="btn ghost speak-btn" id="btnSpeak" type="button">🔊 Tekrar Dinle</button>
+          <p class="quiz-feedback" id="quizFeedback" hidden></p>
+        </div>
+      </section>
+
+      <section class="screen overlay" id="levelIntro" hidden aria-label="Seviye başlangıcı">
+        <div class="panel">
+          <p class="quiz-stage" id="introEyebrow">Hazır mısın?</p>
+          <h2 id="introTitle">Seviye 2</h2>
+          <p class="tagline" id="introText">Balonlar daha hızlı gelecek!</p>
+          <button class="btn primary" id="btnStartLevel" type="button">Başla!</button>
         </div>
       </section>
 

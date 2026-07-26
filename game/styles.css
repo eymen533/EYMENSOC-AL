@@ -106,6 +106,135 @@ html, body {
   font-weight: 700;
 }
 
+.level-pill {
+  background: linear-gradient(135deg, #dff3ff, #b9e4ff);
+}
+
+.quiz-panel {
+  max-height: min(92vh, 720px);
+  overflow: auto;
+}
+
+.quiz-stage {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.quiz-question {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.quiz-visual {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  min-height: 110px;
+  margin: 0 0 18px;
+  padding: 16px 12px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #eaf7ff, #fff8ef);
+  box-shadow: inset 0 0 0 2px rgba(31, 58, 77, 0.06);
+}
+
+.quiz-choices {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.quiz-choice {
+  appearance: none;
+  border: 0;
+  border-radius: 18px;
+  min-height: 52px;
+  padding: 12px 16px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 6px 0 rgba(31, 58, 77, 0.08), 0 10px 20px var(--shadow);
+  cursor: pointer;
+}
+
+.quiz-choice:active {
+  transform: scale(0.98);
+}
+
+.quiz-choice.correct {
+  background: linear-gradient(180deg, #7ddea8, #4ecdc4);
+  color: #fff;
+}
+
+.quiz-choice.wrong {
+  background: linear-gradient(180deg, #ffb4b4, #ff6b6b);
+  color: #fff;
+}
+
+.speak-btn {
+  width: 100%;
+  min-height: 48px;
+  font-size: 18px;
+}
+
+.quiz-feedback {
+  margin: 12px 0 0;
+  font-weight: 800;
+  color: var(--coral);
+}
+
+.quiz-feedback.ok {
+  color: #2fb3aa;
+}
+
+/* Visual puzzle pieces */
+.v-shape {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(31, 58, 77, 0.12);
+}
+
+.v-shape.round { border-radius: 50%; }
+.v-shape.diamond {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  transform: rotate(45deg);
+}
+.v-shape.diamond span { transform: rotate(-45deg); display: block; }
+.v-shape.big { width: 72px; height: 72px; font-size: 34px; }
+.v-shape.small { width: 40px; height: 40px; font-size: 20px; }
+
+.v-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.v-arrow {
+  font-size: 28px;
+  color: var(--ink-soft);
+  font-weight: 900;
+}
+
 .combo-pill {
   background: linear-gradient(135deg, #fff1c9, #ffe08a);
   animation: popIn 0.25s ease;
