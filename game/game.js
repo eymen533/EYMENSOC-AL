@@ -20,7 +20,7 @@ const LEVELS = [
     time: 45,
     mode: "hop",
     label: "Tiles Hop",
-    desc: "Karolara dokun, müzikle ileri zıpla!",
+    desc: "Işıklı karoya bas! Hızlanınca ☠'dan kaç!",
   },
   {
     id: 3,
@@ -245,69 +245,78 @@ function pickQuiz(afterLevel) {
 }
 
 
+
 function isHopMode() {
   return currentLevel().mode === "hop";
 }
 
 function playHopBeat(intensity = 1) {
   ensureAudio();
-  if (!audioCtx) return;
+  if (!audioCtx || (state.hop && state.hop.musicGlitch > 0)) return;
   const t = audioCtx.currentTime;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = "sine";
-  osc.frequency.setValueAtTime(160 * intensity, t);
-  osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
+  osc.frequency.setValueAtTime(150 + 40 * intensity, t);
+  osc.frequency.exponentialRampToValueAtTime(55, t + 0.09);
   gain.gain.setValueAtTime(0.0001, t);
-  gain.gain.exponentialRampToValueAtTime(0.26 * Math.min(1.4, intensity), t + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+  gain.gain.exponentialRampToValueAtTime(0.22 * Math.min(1.3, intensity), t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
   osc.connect(gain);
   gain.connect(audioCtx.destination);
   osc.start(t);
-  osc.stop(t + 0.15);
-
-  const hat = audioCtx.createOscillator();
-  const hg = audioCtx.createGain();
-  hat.type = "triangle";
-  hat.frequency.value = 900 + Math.random() * 400;
-  hg.gain.setValueAtTime(0.0001, t + 0.08);
-  hg.gain.exponentialRampToValueAtTime(0.07, t + 0.09);
-  hg.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-  hat.connect(hg);
-  hg.connect(audioCtx.destination);
-  hat.start(t + 0.08);
-  hat.stop(t + 0.17);
+  osc.stop(t + 0.13);
 }
 
 function playHopMelody() {
   ensureAudio();
-  if (!audioCtx) return;
-  const notes = [523.25, 659.25, 783.99, 659.25];
+  if (!audioCtx || (state.hop && state.hop.musicGlitch > 0)) return;
+  const notes = [523.25, 587.33, 659.25, 783.99, 659.25, 587.33];
   const hop = state.hop;
   const idx = hop ? hop.melodyStep % notes.length : 0;
   if (hop) hop.melodyStep += 1;
   const t = audioCtx.currentTime;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  osc.type = "square";
+  osc.type = "triangle";
   osc.frequency.value = notes[idx];
   gain.gain.setValueAtTime(0.0001, t);
-  gain.gain.exponentialRampToValueAtTime(0.08, t + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  gain.gain.exponentialRampToValueAtTime(0.1, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
   osc.connect(gain);
   gain.connect(audioCtx.destination);
   osc.start(t);
-  osc.stop(t + 0.2);
+  osc.stop(t + 0.22);
+}
+
+function playMusicGlitch() {
+  ensureAudio();
+  if (!audioCtx) return;
+  for (let i = 0; i < 5; i++) {
+    const t = audioCtx.currentTime + i * 0.04;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(120 + Math.random() * 600, t);
+    osc.frequency.exponentialRampToValueAtTime(40 + Math.random() * 80, t + 0.15);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.14, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
 }
 
 function projectHop(lane, z) {
-  const depth = 1 / (1 + z * 0.42);
-  const nearY = state.height * 0.78;
-  const farY = state.height * 0.2;
+  const depth = 1 / (1 + z * 0.48);
+  const nearY = state.height * 0.76;
+  const farY = state.height * 0.22;
   const y = farY + (nearY - farY) * depth;
-  const laneSpread = Math.min(state.width * 0.28, 120) * depth;
+  const laneSpread = Math.min(state.width * 0.3, 125) * depth;
   const x = state.width * 0.5 + (lane - 1) * laneSpread;
-  const radius = Math.max(14, 46 * depth);
+  const radius = Math.max(16, 48 * depth);
   return { x, y, r: radius, depth };
 }
 
@@ -319,7 +328,7 @@ function makeHopTile(lane, z, kind) {
         ? "#ffd166"
         : pick(HOP_TILE_COLORS);
   return {
-    id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id: `t_${Math.random().toString(36).slice(2, 9)}`,
     lane,
     z,
     kind,
@@ -332,26 +341,30 @@ function makeHopTile(lane, z, kind) {
 
 function initHopMode() {
   const tiles = [];
-  let z = 1.2;
+  let z = 1.4;
   let lane = 1;
-  for (let i = 0; i < 16; i++) {
-    if (i > 0 && Math.random() < 0.45) {
+  // Temiz tek yol: her adımda 1 ana karo, ara sıra yan şeritte kurukafa
+  for (let i = 0; i < 10; i++) {
+    if (i > 0 && Math.random() < 0.4) {
       lane = Math.max(0, Math.min(2, lane + (Math.random() < 0.5 ? -1 : 1)));
     }
     let kind = "normal";
-    if (i > 3 && Math.random() < 0.12) kind = "skull";
-    else if (i > 2 && Math.random() < 0.1) kind = "gold";
+    if (i > 2 && Math.random() < 0.12) kind = "gold";
     tiles.push(makeHopTile(lane, z, kind));
-    z += rand(1.05, 1.35);
+    // Hızlanınca / ara sıra yanına kurukafa (basılmayacak)
+    if (i > 1 && Math.random() < 0.28) {
+      const side = Math.max(0, Math.min(2, lane + (Math.random() < 0.5 ? -1 : 1)));
+      if (side !== lane) tiles.push(makeHopTile(side, z + 0.05, "skull"));
+    }
+    z += 1.55;
   }
 
   state.hop = {
     tiles,
     playerLane: 1,
-    playerZ: 0,
-    speed: 1.55,
-    baseSpeed: 1.55,
-    maxSpeed: 4.4,
+    speed: 1.35,
+    baseSpeed: 1.35,
+    maxSpeed: 3.6,
     hopAnim: 0,
     hopFrom: { x: 0, y: 0 },
     hopTo: { x: 0, y: 0 },
@@ -360,105 +373,145 @@ function initHopMode() {
     nextSpawnZ: z,
     pulse: 0,
     perfectFlash: 0,
+    beatAcc: 0,
+    elapsed: 0,
+    musicGlitch: 0,
+    speedPhase: 0,
   };
   state.balloons = [];
+  state.particles = [];
+  state.rings = [];
+  state.floatTexts = [];
 }
 
 function spawnHopTilesAhead() {
   const hop = state.hop;
   if (!hop) return;
-  while (hop.tiles.length < 18) {
-    const last = hop.tiles[hop.tiles.length - 1];
-    let lane = last ? last.lane : 1;
-    if (Math.random() < 0.5) {
+  // Sadece aktif (yakında) karo sayısını sınırla — birikmeyi önle
+  const live = hop.tiles.filter((t) => !t.hit && !t.missed);
+  if (live.length >= 12) return;
+
+  while (live.length + (hop.tiles.length - live.length) < 14 && hop.tiles.filter((t) => !t.hit && !t.missed).length < 12) {
+    const goods = hop.tiles.filter((t) => !t.hit && !t.missed && t.kind !== "skull");
+    const last = goods.length ? goods.reduce((a, b) => (a.z > b.z ? a : b)) : null;
+    let lane = last ? last.lane : hop.playerLane;
+    if (Math.random() < 0.42) {
       lane = Math.max(0, Math.min(2, lane + (Math.random() < 0.5 ? -1 : 1)));
     }
-    if (Math.random() < 0.22) {
-      const side = Math.max(0, Math.min(2, lane + (Math.random() < 0.5 ? -1 : 1)));
-      if (side !== lane) {
-        hop.tiles.push(makeHopTile(side, hop.nextSpawnZ + 0.15, Math.random() < 0.15 ? "skull" : "normal"));
-      }
-    }
+    const z = Math.max(hop.nextSpawnZ, last ? last.z + 1.5 : 2);
     let kind = "normal";
-    if (Math.random() < 0.14) kind = "skull";
-    else if (Math.random() < 0.12) kind = "gold";
-    hop.tiles.push(makeHopTile(lane, hop.nextSpawnZ, kind));
-    hop.nextSpawnZ += rand(1.05, 1.4);
+    if (Math.random() < 0.12) kind = "gold";
+    hop.tiles.push(makeHopTile(lane, z, kind));
+    // Hızlandıktan sonra daha sık kurukafa
+    const skullRate = hop.speedPhase >= 1 ? 0.38 : 0.22;
+    if (Math.random() < skullRate) {
+      const side = Math.max(0, Math.min(2, lane + (Math.random() < 0.5 ? -1 : 1)));
+      if (side !== lane) hop.tiles.push(makeHopTile(side, z + 0.08, "skull"));
+    }
+    hop.nextSpawnZ = z + 1.55;
+    if (hop.tiles.filter((t) => !t.hit && !t.missed).length >= 12) break;
   }
 }
 
-function getHopTargetTiles() {
+function getNextHopTarget() {
   const hop = state.hop;
-  if (!hop) return [];
-  return hop.tiles.filter((t) => !t.hit && !t.missed && t.z > 0.35 && t.z < 2.35);
+  if (!hop) return null;
+  // Tek hedef: en yakındaki basılacak (normal/gold) karo
+  const candidates = hop.tiles
+    .filter((t) => !t.hit && !t.missed && t.kind !== "skull" && t.z > 0.45 && t.z < 4.5)
+    .sort((a, b) => a.z - b.z);
+  return candidates[0] || null;
+}
+
+function dramaticSkullBurst(x, y) {
+  state.flash = 0.55;
+  shakeScreen();
+  burst(x, y, "#111111", true);
+  burst(x, y, "#ff6b6b", true);
+  burst(x, y, "#636e72", true);
+  for (let i = 0; i < 3; i++) {
+    state.rings.push({
+      x,
+      y,
+      r: 6,
+      max: 100 + i * 70,
+      life: 0.55 + i * 0.12,
+      age: 0,
+      color: i === 1 ? "#ff6b6b" : "#2d3436",
+      width: 10 - i * 2,
+    });
+  }
+  showBanner("EYVAH!", "boost");
 }
 
 function onHopSuccess(tile) {
   const hop = state.hop;
+  if (!tile || tile.hit || tile.missed) return;
   tile.hit = true;
   const from = projectHop(hop.playerLane, 0);
-  const to = projectHop(tile.lane, Math.max(0.2, tile.z));
+  const to = projectHop(tile.lane, Math.max(0.25, tile.z));
   hop.playerLane = tile.lane;
   hop.hopAnim = 1;
   hop.hopFrom = from;
   hop.hopTo = to;
 
-  let gained = 12;
-  if (tile.kind === "gold") gained = 30;
+  let gained = 14;
+  if (tile.kind === "gold") gained = 32;
   hop.combo += 1;
-  gained += Math.min(20, hop.combo * 2);
-  gained = Math.round(gained * (1 + (hop.speed - hop.baseSpeed) * 0.15));
+  gained += Math.min(24, hop.combo * 2);
+  gained = Math.round(gained * (1 + hop.speedPhase * 0.15));
   state.score += gained;
   state.combo = hop.combo;
-  state.comboTimer = 1.2;
-
-  hop.speed = Math.min(hop.maxSpeed, hop.speed + 0.06);
-  hop.perfectFlash = 0.25;
+  state.comboTimer = 1.3;
+  hop.perfectFlash = 0.28;
 
   burst(to.x, to.y, tile.color, tile.kind === "gold");
-  floatText(to.x, to.y - 30, `+${gained}`, tile.kind === "gold" ? "#c48a00" : "#fff8ef", {
-    size: 26,
-    bold: true,
-    life: 0.7,
-    rise: 60,
-  });
+  floatText(to.x, to.y - 28, `+${gained}`, "#fff8ef", { size: 28, bold: true, life: 0.75, rise: 65 });
+  playHopBeat(1 + hop.combo * 0.04);
+  playHopMelody();
   if (tile.kind === "gold") {
     showBanner("BONUS!", "bonus");
     playBonusFanfare();
-  } else {
-    playHopBeat(1 + hop.combo * 0.03);
-    playHopMelody();
   }
-  haptic(tile.kind === "gold" ? "heavy" : "medium");
+  haptic("medium");
   bumpScore();
 
+  // Geride kalanları temizle — birikme olmasın
   hop.tiles.forEach((t) => {
-    if (t.z <= tile.z + 0.05) t.hit = true;
+    if (t.z <= tile.z + 0.2) {
+      t.hit = true;
+      t.pop = 0.01;
+    }
   });
   const advance = tile.z;
   hop.tiles.forEach((t) => {
     t.z -= advance;
   });
-  hop.nextSpawnZ -= advance;
+  hop.nextSpawnZ = Math.max(hop.nextSpawnZ - advance, 3);
+  hop.tiles = hop.tiles.filter((t) => t.z > -0.5 && !(t.hit && t.pop < 0.05));
   spawnHopTilesAhead();
   updateHud();
 }
 
 function onHopSkull(tile) {
   const hop = state.hop;
+  if (!tile || tile.hit) return;
   tile.hit = true;
   hop.combo = 0;
   state.combo = 0;
-  const lost = 20;
+  hop.musicGlitch = 1.1;
+  const lost = 30;
   state.score = Math.max(0, state.score - lost);
-  const p = projectHop(tile.lane, tile.z);
-  burst(p.x, p.y, "#111111", true);
-  shakeScreen();
-  floatText(p.x, p.y - 20, "☠", "#111", { size: 36, bold: true, life: 0.8, rise: 50 });
-  floatText(p.x, p.y + 10, `-${lost}`, "#ff6b6b", { size: 26, bold: true, life: 0.8, rise: 45 });
+  const p = projectHop(tile.lane, Math.max(0.2, tile.z));
+  dramaticSkullBurst(p.x, p.y);
+  floatText(p.x, p.y - 24, "☠", "#fff", { size: 48, bold: true, life: 1.1, rise: 70 });
+  floatText(p.x, p.y + 18, `-${lost}`, "#ff6b6b", { size: 32, bold: true, life: 1, rise: 55 });
+  playMusicGlitch();
   playSkullBuzz();
   haptic("heavy");
   bumpScore();
+  // hafif yavaşlat (müzik bozulması hissi)
+  hop.speed = Math.max(hop.baseSpeed, hop.speed * 0.82);
   updateHud();
 }
 
@@ -467,11 +520,10 @@ function onHopMiss(tile) {
   tile.missed = true;
   hop.combo = 0;
   state.combo = 0;
-  const lost = 10;
+  const lost = 8;
   state.score = Math.max(0, state.score - lost);
-  const p = projectHop(tile.lane, 0.4);
-  floatText(p.x, p.y, "Kaçtı!", "#ff6b6b", { size: 22, bold: true, life: 0.7, rise: 40 });
-  playSkullBuzz();
+  const p = projectHop(tile.lane, 0.5);
+  floatText(p.x, p.y, "Geçti!", "#ffd166", { size: 20, bold: true, life: 0.6, rise: 36 });
   haptic("light");
   updateHud();
 }
@@ -480,6 +532,7 @@ function updateHop(dt) {
   const hop = state.hop;
   if (!hop) return;
 
+  hop.elapsed += dt;
   state.timeLeft -= dt;
   if (state.timeLeft <= 0) {
     state.timeLeft = 0;
@@ -488,33 +541,41 @@ function updateHop(dt) {
     return;
   }
 
-  const progress = 1 - state.timeLeft / currentLevel().time;
-  const targetSpeed = hop.baseSpeed + (hop.maxSpeed - hop.baseSpeed) * progress;
-  hop.speed += (targetSpeed - hop.speed) * Math.min(1, dt * 1.5);
+  // Belli saniyeden sonra hızlan (Tiles Hop gibi aşamalı)
+  if (hop.elapsed > 28) hop.speedPhase = 2;
+  else if (hop.elapsed > 12) hop.speedPhase = 1;
+  else hop.speedPhase = 0;
 
-  hop.pulse += dt * (3 + hop.speed);
-  if (hop.hopAnim > 0) hop.hopAnim = Math.max(0, hop.hopAnim - dt * 3.2);
+  const phaseSpeed = hop.baseSpeed + hop.speedPhase * 0.85;
+  hop.speed += (phaseSpeed - hop.speed) * Math.min(1, dt * 2);
+
+  if (hop.musicGlitch > 0) hop.musicGlitch = Math.max(0, hop.musicGlitch - dt);
+  hop.pulse += dt * (3.2 + hop.speed);
+  if (hop.hopAnim > 0) hop.hopAnim = Math.max(0, hop.hopAnim - dt * 3.4);
   if (hop.perfectFlash > 0) hop.perfectFlash = Math.max(0, hop.perfectFlash - dt);
 
-  // sürekli ritim: hız arttıkça BPM artar
-  hop.beatAcc = (hop.beatAcc || 0) + dt;
-  const beatEvery = Math.max(0.22, 0.55 - (hop.speed - hop.baseSpeed) * 0.08);
+  // Ritim müziği — hedefe basınca da melodi ekleniyor
+  hop.beatAcc += dt;
+  const beatEvery = hop.speedPhase === 0 ? 0.5 : hop.speedPhase === 1 ? 0.36 : 0.26;
   if (hop.beatAcc >= beatEvery) {
     hop.beatAcc = 0;
-    playHopBeat(0.7 + hop.speed * 0.08);
+    playHopBeat(0.75 + hop.speedPhase * 0.15);
   }
 
   for (const tile of hop.tiles) {
     if (tile.hit || tile.missed) continue;
     tile.z -= hop.speed * dt;
-    if (tile.z <= 0.15 && tile.kind !== "skull") {
-      onHopMiss(tile);
-    } else if (tile.z <= 0.05 && tile.kind === "skull") {
-      tile.missed = true;
+    if (tile.z <= 0.2) {
+      if (tile.kind === "skull") tile.missed = true; // geçmek iyi
+      else onHopMiss(tile);
     }
   }
 
-  hop.tiles = hop.tiles.filter((t) => t.z > -1.5 && !(t.hit && t.z < -0.2));
+  hop.tiles = hop.tiles.filter((t) => {
+    if (t.z < -1) return false;
+    if ((t.hit || t.missed) && t.z < 0.1) return false;
+    return true;
+  });
   spawnHopTilesAhead();
 
   state.comboTimer -= dt;
@@ -530,9 +591,15 @@ function drawHopWorld() {
   if (!hop) return;
 
   const g = ctx.createLinearGradient(0, 0, 0, state.height);
-  g.addColorStop(0, "#1b1464");
-  g.addColorStop(0.45, "#6c5ce7");
-  g.addColorStop(1, "#fd79a8");
+  if (hop.musicGlitch > 0) {
+    g.addColorStop(0, "#2d3436");
+    g.addColorStop(0.5, "#6c5ce7");
+    g.addColorStop(1, "#ff6b6b");
+  } else {
+    g.addColorStop(0, "#1b1464");
+    g.addColorStop(0.45, "#6c5ce7");
+    g.addColorStop(1, "#fd79a8");
+  }
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, state.width, state.height);
 
@@ -543,36 +610,53 @@ function drawHopWorld() {
     20,
     state.width * 0.5,
     state.height * 0.35,
-    220 + beat * 40
+    240 + beat * 50
   );
-  glow.addColorStop(0, `rgba(255, 255, 255, ${0.12 + beat * 0.1 + hop.perfectFlash})`);
+  glow.addColorStop(0, `rgba(255,255,255,${0.1 + beat * 0.12 + hop.perfectFlash})`);
   glow.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, state.width, state.height);
 
   for (let lane = 0; lane < HOP_LANES; lane++) {
-    const a = projectHop(lane, 0.2);
-    const b = projectHop(lane, 11);
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
-    ctx.lineWidth = 2;
+    const a = projectHop(lane, 0.25);
+    const b = projectHop(lane, 10);
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
   }
 
+  const target = getNextHopTarget();
   const sorted = [...hop.tiles].sort((a, b) => b.z - a.z);
-  const targets = getHopTargetTiles();
-  const targetIds = new Set(targets.map((t) => t.id));
 
   for (const tile of sorted) {
-    if (tile.hit && tile.pop < 0.1) continue;
-    const p = projectHop(tile.lane, Math.max(0.05, tile.z));
-    const active = targetIds.has(tile.id);
-    const pulseScale = active ? 1 + Math.sin(hop.pulse * 4) * 0.08 : 1;
+    if (tile.hit && tile.pop < 0.08) continue;
+    const p = projectHop(tile.lane, Math.max(0.08, tile.z));
+    const isTarget = target && tile.id === target.id;
+    const pulseScale = isTarget ? 1 + Math.sin(hop.pulse * 5) * 0.12 : 1;
     const r = p.r * pulseScale * (tile.hit ? tile.pop : 1);
 
-    ctx.fillStyle = "rgba(0,0,0,0.2)";
+    // Hedef karo için büyük ışık halesi
+    if (isTarget && !tile.hit) {
+      const halo = ctx.createRadialGradient(p.x, p.y, r * 0.2, p.x, p.y, r * 2.2);
+      halo.addColorStop(0, "rgba(255,255,255,0.75)");
+      halo.addColorStop(0.35, "rgba(255,209,102,0.45)");
+      halo.addColorStop(1, "rgba(255,209,102,0)");
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 2.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(255,255,255,${0.7 + beat * 0.3})`;
+      ctx.lineWidth = Math.max(4, r * 0.16);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r + 8 + Math.sin(hop.pulse * 6) * 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
     ctx.beginPath();
     ctx.ellipse(p.x, p.y + r * 0.35, r * 0.9, r * 0.28, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -583,21 +667,13 @@ function drawHopWorld() {
       grad.addColorStop(1, "#1e272e");
     } else {
       grad.addColorStop(0, "#ffffff");
-      grad.addColorStop(0.25, tile.color);
+      grad.addColorStop(0.22, tile.color);
       grad.addColorStop(1, tile.color);
     }
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fill();
-
-    if (active) {
-      ctx.strokeStyle = "rgba(255,255,255,0.95)";
-      ctx.lineWidth = Math.max(3, r * 0.12);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
-      ctx.stroke();
-    }
 
     if (tile.kind === "gold") {
       ctx.fillStyle = "#fff";
@@ -607,15 +683,16 @@ function drawHopWorld() {
       ctx.fillText("★", p.x, p.y + 1);
     } else if (tile.kind === "skull") {
       ctx.fillStyle = "#dfe6e9";
-      ctx.font = `700 ${Math.floor(r * 0.9)}px Fredoka, sans-serif`;
+      ctx.font = `700 ${Math.floor(r * 0.95)}px Fredoka, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("☠", p.x, p.y + 1);
     }
 
-    if (tile.hit) tile.pop *= 0.85;
+    if (tile.hit) tile.pop *= 0.82;
   }
 
+  // Oyuncu
   let px;
   let py;
   let pr;
@@ -623,12 +700,12 @@ function drawHopWorld() {
     const t = 1 - hop.hopAnim;
     const ease = t * t * (3 - 2 * t);
     px = hop.hopFrom.x + (hop.hopTo.x - hop.hopFrom.x) * ease;
-    py = hop.hopFrom.y + (hop.hopTo.y - hop.hopFrom.y) * ease - Math.sin(Math.PI * t) * 50;
+    py = hop.hopFrom.y + (hop.hopTo.y - hop.hopFrom.y) * ease - Math.sin(Math.PI * t) * 55;
     pr = 22;
   } else {
     const p = projectHop(hop.playerLane, 0);
     px = p.x;
-    py = p.y - 8;
+    py = p.y - 10;
     pr = 24;
   }
 
@@ -636,7 +713,6 @@ function drawHopWorld() {
   ctx.beginPath();
   ctx.ellipse(px, py + 22, 18, 8, 0, 0, Math.PI * 2);
   ctx.fill();
-
   const body = ctx.createRadialGradient(px - 6, py - 8, 4, px, py, pr);
   body.addColorStop(0, "#fff5e8");
   body.addColorStop(1, "#ff9ff3");
@@ -655,24 +731,36 @@ function drawHopWorld() {
   ctx.arc(px, py + 6, 8, 0.15 * Math.PI, 0.85 * Math.PI);
   ctx.stroke();
 
-  if (targets.length && hop.combo < 2) {
-    ctx.fillStyle = "rgba(255,248,239,0.9)";
-    ctx.font = "800 16px Nunito, sans-serif";
+  // Işıklı hedefe ok / yazı
+  if (target) {
+    const tp = projectHop(target.lane, target.z);
+    ctx.fillStyle = "rgba(255,248,239,0.95)";
+    ctx.font = "900 18px Fredoka, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("Parlayan karoya dokun!", state.width * 0.5, state.height * 0.12);
+    ctx.fillText("▼ BAS", tp.x, tp.y - tp.r - 16);
+  }
+
+  if (hop.speedPhase >= 1) {
+    ctx.fillStyle = "rgba(255,248,239,0.85)";
+    ctx.font = "800 14px Nunito, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(hop.speedPhase >= 2 ? "ÇOK HIZLI!" : "HIZLANDI!", state.width * 0.5, state.height * 0.08);
   }
 }
 
 function hopHitTest(x, y) {
-  const targets = getHopTargetTiles();
+  const hop = state.hop;
+  if (!hop) return null;
+  // Önce tüm yakın karolara bak (kurukafa dahil)
+  const near = hop.tiles.filter((t) => !t.hit && !t.missed && t.z > 0.3 && t.z < 3.2);
   let best = null;
   let bestDist = Infinity;
-  for (const tile of targets) {
+  for (const tile of near) {
     const p = projectHop(tile.lane, tile.z);
     const dx = x - p.x;
     const dy = y - p.y;
     const d = dx * dx + dy * dy;
-    const hitR = p.r * 1.45;
+    const hitR = p.r * (tile.kind === "skull" ? 1.25 : 1.55);
     if (d <= hitR * hitR && d < bestDist) {
       best = tile;
       bestDist = d;
@@ -864,8 +952,8 @@ function spawnBalloon(forceBoostStyle = false) {
   const boosting = state.boostLeft > 0 || forceBoostStyle;
   const level = currentLevel();
   let color;
-  const skullChance = state.mode === "play" ? 0.1 + level.id * 0.03 : 0;
-  if (skullChance && Math.random() < skullChance) {
+  // Kurukafa sadece BOOST sırasında çıksın
+  if (boosting && Math.random() < 0.22) {
     color = COLORS.find((c) => c.skull);
   } else if (Math.random() < (boosting ? 0.1 : 0.16)) {
     color = COLORS.find((c) => c.gold);
@@ -1302,16 +1390,15 @@ function popBalloon(b) {
     state.colorStreak = 0;
     state.lastColor = null;
     state.streakColor = null;
-    burst(b.x, b.y, "#111111", true);
-    // dark smoke-ish extra burst
-    burst(b.x, b.y, "#636e72", false);
-    shakeScreen();
-    state.flash = 0.2;
-    floatText(b.x, b.y - b.r - 8, "☠", "#111111", { size: 40, bold: true, life: 1, rise: 60 });
-    floatText(b.x, b.y + 10, `-${lost}`, "#ff6b6b", { size: 30, bold: true, life: 1, rise: 50 });
+    dramaticSkullBurst(b.x, b.y);
+    floatText(b.x, b.y - b.r - 8, "☠", "#fff", { size: 52, bold: true, life: 1.15, rise: 75 });
+    floatText(b.x, b.y + 12, `-${lost}`, "#ff6b6b", { size: 34, bold: true, life: 1.1, rise: 55 });
+    playMusicGlitch();
     playSkullBuzz();
     haptic("heavy");
     bumpScore();
+    // Boost'ta kurukafaya basınca boost biraz bozulur
+    if (state.boostLeft > 0) state.boostLeft = Math.max(0, state.boostLeft - 2.5);
     updateHud();
     return;
   }
