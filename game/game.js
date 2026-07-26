@@ -339,21 +339,9 @@ const FILL_LEVELS = [
   {
     id: "bahce",
     name: "Balon Bahçesi",
-    tips: [
-      "Arabayı kaydır, yolu doldur!",
-      "Sadece ok yönlerine gidebilirsin",
-      "Duvara çarpma — yolunu planla",
-    ],
-    stuckHints: [
-      "Kenarlardan dolaş, ortayı sona bırak",
-      "Her zaman çıkışın olan kareye git",
-      "Uzun kenarı önce dolaş",
-    ],
-    facts: [
-      "Elektrikli arabalar sessiz ve hızlıdır!",
-      "Renkler gökkuşağında sırayla dizilir",
-      "Her kare = bir şarj adımı ⚡",
-    ],
+    tips: ["Model Y’yi kaydır!", "Tek yönde duvara kadar uzar", "Şarj istasyonuna ulaş!"],
+    stuckHints: ["Kenarlardan dolaş", "Şarjı sona bırak", "Uzun kenarı önce doldur"],
+    facts: ["Tesla Model Y elektrikli bir SUV’dur", "Şarj olunca enerji dolar ⚡", "Longcar gibi uzayarak yolu boya"],
     theme: {
       sky: ["#ffeaa7", "#fd79a8", "#a29bfe"],
       wall: ["#fd79a8", "#e84393"],
@@ -367,7 +355,7 @@ const FILL_LEVELS = [
       "#######",
       "#S....#",
       "#.....#",
-      "#.....#",
+      "#.C...#",
       "#.....#",
       "#######",
     ],
@@ -375,21 +363,9 @@ const FILL_LEVELS = [
   {
     id: "kopru",
     name: "Gökkuşağı Köprü",
-    tips: [
-      "Köprüden geç, tüm yolu doldur!",
-      "Dar geçitlerde yavaş düşün",
-      "Sıkışırsan Yeniden dene",
-    ],
-    stuckHints: [
-      "Zikzak koridoru takip et",
-      "Önce sağa git, sonra aşağı in",
-      "Dar yolda geri dönüş yok",
-    ],
-    facts: [
-      "Gökkuşağında 7 ana renk vardır",
-      "Kırmızı en dışta, mor en içte",
-      "Işık kırılınca renkler ayrılır",
-    ],
+    tips: ["Köprüden geç!", "Dar geçitte planlı ol", "Sonda şarj var"],
+    stuckHints: ["Zikzak koridoru takip et", "Önce sağa git", "Şarja erken varma"],
+    facts: ["Gökkuşağında 7 renk vardır", "Elektrik de bir enerjidir", "Model Y sessiz gider"],
     theme: {
       sky: ["#a29bfe", "#81ecec", "#ffeaa7"],
       wall: ["#a29bfe", "#6c5ce7"],
@@ -405,28 +381,16 @@ const FILL_LEVELS = [
       "######.#",
       "#......#",
       "#.######",
-      "#......#",
+      "#.....C#",
       "########",
     ],
   },
   {
     id: "yildiz",
     name: "Yıldız Labirent",
-    tips: [
-      "Yıldız yolunu tamamen boya!",
-      "Önce uzun yolları düşün",
-      "Son kareye kadar devam et",
-    ],
-    stuckHints: [
-      "Zikzak yolu sırayla doldur",
-      "Sağa kaydırarak başla",
-      "Koridorun dışına çıkma",
-    ],
-    facts: [
-      "Yıldızlar çok uzakta ateş toplarıdır",
-      "Güneş de bir yıldızdır!",
-      "Gece gökyüzü bir harita gibidir",
-    ],
+    tips: ["Zikzak yolu boya!", "Sağa uzun atış yap", "Şarj istasyonu sonda"],
+    stuckHints: ["Koridoru sırayla doldur", "Sağa kaydırarak başla", "Şarja doğru ilerle"],
+    facts: ["Yıldızlar ateş toplarıdır", "Güneş bir yıldızdır", "Gece yolculuğu eğlenceli"],
     theme: {
       sky: ["#dfe6e9", "#a29bfe", "#74b9ff"],
       wall: ["#636e72", "#2d3436"],
@@ -444,28 +408,16 @@ const FILL_LEVELS = [
       "#.#######",
       "#.......#",
       "#######.#",
-      "#.......#",
+      "#C......#",
       "#########",
     ],
   },
   {
     id: "spiral",
     name: "Şeker Spiral",
-    tips: [
-      "U şeklinde dolan, hepsini boya!",
-      "Tek yanlış hamle = yeniden başla",
-      "Sabırlı ol, şampiyon ol!",
-    ],
-    stuckHints: [
-      "Önce sağa, sonra U çiz",
-      "İç koridora erken girme",
-      "Kenarlardan içeri kıvrıl",
-    ],
-    facts: [
-      "Spiral doğada sık görülür",
-      "Salyangoz kabuğu spiraldir",
-      "Galaksiler de spiral döner!",
-    ],
+    tips: ["Zikzak şeker yolunu boya!", "Tek kaydırmada uzat", "Şarj istasyonuna var"],
+    stuckHints: ["Sağa uzun atış", "Aşağı-sol ritmini bozma", "Şarj solda sonda"],
+    facts: ["Spiral doğada çoktur", "Salyangoz kabuğu spiraldir", "Şarj istasyonu enerji verir"],
     theme: {
       sky: ["#55efc4", "#81ecec", "#ffeaa7"],
       wall: ["#00cec9", "#00b894"],
@@ -476,14 +428,92 @@ const FILL_LEVELS = [
       decor: "candy",
     },
     rows: [
+      "#######",
+      "#S....#",
+      "#####.#",
+      "#.....#",
+      "#.#####",
+      "#.....#",
+      "#####.#",
+      "#C....#",
+      "#######",
+    ],
+  },
+  {
+    id: "garaj",
+    name: "Süper Garaj",
+    tips: ["Garaj koridorunu doldur!", "Tek kaydırmada uzat", "Şarj ünitesine gir"],
+    stuckHints: ["Sağa uzun atış", "Aşağı in, sola dön", "Şarj köşede bekliyor"],
+    facts: ["Garajda araba dinlenir", "Model Y eve şarj olur", "⚡ ile enerji dolar"],
+    theme: {
+      sky: ["#74b9ff", "#81ecec", "#ffeaa7"],
+      wall: ["#0984e3", "#0652dd"],
+      empty: ["#f1f2f6", "#74b9ff"],
+      fill: ["#ffffff", "#f5f6fa", "#dfe6e9"],
+      head: ["#ffffff", "#dfe6e9", "#636e72"],
+      accent: "#0984e3",
+      decor: "balloons",
+    },
+    rows: [
       "########",
       "#S.....#",
-      "#.####.#",
-      "#.#....#",
-      "#.#.####",
-      "#.#....#",
+      "######.#",
       "#......#",
+      "#.######",
+      "#.....C#",
       "########",
+    ],
+  },
+  {
+    id: "otoyol",
+    name: "Şehir Otoyolu",
+    tips: ["Uzun otoyolu boya!", "Zikzak şeritleri takip et", "Şarj istasyonuna var"],
+    stuckHints: ["Önce sağa git", "Şerit değiştirme sırasını bozma", "Şarj solda sonda"],
+    facts: ["Otoyollar uzun yollardır", "Elektrikli araçlar şehirde temiz", "Şarj ağı her yere yayılır"],
+    theme: {
+      sky: ["#fd79a8", "#a29bfe", "#74b9ff"],
+      wall: ["#e17055", "#d63031"],
+      empty: ["#f1f2f6", "#fd79a8"],
+      fill: ["#ffffff", "#f5f6fa", "#dfe6e9"],
+      head: ["#ffffff", "#dfe6e9", "#636e72"],
+      accent: "#e17055",
+      decor: "rainbow",
+    },
+    rows: [
+      "##########",
+      "#S.......#",
+      "########.#",
+      "#........#",
+      "#.########",
+      "#........#",
+      "########.#",
+      "#C.......#",
+      "##########",
+    ],
+  },
+  {
+    id: "liman",
+    name: "Deniz Limanı",
+    tips: ["Liman yolunu tamamla!", "Kıvrımları takip et", "İskelede şarj var"],
+    stuckHints: ["Sağa uzun git", "Aşağı-sol-aşağı ritmini bozma", "Şarj iskelede"],
+    facts: ["Limanlar gemiler içindir", "Elektrik denizi kirletmez", "Model Y maceraya hazır"],
+    theme: {
+      sky: ["#81ecec", "#74b9ff", "#ffeaa7"],
+      wall: ["#00cec9", "#0984e3"],
+      empty: ["#f1f2f6", "#81ecec"],
+      fill: ["#ffffff", "#f5f6fa", "#dfe6e9"],
+      head: ["#ffffff", "#dfe6e9", "#636e72"],
+      accent: "#00cec9",
+      decor: "candy",
+    },
+    rows: [
+      "#########",
+      "#S......#",
+      "#######.#",
+      "#.......#",
+      "#.#######",
+      "#......C#",
+      "#########",
     ],
   },
 ];
@@ -497,6 +527,7 @@ function getFillLevel(mapIndex) {
 function parseFillMap(rows) {
   const grid = [];
   let head = null;
+  let charge = null;
   let empty = 0;
   for (let r = 0; r < rows.length; r++) {
     const line = [];
@@ -507,6 +538,10 @@ function parseFillMap(rows) {
         line.push(3); // head
         head = { c, r };
         empty += 1;
+      } else if (ch === "C") {
+        line.push(1); // empty + charge station
+        charge = { c, r };
+        empty += 1;
       } else {
         line.push(1); // empty
         empty += 1;
@@ -514,7 +549,18 @@ function parseFillMap(rows) {
     }
     grid.push(line);
   }
-  return { grid, head, emptyTotal: empty };
+  // şarj yoksa çözüm sonuna yakın sağ-alt boşluğu hedef say
+  if (!charge && head) {
+    for (let r = grid.length - 1; r >= 0 && !charge; r--) {
+      for (let c = grid[0].length - 1; c >= 0; c--) {
+        if (grid[r][c] === 1) {
+          charge = { c, r };
+          break;
+        }
+      }
+    }
+  }
+  return { grid, head, charge, emptyTotal: empty };
 }
 
 function canFillMove() {
@@ -685,8 +731,10 @@ function initFillMode() {
   const parsed = parseFillMap(level.rows);
   const rows = parsed.grid.length;
   const cols = parsed.grid[0].length;
-  const pad = 24;
-  const cell = Math.floor(Math.min((state.width - pad * 2) / cols, (state.height - 170) / rows));
+  const pad = 12;
+  const cell = Math.floor(
+    Math.min((state.width - pad * 2) / cols, (state.height - 130) / rows) * 1.08
+  );
   const boardW = cell * cols;
   const boardH = cell * rows;
   if (state.fillTipTimer) {
@@ -705,6 +753,7 @@ function initFillMode() {
     body: [{ ...parsed.head }],
     emptyTotal: parsed.emptyTotal,
     filled: 1,
+    charge: parsed.charge ? { ...parsed.charge } : null,
     cols,
     rows,
     cell,
@@ -889,11 +938,20 @@ function tryFillMove(dc, dr) {
         burst(state.width * (0.2 + i * 0.15), state.height * 0.35, pick(["#00cec9", "#74b9ff", "#ffeaa7", "#fd79a8"]), true);
       }, i * 90);
     }
-    popFillTip("Tüm yol doldu!", "#55efc4", { mega: true, life: 1.7 });
-    setTimeout(() => popFillTip(`${f.title} · süper!`, "#ffeaa7", { mega: true }), 320);
+    const onCharge =
+      f.charge && f.head.c === f.charge.c && f.head.r === f.charge.r;
+    if (onCharge) {
+      popFillTip("Şarj istasyonu! ⚡", "#55efc4", { mega: true, life: 1.8 });
+      setTimeout(() => popFillTip("Batarya doldu!", "#ffeaa7", { mega: true }), 280);
+      speak("Harika! Şarj istasyonuna ulaştın. Batarya doldu.");
+      state.score += 160;
+    } else {
+      popFillTip("Tüm yol doldu!", "#55efc4", { mega: true, life: 1.7 });
+      setTimeout(() => popFillTip(`${f.title} · süper!`, "#ffeaa7", { mega: true }), 320);
+      speak("Harika! Tüm yol doldu.");
+      state.score += 120;
+    }
     playCheer();
-    speak("Harika! Tüm yol doldu.");
-    state.score += 120;
     state.flash = Math.max(state.flash, 0.55);
     updateHud();
     setTimeout(() => {
@@ -1023,14 +1081,24 @@ function drawFillWorld() {
         roundRectPath(x + 8, y + 8, f.cell - 18, f.cell * 0.22, 6);
         ctx.fill();
       } else if (v === 1) {
-        ctx.fillStyle = "#f1f2f6";
-        roundRectPath(x + 5, y + 5, f.cell - 10, f.cell - 10, f.cell * 0.3);
-        ctx.fill();
-        ctx.fillStyle = hexToRgba(theme.empty[1] || "#fab1a0", 0.22 + 0.12 * Math.sin(f.hintPulse * 3 + c + r));
-        roundRectPath(x + 10, y + 10, f.cell - 20, f.cell - 20, f.cell * 0.24);
-        ctx.fill();
+        const isCharge = f.charge && f.charge.c === c && f.charge.r === r;
+        if (isCharge) {
+          drawChargeStation(x, y, f.cell, f.hintPulse, false);
+        } else {
+          ctx.fillStyle = "#f1f2f6";
+          roundRectPath(x + 4, y + 4, f.cell - 8, f.cell - 8, f.cell * 0.3);
+          ctx.fill();
+          ctx.fillStyle = hexToRgba(theme.empty[1] || "#fab1a0", 0.22 + 0.12 * Math.sin(f.hintPulse * 3 + c + r));
+          roundRectPath(x + 9, y + 9, f.cell - 18, f.cell - 18, f.cell * 0.24);
+          ctx.fill();
+        }
       } else {
-        drawLongcarBodySegment(x, y, f.cell, theme, c + r);
+        const isCharge = f.charge && f.charge.c === c && f.charge.r === r;
+        if (isCharge) {
+          drawChargeStation(x, y, f.cell, f.hintPulse, true);
+        } else {
+          drawLongcarBodySegment(x, y, f.cell, theme, c + r);
+        }
       }
     }
   }
@@ -1258,9 +1326,53 @@ function hexToRgba(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+function drawChargeStation(x, y, cell, pulseT, filled) {
+  const pad = cell * 0.06;
+  const blink = 0.55 + 0.45 * Math.sin((pulseT || 0) * 6);
+  // base pad
+  ctx.fillStyle = filled ? "#dff9fb" : "#fff8ef";
+  roundRectPath(x + pad, y + pad, cell - pad * 2, cell - pad * 2, cell * 0.28);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(0, 206, 201, ${0.55 + blink * 0.4})`;
+  ctx.lineWidth = Math.max(3, cell * 0.08);
+  roundRectPath(x + pad, y + pad, cell - pad * 2, cell - pad * 2, cell * 0.28);
+  ctx.stroke();
+
+  // charging pedestal
+  const cx = x + cell / 2;
+  const cy = y + cell * 0.58;
+  ctx.fillStyle = "#2d3436";
+  roundRectPath(cx - cell * 0.12, cy - cell * 0.08, cell * 0.24, cell * 0.28, 5);
+  ctx.fill();
+  ctx.fillStyle = "#636e72";
+  roundRectPath(cx - cell * 0.18, cy + cell * 0.16, cell * 0.36, cell * 0.08, 4);
+  ctx.fill();
+
+  // glowing bolt
+  ctx.fillStyle = `rgba(253, 203, 110, ${0.75 + blink * 0.25})`;
+  ctx.font = `900 ${Math.floor(cell * 0.42)}px Fredoka, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("⚡", cx, y + cell * 0.32);
+
+  // screen label
+  ctx.fillStyle = filled ? "#00b894" : "#0984e3";
+  ctx.font = `900 ${Math.max(10, Math.floor(cell * 0.16))}px Nunito, sans-serif`;
+  ctx.fillText(filled ? "DOLU" : "ŞARJ", cx, y + cell * 0.82);
+
+  // aura
+  const aura = ctx.createRadialGradient(cx, cy, 4, cx, cy, cell * 0.55);
+  aura.addColorStop(0, `rgba(0, 206, 201, ${0.25 * blink})`);
+  aura.addColorStop(1, "rgba(0,206,201,0)");
+  ctx.fillStyle = aura;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cell * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawLongcarBodySegment(x, y, cell, theme, seed) {
-  const pad = cell * 0.08;
-  const rr = cell * 0.42;
+  const pad = cell * 0.04;
+  const rr = cell * 0.4;
   // Longcat chunky blob body in Model Y pearl white
   ctx.fillStyle = "rgba(0,0,0,0.08)";
   roundRectPath(x + pad + 2, y + pad + 3, cell - pad * 2, cell - pad * 2, rr);
@@ -1303,7 +1415,7 @@ function drawModelY(x, y, cell, facing, pulseT) {
   else if (facing.dr === 1) angle = Math.PI;
   else angle = 0;
 
-  const s = cell * 0.46;
+  const s = cell * 0.58;
   // Longcat-like soft aura
   const aura = ctx.createRadialGradient(x, y + bob, s * 0.2, x, y + bob, s * 2.2);
   aura.addColorStop(0, "rgba(255, 182, 193, 0.55)");
