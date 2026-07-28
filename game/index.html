@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#7EC8F8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Balon Patlat!</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎈</text></svg>" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="sky" aria-hidden="true"></canvas>
+
+    <header class="hud" id="hud" hidden>
+      <div class="hud-pill level-pill">
+        <span class="label">Seviye</span>
+        <strong id="level">1</strong>
+      </div>
+      <div class="hud-pill score-pill">
+        <span class="label">Skor</span>
+        <strong id="score">0</strong>
+      </div>
+      <div class="hud-pill time-pill">
+        <span class="label">Süre</span>
+        <strong id="time">45</strong>
+      </div>
+      <div class="hud-pill streak-pill" id="streakWrap" hidden>
+        <span class="label">Renk</span>
+        <strong id="streak">0/3</strong>
+      </div>
+      <div class="hud-pill combo-pill" id="comboWrap" hidden>
+        <span class="label">Kombo</span>
+        <strong id="combo">x1</strong>
+      </div>
+      <div class="hud-pill boost-pill" id="boostWrap" hidden>
+        <span class="label">Boost</span>
+        <strong id="boostTime">10</strong>
+      </div>
+    </header>
+
+    <main class="screens">
+      <section class="screen" id="home" aria-label="Ana menü">
+        <div class="home-sky">
+          <div class="sun" aria-hidden="true"></div>
+          <div class="cloud c1" aria-hidden="true"></div>
+          <div class="cloud c2" aria-hidden="true"></div>
+          <div class="cloud c3" aria-hidden="true"></div>
+        </div>
+        <div class="brand-block">
+          <p class="eyebrow">Çocuklar için</p>
+          <h1 class="brand">Balon Patlat!</h1>
+          <p class="tagline">İki oyun seç · eğlen · şampiyon ol!</p>
+        </div>
+        <div class="home-actions game-picks">
+          <button class="btn primary pulse game-pick" id="btnPlay" type="button">
+            <span class="pick-title">Balon Oyunu</span>
+            <span class="pick-sub">3 seviye · sorular · boost</span>
+          </button>
+          <button class="btn longcar-pick game-pick" id="btnLongcar" type="button">
+            <span class="pick-title">Longcar</span>
+            <span class="pick-sub">Model Y · 7 bölüm · şarj istasyonu</span>
+          </button>
+          <button class="btn ghost" id="btnHow" type="button">Nasıl Oynanır?</button>
+        </div>
+        <p class="best" id="bestHome">Balon en iyi: 0</p>
+      </section>
+
+      <section class="screen overlay" id="how" hidden aria-label="Nasıl oynanır">
+        <div class="panel">
+          <h2>Nasıl Oynanır?</h2>
+          <ul class="howto">
+            <li><span class="dot coral"></span> <strong>Balon Oyunu:</strong> patlat, Tiles Hop, Tesla</li>
+            <li><span class="dot mint"></span> Boost’ta ☠ — çarpma / basma!</li>
+            <li><span class="dot gold"></span> <strong>Longcar:</strong> Tesla Model Y tek kaydırmada uzar</li>
+            <li><span class="dot sky"></span> Longcat gibi yolu doldur · efektler patlar!</li>
+          </ul>
+          <button class="btn primary" id="btnHowClose" type="button">Anladım!</button>
+        </div>
+      </section>
+
+      <section class="screen overlay" id="pause" hidden aria-label="Duraklatıldı">
+        <div class="panel">
+          <h2>Duraklatıldı</h2>
+          <button class="btn primary" id="btnResume" type="button">Devam</button>
+          <button class="btn ghost" id="btnQuit" type="button">Ana Menü</button>
+        </div>
+      </section>
+
+      <section class="screen overlay" id="quiz" hidden aria-label="Akıl sorusu">
+        <div class="panel quiz-panel">
+          <p class="quiz-stage" id="quizStage">1. Aşama Tamam!</p>
+          <h2 id="quizTitle">Akıl Sorusu</h2>
+          <p class="quiz-question" id="quizQuestion">Soru yükleniyor...</p>
+          <div class="quiz-visual" id="quizVisual" aria-hidden="true"></div>
+          <div class="quiz-choices" id="quizChoices"></div>
+          <button class="btn ghost speak-btn" id="btnSpeak" type="button">🔊 Tekrar Dinle</button>
+          <p class="quiz-feedback" id="quizFeedback" hidden></p>
+        </div>
+      </section>
+
+      <section class="screen overlay" id="levelIntro" hidden aria-label="Seviye başlangıcı">
+        <div class="panel">
+          <p class="quiz-stage" id="introEyebrow">Hazır mısın?</p>
+          <h2 id="introTitle">Seviye 2</h2>
+          <p class="tagline" id="introText">Balonlar daha hızlı gelecek!</p>
+          <button class="btn primary" id="btnStartLevel" type="button">Başla!</button>
+        </div>
+      </section>
+
+      <section class="screen overlay" id="result" hidden aria-label="Sonuç">
+        <div class="panel celebrate">
+          <p class="result-emoji" id="resultEmoji" aria-hidden="true">🎉</p>
+          <h2 id="resultTitle">Harika!</h2>
+          <p class="result-score">Skorun: <strong id="finalScore">0</strong></p>
+          <p class="result-best" id="resultBest">Yeni rekor değil</p>
+          <div class="result-actions">
+            <button class="btn primary" id="btnAgain" type="button">Tekrar Oyna</button>
+            <button class="btn ghost" id="btnHome" type="button">Ana Menü</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <button class="pause-btn" id="btnPause" type="button" hidden aria-label="Duraklat">❚❚</button>
+    <button class="restart-btn" id="btnFillRestart" type="button" hidden aria-label="Yeniden başlat">↻ Yeniden</button>
+    <div id="bonusBanner" class="bonus-banner" hidden aria-hidden="true">
+      <span class="bonus-burst" aria-hidden="true"></span>
+      <strong id="bannerText">BONUS!</strong>
+    </div>
+    <div id="boostOverlay" class="boost-overlay" hidden aria-hidden="true"></div>
+  </div>
+
+  <script src="game.js" defer></script>
+</body>
+</html>
