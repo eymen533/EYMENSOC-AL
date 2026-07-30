@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Vakit" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
   <title>VAKİT — Namaz Vakitleri</title>
   <style>
     @font-face { font-family: "SF Pro Display"; src: url("./fonts/SF-Pro-Display-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
@@ -70,6 +78,108 @@
       --ink:#fff8e6; --mute:rgba(255,240,200,.6);
       --accent:#ffd60a; --accent2:#ff9f0a; --accent-ink:#1a1400;
       --line:rgba(255,214,10,.25); --glow:rgba(255,214,10,.35);
+    }
+    body[data-theme="kirmizi-siyah"] {
+      --bg0:#0a0000; --bg1:#2a0a0a; --card:rgba(40,12,12,.9);
+      --ink:#ffeceb; --mute:rgba(255,220,220,.58);
+      --accent:#ff453a; --accent2:#ff6961; --accent-ink:#1a0000;
+      --line:rgba(255,69,58,.28); --glow:rgba(255,69,58,.32);
+    }
+    body[data-theme="mor-siyah"] {
+      --bg0:#0a0614; --bg1:#1a1030; --card:rgba(28,18,48,.9);
+      --ink:#f6f0ff; --mute:rgba(230,220,255,.58);
+      --accent:#bf5af2; --accent2:#a855f7; --accent-ink:#180028;
+      --line:rgba(191,90,242,.28); --glow:rgba(191,90,242,.3);
+    }
+    body[data-theme="turkuaz"] {
+      --bg0:#001216; --bg1:#043038; --card:rgba(8,40,48,.9);
+      --ink:#e8fbff; --mute:rgba(200,240,250,.6);
+      --accent:#40c8e0; --accent2:#64d2ff; --accent-ink:#002028;
+      --line:rgba(64,200,224,.28); --glow:rgba(64,200,224,.3);
+    }
+    body[data-theme="pembe"] {
+      --bg0:#14040c; --bg1:#30101e; --card:rgba(48,16,32,.9);
+      --ink:#fff0f5; --mute:rgba(255,220,230,.58);
+      --accent:#ff375f; --accent2:#ff6b8a; --accent-ink:#280010;
+      --line:rgba(255,55,95,.28); --glow:rgba(255,55,95,.3);
+    }
+    body[data-theme="beyaz-siyah"] {
+      --bg0:#f2f2f7; --bg1:#e5e5ea; --card:rgba(255,255,255,.92);
+      --ink:#1c1c1e; --mute:rgba(28,28,30,.55);
+      --accent:#1c1c1e; --accent2:#636366; --accent-ink:#fff;
+      --line:rgba(28,28,30,.12); --glow:rgba(28,28,30,.1);
+    }
+    body[data-theme="bej"] {
+      --bg0:#1a1612; --bg1:#2c261e; --card:rgba(44,38,30,.9);
+      --ink:#f5efe6; --mute:rgba(245,239,230,.58);
+      --accent:#e7d3a4; --accent2:#c4a574; --accent-ink:#1a140c;
+      --line:rgba(231,211,164,.24); --glow:rgba(196,165,116,.28);
+    }
+    body[data-theme="orman"] {
+      --bg0:#07140a; --bg1:#14301a; --card:rgba(16,40,24,.9);
+      --ink:#eef8ee; --mute:rgba(220,240,220,.58);
+      --accent:#a8e067; --accent2:#34c759; --accent-ink:#0a1a08;
+      --line:rgba(168,224,103,.26); --glow:rgba(52,199,89,.28);
+    }
+    body[data-theme="gun-batimi"] {
+      --bg0:#1a0808; --bg1:#3a1820; --card:rgba(48,20,24,.9);
+      --ink:#fff2ea; --mute:rgba(255,230,210,.58);
+      --accent:#ff9f0a; --accent2:#ff453a; --accent-ink:#1a0a00;
+      --line:rgba(255,159,10,.28); --glow:rgba(255,69,58,.3);
+    }
+    body[data-theme="buz"] {
+      --bg0:#eef6fb; --bg1:#d5e8f5; --card:rgba(255,255,255,.9);
+      --ink:#0a2a3a; --mute:rgba(10,42,58,.55);
+      --accent:#007aff; --accent2:#5ac8fa; --accent-ink:#fff;
+      --line:rgba(10,42,58,.12); --glow:rgba(0,122,255,.14);
+    }
+    body[data-theme="altin-beyaz"] {
+      --bg0:#faf6ec; --bg1:#efe4c8; --card:rgba(255,255,255,.92);
+      --ink:#2a220e; --mute:rgba(42,34,14,.55);
+      --accent:#b8860b; --accent2:#daa520; --accent-ink:#fffdf5;
+      --line:rgba(42,34,14,.12); --glow:rgba(218,165,32,.16);
+    }
+    body[data-theme="mercan"] {
+      --bg0:#1a0604; --bg1:#3a1410; --card:rgba(52,18,14,.9);
+      --ink:#fff1ec; --mute:rgba(255,220,210,.58);
+      --accent:#ff6b4a; --accent2:#ff9f0a; --accent-ink:#1a0600;
+      --line:rgba(255,107,74,.28); --glow:rgba(255,107,74,.3);
+    }
+    body[data-theme="indigo"] {
+      --bg0:#08081a; --bg1:#16163a; --card:rgba(22,22,58,.9);
+      --ink:#eef0ff; --mute:rgba(210,215,255,.58);
+      --accent:#5e5ce6; --accent2:#7d7aff; --accent-ink:#0a0a28;
+      --line:rgba(94,92,230,.28); --glow:rgba(94,92,230,.3);
+    }
+    body[data-theme="nane"] {
+      --bg0:#f0faf6; --bg1:#d8efe6; --card:rgba(255,255,255,.92);
+      --ink:#0d2e24; --mute:rgba(13,46,36,.55);
+      --accent:#00c7a0; --accent2:#34c759; --accent-ink:#fff;
+      --line:rgba(13,46,36,.12); --glow:rgba(0,199,160,.14);
+    }
+    body[data-theme="seftali"] {
+      --bg0:#fff4ee; --bg1:#ffe3d4; --card:rgba(255,255,255,.92);
+      --ink:#3a1c10; --mute:rgba(58,28,16,.55);
+      --accent:#ff7a45; --accent2:#ff9f0a; --accent-ink:#fff;
+      --line:rgba(58,28,16,.1); --glow:rgba(255,122,69,.16);
+    }
+    body[data-theme="komur-turuncu"] {
+      --bg0:#0c0c0c; --bg1:#1e1610; --card:rgba(32,24,16,.92);
+      --ink:#fff6ee; --mute:rgba(255,230,210,.58);
+      --accent:#ff9500; --accent2:#ffcc00; --accent-ink:#1a0e00;
+      --line:rgba(255,149,0,.28); --glow:rgba(255,149,0,.3);
+    }
+    body[data-theme="gokyuzu"] {
+      --bg0:#041018; --bg1:#0a2840; --card:rgba(10,36,58,.9);
+      --ink:#eaf6ff; --mute:rgba(200,230,255,.6);
+      --accent:#5ac8fa; --accent2:#0a84ff; --accent-ink:#001828;
+      --line:rgba(90,200,250,.26); --glow:rgba(10,132,255,.32);
+    }
+    body[data-theme="lavanta"] {
+      --bg0:#f6f2ff; --bg1:#e8e0ff; --card:rgba(255,255,255,.92);
+      --ink:#2a1848; --mute:rgba(42,24,72,.55);
+      --accent:#7c5cff; --accent2:#bf5af2; --accent-ink:#fff;
+      --line:rgba(42,24,72,.1); --glow:rgba(124,92,255,.14);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -141,6 +251,32 @@
     }
     #theme {
       max-width: 38vw;
+    }
+
+    .install-tip {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: inset 0 0 0 1px var(--line);
+      font-size: 13px;
+      line-height: 1.35;
+      color: var(--mute);
+    }
+    .install-tip.show { display: flex; }
+    .install-tip strong { color: var(--ink); font-weight: 600; }
+    .install-tip button {
+      margin-left: auto;
+      flex: 0 0 auto;
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 4px 2px;
     }
 
     .hero {
@@ -308,11 +444,28 @@
   var THEMES = [
     ['sari-siyah','Sarı / Siyah','#000000','#ffd60a'],
     ['gri-siyah','Gri / Siyah','#1c1c1e','#d1d1d6'],
+    ['kirmizi-siyah','Kırmızı / Siyah','#2a0a0a','#ff453a'],
+    ['mor-siyah','Mor / Siyah','#1a1030','#bf5af2'],
     ['yesil','Yeşil','#02140c','#30d158'],
+    ['orman','Orman','#14301a','#a8e067'],
     ['beyaz-yesil','Beyaz / Yeşil','#f2f8f4','#248a3d'],
     ['lacivert','Lacivert','#eef2ff','#2d4cff'],
     ['gece-mavi','Gece / Mavi','#010812','#64d2ff'],
-    ['zeytin','Zeytin / Altın','#120f08','#ffd60a']
+    ['turkuaz','Turkuaz','#043038','#40c8e0'],
+    ['buz','Buz / Mavi','#eef6fb','#007aff'],
+    ['pembe','Pembe / Siyah','#30101e','#ff375f'],
+    ['gun-batimi','Gün batımı','#3a1820','#ff9f0a'],
+    ['zeytin','Zeytin / Altın','#120f08','#ffd60a'],
+    ['bej','Bej / Siyah','#2c261e','#e7d3a4'],
+    ['beyaz-siyah','Beyaz / Siyah','#f2f2f7','#1c1c1e'],
+    ['altin-beyaz','Altın / Beyaz','#faf6ec','#b8860b'],
+    ['mercan','Mercan','#3a1410','#ff6b4a'],
+    ['indigo','İndigo','#16163a','#5e5ce6'],
+    ['nane','Nane','#f0faf6','#00c7a0'],
+    ['seftali','Şeftali','#fff4ee','#ff7a45'],
+    ['komur-turuncu','Kömür / Turuncu','#0c0c0c','#ff9500'],
+    ['gokyuzu','Gökyüzü','#041018','#5ac8fa'],
+    ['lavanta','Lavanta','#f6f2ff','#7c5cff']
   ];
 
   var state = {
@@ -390,6 +543,21 @@
     '</div>';
   }
 
+  function isStandalone(){
+    return window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+  }
+
+  function installTipHtml(){
+    if(isStandalone() || localStorage.getItem('vakit-tip-hide')==='1') return '';
+    var isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+    var text=isiOS
+      ? '<strong>iPhone:</strong> Safari → Paylaş → Ana Ekrana Ekle. Widget için Scriptable + widget/scriptable-namaz.js'
+      : '<strong>Telefona ekle:</strong> tarayıcı menüsünden “Ana ekrana ekle / Install” seç.';
+    return '<div class="install-tip show" id="installTip"><div>'+text+'</div><button type="button" id="tipClose" aria-label="Kapat">Tamam</button></div>';
+  }
+
   function render(){
     setTheme(state.theme);
     var root=document.getElementById('app');
@@ -399,7 +567,7 @@
 
     if(state.loading || state.error){
       root.innerHTML=
-        topBar(cityOpts)+
+        topBar(cityOpts)+installTipHtml()+
         '<div class="msg">'+(state.error||'Vakitler yükleniyor…')+
         (state.error?'<br><button type="button" id="retry">Tekrar dene</button>':'')+'</div>';
       bind(root); return;
@@ -418,7 +586,7 @@
     }).join('');
 
     root.innerHTML=
-      topBar(cityOpts)+
+      topBar(cityOpts)+installTipHtml()+
       '<section class="hero">'+
         '<div class="kicker">Şu anki saat</div>'+
         '<div class="clock" id="clock">'+clockStr(n)+'</div>'+
@@ -449,6 +617,12 @@
     };
     var retry=root.querySelector('#retry');
     if(retry) retry.onclick=load;
+    var tipClose=root.querySelector('#tipClose');
+    if(tipClose) tipClose.onclick=function(){
+      localStorage.setItem('vakit-tip-hide','1');
+      var tip=document.getElementById('installTip');
+      if(tip) tip.remove();
+    };
   }
 
   function tick(){
@@ -480,6 +654,12 @@
   }
 
   setTheme(state.theme); load(); setInterval(tick, 1000);
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('./sw.js').catch(function(){});
+    });
+  }
 })();
   </script>
 </body>

@@ -1,9 +1,9 @@
 {
   "name": "vakit-namaz",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "scripts": {
-    "build": "mkdir -p dist/fonts docs/fonts && cp index.single.html dist/index.html && cp index.single.html docs/index.html && cp public/fonts/*.woff2 dist/fonts/ && cp public/fonts/*.woff2 docs/fonts/ && touch docs/.nojekyll",
+    "build": "node scripts/build.mjs",
     "preview": "npx --yes serve dist -l 4173"
   }
 }
