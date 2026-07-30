@@ -1,27 +1,34 @@
-# iPhone’da kullanma (kalıcı)
+# iPhone’da kullanma
 
-Geçici `trycloudflare.com` linkleri kapanınca Ana Ekran kısayolu bozulur.
-**Kalıcı adres (bunu ekle):**
+## Önemli
+`cdn.jsdelivr.net` veya `raw.githubusercontent.com` linkleri uygulamayı **kod olarak** gösterir (HTML’i text/plain verir). Bunları kullanma.
 
-https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/namaz-vakitleri-1d93/docs/index.html
+## Şimdi aç (doğru link — sayfa olarak açılır)
 
-## 1) Ana ekran uygulaması
+https://direction-russell-pepper-ship.trycloudflare.com
 
-1. iPhone’da **eski “Vakit / Namaz” ikonunu sil** (basılı tut → Kaldır)
-2. Yukarıdaki kalıcı linki **Safari** ile aç (Chrome değil)
-3. Bir kez vakitlerin yüklendiğini gör (önbellek için şart)
-4. **Paylaş → Ana Ekrana Ekle**
-5. Artık kapatıp açınca da çalışır (uygulama kabuğu telefonda saklanır; vakitler için internet gerekir)
+Safari ile aç → vakitler gelsin → **Paylaş → Ana Ekrana Ekle**.
 
-## 2) Widget (Scriptable)
+> Bu Cloudflare linki geçici olabilir. Düşerse PR’daki güncel linke bak veya aşağıdan Netlify’ı sahiplen.
 
-1. App Store → **Scriptable**
-2. Yeni script → `widget/scriptable-namaz.js` içeriğini yapıştır  
-   veya: aynı jsDelivr yolunda `/widget/scriptable-namaz.js` (repodan)
-3. Ana ekran → **+ → Scriptable** (Medium) → scripti seç
-4. Parameter: şehir (`Istanbul`, `Bursa`…)
+## Kalıcı site (önerilen — 1 dk)
 
-## 3) İsteğe bağlı: kendi GitHub Pages’in
+1. Telefonda veya bilgisayarda aç:  
+   https://app.netlify.com/drop/lovely-tartufo-cc9c04#drop_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODU0Mzg1MDYsImV4cCI6MTc4NTQ0MjEwNiwiaXNzIjoiTmV0bGlmeSIsInNlc3Npb25faWQiOiI4NDZjM2YzZi1lZDIxLTQ2OTctOWQyOS04ZmI1MTNhNDk2Y2YifQ.Cvy-ZOpm9RpDV2YwJiWOtrkBz2Wh78PyFKnMG0rrr4o
+2. Netlify’a GitHub ile giriş yapıp siteyi **Claim** et (60 dk içinde)
+3. Password korumasını kapat
+4. Verilen `*.netlify.app` adresini Safari → Ana Ekrana Ekle
 
-Repo → **Settings → Pages → Deploy from a branch** → branch + `/docs`.
-Sonra `https://eymen533.github.io/EYMENSOC-AL/` kalıcı olur.
+Geçici şifreli önizleme (claim öncesi):  
+http://lovely-tartufo-cc9c04.netlify.app  
+Şifre: `My-Drop-Site`
+
+## GitHub Pages (kalıcı, ücretsiz)
+
+Repo → **Settings → Pages** → Source: **GitHub Actions**  
+Sonra workflow `Deploy Vakit to GitHub Pages` siteyi yayınlar:  
+`https://eymen533.github.io/EYMENSOC-AL/`
+
+## Widget
+
+App Store → Scriptable → `docs/widget/scriptable-namaz.js`
