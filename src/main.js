@@ -24,11 +24,11 @@ const CITIES = [
 
 const THEMES = [
   { id: 'sari-siyah', label: 'Sarı · Siyah', swatch: ['#0a0a0a', '#f5c518'] },
-  { id: 'yesil', label: 'Yeşil tonlar', swatch: ['#0d1f14', '#3d8b5f'] },
+  { id: 'yesil', label: 'Yeşil', swatch: ['#0d1f14', '#3d8b5f'] },
   { id: 'beyaz-yesil', label: 'Beyaz · Yeşil', swatch: ['#f4f7f2', '#1f7a4c'] },
-  { id: 'lacivert', label: 'Beyaz · Lacivert', swatch: ['#f2f5fb', '#1a2a6c'] },
+  { id: 'lacivert', label: 'Lacivert', swatch: ['#f2f5fb', '#1a2a6c'] },
   { id: 'gece-mavi', label: 'Gece · Mavi', swatch: ['#071018', '#4db0ff'] },
-  { id: 'zeytin', label: 'Zeytin · Altın', swatch: ['#1a1c12', '#c6a84b'] },
+  { id: 'zeytin', label: 'Zeytin', swatch: ['#1a1c12', '#c6a84b'] },
 ]
 
 const app = document.querySelector('#app')
@@ -56,22 +56,25 @@ function parseTimeToday(hhmm, base = state.now) {
   return d
 }
 
+function pad2(n) {
+  return String(n).padStart(2, '0')
+}
+
 function formatHMS(ms) {
   const total = Math.max(0, Math.floor(ms / 1000))
   return {
-    h: String(Math.floor(total / 3600)).padStart(2, '0'),
-    m: String(Math.floor((total % 3600) / 60)).padStart(2, '0'),
-    s: String(total % 60).padStart(2, '0'),
+    h: pad2(Math.floor(total / 3600)),
+    m: pad2(Math.floor((total % 3600) / 60)),
+    s: pad2(total % 60),
   }
 }
 
-function formatClock(date) {
-  return date.toLocaleTimeString('tr-TR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  })
+function clockParts(date) {
+  return {
+    h: pad2(date.getHours()),
+    m: pad2(date.getMinutes()),
+    s: pad2(date.getSeconds()),
+  }
 }
 
 function getSchedule() {
@@ -164,6 +167,18 @@ function setCity(city, label) {
   load()
 }
 
+function digitsHTML(idPrefix, parts) {
+  return `
+    <div class="digits" aria-hidden="false">
+      <span class="num" id="${idPrefix}-h">${parts.h}</span>
+      <span class="sep">:</span>
+      <span class="num" id="${idPrefix}-m">${parts.m}</span>
+      <span class="sep">:</span>
+      <span class="num" id="${idPrefix}-s">${parts.s}</span>
+    </div>
+  `
+}
+
 function themePickerHTML() {
   return `
     <div class="themes" role="listbox" aria-label="Renk teması">
@@ -190,9 +205,7 @@ function renderShell() {
     app.innerHTML = `
       <div class="bg" aria-hidden="true"><div class="bg-orb"></div><div class="bg-grid"></div></div>
       <main class="shell">
-        <header class="top">
-          <div class="brand"><h1>VAKİT</h1></div>
-        </header>
+        <header class="top"><div class="brand"><h1>VAKİT</h1></div></header>
         ${themePickerHTML()}
         <div class="status ${state.error ? 'error' : ''}">
           <p>${state.error || 'Vakitler hazırlanıyor…'}</p>
@@ -204,12 +217,12 @@ function renderShell() {
   }
 
   const remain = next ? formatHMS(next.date.getTime() - state.now.getTime()) : { h: '00', m: '00', s: '00' }
+  const nowParts = clockParts(state.now)
 
   app.innerHTML = `
     <div class="bg" aria-hidden="true">
       <div class="bg-orb"></div>
       <div class="bg-grid"></div>
-      <div class="bg-noise"></div>
     </div>
 
     <main class="shell">
@@ -231,20 +244,17 @@ function renderShell() {
 
       ${themePickerHTML()}
 
-      <section class="hero" aria-live="polite">
-        <div class="hero-now">
-          <p class="eyebrow">Şu an</p>
-          <p class="clock" id="clock-now">${formatClock(state.now)}</p>
+      <section class="hero">
+        <div class="hero-card">
+          <p class="eyebrow">ŞU ANKİ SAAT</p>
+          ${digitsHTML('clock', nowParts)}
         </div>
 
-        <div class="hero-next">
-          <p class="eyebrow" id="next-kicker">${next?.tomorrow ? 'Yarın' : 'Sıradaki'} · <span id="next-name">${next?.name || '—'}</span></p>
-          <div class="countdown">
-            <div class="cd"><span id="cd-h">${remain.h}</span><small>SAAT</small></div>
-            <span class="colon">:</span>
-            <div class="cd"><span id="cd-m">${remain.m}</span><small>DAKİKA</small></div>
-            <span class="colon">:</span>
-            <div class="cd"><span id="cd-s">${remain.s}</span><small>SANİYE</small></div>
+        <div class="hero-card hero-card-accent">
+          <p class="eyebrow" id="next-kicker">${next?.tomorrow ? 'YARIN' : 'SIRADAKİ VAKİT'} · <strong id="next-name">${(next?.name || '—').toUpperCase()}</strong></p>
+          ${digitsHTML('cd', remain)}
+          <div class="cd-labels" aria-hidden="true">
+            <span>SAAT</span><span></span><span>DAKİKA</span><span></span><span>SANİYE</span>
           </div>
           <p class="hero-meta" id="hero-meta">${state.label.toUpperCase()} · ${next?.time || ''} · ${state.dateLabel.toUpperCase()}</p>
         </div>
@@ -252,7 +262,7 @@ function renderShell() {
 
       <section class="times">
         <div class="times-head">
-          <h2>Günün vakitleri</h2>
+          <h2>GÜNÜN VAKİTLERİ</h2>
           <p id="hijri-line">${state.hijri}</p>
         </div>
         <ul class="time-list" id="time-list">
@@ -291,13 +301,20 @@ function bindChrome() {
   })
 }
 
+function setDigits(prefix, parts) {
+  const h = document.getElementById(`${prefix}-h`)
+  const m = document.getElementById(`${prefix}-m`)
+  const s = document.getElementById(`${prefix}-s`)
+  if (!h || !m || !s) return false
+  h.textContent = parts.h
+  m.textContent = parts.m
+  s.textContent = parts.s
+  return true
+}
+
 function tickUpdate() {
   state.now = new Date()
-  if (!mounted || state.loading || state.error || !state.timings) {
-    const clock = document.getElementById('clock-now')
-    if (clock) clock.textContent = formatClock(state.now)
-    return
-  }
+  if (!mounted || state.loading || state.error || !state.timings) return
 
   const schedule = getSchedule()
   const next = getNextPrayer(schedule)
@@ -308,13 +325,13 @@ function tickUpdate() {
     return
   }
 
-  const remain = next ? formatHMS(next.date.getTime() - state.now.getTime()) : null
-  const clock = document.getElementById('clock-now')
-  if (clock) clock.textContent = formatClock(state.now)
-  if (remain) {
-    document.getElementById('cd-h').textContent = remain.h
-    document.getElementById('cd-m').textContent = remain.m
-    document.getElementById('cd-s').textContent = remain.s
+  setDigits('clock', clockParts(state.now))
+  if (next) setDigits('cd', formatHMS(next.date.getTime() - state.now.getTime()))
+
+  const kicker = document.getElementById('next-kicker')
+  const name = document.getElementById('next-name')
+  if (kicker && name) {
+    name.textContent = (next?.name || '—').toUpperCase()
   }
 
   document.querySelectorAll('.time-row').forEach((row) => {
