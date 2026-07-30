@@ -660,11 +660,19 @@
     });
   }
 
-  // Eski service worker Safari'de "redirections" hatası veriyor — kaldır
+  // Eski service worker Safari'de "redirections" hatası veriyor — öldür
   function killServiceWorkers(){
     if(!('serviceWorker' in navigator)) return;
+    // Yeni sw.js kendini unregister eder; eski kontrolü de böyle güncellenir
+    navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(function(){});
     navigator.serviceWorker.getRegistrations().then(function(regs){
-      regs.forEach(function(r){ r.unregister(); });
+      // Bir süre sonra hepsini temizle
+      setTimeout(function(){
+        regs.forEach(function(r){ r.unregister(); });
+        navigator.serviceWorker.getRegistrations().then(function(r2){
+          r2.forEach(function(r){ r.unregister(); });
+        });
+      }, 2500);
     }).catch(function(){});
     if('caches' in window){
       caches.keys().then(function(keys){
