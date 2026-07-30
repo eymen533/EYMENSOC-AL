@@ -100,6 +100,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 10px;
       padding: 2px 2px 0;
     }
     .brand {
@@ -107,8 +108,16 @@
       font-size: 28px;
       font-weight: 700;
       letter-spacing: -0.03em;
+      flex: 0 1 auto;
+      min-width: 0;
     }
     .brand span { color: var(--accent); }
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
     select {
       appearance: none;
       border: 0;
@@ -117,65 +126,21 @@
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-radius: 980px;
-      padding: 10px 34px 10px 14px;
+      padding: 10px 32px 10px 12px;
       font-family: var(--font-t);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
+      max-width: 42vw;
       box-shadow: inset 0 0 0 1px var(--line);
       background-image:
         linear-gradient(45deg, transparent 50%, var(--accent) 50%),
         linear-gradient(135deg, var(--accent) 50%, transparent 50%);
-      background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+      background-position: calc(100% - 14px) calc(50% - 2px), calc(100% - 10px) calc(50% - 2px);
       background-size: 5px 5px;
       background-repeat: no-repeat;
     }
-
-    .theme-box {
-      background: var(--card);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border-radius: 22px;
-      padding: 12px;
-      box-shadow: inset 0 0 0 1px var(--line), 0 10px 30px rgba(0,0,0,.18);
-    }
-    .theme-title {
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin: 0 4px 10px;
-    }
-    .themes {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-    .theme-btn {
-      border: 0;
-      border-radius: 16px;
-      padding: 12px 10px;
-      background: color-mix(in srgb, var(--bg0) 55%, transparent);
-      color: var(--ink);
-      font-family: var(--font-t);
-      font-size: 13px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      cursor: pointer;
-      box-shadow: inset 0 0 0 1px var(--line);
-      transition: transform .15s ease, box-shadow .15s ease;
-    }
-    .theme-btn.active {
-      box-shadow: inset 0 0 0 2px var(--accent), 0 0 18px var(--glow);
-      background: color-mix(in srgb, var(--accent) 14%, transparent);
-    }
-    .theme-btn:active { transform: scale(.98); }
-    .dot {
-      width: 18px; height: 18px; border-radius: 50%; flex: 0 0 auto;
-      background: linear-gradient(145deg, var(--d1), var(--d2));
-      box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 4px 10px rgba(0,0,0,.25);
+    #theme {
+      max-width: 38vw;
     }
 
     .hero {
@@ -409,11 +374,20 @@
       });
   }
 
-  function themeHTML(){
+  function themeOpts(){
     return THEMES.map(function(t){
-      return '<button type="button" class="theme-btn'+(state.theme===t[0]?' active':'')+
-        '" data-theme="'+t[0]+'"><i class="dot" style="--d1:'+t[2]+';--d2:'+t[3]+'"></i>'+t[1]+'</button>';
+      return '<option value="'+t[0]+'"'+(state.theme===t[0]?' selected':'')+'>'+t[1]+'</option>';
     }).join('');
+  }
+
+  function topBar(cityOpts){
+    return '<div class="top">'+
+      '<div class="brand">Vak<span>i</span>t</div>'+
+      '<div class="top-controls">'+
+        '<select id="theme" aria-label="Tema seç">'+themeOpts()+'</select>'+
+        '<select id="city" aria-label="Şehir seç">'+cityOpts+'</select>'+
+      '</div>'+
+    '</div>';
   }
 
   function render(){
@@ -425,8 +399,7 @@
 
     if(state.loading || state.error){
       root.innerHTML=
-        '<div class="top"><div class="brand">Vak<span>i</span>t</div></div>'+
-        '<div class="theme-box"><div class="theme-title">Tema seç</div><div class="themes">'+themeHTML()+'</div></div>'+
+        topBar(cityOpts)+
         '<div class="msg">'+(state.error||'Vakitler yükleniyor…')+
         (state.error?'<br><button type="button" id="retry">Tekrar dene</button>':'')+'</div>';
       bind(root); return;
@@ -445,8 +418,7 @@
     }).join('');
 
     root.innerHTML=
-      '<div class="top"><div class="brand">Vak<span>i</span>t</div><select id="city">'+cityOpts+'</select></div>'+
-      '<div class="theme-box"><div class="theme-title">Tema seç</div><div class="themes">'+themeHTML()+'</div></div>'+
+      topBar(cityOpts)+
       '<section class="hero">'+
         '<div class="kicker">Şu anki saat</div>'+
         '<div class="clock" id="clock">'+clockStr(n)+'</div>'+
@@ -471,15 +443,12 @@
       localStorage.setItem('vakit-label', state.label);
       load();
     };
+    var theme=root.querySelector('#theme');
+    if(theme) theme.onchange=function(){
+      setTheme(theme.value);
+    };
     var retry=root.querySelector('#retry');
     if(retry) retry.onclick=load;
-    var buttons=root.querySelectorAll('.theme-btn');
-    for(var i=0;i<buttons.length;i++){
-      buttons[i].onclick=(function(btn){ return function(){
-        setTheme(btn.getAttribute('data-theme'));
-        for(var j=0;j<buttons.length;j++) buttons[j].classList.toggle('active', buttons[j]===btn);
-      }; })(buttons[i]);
-    }
   }
 
   function tick(){
