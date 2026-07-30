@@ -34,5 +34,14 @@ for (const file of ["manifest.webmanifest", "sw.js"]) {
   }
 }
 
+if (existsSync(join(root, "widget"))) {
+  cpSync(join(root, "widget"), join(root, "docs/widget"), { recursive: true });
+  cpSync(join(root, "widget"), join(root, "dist/widget"), { recursive: true });
+}
+if (existsSync(join(root, "IPHONE.md"))) {
+  cpSync(join(root, "IPHONE.md"), join(root, "docs/IPHONE.md"));
+  cpSync(join(root, "IPHONE.md"), join(root, "dist/IPHONE.md"));
+}
+
 writeFileSync(join(root, "docs/.nojekyll"), "");
 console.log("Built dist/ and docs/");

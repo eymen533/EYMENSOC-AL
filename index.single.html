@@ -550,11 +550,19 @@
 
   function installTipHtml(){
     if(isStandalone() || localStorage.getItem('vakit-tip-hide')==='1') return '';
+    var host=location.hostname||'';
+    var ephemeral=/trycloudflare\.com$|localhost|127\.0\.0\.1/.test(host);
     var isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
-    var text=isiOS
-      ? '<strong>iPhone:</strong> Safari → Paylaş → Ana Ekrana Ekle. Widget için Scriptable + widget/scriptable-namaz.js'
-      : '<strong>Telefona ekle:</strong> tarayıcı menüsünden “Ana ekrana ekle / Install” seç.';
+    var text;
+    if(ephemeral){
+      text='<strong>Ana ekrana ekleme:</strong> Bu geçici link kapanır. Kalıcı adres: '+
+        '<a href="https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/namaz-vakitleri-1d93/docs/index.html" style="color:var(--accent)">kalıcı Vakit aç</a> → Safari’de Paylaş → Ana Ekrana Ekle.';
+    } else if(isiOS){
+      text='<strong>iPhone:</strong> Safari → Paylaş → Ana Ekrana Ekle. Eski kısayolu sil, bunu ekle. Widget: Scriptable.';
+    } else {
+      text='<strong>Telefona ekle:</strong> menüden “Ana ekrana ekle / Install”.';
+    }
     return '<div class="install-tip show" id="installTip"><div>'+text+'</div><button type="button" id="tipClose" aria-label="Kapat">Tamam</button></div>';
   }
 
@@ -653,11 +661,37 @@
     });
   }
 
+  // Ana ekran / offline: shell'i Cache API'ye yaz (tunnel ölse bile yeniden açılsın)
+  function precacheShell(){
+    if(!('caches' in window)) return;
+    var urls=[
+      './','./index.html','./manifest.webmanifest',
+      './icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png',
+      './fonts/SF-Pro-Display-Bold.woff2','./fonts/SF-Pro-Display-Medium.woff2',
+      './fonts/SF-Pro-Display-Regular.woff2','./fonts/SF-Pro-Display-Semibold.woff2',
+      './fonts/SF-Pro-Text-Regular.woff2','./fonts/SF-Pro-Text-Semibold.woff2',
+      './fonts/SF-Pro-Text-Bold.woff2','./sw.js'
+    ];
+    caches.open('namaz-v3').then(function(cache){
+      return Promise.all(urls.map(function(u){
+        return fetch(u,{cache:'reload'}).then(function(r){
+          if(r && r.ok) return cache.put(u,r);
+        }).catch(function(){});
+      }));
+    }).catch(function(){});
+    if(navigator.storage && navigator.storage.persist){
+      navigator.storage.persist().catch(function(){});
+    }
+  }
+
   setTheme(state.theme); load(); setInterval(tick, 1000);
+  precacheShell();
 
   if('serviceWorker' in navigator){
     window.addEventListener('load', function(){
-      navigator.serviceWorker.register('./sw.js').catch(function(){});
+      navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(function(reg){
+        if(reg && reg.update) reg.update().catch(function(){});
+      }).catch(function(){});
     });
   }
 })();

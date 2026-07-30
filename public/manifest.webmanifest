@@ -2,12 +2,15 @@
   "name": "Namaz Vakitleri",
   "short_name": "Namaz",
   "description": "Türkiye namaz vakitleri — saat, geri sayım ve günlük liste",
+  "id": "./",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0a0a",
   "theme_color": "#f5c518",
   "lang": "tr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "./icons/icon-192.png",
