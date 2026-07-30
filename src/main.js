@@ -1,11 +1,12 @@
 import './style.css'
-import { GUNLER, AYLAR, toHicri, dayOfYear, formatKey } from './data/calendar.js'
+import { GUNLER, AYLAR, toHicri, dayOfYear } from './data/calendar.js'
 import { YEMEKLER } from './data/yemekler.js'
 import { getTarihte } from './data/tarihte.js'
 import { ATASOZLeri, OZLU_SOZLER } from './data/atasozleri.js'
 import { BILGILER, ISIM_GUNLERI } from './data/bilgiler.js'
 
 const app = document.querySelector('#app')
+const STRIPS = 18
 
 function startOfDay(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -24,237 +25,264 @@ function pick(list, index) {
 
 function buildContent(date) {
   const doy = dayOfYear(date)
-  const hicri = toHicri(date)
-  const yemek = pick(YEMEKLER, doy + date.getFullYear())
-  const tarih = getTarihte(date, doy)
-  const atasozu = pick(ATASOZLeri, doy * 3 + 7)
-  const ozlu = pick(OZLU_SOZLER, doy * 2 + 3)
-  const bilgi = pick(BILGILER, doy + 11)
-  const isimler = pick(ISIM_GUNLERI, doy + date.getMonth())
-
   return {
     gunAdi: GUNLER[date.getDay()],
+    gunAdiShort: GUNLER[date.getDay()].slice(0, 3).toUpperCase(),
     gun: date.getDate(),
     ay: AYLAR[date.getMonth()],
+    ayEn: date
+      .toLocaleString('en-US', { month: 'long' })
+      .toUpperCase(),
     yil: date.getFullYear(),
-    hicri,
-    isimler,
-    tarih,
-    atasozu,
-    ozlu,
-    yemek,
-    bilgi,
-    key: formatKey(date),
+    hicri: toHicri(date),
+    isimler: pick(ISIM_GUNLERI, doy + date.getMonth()),
+    tarih: getTarihte(date, doy),
+    atasozu: pick(ATASOZLeri, doy * 3 + 7),
+    ozlu: pick(OZLU_SOZLER, doy * 2 + 3),
+    yemek: pick(YEMEKLER, doy + date.getFullYear()),
+    bilgi: pick(BILGILER, doy + 11),
   }
 }
 
-function leafHTML(c) {
-  const tarihItems = c.tarih.map((t) => `<li>${t}</li>`).join('')
-
+function pageHTML(c) {
+  const tarih = c.tarih.map((t) => `<li>${t}</li>`).join('')
   return `
-    <div class="leaf-inner">
-      <header class="leaf-header">
-        <div class="series">Günün Yaprakları</div>
-        <div class="title-tr">SAATLİ MAARİF TAKVİMİ</div>
+    <div class="page-sheet">
+      <header class="page-top">
+        <div class="logo">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span class="logo-text">MAARİF</span>
+        </div>
+
+        <div class="side side-left">
+          <div class="side-icon sun" aria-hidden="true"></div>
+          <div class="side-meta">
+            <strong>${c.hicri.day}</strong>
+            <span>${c.hicri.month}</span>
+          </div>
+        </div>
+
+        <div class="date-hero">
+          <div class="month">${c.ay.toUpperCase()}</div>
+          <div class="day-num">${c.gun}</div>
+          <div class="weekday">${c.gunAdi.toUpperCase()} · ${c.gunAdiShort}</div>
+        </div>
+
+        <div class="side side-right">
+          <div class="side-icon moon" aria-hidden="true"></div>
+          <div class="side-meta">
+            <strong>${c.yil}</strong>
+            <span>${c.isimler.split(',')[0]}</span>
+          </div>
+        </div>
       </header>
 
-      <div class="date-block">
-        <div class="date-main">
-          <div class="day-name">${c.gunAdi}</div>
-          <div class="day-number">${c.gun}</div>
-          <div class="month-year">${c.ay} ${c.yil}</div>
-        </div>
-        <div class="date-side">
-          <div>
-            <span class="label">Hicrî</span>
-            <strong>${c.hicri.day} ${c.hicri.month} ${c.hicri.year}</strong>
-          </div>
-          <div>
-            <span class="label">İsim günü</span>
-            <strong>${c.isimler}</strong>
-          </div>
-        </div>
+      <div class="page-body">
+        <section class="block">
+          <h2>Bugün tarihte</h2>
+          <ul>${tarih}</ul>
+        </section>
+
+        <section class="block proverb-block">
+          <h2>Günün sözü</h2>
+          <p>« ${c.atasozu} »</p>
+        </section>
+
+        <section class="block recipe-block">
+          <h2>Günün yemeği</h2>
+          <h3>${c.yemek.ad}</h3>
+          <p class="label">Malzemeler</p>
+          <p>${c.yemek.malzemeler}</p>
+          <p class="label">Yapılışı</p>
+          <p>${c.yemek.yapilis}</p>
+        </section>
+
+        <section class="block">
+          <h2>${c.bilgi.baslik}</h2>
+          <p>${c.bilgi.metin}</p>
+        </section>
+
+        <section class="block proverb-block">
+          <h2>Özlü söz</h2>
+          <p>${c.ozlu}</p>
+        </section>
       </div>
 
-      <section class="section">
-        <h2 class="section-title">Bugün tarihte</h2>
-        <ul>${tarihItems}</ul>
-      </section>
-
-      <section class="section">
-        <h2 class="section-title">Günün sözü</h2>
-        <p class="proverb">« ${c.atasozu} »</p>
-      </section>
-
-      <section class="section">
-        <h2 class="section-title">Günün yemeği</h2>
-        <div class="recipe-name">${c.yemek.ad}</div>
-        <div class="recipe-meta">
-          <span>Malzemeler</span>
-          <p>${c.yemek.malzemeler}</p>
-        </div>
-        <div class="recipe-meta">
-          <span>Yapılışı</span>
-          <p>${c.yemek.yapilis}</p>
-        </div>
-      </section>
-
-      <section class="section">
-        <h2 class="section-title">${c.bilgi.baslik}</h2>
-        <p>${c.bilgi.metin}</p>
-      </section>
-
-      <section class="section">
-        <h2 class="section-title">Özlü söz</h2>
-        <p class="proverb">${c.ozlu}</p>
-      </section>
-
-      <div class="swipe-hint" aria-hidden="true">
-        <span class="swipe-arrow">↑</span>
-        Yukarı kaydır — sonraki yaprak
+      <div class="page-footer">
+        <span>Yukarı kaydır</span>
+        <span class="chevron">↑</span>
       </div>
     </div>
   `
 }
 
-function render(options = {}) {
-  const { animateEnter = false } = options
+function stripsHTML(inner) {
+  let html = ''
+  for (let i = 0; i < STRIPS; i++) {
+    html += `
+      <div class="strip" data-i="${i}" style="--i:${i}; --n:${STRIPS}">
+        <div class="strip-face">
+          <div class="strip-content" style="transform: translateY(calc(-100% * ${i} / ${STRIPS}))">
+            ${inner}
+          </div>
+        </div>
+      </div>`
+  }
+  return html
+}
+
+function render() {
   const c = buildContent(current)
   const next = buildContent(addDays(current, 1))
+  const front = pageHTML(c)
+  const back = pageHTML(next)
 
   app.innerHTML = `
-    <div class="brand-bar">
-      <h1>Saatli Maarif Takvimi</h1>
-      <p>Her güne bir yaprak</p>
-    </div>
-
-    <div class="calendar-stage" id="stage">
-      <div class="pad-back" aria-hidden="true"></div>
-      <div class="binding" aria-hidden="true">
-        <div class="binding-bar"></div>
-        ${Array.from({ length: 8 }, () => '<div class="hole"></div>').join('')}
+    <div class="phone" id="phone">
+      <div class="stage" id="stage">
+        <div class="page page-next" id="page-next">${back}</div>
+        <div class="page page-front" id="page-front">
+          <div class="curl-stack" id="curl-stack">
+            ${stripsHTML(front)}
+          </div>
+        </div>
       </div>
-      <article class="leaf leaf-under" id="leaf-under" aria-hidden="true">
-        ${leafHTML(next)}
-      </article>
-      <article class="leaf${animateEnter ? ' entering' : ''}" id="leaf" aria-live="polite">
-        ${leafHTML(c)}
-      </article>
+      <div class="dock">
+        <button type="button" id="btn-prev" class="dock-btn">Önceki</button>
+        <button type="button" id="btn-today" class="dock-btn dock-today">BUGÜN</button>
+        <button type="button" id="btn-next" class="dock-btn">Sonraki</button>
+      </div>
     </div>
-
-    <div class="controls">
-      <button type="button" class="btn-prev" id="btn-prev" ${flipping ? 'disabled' : ''}>
-        ← Önceki gün
-      </button>
-      <button type="button" class="btn-today" id="btn-today" ${flipping ? 'disabled' : ''}>
-        Bugün
-      </button>
-      <button type="button" class="btn-next" id="btn-next" ${flipping ? 'disabled' : ''}>
-        Sonraki yaprak →
-      </button>
-    </div>
-
-    <p class="footer-note">Yaprak üzerinde yukarı kaydırarak çevirin</p>
   `
 
-  document.getElementById('btn-prev').addEventListener('click', () => shiftDay(-1, false))
-  document.getElementById('btn-today').addEventListener('click', goToday)
-  document.getElementById('btn-next').addEventListener('click', () => shiftDay(1, true))
-  bindFlipGesture(document.getElementById('leaf'))
-}
-
-function setButtonsDisabled(disabled) {
-  ;['btn-prev', 'btn-today', 'btn-next'].forEach((id) => {
-    const el = document.getElementById(id)
-    if (el) el.disabled = disabled
-  })
-}
-
-function easeOutCubic(t) {
-  return 1 - (1 - t) ** 3
-}
-
-function applySlideTransform(leaf, under, progress) {
-  const p = Math.max(0, Math.min(1.15, progress))
-  const h = Math.max(leaf.offsetHeight, 280)
-  // Yukarı kayma + hafif 3D flip (üstten menteşeli takvim yaprağı)
-  const slide = -p * h * 0.92
-  const tilt = -p * 42
-  const depth = p * 28
-  const shade = 1 - Math.min(p, 1) * 0.12
-  const opacity = p > 0.85 ? 1 - (p - 0.85) / 0.3 : 1
-
-  leaf.style.transform = `translate3d(0, ${slide}px, ${depth}px) rotateX(${tilt}deg)`
-  leaf.style.filter = `brightness(${shade})`
-  leaf.style.opacity = String(Math.max(0, opacity))
-  leaf.style.boxShadow = `0 ${8 + p * 24}px ${24 + p * 30}px rgba(40, 24, 12, ${0.25 + p * 0.2})`
-
-  if (under) {
-    const u = easeOutCubic(Math.min(1, p))
-    under.style.transform = `scale(${0.97 + u * 0.03}) translateY(${(1 - u) * 10}px)`
-    under.style.filter = `brightness(${0.9 + u * 0.1})`
-    under.style.opacity = String(0.85 + u * 0.15)
+  bindCurl(document.getElementById('phone'))
+  document.getElementById('btn-prev').onclick = () => jump(-1)
+  document.getElementById('btn-today').onclick = () => {
+    current = startOfDay(new Date())
+    render()
+  }
+  document.getElementById('btn-next').onclick = () => {
+    if (!flipping) animateCurlToEnd()
   }
 }
 
-function clearSlideStyles(leaf, under) {
-  ;[leaf, under].forEach((el) => {
-    if (!el) return
-    el.style.transform = ''
-    el.style.filter = ''
-    el.style.opacity = ''
-    el.style.boxShadow = ''
-    el.style.transition = ''
+function setCurlProgress(p) {
+  const stack = document.getElementById('curl-stack')
+  const next = document.getElementById('page-next')
+  if (!stack) return
+
+  const progress = Math.max(0, Math.min(1.15, p))
+  // Kıvrım yukarı çıkar; alt şeritler önce döner
+  const curlPos = progress * (STRIPS + 4)
+  const curlWidth = 5.5
+
+  const strips = stack.querySelectorAll('.strip')
+  strips.forEach((strip, i) => {
+    // i=0 üst, i=STRIPS-1 alt
+    const fromBottom = STRIPS - 1 - i
+    const dist = curlPos - fromBottom
+    let angle = 0
+    let z = 0
+    let brightness = 1
+    let opacity = 1
+
+    if (dist > curlWidth) {
+      // Tamamen çevrilmiş / görünmez
+      angle = -175
+      opacity = 0
+      z = 40
+    } else if (dist > 0) {
+      // Kıvrım silindirinde
+      const t = dist / curlWidth
+      angle = -t * 165
+      z = Math.sin(t * Math.PI) * 42
+      brightness = 1 - t * 0.35
+      opacity = t > 0.92 ? 1 - (t - 0.92) / 0.08 : 1
+    } else {
+      angle = 0
+      z = 0
+    }
+
+    const face = strip.querySelector('.strip-face')
+    face.style.transform = `rotateX(${angle}deg) translateZ(${z}px)`
+    face.style.filter = `brightness(${brightness})`
+    face.style.opacity = String(Math.max(0, opacity))
+
+    // Kıvrım kenarı gölgesi
+    const edge = Math.abs(dist - curlWidth * 0.45)
+    const shadow = dist > 0 && dist < curlWidth ? Math.max(0, 1 - edge / 2) : 0
+    face.style.setProperty('--curl-shade', String(shadow * 0.45))
   })
+
+  if (next) {
+    const reveal = Math.min(1, progress * 1.15)
+    next.style.transform = `scale(${0.985 + reveal * 0.015})`
+    next.style.filter = `brightness(${0.92 + reveal * 0.08})`
+  }
 }
 
-function completeSlide(leaf, fromProgress = 0) {
-  const under = document.getElementById('leaf-under')
+function resetCurl() {
+  setCurlProgress(0)
+  const next = document.getElementById('page-next')
+  if (next) {
+    next.style.transform = ''
+    next.style.filter = ''
+  }
+}
+
+function animateCurlToEnd(from = 0) {
+  if (flipping) return
   flipping = true
-  setButtonsDisabled(true)
-  leaf.classList.remove('dragging', 'entering', 'snap-back')
-  leaf.classList.add('sliding-out')
-  under?.classList.add('revealing')
-  document.body.classList.add('is-flipping')
-
-  const start = Math.max(0, fromProgress)
-  const duration = 520
+  const start = from
   const t0 = performance.now()
-  let done = false
-
-  const finishNav = () => {
-    if (done) return
-    done = true
-    current = addDays(current, 1)
-    flipping = false
-    document.body.classList.remove('is-flipping')
-    render({ animateEnter: true })
-  }
+  const dur = 620
+  const ease = (t) => 1 - (1 - t) ** 3
 
   const tick = (now) => {
-    if (done) return
-    const t = Math.min(1, (now - t0) / duration)
-    const p = start + (1.25 - start) * easeOutCubic(t)
-    applySlideTransform(leaf, under, p)
+    const t = Math.min(1, (now - t0) / dur)
+    setCurlProgress(start + (1.12 - start) * ease(t))
     if (t < 1) {
       requestAnimationFrame(tick)
       return
     }
-    finishNav()
+    current = addDays(current, 1)
+    flipping = false
+    render()
   }
-
-  leaf.style.transition = 'none'
-  applySlideTransform(leaf, under, start)
-  requestAnimationFrame(() => requestAnimationFrame(tick))
+  requestAnimationFrame(tick)
 }
 
-function bindFlipGesture(leaf) {
-  if (!leaf) return
-  const under = document.getElementById('leaf-under')
+function animateCurlBack(from) {
+  const start = from
+  const t0 = performance.now()
+  const dur = 360
+  const ease = (t) => 1 - (1 - t) ** 2.4
 
-  const THRESHOLD = 0.22
-  const VELOCITY = 0.45
-  const COMMIT_PX = 12
+  const tick = (now) => {
+    const t = Math.min(1, (now - t0) / dur)
+    setCurlProgress(start * (1 - ease(t)))
+    if (t < 1) {
+      requestAnimationFrame(tick)
+      return
+    }
+    resetCurl()
+  }
+  requestAnimationFrame(tick)
+}
+
+function jump(delta) {
+  if (flipping) return
+  if (delta > 0) {
+    animateCurlToEnd(0)
+    return
+  }
+  current = addDays(current, delta)
+  render()
+}
+
+function bindCurl(root) {
+  const stage = document.getElementById('stage')
+  if (!stage) return
 
   let active = false
   let dragging = false
@@ -264,108 +292,75 @@ function bindFlipGesture(leaf) {
   let lastT = 0
   let velocity = 0
   let progress = 0
-  let pointerId = null
+  let pid = null
 
-  const onDown = (e) => {
+  const height = () => Math.max(stage.clientHeight, 420)
+
+  stage.addEventListener('pointerdown', (e) => {
     if (flipping || e.button === 2) return
+    if (e.target.closest('.dock')) return
     active = true
     dragging = false
-    pointerId = e.pointerId
+    pid = e.pointerId
     startY = e.clientY
     startX = e.clientX
     lastY = e.clientY
     lastT = performance.now()
     velocity = 0
     progress = 0
-    leaf.setPointerCapture?.(e.pointerId)
-  }
+    stage.setPointerCapture?.(e.pointerId)
+  })
 
-  const onMove = (e) => {
-    if (!active || flipping) return
-    if (pointerId !== null && e.pointerId !== pointerId) return
+  stage.addEventListener(
+    'pointermove',
+    (e) => {
+      if (!active || flipping) return
+      if (pid !== null && e.pointerId !== pid) return
 
-    const dy = startY - e.clientY
-    const dx = Math.abs(e.clientX - startX)
-    const now = performance.now()
-    const dt = Math.max(1, now - lastT)
-    velocity = (lastY - e.clientY) / dt
-    lastY = e.clientY
-    lastT = now
+      const dy = startY - e.clientY
+      const dx = Math.abs(e.clientX - startX)
+      const now = performance.now()
+      velocity = (lastY - e.clientY) / Math.max(1, now - lastT)
+      lastY = e.clientY
+      lastT = now
 
-    if (!dragging) {
-      if (dy > COMMIT_PX && dy > dx * 1.1) {
-        dragging = true
-        leaf.classList.remove('entering', 'snap-back')
-        leaf.classList.add('dragging')
-        under?.classList.add('revealing')
-        document.body.classList.add('is-flipping')
-      } else {
-        return
+      if (!dragging) {
+        if (dy > 10 && dy > dx * 1.05) {
+          dragging = true
+          root.classList.add('is-curling')
+        } else return
       }
-    }
 
-    e.preventDefault()
-    const height = Math.max(leaf.offsetHeight, 280)
-    // Parmakla 1:1 kayma hissi, hafif direnç
-    const raw = dy / (height * 0.85)
-    progress = Math.min(1.05, Math.max(0, raw))
-    applySlideTransform(leaf, under, progress)
-  }
+      e.preventDefault()
+      progress = Math.min(1.05, Math.max(0, dy / (height() * 0.78)))
+      setCurlProgress(progress)
+    },
+    { passive: false },
+  )
 
-  const finish = (e) => {
+  const end = (e) => {
     if (!active) return
-    if (pointerId !== null && e.pointerId !== pointerId) return
+    if (pid !== null && e.pointerId !== pid) return
     active = false
-
+    root.classList.remove('is-curling')
     if (!dragging) {
-      pointerId = null
+      pid = null
       return
     }
-
     dragging = false
-    pointerId = null
-    leaf.classList.remove('dragging')
+    pid = null
 
-    if (progress >= THRESHOLD || velocity >= VELOCITY) {
-      completeSlide(leaf, progress)
-      return
+    if (progress > 0.2 || velocity > 0.4) {
+      animateCurlToEnd(progress)
+    } else {
+      animateCurlBack(progress)
     }
-
-    // Geri yaylan
-    document.body.classList.remove('is-flipping')
-    leaf.classList.add('snap-back')
-    under?.classList.add('snap-back')
-    clearSlideStyles(leaf, under)
-    under?.classList.remove('revealing')
-    window.setTimeout(() => {
-      leaf.classList.remove('snap-back')
-      under?.classList.remove('snap-back')
-    }, 380)
   }
 
-  leaf.addEventListener('pointerdown', onDown)
-  leaf.addEventListener('pointermove', onMove, { passive: false })
-  leaf.addEventListener('pointerup', finish)
-  leaf.addEventListener('pointercancel', finish)
-}
+  stage.addEventListener('pointerup', end)
+  stage.addEventListener('pointercancel', end)
 
-function shiftDay(delta, tear) {
-  if (flipping) return
-
-  if (tear && delta > 0) {
-    const leaf = document.getElementById('leaf')
-    if (leaf) completeSlide(leaf, 0)
-    return
-  }
-
-  current = addDays(current, delta)
-  render({ animateEnter: true })
-}
-
-function goToday() {
-  if (flipping) return
-  current = startOfDay(new Date())
-  render({ animateEnter: true })
+  resetCurl()
 }
 
 render()
