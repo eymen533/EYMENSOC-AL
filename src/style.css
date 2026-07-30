@@ -115,10 +115,24 @@ body {
   pointer-events: none;
   background: linear-gradient(
     to bottom,
-    transparent 0%,
-    rgba(0, 0, 0, var(--curl-shade, 0)) 100%
+    rgba(255, 255, 255, calc(var(--curl-shade, 0) * 0.25)) 0%,
+    rgba(0, 0, 0, calc(var(--curl-shade, 0) * 0.35)) 55%,
+    rgba(0, 0, 0, calc(var(--curl-shade, 0) * 0.55)) 100%
   );
-  opacity: 1;
+  mix-blend-mode: multiply;
+}
+
+.strip-face::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  pointer-events: none;
+  background: rgba(0, 0, 0, calc(var(--curl-shade, 0) * 0.25));
+  opacity: 0.8;
+  z-index: 2;
 }
 
 .strip-content {

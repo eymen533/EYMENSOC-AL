@@ -6,7 +6,7 @@ import { ATASOZLeri, OZLU_SOZLER } from './data/atasozleri.js'
 import { BILGILER, ISIM_GUNLERI } from './data/bilgiler.js'
 
 const app = document.querySelector('#app')
-const STRIPS = 18
+const STRIPS = 24
 
 function startOfDay(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -171,53 +171,50 @@ function setCurlProgress(p) {
   const next = document.getElementById('page-next')
   if (!stack) return
 
-  const progress = Math.max(0, Math.min(1.15, p))
-  // Kıvrım yukarı çıkar; alt şeritler önce döner
-  const curlPos = progress * (STRIPS + 4)
-  const curlWidth = 5.5
+  const progress = Math.max(0, Math.min(1.2, p))
+  // Alt kenardan başlayan silindirik kıvrım yukarı yürür
+  const curlPos = progress * (STRIPS + 6)
+  const curlWidth = 6.2
+  const radius = 36
 
   const strips = stack.querySelectorAll('.strip')
   strips.forEach((strip, i) => {
-    // i=0 üst, i=STRIPS-1 alt
     const fromBottom = STRIPS - 1 - i
     const dist = curlPos - fromBottom
     let angle = 0
     let z = 0
+    let y = 0
     let brightness = 1
     let opacity = 1
+    let shade = 0
 
-    if (dist > curlWidth) {
-      // Tamamen çevrilmiş / görünmez
-      angle = -175
+    if (dist >= curlWidth) {
+      angle = -178
       opacity = 0
-      z = 40
+      z = radius * 0.2
+      y = -8
     } else if (dist > 0) {
-      // Kıvrım silindirinde
       const t = dist / curlWidth
-      angle = -t * 165
-      z = Math.sin(t * Math.PI) * 42
-      brightness = 1 - t * 0.35
-      opacity = t > 0.92 ? 1 - (t - 0.92) / 0.08 : 1
-    } else {
-      angle = 0
-      z = 0
+      const theta = t * Math.PI
+      angle = -(theta * 180) / Math.PI
+      z = Math.sin(theta) * radius
+      y = -(1 - Math.cos(theta)) * (radius * 0.15)
+      brightness = 1 - Math.sin(theta) * 0.28
+      shade = Math.sin(theta) * 0.55
+      opacity = t > 0.9 ? 1 - (t - 0.9) / 0.1 : 1
     }
 
     const face = strip.querySelector('.strip-face')
-    face.style.transform = `rotateX(${angle}deg) translateZ(${z}px)`
+    face.style.transform = `translateY(${y}px) rotateX(${angle}deg) translateZ(${z}px)`
     face.style.filter = `brightness(${brightness})`
     face.style.opacity = String(Math.max(0, opacity))
-
-    // Kıvrım kenarı gölgesi
-    const edge = Math.abs(dist - curlWidth * 0.45)
-    const shadow = dist > 0 && dist < curlWidth ? Math.max(0, 1 - edge / 2) : 0
-    face.style.setProperty('--curl-shade', String(shadow * 0.45))
+    face.style.setProperty('--curl-shade', String(shade))
   })
 
   if (next) {
-    const reveal = Math.min(1, progress * 1.15)
-    next.style.transform = `scale(${0.985 + reveal * 0.015})`
-    next.style.filter = `brightness(${0.92 + reveal * 0.08})`
+    const reveal = Math.min(1, progress * 1.2)
+    next.style.transform = `scale(${0.98 + reveal * 0.02})`
+    next.style.filter = `brightness(${0.9 + reveal * 0.1})`
   }
 }
 
