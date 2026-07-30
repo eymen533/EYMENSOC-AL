@@ -660,39 +660,21 @@
     });
   }
 
-  // Ana ekran / offline: shell'i Cache API'ye yaz (tunnel ölse bile yeniden açılsın)
-  function precacheShell(){
-    if(!('caches' in window)) return;
-    var urls=[
-      './','./index.html','./manifest.webmanifest',
-      './icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png',
-      './fonts/SF-Pro-Display-Bold.woff2','./fonts/SF-Pro-Display-Medium.woff2',
-      './fonts/SF-Pro-Display-Regular.woff2','./fonts/SF-Pro-Display-Semibold.woff2',
-      './fonts/SF-Pro-Text-Regular.woff2','./fonts/SF-Pro-Text-Semibold.woff2',
-      './fonts/SF-Pro-Text-Bold.woff2','./sw.js'
-    ];
-    caches.open('namaz-v3').then(function(cache){
-      return Promise.all(urls.map(function(u){
-        return fetch(u,{cache:'reload'}).then(function(r){
-          if(r && r.ok) return cache.put(u,r);
-        }).catch(function(){});
-      }));
+  // Eski service worker Safari'de "redirections" hatası veriyor — kaldır
+  function killServiceWorkers(){
+    if(!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.getRegistrations().then(function(regs){
+      regs.forEach(function(r){ r.unregister(); });
     }).catch(function(){});
-    if(navigator.storage && navigator.storage.persist){
-      navigator.storage.persist().catch(function(){});
+    if('caches' in window){
+      caches.keys().then(function(keys){
+        keys.forEach(function(k){ caches.delete(k); });
+      }).catch(function(){});
     }
   }
 
   setTheme(state.theme); load(); setInterval(tick, 1000);
-  precacheShell();
-
-  if('serviceWorker' in navigator){
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(function(reg){
-        if(reg && reg.update) reg.update().catch(function(){});
-      }).catch(function(){});
-    });
-  }
+  killServiceWorkers();
 })();
   </script>
 </body>
