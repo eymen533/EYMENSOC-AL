@@ -3,100 +3,148 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#050505" />
+  <meta name="theme-color" content="#000000" />
   <title>VAKİT — Namaz Vakitleri</title>
   <style>
+    @font-face { font-family: "SF Pro Display"; src: url("./fonts/SF-Pro-Display-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Display"; src: url("./fonts/SF-Pro-Display-Medium.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Display"; src: url("./fonts/SF-Pro-Display-Semibold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Display"; src: url("./fonts/SF-Pro-Display-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Text"; src: url("./fonts/SF-Pro-Text-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Text"; src: url("./fonts/SF-Pro-Text-Semibold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Text"; src: url("./fonts/SF-Pro-Text-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+
     :root {
-      --bg: #050505;
-      --bg2: #121212;
-      --ink: #fff8e6;
-      --mute: rgba(255,248,230,.6);
-      --accent: #f5c518;
-      --accent-ink: #111;
-      --panel: #161616;
-      --line: #2a2a2a;
+      --bg0: #000000;
+      --bg1: #1c1c1e;
+      --card: rgba(28,28,30,.82);
+      --ink: #ffffff;
+      --mute: rgba(235,235,245,.6);
+      --accent: #ffd60a;
+      --accent2: #ff9f0a;
+      --accent-ink: #1c1c1e;
+      --line: rgba(84,84,88,.55);
+      --glow: rgba(255,214,10,.35);
       --safe: env(safe-area-inset-bottom, 0px);
-    }
-    body[data-theme="yesil"] {
-      --bg:#06140c; --bg2:#0f2418; --ink:#e8f8ee; --mute:rgba(232,248,238,.6);
-      --accent:#36d48a; --accent-ink:#04140c; --panel:#0d1f16; --line:#1d3a2a;
-    }
-    body[data-theme="beyaz-yesil"] {
-      --bg:#f2f7f1; --bg2:#e3efe2; --ink:#123524; --mute:rgba(18,53,36,.55);
-      --accent:#1f8a52; --accent-ink:#f4fff8; --panel:#ffffff; --line:#cfe0d4;
-    }
-    body[data-theme="lacivert"] {
-      --bg:#eef2fb; --bg2:#dce5f6; --ink:#101b3a; --mute:rgba(16,27,58,.55);
-      --accent:#1a3a9a; --accent-ink:#f5f8ff; --panel:#ffffff; --line:#c9d4ea;
-    }
-    body[data-theme="gece-mavi"] {
-      --bg:#040a12; --bg2:#0b1626; --ink:#eaf4ff; --mute:rgba(234,244,255,.6);
-      --accent:#4db0ff; --accent-ink:#041018; --panel:#0c1520; --line:#1c3048;
-    }
-    body[data-theme="zeytin"] {
-      --bg:#10120c; --bg2:#1b1f14; --ink:#f4ecd4; --mute:rgba(244,236,212,.6);
-      --accent:#d0b04a; --accent-ink:#17140a; --panel:#171a12; --line:#2d3224;
+      --font-d: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      --font-t: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
     }
     body[data-theme="gri-siyah"] {
-      --bg:#0b0b0b; --bg2:#1c1c1e; --ink:#f2f2f7; --mute:rgba(242,242,247,.58);
-      --accent:#aeaeb2; --accent-ink:#0b0b0b; --panel:#1c1c1e; --line:#2c2c2e;
+      --bg0:#000; --bg1:#1c1c1e; --card:rgba(44,44,46,.88);
+      --ink:#f5f5f7; --mute:rgba(235,235,245,.58);
+      --accent:#d1d1d6; --accent2:#8e8e93; --accent-ink:#000;
+      --line:rgba(99,99,102,.5); --glow:rgba(209,209,214,.22);
+    }
+    body[data-theme="yesil"] {
+      --bg0:#02140c; --bg1:#0a2a1a; --card:rgba(12,40,28,.86);
+      --ink:#f2fff7; --mute:rgba(210,245,225,.62);
+      --accent:#30d158; --accent2:#64d2ff; --accent-ink:#003214;
+      --line:rgba(48,209,88,.28); --glow:rgba(48,209,88,.32);
+    }
+    body[data-theme="beyaz-yesil"] {
+      --bg0:#f2f8f4; --bg1:#dceee3; --card:rgba(255,255,255,.86);
+      --ink:#0b2b1c; --mute:rgba(11,43,28,.55);
+      --accent:#248a3d; --accent2:#34c759; --accent-ink:#fff;
+      --line:rgba(11,43,28,.12); --glow:rgba(36,138,61,.18);
+    }
+    body[data-theme="lacivert"] {
+      --bg0:#eef2ff; --bg1:#d7e0ff; --card:rgba(255,255,255,.9);
+      --ink:#0b1b4d; --mute:rgba(11,27,77,.55);
+      --accent:#2d4cff; --accent2:#5e5ce6; --accent-ink:#fff;
+      --line:rgba(11,27,77,.12); --glow:rgba(45,76,255,.16);
+    }
+    body[data-theme="gece-mavi"] {
+      --bg0:#010812; --bg1:#0b1d36; --card:rgba(10,28,52,.86);
+      --ink:#f0f7ff; --mute:rgba(210,230,255,.6);
+      --accent:#64d2ff; --accent2:#0a84ff; --accent-ink:#001828;
+      --line:rgba(100,210,255,.24); --glow:rgba(10,132,255,.34);
+    }
+    body[data-theme="zeytin"] {
+      --bg0:#120f08; --bg1:#2a2212; --card:rgba(36,30,16,.88);
+      --ink:#fff8e8; --mute:rgba(255,240,210,.58);
+      --accent:#ffd60a; --accent2:#ff9f0a; --accent-ink:#1a1400;
+      --line:rgba(255,214,10,.22); --glow:rgba(255,159,10,.3);
+    }
+    body[data-theme="sari-siyah"] {
+      --bg0:#000; --bg1:#1a1400; --card:rgba(28,24,8,.88);
+      --ink:#fff8e6; --mute:rgba(255,240,200,.6);
+      --accent:#ffd60a; --accent2:#ff9f0a; --accent-ink:#1a1400;
+      --line:rgba(255,214,10,.25); --glow:rgba(255,214,10,.35);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { min-height: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
-        "Helvetica Neue", Helvetica, Arial, sans-serif;
-      -webkit-font-smoothing: antialiased;
-      background: var(--bg);
+      font-family: var(--font-t);
       color: var(--ink);
       min-height: 100dvh;
+      background:
+        radial-gradient(120% 70% at 80% -10%, var(--glow), transparent 55%),
+        radial-gradient(90% 50% at 10% 110%, color-mix(in srgb, var(--accent2) 28%, transparent), transparent 50%),
+        linear-gradient(180deg, var(--bg1), var(--bg0) 55%);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     .wrap {
-      width: min(460px, 100%);
+      width: min(440px, 100%);
       margin: 0 auto;
       min-height: 100dvh;
-      padding: 12px 12px calc(20px + var(--safe));
+      padding: 14px 14px calc(22px + var(--safe));
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
     }
 
     .top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      padding: 2px 2px 0;
     }
     .brand {
-      font-size: 22px;
-      font-weight: 900;
-      letter-spacing: .16em;
-    }
-    .brand b { color: var(--accent); }
-    select {
-      border: 1px solid var(--line);
-      background: var(--panel);
-      color: var(--ink);
-      border-radius: 999px;
-      padding: 8px 12px;
+      font-family: var(--font-d);
+      font-size: 28px;
       font-weight: 700;
-      font-size: 13px;
+      letter-spacing: -0.03em;
+    }
+    .brand span { color: var(--accent); }
+    select {
+      appearance: none;
+      border: 0;
+      background: var(--card);
+      color: var(--ink);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 980px;
+      padding: 10px 34px 10px 14px;
+      font-family: var(--font-t);
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: inset 0 0 0 1px var(--line);
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--accent) 50%),
+        linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+      background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+      background-size: 5px 5px;
+      background-repeat: no-repeat;
     }
 
     .theme-box {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 10px;
+      background: var(--card);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-radius: 22px;
+      padding: 12px;
+      box-shadow: inset 0 0 0 1px var(--line), 0 10px 30px rgba(0,0,0,.18);
     }
     .theme-title {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: .14em;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
       color: var(--accent);
-      margin-bottom: 8px;
+      margin: 0 4px 10px;
     }
     .themes {
       display: grid;
@@ -104,152 +152,179 @@
       gap: 8px;
     }
     .theme-btn {
-      border: 2px solid var(--line);
-      background: var(--bg);
+      border: 0;
+      border-radius: 16px;
+      padding: 12px 10px;
+      background: color-mix(in srgb, var(--bg0) 55%, transparent);
       color: var(--ink);
-      border-radius: 12px;
-      padding: 10px 8px;
+      font-family: var(--font-t);
       font-size: 13px;
-      font-weight: 800;
-      text-align: left;
-      cursor: pointer;
+      font-weight: 600;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 9px;
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px var(--line);
+      transition: transform .15s ease, box-shadow .15s ease;
     }
     .theme-btn.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent);
+      box-shadow: inset 0 0 0 2px var(--accent), 0 0 18px var(--glow);
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
     }
+    .theme-btn:active { transform: scale(.98); }
     .dot {
-      width: 16px; height: 16px; border-radius: 50%; flex: 0 0 auto;
-      background: linear-gradient(135deg, var(--d1), var(--d2));
+      width: 18px; height: 18px; border-radius: 50%; flex: 0 0 auto;
+      background: linear-gradient(145deg, var(--d1), var(--d2));
+      box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 4px 10px rgba(0,0,0,.25);
     }
 
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 14px 12px;
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      padding: 22px 18px 20px;
+      background:
+        radial-gradient(120% 100% at 100% 0%, var(--glow), transparent 45%),
+        linear-gradient(160deg, color-mix(in srgb, var(--accent) 18%, var(--card)), var(--card));
+      box-shadow: inset 0 0 0 1px var(--line), 0 18px 40px rgba(0,0,0,.28);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
     }
-    .label {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: .14em;
+    .hero .kicker {
+      font-size: 13px;
+      font-weight: 600;
       color: var(--accent);
+      letter-spacing: .04em;
       margin-bottom: 6px;
     }
-    .clock {
-      font-size: clamp(40px, 14vw, 56px);
+    .hero .clock {
+      font-family: var(--font-d);
+      font-size: clamp(52px, 16vw, 68px);
       font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: .95;
       font-variant-numeric: tabular-nums;
-      letter-spacing: .03em;
-      line-height: 1;
-      color: var(--accent);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-        "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      text-shadow: 0 8px 30px var(--glow);
     }
-    .sub {
-      margin-top: 8px;
-      font-size: 13px;
-      font-weight: 700;
+    .hero .next-name {
+      margin-top: 18px;
+      font-size: 15px;
+      font-weight: 600;
       color: var(--mute);
+    }
+    .hero .next-name b {
+      color: var(--accent);
+      font-weight: 700;
     }
     .countdown {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
-      margin-top: 4px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
     }
-    .cd-box {
-      background: var(--bg);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px 6px;
+    .cd {
+      background: color-mix(in srgb, var(--bg0) 45%, transparent);
+      border-radius: 18px;
+      padding: 14px 8px 12px;
       text-align: center;
+      box-shadow: inset 0 0 0 1px var(--line);
     }
-    .cd-box strong {
+    .cd strong {
       display: block;
-      font-size: clamp(28px, 10vw, 40px);
+      font-family: var(--font-d);
+      font-size: clamp(30px, 9vw, 38px);
       font-weight: 700;
+      letter-spacing: -0.03em;
       font-variant-numeric: tabular-nums;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-        "Helvetica Neue", Helvetica, Arial, sans-serif;
-      color: var(--ink);
       line-height: 1;
+      color: var(--accent);
     }
-    .cd-box span {
+    .cd span {
       display: block;
-      margin-top: 6px;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: .12em;
+      margin-top: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--mute);
+    }
+    .meta {
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 500;
       color: var(--mute);
     }
 
     .times {
-      margin-top: auto;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 16px;
+      background: var(--card);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-radius: 24px;
       overflow: hidden;
+      box-shadow: inset 0 0 0 1px var(--line), 0 12px 28px rgba(0,0,0,.2);
+      margin-top: auto;
     }
     .times h2 {
-      padding: 12px 14px 8px;
-      font-size: 11px;
-      letter-spacing: .14em;
+      padding: 14px 16px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
       color: var(--accent);
     }
     .row {
       display: flex;
       justify-content: space-between;
-      padding: 14px;
+      align-items: center;
+      padding: 15px 16px;
       border-top: 1px solid var(--line);
-      font-weight: 800;
-    }
-    .row .t {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-      font-variant-numeric: tabular-nums;
-      font-size: 18px;
       font-weight: 600;
     }
+    .row .n { font-size: 16px; letter-spacing: -0.01em; }
+    .row .t {
+      font-family: var(--font-d);
+      font-size: 20px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
     .row.meta { opacity: .55; }
-    .row.passed { opacity: .4; }
+    .row.passed { opacity: .38; }
     .row.next {
-      background: var(--accent);
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
       color: var(--accent-ink);
       opacity: 1;
     }
     .row.now .n::after {
-      content: " · ŞİMDİ";
+      content: "  ·  şimdi";
+      font-size: 12px;
+      font-weight: 600;
       color: var(--accent);
-      font-size: 11px;
-      letter-spacing: .08em;
     }
-    .row.next.now .n::after { color: var(--accent-ink); }
+    .row.next.now .n::after { color: var(--accent-ink); opacity: .85; }
 
     .msg {
-      padding: 40px 16px;
+      padding: 48px 16px;
       text-align: center;
       color: var(--mute);
-      font-weight: 700;
+      font-weight: 600;
     }
     .msg button {
-      margin-top: 12px;
+      margin-top: 14px;
       border: 0;
-      background: var(--accent);
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
       color: var(--accent-ink);
-      font-weight: 900;
-      padding: 12px 16px;
-      border-radius: 999px;
+      font-family: var(--font-t);
+      font-weight: 700;
+      padding: 12px 18px;
+      border-radius: 980px;
       cursor: pointer;
     }
   </style>
 </head>
 <body data-theme="sari-siyah">
-  <div class="wrap" id="app">
-    <div class="msg">Yükleniyor…</div>
-  </div>
+  <div class="wrap" id="app"><div class="msg">Yükleniyor…</div></div>
   <script>
 (function () {
   var PRAYERS = [
@@ -261,254 +336,181 @@
     { key: 'Isha', name: 'Yatsı' }
   ];
   var CITIES = [
-    ['Istanbul', 'İstanbul'], ['Ankara', 'Ankara'], ['Izmir', 'İzmir'],
-    ['Bursa', 'Bursa'], ['Antalya', 'Antalya'], ['Konya', 'Konya'],
-    ['Gaziantep', 'Gaziantep'], ['Adana', 'Adana'], ['Trabzon', 'Trabzon'], ['Erzurum', 'Erzurum']
+    ['Istanbul','İstanbul'],['Ankara','Ankara'],['Izmir','İzmir'],['Bursa','Bursa'],
+    ['Antalya','Antalya'],['Konya','Konya'],['Gaziantep','Gaziantep'],
+    ['Adana','Adana'],['Trabzon','Trabzon'],['Erzurum','Erzurum']
   ];
   var THEMES = [
-    ['sari-siyah', 'Sarı / Siyah', '#0a0a0a', '#f5c518'],
-    ['gri-siyah', 'Gri / Siyah', '#0b0b0b', '#8e8e93'],
-    ['yesil', 'Yeşil tonlar', '#0d1f14', '#3d8b5f'],
-    ['beyaz-yesil', 'Beyaz / Yeşil', '#f4f7f2', '#1f7a4c'],
-    ['lacivert', 'Beyaz / Lacivert', '#f2f5fb', '#1a2a6c'],
-    ['gece-mavi', 'Gece / Mavi', '#071018', '#4db0ff'],
-    ['zeytin', 'Zeytin / Altın', '#1a1c12', '#c6a84b']
+    ['sari-siyah','Sarı / Siyah','#000000','#ffd60a'],
+    ['gri-siyah','Gri / Siyah','#1c1c1e','#d1d1d6'],
+    ['yesil','Yeşil','#02140c','#30d158'],
+    ['beyaz-yesil','Beyaz / Yeşil','#f2f8f4','#248a3d'],
+    ['lacivert','Lacivert','#eef2ff','#2d4cff'],
+    ['gece-mavi','Gece / Mavi','#010812','#64d2ff'],
+    ['zeytin','Zeytin / Altın','#120f08','#ffd60a']
   ];
 
   var state = {
     city: localStorage.getItem('vakit-city') || 'Istanbul',
     label: localStorage.getItem('vakit-label') || 'İstanbul',
     theme: localStorage.getItem('vakit-theme') || 'sari-siyah',
-    timings: null,
-    dateLabel: '',
-    hijri: '',
-    error: '',
-    loading: true,
-    nextKey: ''
+    timings: null, dateLabel: '', hijri: '', error: '', loading: true, nextKey: ''
   };
 
-  function pad(n) { return (n < 10 ? '0' : '') + n; }
-  function now() { return new Date(); }
-  function parseToday(hhmm) {
-    var p = hhmm.split(':');
-    var d = now();
-    d.setHours(+p[0], +p[1], 0, 0);
-    return d;
+  function pad(n){ return (n<10?'0':'')+n; }
+  function now(){ return new Date(); }
+  function parseToday(hhmm){
+    var p=hhmm.split(':'), d=now();
+    d.setHours(+p[0], +p[1], 0, 0); return d;
   }
-  function hms(ms) {
-    var t = Math.max(0, Math.floor(ms / 1000));
-    return { h: pad(Math.floor(t / 3600)), m: pad(Math.floor((t % 3600) / 60)), s: pad(t % 60) };
+  function hms(ms){
+    var t=Math.max(0,Math.floor(ms/1000));
+    return {h:pad(Math.floor(t/3600)), m:pad(Math.floor((t%3600)/60)), s:pad(t%60)};
   }
-  function clockStr(d) {
-    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-  }
-  function schedule() {
-    if (!state.timings) return [];
-    return PRAYERS.map(function (p) {
-      return {
-        key: p.key, name: p.name, meta: !!p.meta,
-        time: state.timings[p.key], date: parseToday(state.timings[p.key])
-      };
+  function clockStr(d){ return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); }
+  function schedule(){
+    if(!state.timings) return [];
+    return PRAYERS.map(function(p){
+      return {key:p.key,name:p.name,meta:!!p.meta,time:state.timings[p.key],date:parseToday(state.timings[p.key])};
     });
   }
-  function nextPrayer(list) {
-    var t = now().getTime();
-    for (var i = 0; i < list.length; i++) {
-      if (!list[i].meta && list[i].date.getTime() > t) return list[i];
-    }
-    var fajr = null;
-    for (var j = 0; j < list.length; j++) if (list[j].key === 'Fajr') fajr = list[j];
-    if (!fajr) return null;
-    var tom = new Date(fajr.date); tom.setDate(tom.getDate() + 1);
-    return { key: fajr.key, name: fajr.name, time: fajr.time, date: tom, tomorrow: true };
+  function nextPrayer(list){
+    var t=now().getTime();
+    for(var i=0;i<list.length;i++) if(!list[i].meta && list[i].date.getTime()>t) return list[i];
+    var fajr=null;
+    for(var j=0;j<list.length;j++) if(list[j].key==='Fajr') fajr=list[j];
+    if(!fajr) return null;
+    var tom=new Date(fajr.date); tom.setDate(tom.getDate()+1);
+    return {key:fajr.key,name:fajr.name,time:fajr.time,date:tom,tomorrow:true};
   }
-  function currentPrayer(list) {
-    var t = now().getTime();
-    var cur = null;
-    for (var i = 0; i < list.length; i++) {
-      if (!list[i].meta && list[i].date.getTime() <= t) cur = list[i];
-    }
+  function currentPrayer(list){
+    var t=now().getTime(), cur=null;
+    for(var i=0;i<list.length;i++) if(!list[i].meta && list[i].date.getTime()<=t) cur=list[i];
     return cur;
   }
-  function setTheme(id) {
-    state.theme = id;
+  function setTheme(id){
+    state.theme=id;
     localStorage.setItem('vakit-theme', id);
     document.body.setAttribute('data-theme', id);
+    document.querySelector('meta[name="theme-color"]').setAttribute('content',
+      getComputedStyle(document.body).getPropertyValue('--bg0').trim() || '#000');
   }
 
-  function fetchTimings() {
-    var url = 'https://api.aladhan.com/v1/timingsByCity?city=' +
-      encodeURIComponent(state.city) + '&country=Turkey&method=13&school=1';
-    return fetch(url).then(function (r) {
-      if (!r.ok) throw new Error('fail');
-      return r.json();
-    }).then(function (json) {
-      var d = json.data;
-      var months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-      var g = d.date.gregorian;
-      state.timings = d.timings;
-      state.dateLabel = Number(g.day) + ' ' + months[Number(g.month.number) - 1] + ' ' + g.year;
-      state.hijri = d.date.hijri.day + ' ' + d.date.hijri.month.en + ' ' + d.date.hijri.year;
-      state.error = '';
-      state.loading = false;
-    });
+  function fetchTimings(){
+    var url='https://api.aladhan.com/v1/timingsByCity?city='+encodeURIComponent(state.city)+'&country=Turkey&method=13&school=1';
+    return fetch(url).then(function(r){ if(!r.ok) throw new Error('fail'); return r.json(); })
+      .then(function(json){
+        var d=json.data, months=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+        var g=d.date.gregorian;
+        state.timings=d.timings;
+        state.dateLabel=Number(g.day)+' '+months[Number(g.month.number)-1]+' '+g.year;
+        state.hijri=d.date.hijri.day+' '+d.date.hijri.month.en+' '+d.date.hijri.year;
+        state.error=''; state.loading=false;
+      });
   }
 
-  function render() {
+  function themeHTML(){
+    return THEMES.map(function(t){
+      return '<button type="button" class="theme-btn'+(state.theme===t[0]?' active':'')+
+        '" data-theme="'+t[0]+'"><i class="dot" style="--d1:'+t[2]+';--d2:'+t[3]+'"></i>'+t[1]+'</button>';
+    }).join('');
+  }
+
+  function render(){
     setTheme(state.theme);
-    var root = document.getElementById('app');
-    var cityOpts = CITIES.map(function (c) {
-      return '<option value="' + c[0] + '"' + (c[0] === state.city ? ' selected' : '') + '>' + c[1] + '</option>';
+    var root=document.getElementById('app');
+    var cityOpts=CITIES.map(function(c){
+      return '<option value="'+c[0]+'"'+(c[0]===state.city?' selected':'')+'>'+c[1]+'</option>';
     }).join('');
 
-    var themeBtns = THEMES.map(function (t) {
-      return '<button type="button" class="theme-btn' + (state.theme === t[0] ? ' active' : '') +
-        '" data-theme="' + t[0] + '"><i class="dot" style="--d1:' + t[2] + ';--d2:' + t[3] +
-        '"></i>' + t[1] + '</button>';
-    }).join('');
-
-    if (state.loading) {
-      root.innerHTML =
-        '<div class="top"><div class="brand">VAK<b>İ</b>T</div></div>' +
-        '<div class="theme-box"><div class="theme-title">TEMA SEÇ</div><div class="themes">' + themeBtns + '</div></div>' +
-        '<div class="msg">Vakitler yükleniyor…</div>';
-      bind(root);
-      return;
-    }
-    if (state.error) {
-      root.innerHTML =
-        '<div class="top"><div class="brand">VAK<b>İ</b>T</div></div>' +
-        '<div class="theme-box"><div class="theme-title">TEMA SEÇ</div><div class="themes">' + themeBtns + '</div></div>' +
-        '<div class="msg">' + state.error + '<br><button type="button" id="retry">Tekrar dene</button></div>';
-      bind(root);
-      return;
+    if(state.loading || state.error){
+      root.innerHTML=
+        '<div class="top"><div class="brand">Vak<span>i</span>t</div></div>'+
+        '<div class="theme-box"><div class="theme-title">Tema seç</div><div class="themes">'+themeHTML()+'</div></div>'+
+        '<div class="msg">'+(state.error||'Vakitler yükleniyor…')+
+        (state.error?'<br><button type="button" id="retry">Tekrar dene</button>':'')+'</div>';
+      bind(root); return;
     }
 
-    var list = schedule();
-    var next = nextPrayer(list);
-    var cur = currentPrayer(list);
-    state.nextKey = next ? next.key : '';
-    var rem = next ? hms(next.date.getTime() - now().getTime()) : { h: '00', m: '00', s: '00' };
-    var n = now();
-
-    var rows = list.map(function (p) {
-      var isNext = next && p.key === next.key && !next.tomorrow;
-      var isNow = cur && p.key === cur.key && !p.meta;
-      var passed = p.date.getTime() <= n.getTime() && !isNext;
-      var cls = 'row' +
-        (p.meta ? ' meta' : '') +
-        (isNext ? ' next' : '') +
-        (isNow ? ' now' : '') +
-        (passed ? ' passed' : '');
-      return '<div class="' + cls + '" data-key="' + p.key + '"><span class="n">' +
-        p.name.toUpperCase() + '</span><span class="t">' + p.time + '</span></div>';
+    var list=schedule(), next=nextPrayer(list), cur=currentPrayer(list);
+    state.nextKey=next?next.key:'';
+    var rem=next?hms(next.date.getTime()-now().getTime()):{h:'00',m:'00',s:'00'};
+    var n=now();
+    var rows=list.map(function(p){
+      var isNext=next&&p.key===next.key&&!next.tomorrow;
+      var isNow=cur&&p.key===cur.key&&!p.meta;
+      var passed=p.date.getTime()<=n.getTime()&&!isNext;
+      var cls='row'+(p.meta?' meta':'')+(isNext?' next':'')+(isNow?' now':'')+(passed?' passed':'');
+      return '<div class="'+cls+'" data-key="'+p.key+'"><span class="n">'+p.name+'</span><span class="t">'+p.time+'</span></div>';
     }).join('');
 
-    root.innerHTML =
-      '<div class="top">' +
-        '<div class="brand">VAK<b>İ</b>T</div>' +
-        '<select id="city">' + cityOpts + '</select>' +
-      '</div>' +
-      '<div class="theme-box">' +
-        '<div class="theme-title">TEMA SEÇ</div>' +
-        '<div class="themes">' + themeBtns + '</div>' +
-      '</div>' +
-      '<div class="card">' +
-        '<div class="label">ŞU ANKİ SAAT</div>' +
-        '<div class="clock" id="clock">' + clockStr(n) + '</div>' +
-      '</div>' +
-      '<div class="card">' +
-        '<div class="label" id="nextLabel">' + (next && next.tomorrow ? 'YARIN' : 'SIRADAKİ') +
-          ' · ' + (next ? next.name.toUpperCase() : '—') + '</div>' +
-        '<div class="countdown">' +
-          '<div class="cd-box"><strong id="cdH">' + rem.h + '</strong><span>SAAT</span></div>' +
-          '<div class="cd-box"><strong id="cdM">' + rem.m + '</strong><span>DAKİKA</span></div>' +
-          '<div class="cd-box"><strong id="cdS">' + rem.s + '</strong><span>SANİYE</span></div>' +
-        '</div>' +
-        '<div class="sub" id="meta">' + state.label.toUpperCase() + ' · ' +
-          (next ? next.time : '') + ' · ' + state.dateLabel.toUpperCase() + '</div>' +
-      '</div>' +
-      '<div class="times">' +
-        '<h2>GÜNÜN VAKİTLERİ · ' + state.hijri + '</h2>' +
-        rows +
-      '</div>';
-
+    root.innerHTML=
+      '<div class="top"><div class="brand">Vak<span>i</span>t</div><select id="city">'+cityOpts+'</select></div>'+
+      '<div class="theme-box"><div class="theme-title">Tema seç</div><div class="themes">'+themeHTML()+'</div></div>'+
+      '<section class="hero">'+
+        '<div class="kicker">Şu anki saat</div>'+
+        '<div class="clock" id="clock">'+clockStr(n)+'</div>'+
+        '<div class="next-name">'+(next&&next.tomorrow?'Yarın':'Sıradaki')+' · <b id="nextName">'+(next?next.name:'—')+'</b></div>'+
+        '<div class="countdown">'+
+          '<div class="cd"><strong id="cdH">'+rem.h+'</strong><span>Saat</span></div>'+
+          '<div class="cd"><strong id="cdM">'+rem.m+'</strong><span>Dakika</span></div>'+
+          '<div class="cd"><strong id="cdS">'+rem.s+'</strong><span>Saniye</span></div>'+
+        '</div>'+
+        '<div class="meta" id="meta">'+state.label+' · '+(next?next.time:'')+' · '+state.dateLabel+'</div>'+
+      '</section>'+
+      '<section class="times"><h2>Günün vakitleri · '+state.hijri+'</h2>'+rows+'</section>';
     bind(root);
   }
 
-  function bind(root) {
-    var city = root.querySelector('#city');
-    if (city) city.onchange = function () {
-      var opt = city.options[city.selectedIndex];
-      state.city = opt.value;
-      state.label = opt.text;
+  function bind(root){
+    var city=root.querySelector('#city');
+    if(city) city.onchange=function(){
+      var opt=city.options[city.selectedIndex];
+      state.city=opt.value; state.label=opt.text;
       localStorage.setItem('vakit-city', state.city);
       localStorage.setItem('vakit-label', state.label);
       load();
     };
-    var retry = root.querySelector('#retry');
-    if (retry) retry.onclick = load;
-    var buttons = root.querySelectorAll('.theme-btn');
-    for (var i = 0; i < buttons.length; i++) {
-      buttons[i].onclick = (function (btn) {
-        return function () {
-          setTheme(btn.getAttribute('data-theme'));
-          for (var j = 0; j < buttons.length; j++) {
-            if (buttons[j] === btn) buttons[j].classList.add('active');
-            else buttons[j].classList.remove('active');
-          }
-        };
-      })(buttons[i]);
+    var retry=root.querySelector('#retry');
+    if(retry) retry.onclick=load;
+    var buttons=root.querySelectorAll('.theme-btn');
+    for(var i=0;i<buttons.length;i++){
+      buttons[i].onclick=(function(btn){ return function(){
+        setTheme(btn.getAttribute('data-theme'));
+        for(var j=0;j<buttons.length;j++) buttons[j].classList.toggle('active', buttons[j]===btn);
+      }; })(buttons[i]);
     }
   }
 
-  function tick() {
-    if (state.loading || state.error || !state.timings) return;
-    var list = schedule();
-    var next = nextPrayer(list);
-    var cur = currentPrayer(list);
-    if ((next ? next.key : '') !== state.nextKey) { render(); return; }
-    var clock = document.getElementById('clock');
-    var cdH = document.getElementById('cdH');
-    var cdM = document.getElementById('cdM');
-    var cdS = document.getElementById('cdS');
-    if (!clock || !cdH) return;
-    clock.textContent = clockStr(now());
-    if (next) {
-      var rem = hms(next.date.getTime() - now().getTime());
-      cdH.textContent = rem.h; cdM.textContent = rem.m; cdS.textContent = rem.s;
-    }
-    var rows = document.querySelectorAll('.row');
-    for (var i = 0; i < rows.length; i++) {
-      var key = rows[i].getAttribute('data-key');
-      var p = null;
-      for (var k = 0; k < list.length; k++) if (list[k].key === key) p = list[k];
-      if (!p) continue;
-      var isNext = next && p.key === next.key && !next.tomorrow;
-      var isNow = cur && p.key === cur.key && !p.meta;
-      var passed = p.date.getTime() <= now().getTime() && !isNext;
-      rows[i].className = 'row' +
-        (p.meta ? ' meta' : '') +
-        (isNext ? ' next' : '') +
-        (isNow ? ' now' : '') +
-        (passed ? ' passed' : '');
+  function tick(){
+    if(state.loading||state.error||!state.timings) return;
+    var list=schedule(), next=nextPrayer(list), cur=currentPrayer(list);
+    if((next?next.key:'')!==state.nextKey){ render(); return; }
+    var clock=document.getElementById('clock');
+    var cdH=document.getElementById('cdH'), cdM=document.getElementById('cdM'), cdS=document.getElementById('cdS');
+    if(!clock||!cdH) return;
+    clock.textContent=clockStr(now());
+    if(next){ var rem=hms(next.date.getTime()-now().getTime()); cdH.textContent=rem.h; cdM.textContent=rem.m; cdS.textContent=rem.s; }
+    var rows=document.querySelectorAll('.row');
+    for(var i=0;i<rows.length;i++){
+      var key=rows[i].getAttribute('data-key'), p=null;
+      for(var k=0;k<list.length;k++) if(list[k].key===key) p=list[k];
+      if(!p) continue;
+      var isNext=next&&p.key===next.key&&!next.tomorrow;
+      var isNow=cur&&p.key===cur.key&&!p.meta;
+      var passed=p.date.getTime()<=now().getTime()&&!isNext;
+      rows[i].className='row'+(p.meta?' meta':'')+(isNext?' next':'')+(isNow?' now':'')+(passed?' passed':'');
     }
   }
 
-  function load() {
-    state.loading = true;
-    state.error = '';
-    render();
-    fetchTimings().then(render).catch(function () {
-      state.loading = false;
-      state.error = 'Vakitler yüklenemedi. İnternet bağlantını kontrol et.';
-      render();
+  function load(){
+    state.loading=true; state.error=''; render();
+    fetchTimings().then(render).catch(function(){
+      state.loading=false; state.error='Vakitler yüklenemedi. İnternet bağlantını kontrol et.'; render();
     });
   }
 
-  setTheme(state.theme);
-  load();
-  setInterval(tick, 1000);
+  setTheme(state.theme); load(); setInterval(tick, 1000);
 })();
   </script>
 </body>
