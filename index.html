@@ -37,11 +37,17 @@
       --bg:#10120c; --bg2:#1b1f14; --ink:#f4ecd4; --mute:rgba(244,236,212,.6);
       --accent:#d0b04a; --accent-ink:#17140a; --panel:#171a12; --line:#2d3224;
     }
+    body[data-theme="gri-siyah"] {
+      --bg:#0b0b0b; --bg2:#1c1c1e; --ink:#f2f2f7; --mute:rgba(242,242,247,.58);
+      --accent:#aeaeb2; --accent-ink:#0b0b0b; --panel:#1c1c1e; --line:#2c2c2e;
+    }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { min-height: 100%; }
     body {
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+        "Helvetica Neue", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
       background: var(--bg);
       color: var(--ink);
       min-height: 100dvh;
@@ -135,12 +141,13 @@
     }
     .clock {
       font-size: clamp(40px, 14vw, 56px);
-      font-weight: 900;
+      font-weight: 700;
       font-variant-numeric: tabular-nums;
-      letter-spacing: .04em;
+      letter-spacing: .03em;
       line-height: 1;
       color: var(--accent);
-      font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+        "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
     .sub {
       margin-top: 8px;
@@ -164,9 +171,10 @@
     .cd-box strong {
       display: block;
       font-size: clamp(28px, 10vw, 40px);
-      font-weight: 900;
+      font-weight: 700;
       font-variant-numeric: tabular-nums;
-      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+        "Helvetica Neue", Helvetica, Arial, sans-serif;
       color: var(--ink);
       line-height: 1;
     }
@@ -200,8 +208,10 @@
       font-weight: 800;
     }
     .row .t {
-      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-variant-numeric: tabular-nums;
       font-size: 18px;
+      font-weight: 600;
     }
     .row.meta { opacity: .55; }
     .row.passed { opacity: .4; }
@@ -257,6 +267,7 @@
   ];
   var THEMES = [
     ['sari-siyah', 'Sarı / Siyah', '#0a0a0a', '#f5c518'],
+    ['gri-siyah', 'Gri / Siyah', '#0b0b0b', '#8e8e93'],
     ['yesil', 'Yeşil tonlar', '#0d1f14', '#3d8b5f'],
     ['beyaz-yesil', 'Beyaz / Yeşil', '#f4f7f2', '#1f7a4c'],
     ['lacivert', 'Beyaz / Lacivert', '#f2f5fb', '#1a2a6c'],
