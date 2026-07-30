@@ -1,14 +1,10 @@
 {
   "name": "vakit-namaz",
   "private": true,
-  "version": "1.0.0",
-  "type": "module",
+  "version": "2.0.0",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "devDependencies": {
-    "vite": "^6.0.0"
+    "build": "mkdir -p dist && cp index.single.html dist/index.html && mkdir -p docs && cp index.single.html docs/index.html && touch docs/.nojekyll",
+    "dev": "npx --yes serve . -l 5173",
+    "preview": "npx --yes serve dist -l 4173"
   }
 }
