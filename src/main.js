@@ -11,6 +11,10 @@ function startOfDay(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }
 
+function addDays(date, delta) {
+  return startOfDay(new Date(date.getFullYear(), date.getMonth(), date.getDate() + delta))
+}
+
 let current = startOfDay(new Date())
 let flipping = false
 
@@ -104,6 +108,11 @@ function leafHTML(c) {
         <h2 class="section-title">Özlü söz</h2>
         <p class="proverb">${c.ozlu}</p>
       </section>
+
+      <div class="swipe-hint" aria-hidden="true">
+        <span class="swipe-arrow">↑</span>
+        Yukarı kaydır — sonraki yaprak
+      </div>
     </div>
   `
 }
@@ -111,6 +120,7 @@ function leafHTML(c) {
 function render(options = {}) {
   const { animateEnter = false } = options
   const c = buildContent(current)
+  const next = buildContent(addDays(current, 1))
 
   app.innerHTML = `
     <div class="brand-bar">
@@ -118,12 +128,15 @@ function render(options = {}) {
       <p>Her güne bir yaprak</p>
     </div>
 
-    <div class="calendar-stage">
+    <div class="calendar-stage" id="stage">
       <div class="pad-back" aria-hidden="true"></div>
       <div class="binding" aria-hidden="true">
         <div class="binding-bar"></div>
         ${Array.from({ length: 8 }, () => '<div class="hole"></div>').join('')}
       </div>
+      <article class="leaf leaf-under" id="leaf-under" aria-hidden="true">
+        ${leafHTML(next)}
+      </article>
       <article class="leaf${animateEnter ? ' entering' : ''}" id="leaf" aria-live="polite">
         ${leafHTML(c)}
       </article>
@@ -141,12 +154,13 @@ function render(options = {}) {
       </button>
     </div>
 
-    <p class="footer-note">Yaprak çevirerek günleri gezinin</p>
+    <p class="footer-note">Yaprak üzerinde yukarı kaydırarak çevirin</p>
   `
 
   document.getElementById('btn-prev').addEventListener('click', () => shiftDay(-1, false))
   document.getElementById('btn-today').addEventListener('click', goToday)
   document.getElementById('btn-next').addEventListener('click', () => shiftDay(1, true))
+  bindFlipGesture(document.getElementById('leaf'))
 }
 
 function setButtonsDisabled(disabled) {
@@ -156,25 +170,139 @@ function setButtonsDisabled(disabled) {
   })
 }
 
+function applyFlipTransform(leaf, progress) {
+  const p = Math.max(0, Math.min(1, progress))
+  const angle = -p * 118
+  const lift = p * 36
+  const shade = 1 - p * 0.22
+  const opacity = 1 - Math.max(0, p - 0.72) / 0.28
+  leaf.style.transform = `rotateX(${angle}deg) translateY(${lift}px) scale(${1 - p * 0.04})`
+  leaf.style.filter = `brightness(${shade})`
+  leaf.style.opacity = String(opacity)
+}
+
+function clearFlipStyles(leaf) {
+  leaf.style.transform = ''
+  leaf.style.filter = ''
+  leaf.style.opacity = ''
+}
+
+function completeTear(leaf) {
+  flipping = true
+  setButtonsDisabled(true)
+  leaf.classList.remove('dragging', 'entering', 'snap-back')
+  leaf.classList.add('flipping')
+  clearFlipStyles(leaf)
+
+  window.setTimeout(() => {
+    current = addDays(current, 1)
+    flipping = false
+    render({ animateEnter: true })
+  }, 680)
+}
+
+function bindFlipGesture(leaf) {
+  if (!leaf) return
+
+  const THRESHOLD = 0.32
+  const VELOCITY = 0.55
+  const COMMIT_PX = 18
+
+  let active = false
+  let dragging = false
+  let startY = 0
+  let startX = 0
+  let lastY = 0
+  let lastT = 0
+  let velocity = 0
+  let pointerId = null
+
+  const onDown = (e) => {
+    if (flipping || e.button === 2) return
+    active = true
+    dragging = false
+    pointerId = e.pointerId
+    startY = e.clientY
+    startX = e.clientX
+    lastY = e.clientY
+    lastT = performance.now()
+    velocity = 0
+    leaf.setPointerCapture?.(e.pointerId)
+  }
+
+  const onMove = (e) => {
+    if (!active || flipping) return
+    if (pointerId !== null && e.pointerId !== pointerId) return
+
+    const dy = startY - e.clientY
+    const dx = Math.abs(e.clientX - startX)
+    const now = performance.now()
+    const dt = Math.max(1, now - lastT)
+    velocity = (lastY - e.clientY) / dt
+    lastY = e.clientY
+    lastT = now
+
+    if (!dragging) {
+      if (dy > COMMIT_PX && dy > dx * 1.15) {
+        dragging = true
+        leaf.classList.remove('entering', 'snap-back')
+        leaf.classList.add('dragging')
+        document.body.classList.add('is-flipping')
+      } else {
+        return
+      }
+    }
+
+    e.preventDefault()
+    const height = Math.max(leaf.offsetHeight, 280)
+    const progress = Math.min(1, Math.max(0, dy / (height * 0.72)))
+    applyFlipTransform(leaf, progress)
+  }
+
+  const finish = (e) => {
+    if (!active) return
+    if (pointerId !== null && e.pointerId !== pointerId) return
+    active = false
+    document.body.classList.remove('is-flipping')
+
+    if (!dragging) {
+      pointerId = null
+      return
+    }
+
+    const dy = startY - e.clientY
+    const height = Math.max(leaf.offsetHeight, 280)
+    const progress = Math.min(1, Math.max(0, dy / (height * 0.72)))
+    dragging = false
+    pointerId = null
+
+    if (progress >= THRESHOLD || velocity >= VELOCITY) {
+      completeTear(leaf)
+      return
+    }
+
+    leaf.classList.remove('dragging')
+    leaf.classList.add('snap-back')
+    clearFlipStyles(leaf)
+    window.setTimeout(() => leaf.classList.remove('snap-back'), 320)
+  }
+
+  leaf.addEventListener('pointerdown', onDown)
+  leaf.addEventListener('pointermove', onMove, { passive: false })
+  leaf.addEventListener('pointerup', finish)
+  leaf.addEventListener('pointercancel', finish)
+}
+
 function shiftDay(delta, tear) {
   if (flipping) return
 
   if (tear && delta > 0) {
-    flipping = true
-    setButtonsDisabled(true)
     const leaf = document.getElementById('leaf')
-    leaf.classList.remove('entering')
-    leaf.classList.add('flipping')
-
-    window.setTimeout(() => {
-      current = startOfDay(new Date(current.getFullYear(), current.getMonth(), current.getDate() + delta))
-      flipping = false
-      render({ animateEnter: true })
-    }, 680)
+    if (leaf) completeTear(leaf)
     return
   }
 
-  current = startOfDay(new Date(current.getFullYear(), current.getMonth(), current.getDate() + delta))
+  current = addDays(current, delta)
   render({ animateEnter: true })
 }
 
