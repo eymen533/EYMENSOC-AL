@@ -1,12 +1,12 @@
 import './style.css'
 
 const PRAYERS = [
-  { key: 'Fajr', name: 'İmsak', short: 'Sabah' },
-  { key: 'Sunrise', name: 'Güneş', short: 'Doğuş', meta: true },
-  { key: 'Dhuhr', name: 'Öğle', short: 'Öğle' },
-  { key: 'Asr', name: 'İkindi', short: 'İkindi' },
-  { key: 'Maghrib', name: 'Akşam', short: 'Akşam' },
-  { key: 'Isha', name: 'Yatsı', short: 'Yatsı' },
+  { key: 'Fajr', name: 'İmsak' },
+  { key: 'Sunrise', name: 'Güneş', meta: true },
+  { key: 'Dhuhr', name: 'Öğle' },
+  { key: 'Asr', name: 'İkindi' },
+  { key: 'Maghrib', name: 'Akşam' },
+  { key: 'Isha', name: 'Yatsı' },
 ]
 
 const CITIES = [
@@ -22,18 +22,27 @@ const CITIES = [
   { city: 'Erzurum', label: 'Erzurum' },
 ]
 
+const THEMES = [
+  { id: 'sari-siyah', label: 'Sarı · Siyah', swatch: ['#0a0a0a', '#f5c518'] },
+  { id: 'yesil', label: 'Yeşil tonlar', swatch: ['#0d1f14', '#3d8b5f'] },
+  { id: 'beyaz-yesil', label: 'Beyaz · Yeşil', swatch: ['#f4f7f2', '#1f7a4c'] },
+  { id: 'lacivert', label: 'Beyaz · Lacivert', swatch: ['#f2f5fb', '#1a2a6c'] },
+  { id: 'gece-mavi', label: 'Gece · Mavi', swatch: ['#071018', '#4db0ff'] },
+  { id: 'zeytin', label: 'Zeytin · Altın', swatch: ['#1a1c12', '#c6a84b'] },
+]
+
 const app = document.querySelector('#app')
 
 let state = {
   city: localStorage.getItem('vakit-city') || 'Istanbul',
   label: localStorage.getItem('vakit-label') || 'İstanbul',
+  theme: localStorage.getItem('vakit-theme') || 'sari-siyah',
   timings: null,
   dateLabel: '',
   hijri: '',
   loading: true,
   error: '',
   now: new Date(),
-  theme: 'night',
   nextKey: '',
 }
 
@@ -54,6 +63,15 @@ function formatHMS(ms) {
     m: String(Math.floor((total % 3600) / 60)).padStart(2, '0'),
     s: String(total % 60).padStart(2, '0'),
   }
+}
+
+function formatClock(date) {
+  return date.toLocaleTimeString('tr-TR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
 }
 
 function getSchedule() {
@@ -86,16 +104,10 @@ function getCurrentPeriod(schedule) {
   return current
 }
 
-function skyTheme(nextKey) {
-  return (
-    {
-      Fajr: 'dawn',
-      Dhuhr: 'noon',
-      Asr: 'afternoon',
-      Maghrib: 'dusk',
-      Isha: 'night',
-    }[nextKey] || 'night'
-  )
+function applyTheme(id) {
+  state.theme = id
+  localStorage.setItem('vakit-theme', id)
+  document.body.dataset.theme = id
 }
 
 async function fetchTimings(city) {
@@ -119,10 +131,9 @@ async function fetchTimings(city) {
     'Aralık',
   ]
   const g = data.date.gregorian
-  const monthIdx = Number(g.month.number) - 1
   return {
     timings: data.timings,
-    dateLabel: `${Number(g.day)} ${monthsTr[monthIdx]} ${g.year}`,
+    dateLabel: `${Number(g.day)} ${monthsTr[Number(g.month.number) - 1]} ${g.year}`,
     hijri: `${data.date.hijri.day} ${data.date.hijri.month.en} ${data.date.hijri.year}`,
   }
 }
@@ -153,48 +164,58 @@ function setCity(city, label) {
   load()
 }
 
+function themePickerHTML() {
+  return `
+    <div class="themes" role="listbox" aria-label="Renk teması">
+      ${THEMES.map(
+        (t) => `
+        <button type="button" class="theme-chip ${state.theme === t.id ? 'active' : ''}" data-theme="${t.id}" title="${t.label}" aria-label="${t.label}">
+          <span class="swatch" style="--a:${t.swatch[0]};--b:${t.swatch[1]}"></span>
+          <span class="theme-name">${t.label}</span>
+        </button>`,
+      ).join('')}
+    </div>
+  `
+}
+
 function renderShell() {
+  applyTheme(state.theme)
   const schedule = getSchedule()
   const next = getNextPrayer(schedule)
   const current = getCurrentPeriod(schedule)
-  state.theme = skyTheme(next?.key || current?.key)
   state.nextKey = next?.key || ''
-  document.body.dataset.sky = state.theme
 
   if (state.loading || state.error) {
     mounted = false
     app.innerHTML = `
-      <div class="sky" aria-hidden="true">
-        <div class="sky-glow"></div>
-        <div class="sky-arch"></div>
-        <div class="sky-veil"></div>
-      </div>
+      <div class="bg" aria-hidden="true"><div class="bg-orb"></div><div class="bg-grid"></div></div>
       <main class="shell">
         <header class="top">
-          <div class="brand"><span class="crescent" aria-hidden="true"></span><h1>VAKİT</h1></div>
+          <div class="brand"><h1>VAKİT</h1></div>
         </header>
+        ${themePickerHTML()}
         <div class="status ${state.error ? 'error' : ''}">
           <p>${state.error || 'Vakitler hazırlanıyor…'}</p>
           ${state.error ? '<button type="button" id="retry">Tekrar dene</button>' : ''}
         </div>
       </main>`
-    document.getElementById('retry')?.addEventListener('click', load)
+    bindChrome()
     return
   }
 
   const remain = next ? formatHMS(next.date.getTime() - state.now.getTime()) : { h: '00', m: '00', s: '00' }
 
   app.innerHTML = `
-    <div class="sky" aria-hidden="true">
-      <div class="sky-glow"></div>
-      <div class="sky-arch"></div>
-      <div class="sky-veil"></div>
+    <div class="bg" aria-hidden="true">
+      <div class="bg-orb"></div>
+      <div class="bg-grid"></div>
+      <div class="bg-noise"></div>
     </div>
 
     <main class="shell">
       <header class="top">
         <div class="brand">
-          <span class="crescent" aria-hidden="true"></span>
+          <span class="brand-mark" aria-hidden="true"></span>
           <h1>VAKİT</h1>
         </div>
         <label class="city">
@@ -208,26 +229,31 @@ function renderShell() {
         </label>
       </header>
 
-      <section class="hero">
-        <p class="hero-kicker" id="hero-kicker">${next?.tomorrow ? 'Yarın' : 'Sıradaki vakit'}</p>
-        <h2 class="hero-name" id="hero-name">${next?.name || '—'}</h2>
-        <div class="countdown" aria-live="polite">
-          <div class="unit"><span id="cd-h">${remain.h}</span><small>saat</small></div>
-          <span class="sep" aria-hidden="true">:</span>
-          <div class="unit"><span id="cd-m">${remain.m}</span><small>dk</small></div>
-          <span class="sep" aria-hidden="true">:</span>
-          <div class="unit"><span id="cd-s">${remain.s}</span><small>sn</small></div>
+      ${themePickerHTML()}
+
+      <section class="hero" aria-live="polite">
+        <div class="hero-now">
+          <p class="eyebrow">Şu an</p>
+          <p class="clock" id="clock-now">${formatClock(state.now)}</p>
         </div>
-        <p class="hero-sub" id="hero-sub">${state.label} · ${next?.time || ''}</p>
+
+        <div class="hero-next">
+          <p class="eyebrow" id="next-kicker">${next?.tomorrow ? 'Yarın' : 'Sıradaki'} · <span id="next-name">${next?.name || '—'}</span></p>
+          <div class="countdown">
+            <div class="cd"><span id="cd-h">${remain.h}</span><small>SAAT</small></div>
+            <span class="colon">:</span>
+            <div class="cd"><span id="cd-m">${remain.m}</span><small>DAKİKA</small></div>
+            <span class="colon">:</span>
+            <div class="cd"><span id="cd-s">${remain.s}</span><small>SANİYE</small></div>
+          </div>
+          <p class="hero-meta" id="hero-meta">${state.label.toUpperCase()} · ${next?.time || ''} · ${state.dateLabel.toUpperCase()}</p>
+        </div>
       </section>
 
-      <section class="times" aria-label="Günün namaz vakitleri">
+      <section class="times">
         <div class="times-head">
-          <div>
-            <h3>Bugünün vakitleri</h3>
-            <p id="date-line">${state.dateLabel}</p>
-          </div>
-          <p class="hijri" id="hijri-line">${state.hijri}</p>
+          <h2>Günün vakitleri</h2>
+          <p id="hijri-line">${state.hijri}</p>
         </div>
         <ul class="time-list" id="time-list">
           ${schedule
@@ -237,7 +263,7 @@ function renderShell() {
               const passed = p.date.getTime() <= state.now.getTime() && !isNext
               return `
                 <li class="time-row ${p.meta ? 'is-meta' : ''} ${isNext ? 'is-next' : ''} ${isNow ? 'is-now' : ''} ${passed ? 'is-passed' : ''}" data-key="${p.key}">
-                  <span class="time-name">${p.name}</span>
+                  <span class="time-name">${p.name.toUpperCase()}</span>
                   <span class="time-clock">${p.time}</span>
                 </li>`
             })
@@ -247,52 +273,52 @@ function renderShell() {
     </main>
   `
 
+  bindChrome()
+  mounted = true
+}
+
+function bindChrome() {
   document.getElementById('city-select')?.addEventListener('change', (e) => {
     const opt = e.target.selectedOptions[0]
     setCity(opt.value, opt.textContent)
   })
-
-  mounted = true
+  document.getElementById('retry')?.addEventListener('click', load)
+  document.querySelectorAll('.theme-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      applyTheme(btn.dataset.theme)
+      document.querySelectorAll('.theme-chip').forEach((b) => b.classList.toggle('active', b === btn))
+    })
+  })
 }
 
-/** Sadece sayaç ve satır durumunu güncelle — tam DOM yenileme yok (flicker önler) */
 function tickUpdate() {
   state.now = new Date()
-  if (!mounted || state.loading || state.error || !state.timings) return
+  if (!mounted || state.loading || state.error || !state.timings) {
+    const clock = document.getElementById('clock-now')
+    if (clock) clock.textContent = formatClock(state.now)
+    return
+  }
 
   const schedule = getSchedule()
   const next = getNextPrayer(schedule)
   const current = getCurrentPeriod(schedule)
-  const theme = skyTheme(next?.key || current?.key)
 
-  // Namaz değiştiyse bir kez yeniden çiz
-  if ((next?.key || '') !== state.nextKey || theme !== state.theme) {
-    state.theme = theme
-    state.nextKey = next?.key || ''
+  if ((next?.key || '') !== state.nextKey) {
     renderShell()
     return
   }
 
   const remain = next ? formatHMS(next.date.getTime() - state.now.getTime()) : null
-  const h = document.getElementById('cd-h')
-  const m = document.getElementById('cd-m')
-  const s = document.getElementById('cd-s')
-  if (h && remain) {
-    h.textContent = remain.h
-    m.textContent = remain.m
-    s.textContent = remain.s
+  const clock = document.getElementById('clock-now')
+  if (clock) clock.textContent = formatClock(state.now)
+  if (remain) {
+    document.getElementById('cd-h').textContent = remain.h
+    document.getElementById('cd-m').textContent = remain.m
+    document.getElementById('cd-s').textContent = remain.s
   }
 
-  const kicker = document.getElementById('hero-kicker')
-  const name = document.getElementById('hero-name')
-  const sub = document.getElementById('hero-sub')
-  if (kicker) kicker.textContent = next?.tomorrow ? 'Yarın' : 'Sıradaki vakit'
-  if (name) name.textContent = next?.name || '—'
-  if (sub) sub.textContent = `${state.label} · ${next?.time || ''}`
-
   document.querySelectorAll('.time-row').forEach((row) => {
-    const key = row.dataset.key
-    const p = schedule.find((x) => x.key === key)
+    const p = schedule.find((x) => x.key === row.dataset.key)
     if (!p) return
     const isNext = next && p.key === next.key && !next.tomorrow
     const isNow = current && p.key === current.key && !p.meta
@@ -303,10 +329,6 @@ function tickUpdate() {
   })
 }
 
-function startClock() {
-  if (tickTimer) clearInterval(tickTimer)
-  tickTimer = setInterval(tickUpdate, 1000)
-}
-
+applyTheme(state.theme)
 load()
-startClock()
+tickTimer = setInterval(tickUpdate, 1000)
