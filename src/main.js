@@ -170,43 +170,91 @@ function setButtonsDisabled(disabled) {
   })
 }
 
-function applyFlipTransform(leaf, progress) {
-  const p = Math.max(0, Math.min(1, progress))
-  const angle = -p * 118
-  const lift = p * 36
-  const shade = 1 - p * 0.22
-  const opacity = 1 - Math.max(0, p - 0.72) / 0.28
-  leaf.style.transform = `rotateX(${angle}deg) translateY(${lift}px) scale(${1 - p * 0.04})`
+function easeOutCubic(t) {
+  return 1 - (1 - t) ** 3
+}
+
+function applySlideTransform(leaf, under, progress) {
+  const p = Math.max(0, Math.min(1.15, progress))
+  const h = Math.max(leaf.offsetHeight, 280)
+  // Yukarı kayma + hafif 3D flip (üstten menteşeli takvim yaprağı)
+  const slide = -p * h * 0.92
+  const tilt = -p * 42
+  const depth = p * 28
+  const shade = 1 - Math.min(p, 1) * 0.12
+  const opacity = p > 0.85 ? 1 - (p - 0.85) / 0.3 : 1
+
+  leaf.style.transform = `translate3d(0, ${slide}px, ${depth}px) rotateX(${tilt}deg)`
   leaf.style.filter = `brightness(${shade})`
-  leaf.style.opacity = String(opacity)
+  leaf.style.opacity = String(Math.max(0, opacity))
+  leaf.style.boxShadow = `0 ${8 + p * 24}px ${24 + p * 30}px rgba(40, 24, 12, ${0.25 + p * 0.2})`
+
+  if (under) {
+    const u = easeOutCubic(Math.min(1, p))
+    under.style.transform = `scale(${0.97 + u * 0.03}) translateY(${(1 - u) * 10}px)`
+    under.style.filter = `brightness(${0.9 + u * 0.1})`
+    under.style.opacity = String(0.85 + u * 0.15)
+  }
 }
 
-function clearFlipStyles(leaf) {
-  leaf.style.transform = ''
-  leaf.style.filter = ''
-  leaf.style.opacity = ''
+function clearSlideStyles(leaf, under) {
+  ;[leaf, under].forEach((el) => {
+    if (!el) return
+    el.style.transform = ''
+    el.style.filter = ''
+    el.style.opacity = ''
+    el.style.boxShadow = ''
+    el.style.transition = ''
+  })
 }
 
-function completeTear(leaf) {
+function completeSlide(leaf, fromProgress = 0) {
+  const under = document.getElementById('leaf-under')
   flipping = true
   setButtonsDisabled(true)
   leaf.classList.remove('dragging', 'entering', 'snap-back')
-  leaf.classList.add('flipping')
-  clearFlipStyles(leaf)
+  leaf.classList.add('sliding-out')
+  under?.classList.add('revealing')
+  document.body.classList.add('is-flipping')
 
-  window.setTimeout(() => {
+  const start = Math.max(0, fromProgress)
+  const duration = 520
+  const t0 = performance.now()
+  let done = false
+
+  const finishNav = () => {
+    if (done) return
+    done = true
     current = addDays(current, 1)
     flipping = false
+    document.body.classList.remove('is-flipping')
     render({ animateEnter: true })
-  }, 680)
+  }
+
+  const tick = (now) => {
+    if (done) return
+    const t = Math.min(1, (now - t0) / duration)
+    const p = start + (1.25 - start) * easeOutCubic(t)
+    applySlideTransform(leaf, under, p)
+    if (t < 1) {
+      requestAnimationFrame(tick)
+      return
+    }
+    finishNav()
+  }
+
+  leaf.style.transition = 'none'
+  applySlideTransform(leaf, under, start)
+  requestAnimationFrame(() => requestAnimationFrame(tick))
 }
 
 function bindFlipGesture(leaf) {
   if (!leaf) return
+  const under = document.getElementById('leaf-under')
 
-  const THRESHOLD = 0.32
-  const VELOCITY = 0.55
-  const COMMIT_PX = 18
+  const THRESHOLD = 0.22
+  const VELOCITY = 0.45
+  const COMMIT_PX = 12
 
   let active = false
   let dragging = false
@@ -215,6 +263,7 @@ function bindFlipGesture(leaf) {
   let lastY = 0
   let lastT = 0
   let velocity = 0
+  let progress = 0
   let pointerId = null
 
   const onDown = (e) => {
@@ -227,6 +276,7 @@ function bindFlipGesture(leaf) {
     lastY = e.clientY
     lastT = performance.now()
     velocity = 0
+    progress = 0
     leaf.setPointerCapture?.(e.pointerId)
   }
 
@@ -243,10 +293,11 @@ function bindFlipGesture(leaf) {
     lastT = now
 
     if (!dragging) {
-      if (dy > COMMIT_PX && dy > dx * 1.15) {
+      if (dy > COMMIT_PX && dy > dx * 1.1) {
         dragging = true
         leaf.classList.remove('entering', 'snap-back')
         leaf.classList.add('dragging')
+        under?.classList.add('revealing')
         document.body.classList.add('is-flipping')
       } else {
         return
@@ -255,36 +306,41 @@ function bindFlipGesture(leaf) {
 
     e.preventDefault()
     const height = Math.max(leaf.offsetHeight, 280)
-    const progress = Math.min(1, Math.max(0, dy / (height * 0.72)))
-    applyFlipTransform(leaf, progress)
+    // Parmakla 1:1 kayma hissi, hafif direnç
+    const raw = dy / (height * 0.85)
+    progress = Math.min(1.05, Math.max(0, raw))
+    applySlideTransform(leaf, under, progress)
   }
 
   const finish = (e) => {
     if (!active) return
     if (pointerId !== null && e.pointerId !== pointerId) return
     active = false
-    document.body.classList.remove('is-flipping')
 
     if (!dragging) {
       pointerId = null
       return
     }
 
-    const dy = startY - e.clientY
-    const height = Math.max(leaf.offsetHeight, 280)
-    const progress = Math.min(1, Math.max(0, dy / (height * 0.72)))
     dragging = false
     pointerId = null
+    leaf.classList.remove('dragging')
 
     if (progress >= THRESHOLD || velocity >= VELOCITY) {
-      completeTear(leaf)
+      completeSlide(leaf, progress)
       return
     }
 
-    leaf.classList.remove('dragging')
+    // Geri yaylan
+    document.body.classList.remove('is-flipping')
     leaf.classList.add('snap-back')
-    clearFlipStyles(leaf)
-    window.setTimeout(() => leaf.classList.remove('snap-back'), 320)
+    under?.classList.add('snap-back')
+    clearSlideStyles(leaf, under)
+    under?.classList.remove('revealing')
+    window.setTimeout(() => {
+      leaf.classList.remove('snap-back')
+      under?.classList.remove('snap-back')
+    }, 380)
   }
 
   leaf.addEventListener('pointerdown', onDown)
@@ -298,7 +354,7 @@ function shiftDay(delta, tear) {
 
   if (tear && delta > 0) {
     const leaf = document.getElementById('leaf')
-    if (leaf) completeTear(leaf)
+    if (leaf) completeSlide(leaf, 0)
     return
   }
 

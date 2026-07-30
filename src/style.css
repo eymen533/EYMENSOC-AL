@@ -86,8 +86,10 @@ body::before {
 .calendar-stage {
   position: relative;
   width: min(440px, 100%);
-  perspective: 1600px;
+  perspective: 1400px;
+  perspective-origin: 50% 0%;
   touch-action: pan-y;
+  overflow: visible;
 }
 
 body.is-flipping {
@@ -167,13 +169,14 @@ body.is-flipping {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.5) inset,
     0 8px 24px rgba(40, 24, 12, 0.25);
-  transform-origin: top center;
+  transform-origin: center top;
   transform-style: preserve-3d;
   overflow: hidden;
   cursor: grab;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+  backface-visibility: hidden;
 }
 
 .leaf-under {
@@ -182,25 +185,38 @@ body.is-flipping {
   z-index: 1;
   pointer-events: none;
   box-shadow: none;
-  transform: scale(0.992);
-  filter: brightness(0.94);
+  transform: scale(0.97) translateY(10px);
+  filter: brightness(0.9);
+  opacity: 0.85;
+  transition:
+    transform 0.35s ease,
+    filter 0.35s ease,
+    opacity 0.35s ease;
 }
 
-.leaf.dragging {
+.leaf-under.revealing {
+  transition: none;
+}
+
+.leaf.dragging,
+.leaf.sliding-out {
   z-index: 4;
   cursor: grabbing;
-  transition: none;
+  transition: none !important;
   will-change: transform, opacity, filter;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.5) inset,
-    0 18px 40px rgba(40, 24, 12, 0.4);
 }
 
-.leaf.snap-back {
+.leaf.sliding-out {
+  pointer-events: none;
+}
+
+.leaf.snap-back,
+.leaf-under.snap-back {
   transition:
-    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.32s ease,
-    filter 0.32s ease;
+    transform 0.38s cubic-bezier(0.22, 1.15, 0.36, 1),
+    opacity 0.38s ease,
+    filter 0.38s ease,
+    box-shadow 0.38s ease !important;
 }
 
 .leaf::before {
@@ -212,41 +228,20 @@ body.is-flipping {
   mix-blend-mode: multiply;
 }
 
-.leaf.flipping {
-  animation: tearOff 0.72s cubic-bezier(0.4, 0.05, 0.3, 1) forwards;
-  z-index: 4;
-  pointer-events: none;
-}
-
 .leaf.entering {
-  animation: settleIn 0.45s ease both;
-}
-
-@keyframes tearOff {
-  0% {
-    transform: rotateX(0deg) translateY(0);
-    opacity: 1;
-    filter: brightness(1);
-  }
-  35% {
-    transform: rotateX(-28deg) translateY(8px);
-    filter: brightness(0.97);
-  }
-  100% {
-    transform: rotateX(-105deg) translateY(40px) scale(0.96);
-    opacity: 0;
-    filter: brightness(0.85);
-  }
+  animation: settleIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes settleIn {
   from {
-    transform: translateY(-12px);
-    opacity: 0.4;
+    transform: scale(0.985) translateY(8px);
+    opacity: 0.75;
+    filter: brightness(0.94);
   }
   to {
-    transform: translateY(0);
+    transform: scale(1) translateY(0);
     opacity: 1;
+    filter: brightness(1);
   }
 }
 
