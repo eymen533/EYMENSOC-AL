@@ -35,6 +35,7 @@
       --accent-ink: #1c1c1e;
       --line: rgba(84,84,88,.55);
       --glow: rgba(255,214,10,.35);
+      --safe-top: env(safe-area-inset-top, 0px);
       --safe: env(safe-area-inset-bottom, 0px);
       --font-d: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
       --font-t: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
@@ -202,7 +203,7 @@
       width: min(440px, 100%);
       margin: 0 auto;
       min-height: 100dvh;
-      padding: 14px 14px calc(22px + var(--safe));
+      padding: calc(10px + var(--safe-top)) 14px calc(22px + var(--safe));
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -210,49 +211,56 @@
 
     .top {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      padding: 2px 2px 0;
+      gap: 10px 12px;
+      padding: 4px 2px 0;
     }
     .brand {
       font-family: var(--font-d);
       font-size: 28px;
       font-weight: 700;
       letter-spacing: -0.03em;
-      flex: 0 1 auto;
+      flex: 1 1 auto;
       min-width: 0;
+      line-height: 1.1;
     }
     .brand span { color: var(--accent); }
     .top-controls {
       display: flex;
       align-items: center;
       gap: 8px;
-      flex: 0 0 auto;
+      flex: 1 1 100%;
+      width: 100%;
     }
     select {
       appearance: none;
+      -webkit-appearance: none;
       border: 0;
       background: var(--card);
       color: var(--ink);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-radius: 980px;
-      padding: 10px 32px 10px 12px;
+      padding: 12px 34px 12px 14px;
       font-family: var(--font-t);
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 600;
-      max-width: 42vw;
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 48px;
+      max-width: none;
       box-shadow: inset 0 0 0 1px var(--line);
       background-image:
         linear-gradient(45deg, transparent 50%, var(--accent) 50%),
         linear-gradient(135deg, var(--accent) 50%, transparent 50%);
-      background-position: calc(100% - 14px) calc(50% - 2px), calc(100% - 10px) calc(50% - 2px);
+      background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
       background-size: 5px 5px;
       background-repeat: no-repeat;
     }
     #theme {
-      max-width: 38vw;
+      max-width: none;
     }
 
     .install-tip {
@@ -471,11 +479,56 @@
   ];
 
   var state = {
-    city: localStorage.getItem('vakit-city') || 'Istanbul',
-    label: localStorage.getItem('vakit-label') || 'İstanbul',
-    theme: localStorage.getItem('vakit-theme') || 'sari-siyah',
+    city: 'Istanbul',
+    label: 'İstanbul',
+    theme: 'sari-siyah',
     timings: null, dateLabel: '', hijri: '', error: '', loading: true, nextKey: ''
   };
+
+  function storeGet(key, fallback){
+    try {
+      var v = localStorage.getItem(key);
+      if (v != null && v !== '') return v;
+    } catch (e) {}
+    try {
+      var m = document.cookie.match(new RegExp('(?:^|; )' + key.replace(/[$()*+.?[\\\]^{|}]/g,'\\$&') + '=([^;]*)'));
+      if (m) return decodeURIComponent(m[1]);
+    } catch (e) {}
+    return fallback;
+  }
+  function storeSet(key, value){
+    try { localStorage.setItem(key, value); } catch (e) {}
+    try {
+      var exp = new Date();
+      exp.setFullYear(exp.getFullYear() + 5);
+      document.cookie = key + '=' + encodeURIComponent(value) + ';path=/;expires=' + exp.toUTCString() + ';SameSite=Lax';
+    } catch (e) {}
+  }
+
+  state.city = storeGet('vakit-city', 'Istanbul');
+  state.label = storeGet('vakit-label', 'İstanbul');
+  state.theme = storeGet('vakit-theme', 'sari-siyah');
+
+  (function normalizePrefs(){
+    var themeOk=false;
+    for(var i=0;i<THEMES.length;i++) if(THEMES[i][0]===state.theme){ themeOk=true; break; }
+    if(!themeOk){ state.theme='sari-siyah'; storeSet('vakit-theme', state.theme); }
+    var cityOk=false;
+    for(var j=0;j<CITIES.length;j++){
+      if(CITIES[j][0]===state.city){
+        cityOk=true;
+        state.label=CITIES[j][1];
+        break;
+      }
+    }
+    if(!cityOk){
+      state.city='Istanbul'; state.label='İstanbul';
+      storeSet('vakit-city', state.city);
+      storeSet('vakit-label', state.label);
+    } else {
+      storeSet('vakit-label', state.label);
+    }
+  })();
 
   function pad(n){ return (n<10?'0':'')+n; }
   function now(){ return new Date(); }
@@ -509,11 +562,15 @@
     return cur;
   }
   function setTheme(id){
+    if(!id) id = 'sari-siyah';
     state.theme=id;
-    localStorage.setItem('vakit-theme', id);
+    storeSet('vakit-theme', id);
     document.body.setAttribute('data-theme', id);
-    document.querySelector('meta[name="theme-color"]').setAttribute('content',
-      getComputedStyle(document.body).getPropertyValue('--bg0').trim() || '#000');
+    var meta=document.querySelector('meta[name="theme-color"]');
+    if(meta){
+      meta.setAttribute('content',
+        getComputedStyle(document.body).getPropertyValue('--bg0').trim() || '#000');
+    }
   }
 
   function fetchTimings(){
@@ -551,7 +608,7 @@
   }
 
   function installTipHtml(){
-    if(isStandalone() || localStorage.getItem('vakit-tip-hide')==='1') return '';
+    if(isStandalone() || storeGet('vakit-tip-hide','')==='1') return '';
     var host=location.hostname||'';
     var ephemeral=/trycloudflare\.com$|localhost|127\.0\.0\.1/.test(host);
     var isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -616,8 +673,8 @@
     if(city) city.onchange=function(){
       var opt=city.options[city.selectedIndex];
       state.city=opt.value; state.label=opt.text;
-      localStorage.setItem('vakit-city', state.city);
-      localStorage.setItem('vakit-label', state.label);
+      storeSet('vakit-city', state.city);
+      storeSet('vakit-label', state.label);
       load();
     };
     var theme=root.querySelector('#theme');
@@ -628,7 +685,7 @@
     if(retry) retry.onclick=load;
     var tipClose=root.querySelector('#tipClose');
     if(tipClose) tipClose.onclick=function(){
-      localStorage.setItem('vakit-tip-hide','1');
+      storeSet('vakit-tip-hide','1');
       var tip=document.getElementById('installTip');
       if(tip) tip.remove();
     };
