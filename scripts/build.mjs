@@ -1,24 +1,35 @@
-import { mkdirSync, cpSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, cpSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { execSync } from "node:child_process";
 
 const root = process.cwd();
-const html = join(root, "index.single.html");
+const htmlSrc = join(root, "index.single.html");
 
 function ensureDir(p) {
   mkdirSync(p, { recursive: true });
 }
 
-function copyHtml(dest) {
-  cpSync(html, dest);
+let version = String(Date.now());
+try {
+  version = execSync("git rev-parse --short HEAD", { cwd: root }).toString().trim();
+} catch {
+  /* ignore */
+}
+const builtAt = new Date().toISOString();
+
+function writeHtml(dest) {
+  let html = readFileSync(htmlSrc, "utf8");
+  html = html.replaceAll("__VAKIT_VERSION__", version);
+  writeFileSync(dest, html);
 }
 
 for (const dir of ["dist", "docs", "dist/fonts", "docs/fonts", "dist/icons", "docs/icons"]) {
   ensureDir(join(root, dir));
 }
 
-copyHtml(join(root, "index.html"));
-copyHtml(join(root, "dist/index.html"));
-copyHtml(join(root, "docs/index.html"));
+writeHtml(join(root, "index.html"));
+writeHtml(join(root, "dist/index.html"));
+writeHtml(join(root, "docs/index.html"));
 
 cpSync(join(root, "public/fonts"), join(root, "dist/fonts"), { recursive: true });
 cpSync(join(root, "public/fonts"), join(root, "docs/fonts"), { recursive: true });
@@ -43,5 +54,9 @@ if (existsSync(join(root, "IPHONE.md"))) {
   cpSync(join(root, "IPHONE.md"), join(root, "dist/IPHONE.md"));
 }
 
+const versionPayload = JSON.stringify({ version, builtAt }, null, 2) + "\n";
+writeFileSync(join(root, "docs/version.json"), versionPayload);
+writeFileSync(join(root, "dist/version.json"), versionPayload);
+
 writeFileSync(join(root, "docs/.nojekyll"), "");
-console.log("Built dist/ and docs/");
+console.log(`Built dist/ and docs/ version=${version}`);

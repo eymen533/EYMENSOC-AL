@@ -8,6 +8,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Vakit" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta name="vakit-version" content="__VAKIT_VERSION__" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
@@ -681,8 +683,30 @@
     }
   }
 
+  // Ana Ekran ikonu: yeni deploy gelince otomatik yenile
+  function watchForUpdates(){
+    var meta=document.querySelector('meta[name="vakit-version"]');
+    var local=meta && meta.getAttribute('content');
+    if(!local || local.indexOf('__VAKIT')===0) return;
+    function check(){
+      fetch('./version.json?t='+Date.now(),{cache:'no-store'})
+        .then(function(r){ return r.ok?r.json():null; })
+        .then(function(j){
+          if(j && j.version && j.version!==local){
+            location.reload();
+          }
+        }).catch(function(){});
+    }
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState==='visible') check();
+    });
+    window.addEventListener('focus', check);
+    setTimeout(check, 4000);
+  }
+
   setTheme(state.theme); load(); setInterval(tick, 1000);
   killServiceWorkers();
+  watchForUpdates();
 })();
   </script>
 </body>

@@ -1,23 +1,30 @@
-# iPhone — Vakit
+# iPhone — Vakit (kalıcı site)
 
-## Şimdi aç (şifresiz)
-https://specialist-towns-reseller-bra.trycloudflare.com
+## Senin adresin
+https://adorable-sprite-995f0b.netlify.app
 
-Safari ile aç. Eski / suspended Netlify linklerini kullanma.
+1. Netlify’da **Make public** yap (Private olmasın)
+2. Safari → bu adresi aç → **Paylaş → Ana Ekrana Ekle**
+3. Bundan sonra ikona basınca hep bu site açılır
 
-## Kalıcı yapmak (önemli — 60 dk)
-Anonim Netlify siteleri sahiplenilmezse **This site has been suspended** olur.
+## Her değişiklik otomatik gelsin (bir kez ayarla)
 
-1. Bu claim linkini aç (bir kez, 60 dk içinde):  
-   https://app.netlify.com/drop/adorable-sprite-995f0b#drop_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODU0ODA4MzcsImV4cCI6MTc4NTQ4NDQzNywiaXNzIjoiTmV0bGlmeSIsInNlc3Npb25faWQiOiIyNzQ2MWYyOC1lZDM5LTQ2M2QtOGYzYy1mYWYzZjRmOGExZDcifQ.TJ410wK8DuUCs7-X-f6IPLHo8mGVuYF9ITR320-7ZCw
-2. Netlify’a GitHub ile giriş → **Claim site**
-3. Site ayarlarından password korumasını kapat
-4. Verilen `*.netlify.app` adresini Safari → **Ana Ekrana Ekle**
+### Yöntem A — Netlify’ı GitHub’a bağla (en kolay)
+1. Netlify → `adorable-sprite-995f0b` → **Project configuration**
+2. **Build & deploy** → **Link repository** → GitHub → `eymen533/EYMENSOC-AL`
+3. Branch: `cursor/namaz-vakitleri-1d93` (veya `main`)
+4. Build command: `npm run build`
+5. Publish directory: `docs`
+6. Save
 
-Claim öncesi şifreli önizleme:  
-https://adorable-sprite-995f0b.netlify.app  
-Şifre: `My-Drop-Site`
+Bundan sonra her commit Netlify’a yayınlanır; Ana Ekran ikonu açılınca / öne gelince yeni sürüm yüklenir.
 
-## GitHub Pages (en kalıcı)
-Repo → Settings → Pages → Source: **GitHub Actions**  
-Sonra `https://eymen533.github.io/EYMENSOC-AL/` yayınlanır.
+### Yöntem B — GitHub Actions secret
+Repo → Settings → Secrets → Actions:
+- `NETLIFY_AUTH_TOKEN` (Netlify → User settings → Personal access tokens)
+- `NETLIFY_SITE_ID` = `a5bf1d86-ea2f-4ae8-92a4-3b593f45fe1c`
+
+Workflow: `.github/workflows/deploy-netlify.yml`
+
+## Not
+Cloudflare / eski Drop linkleri geçici; Ana Ekran için sadece `adorable-sprite-995f0b.netlify.app` kullan.
