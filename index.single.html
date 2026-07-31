@@ -485,34 +485,84 @@
     timings: null, dateLabel: '', hijri: '', error: '', loading: true, nextKey: ''
   };
 
+  var PREF_KEYS = ['vakit-city', 'vakit-label', 'vakit-theme', 'vakit-tip-hide'];
+
+  function cookieGet(key){
+    try {
+      var m = document.cookie.match(new RegExp('(?:^|; )' + key.replace(/[$()*+.?[\\\]^{|}]/g,'\\$&') + '=([^;]*)'));
+      if (m) return decodeURIComponent(m[1]);
+    } catch (e) {}
+    return null;
+  }
+  function cookieSet(key, value){
+    try {
+      var secure = location.protocol === 'https:' ? ';Secure' : '';
+      document.cookie = key + '=' + encodeURIComponent(value) +
+        ';path=/;max-age=157680000;SameSite=Lax' + secure;
+    } catch (e) {}
+  }
+
+  function idbOpen(){
+    return new Promise(function(resolve, reject){
+      if (!window.indexedDB) { resolve(null); return; }
+      var req = indexedDB.open('vakit-prefs', 1);
+      req.onupgradeneeded = function(){
+        var db = req.result;
+        if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+      };
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(){ resolve(null); };
+    });
+  }
+  function idbGet(db, key){
+    return new Promise(function(resolve){
+      if (!db) { resolve(null); return; }
+      try {
+        var tx = db.transaction('kv', 'readonly');
+        var req = tx.objectStore('kv').get(key);
+        req.onsuccess = function(){ resolve(req.result == null ? null : String(req.result)); };
+        req.onerror = function(){ resolve(null); };
+      } catch (e) { resolve(null); }
+    });
+  }
+  function idbSet(db, key, value){
+    return new Promise(function(resolve){
+      if (!db) { resolve(); return; }
+      try {
+        var tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(String(value), key);
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ resolve(); };
+      } catch (e) { resolve(); }
+    });
+  }
+
+  var idbPromise = idbOpen();
+  var idbCache = null;
+  idbPromise.then(function(db){ idbCache = db; });
+
   function storeGet(key, fallback){
     try {
       var v = localStorage.getItem(key);
       if (v != null && v !== '') return v;
     } catch (e) {}
-    try {
-      var m = document.cookie.match(new RegExp('(?:^|; )' + key.replace(/[$()*+.?[\\\]^{|}]/g,'\\$&') + '=([^;]*)'));
-      if (m) return decodeURIComponent(m[1]);
-    } catch (e) {}
+    var c = cookieGet(key);
+    if (c != null && c !== '') return c;
     return fallback;
   }
   function storeSet(key, value){
     try { localStorage.setItem(key, value); } catch (e) {}
-    try {
-      var exp = new Date();
-      exp.setFullYear(exp.getFullYear() + 5);
-      document.cookie = key + '=' + encodeURIComponent(value) + ';path=/;expires=' + exp.toUTCString() + ';SameSite=Lax';
-    } catch (e) {}
+    cookieSet(key, value);
+    idbPromise.then(function(db){ return idbSet(db, key, value); });
   }
 
-  state.city = storeGet('vakit-city', 'Istanbul');
-  state.label = storeGet('vakit-label', 'İstanbul');
-  state.theme = storeGet('vakit-theme', 'sari-siyah');
-
-  (function normalizePrefs(){
+  function applyPrefs(city, label, theme){
+    if (city) state.city = city;
+    if (label) state.label = label;
+    if (theme) state.theme = theme;
     var themeOk=false;
     for(var i=0;i<THEMES.length;i++) if(THEMES[i][0]===state.theme){ themeOk=true; break; }
-    if(!themeOk){ state.theme='sari-siyah'; storeSet('vakit-theme', state.theme); }
+    if(!themeOk) state.theme='sari-siyah';
     var cityOk=false;
     for(var j=0;j<CITIES.length;j++){
       if(CITIES[j][0]===state.city){
@@ -521,14 +571,46 @@
         break;
       }
     }
-    if(!cityOk){
-      state.city='Istanbul'; state.label='İstanbul';
-      storeSet('vakit-city', state.city);
-      storeSet('vakit-label', state.label);
-    } else {
-      storeSet('vakit-label', state.label);
-    }
-  })();
+    if(!cityOk){ state.city='Istanbul'; state.label='İstanbul'; }
+  }
+
+  function loadPrefsSync(){
+    applyPrefs(
+      storeGet('vakit-city', 'Istanbul'),
+      storeGet('vakit-label', 'İstanbul'),
+      storeGet('vakit-theme', 'sari-siyah')
+    );
+  }
+
+  function loadPrefsAsync(){
+    return idbPromise.then(function(db){
+      if (!db) return;
+      return Promise.all([
+        idbGet(db, 'vakit-city'),
+        idbGet(db, 'vakit-label'),
+        idbGet(db, 'vakit-theme')
+      ]).then(function(vals){
+        var city = vals[0] || storeGet('vakit-city', null);
+        var label = vals[1] || storeGet('vakit-label', null);
+        var theme = vals[2] || storeGet('vakit-theme', null);
+        if (city || label || theme) {
+          applyPrefs(city || state.city, label || state.label, theme || state.theme);
+          // mirror to localStorage/cookies so next cold start is fast
+          storeSet('vakit-city', state.city);
+          storeSet('vakit-label', state.label);
+          storeSet('vakit-theme', state.theme);
+        }
+      });
+    });
+  }
+
+  function flushPrefs(){
+    storeSet('vakit-city', state.city);
+    storeSet('vakit-label', state.label);
+    storeSet('vakit-theme', state.theme);
+  }
+
+  loadPrefsSync();
 
   function pad(n){ return (n<10?'0':'')+n; }
   function now(){ return new Date(); }
@@ -670,17 +752,22 @@
 
   function bind(root){
     var city=root.querySelector('#city');
-    if(city) city.onchange=function(){
-      var opt=city.options[city.selectedIndex];
-      state.city=opt.value; state.label=opt.text;
-      storeSet('vakit-city', state.city);
-      storeSet('vakit-label', state.label);
-      load();
-    };
+    if(city){
+      var onCity=function(){
+        var opt=city.options[city.selectedIndex];
+        state.city=opt.value; state.label=opt.text;
+        flushPrefs();
+        load();
+      };
+      city.onchange=onCity;
+      city.addEventListener('input', onCity);
+    }
     var theme=root.querySelector('#theme');
-    if(theme) theme.onchange=function(){
-      setTheme(theme.value);
-    };
+    if(theme){
+      var onTheme=function(){ setTheme(theme.value); flushPrefs(); };
+      theme.onchange=onTheme;
+      theme.addEventListener('input', onTheme);
+    }
     var retry=root.querySelector('#retry');
     if(retry) retry.onclick=load;
     var tipClose=root.querySelector('#tipClose');
@@ -719,19 +806,11 @@
     });
   }
 
-  // Eski service worker Safari'de "redirections" hatası veriyor — öldür
+  // Eski service worker'ı kaldır (yeni SW kaydetme — Safari redirect hatası)
   function killServiceWorkers(){
     if(!('serviceWorker' in navigator)) return;
-    // Yeni sw.js kendini unregister eder; eski kontrolü de böyle güncellenir
-    navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(function(){});
     navigator.serviceWorker.getRegistrations().then(function(regs){
-      // Bir süre sonra hepsini temizle
-      setTimeout(function(){
-        regs.forEach(function(r){ r.unregister(); });
-        navigator.serviceWorker.getRegistrations().then(function(r2){
-          r2.forEach(function(r){ r.unregister(); });
-        });
-      }, 2500);
+      regs.forEach(function(r){ r.unregister(); });
     }).catch(function(){});
     if('caches' in window){
       caches.keys().then(function(keys){
@@ -761,9 +840,23 @@
     setTimeout(check, 4000);
   }
 
-  setTheme(state.theme); load(); setInterval(tick, 1000);
+  window.addEventListener('pagehide', flushPrefs);
+  window.addEventListener('beforeunload', flushPrefs);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='hidden') flushPrefs();
+  });
+
   killServiceWorkers();
-  watchForUpdates();
+  loadPrefsAsync().then(function(){
+    setTheme(state.theme);
+    load();
+    watchForUpdates();
+  }).catch(function(){
+    setTheme(state.theme);
+    load();
+    watchForUpdates();
+  });
+  setInterval(tick, 1000);
 })();
   </script>
 </body>
