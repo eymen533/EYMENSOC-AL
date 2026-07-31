@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#3db8e8" />
+  <title>Minik Kalem — Yazmayı Öğren!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --sky-top: #7dd3f0;
+      --sky-mid: #b8e8f8;
+      --sky-bot: #fff6e0;
+      --brand: #1a6b8a;
+      --ink: #1e3a4c;
+      --coral: #e85d4c;
+      --mint: #2bb673;
+      --sun: #f5a623;
+      --paper: #fffef8;
+      --shadow: 0 12px 28px rgba(26, 107, 138, 0.18);
+      --font-display: "Fredoka", system-ui, sans-serif;
+      --font-body: "Nunito", system-ui, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; min-height: 100%; height: 100%;
+      font-family: var(--font-body); color: var(--ink);
+      background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 42%, var(--sky-bot) 100%);
+      background-attachment: fixed; overflow-x: hidden; touch-action: manipulation;
+    }
+    #app {
+      position: relative; z-index: 1; min-height: 100dvh; max-width: 720px;
+      margin: 0 auto; padding: env(safe-area-inset-top) 0.85rem env(safe-area-inset-bottom);
+    }
+    .sky { pointer-events: none; position: fixed; inset: 0; overflow: hidden; z-index: 0; }
+    .cloud {
+      position: absolute; width: 120px; height: 40px; background: rgba(255,255,255,0.72);
+      border-radius: 40px; animation: drift 32s linear infinite;
+    }
+    .cloud::before, .cloud::after { content: ""; position: absolute; background: inherit; border-radius: 50%; }
+    .cloud::before { width: 50px; height: 50px; top: -24px; left: 18px; }
+    .cloud::after { width: 70px; height: 70px; top: -34px; left: 48px; }
+    .c1 { top: 8%; left: -10%; }
+    .c2 { top: 22%; left: 45%; width: 90px; animation-duration: 40s; animation-delay: -10s; }
+    .balloon {
+      position: absolute; width: 28px; height: 36px;
+      border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%;
+      animation: floaty 7s ease-in-out infinite;
+    }
+    .balloon::after {
+      content: ""; position: absolute; left: 50%; top: 100%; width: 1.5px; height: 40px;
+      background: rgba(30,58,76,0.25); transform: translateX(-50%);
+    }
+    .b1 { top: 16%; right: 10%; background: var(--coral); }
+    .b2 { top: 42%; left: 8%; background: var(--sun); animation-delay: -3s; }
+    @keyframes drift { to { transform: translateX(120vw); } }
+    @keyframes floaty {
+      0%, 100% { transform: translateY(0) rotate(-4deg); }
+      50% { transform: translateY(-16px) rotate(4deg); }
+    }
+    .screen { display: none; animation: rise 0.4s ease both; }
+    .screen.active {
+      display: flex; flex-direction: column; gap: 0.9rem;
+      min-height: calc(100dvh - 0.5rem); padding-bottom: 1rem;
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .hero { text-align: center; padding: 2rem 0.4rem 0.2rem; }
+    .brand {
+      margin: 0; font-family: var(--font-display); font-weight: 700;
+      font-size: clamp(2.8rem, 12vw, 4.2rem); line-height: 1; color: var(--brand);
+      text-shadow: 0 4px 0 rgba(255,255,255,0.55);
+    }
+    .hero h1 {
+      margin: 0.7rem 0 0.35rem; font-family: var(--font-display); font-weight: 600;
+      font-size: clamp(1.3rem, 4.5vw, 1.7rem);
+    }
+    .tagline { margin: 0 auto; max-width: 22rem; color: rgba(30,58,76,0.78); }
+    .home-actions { display: grid; gap: 0.85rem; }
+    .big-btn {
+      appearance: none; border: none; border-radius: 1.6rem; padding: 1.25rem 1.3rem;
+      text-align: left; cursor: pointer; color: #fff; box-shadow: var(--shadow);
+      display: grid; grid-template-columns: auto 1fr; column-gap: 1rem; align-items: center;
+    }
+    .big-btn:active { transform: scale(0.97); }
+    .big-btn.letters { background: linear-gradient(135deg, #3db8e8, #2a8fc4); }
+    .big-btn.numbers { background: linear-gradient(135deg, #f0a03a, #e85d4c); }
+    .btn-icon {
+      width: 3.6rem; height: 3.6rem; border-radius: 1.1rem; background: rgba(255,255,255,0.22);
+      display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 1.4rem;
+    }
+    .btn-label { font-family: var(--font-display); font-size: 1.55rem; font-weight: 600; display: block; }
+    .btn-sub { opacity: 0.92; }
+    .stars-summary { text-align: center; font-weight: 800; font-size: 1.15rem; margin-top: auto; color: var(--brand); }
+    .top-bar { display: flex; align-items: center; gap: 0.6rem; padding-top: 0.5rem; }
+    .top-bar h2 { margin: 0; flex: 1; text-align: center; font-family: var(--font-display); font-size: 1.45rem; }
+    .spacer { width: 2.75rem; }
+    .icon-btn {
+      appearance: none; width: 2.75rem; height: 2.75rem; border: none; border-radius: 1rem;
+      background: rgba(255,255,255,0.8); color: var(--ink); font-size: 1.35rem; font-weight: 700;
+      cursor: pointer; box-shadow: 0 4px 12px rgba(26,107,138,0.12);
+    }
+    .current-char-wrap { flex: 1; text-align: center; }
+    .current-label {
+      display: block; font-size: 0.78rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.05em; color: rgba(30,58,76,0.55);
+    }
+    .current-char {
+      font-family: var(--font-display); font-size: clamp(3rem, 14vw, 4.4rem);
+      font-weight: 700; color: var(--brand); line-height: 1;
+    }
+    .star-count { min-width: 3.4rem; text-align: right; font-weight: 800; font-size: 1.1rem; }
+    .voice-hint {
+      margin: 0; padding: 0.85rem 1rem; border-radius: 1.15rem;
+      background: rgba(255,255,255,0.85); box-shadow: 0 4px 14px rgba(26,107,138,0.1);
+      font-weight: 800; font-size: clamp(1.1rem, 4vw, 1.35rem); line-height: 1.35;
+      text-align: center; color: var(--brand);
+    }
+    .voice-hint.speaking { outline: 3px solid rgba(46,182,115,0.45); }
+    .pick-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(5.4rem, 1fr));
+      gap: 0.8rem; padding-bottom: 1rem;
+    }
+    .char-btn {
+      appearance: none; border: none; aspect-ratio: 1; border-radius: 1.25rem;
+      background: var(--paper); font-family: var(--font-display);
+      font-size: clamp(2.3rem, 9vw, 3rem); font-weight: 700; cursor: pointer;
+      box-shadow: 0 6px 16px rgba(26,107,138,0.12); position: relative;
+    }
+    .char-btn:nth-child(5n+1) { color: #c44b3c; }
+    .char-btn:nth-child(5n+2) { color: #1f7a56; }
+    .char-btn:nth-child(5n+3) { color: #1f6fb5; }
+    .char-btn:nth-child(5n+4) { color: #c47a12; }
+    .char-btn:nth-child(5n+5) { color: #7a4a2b; }
+    .char-btn.done::after {
+      content: "★"; position: absolute; top: 0.2rem; right: 0.35rem;
+      font-size: 0.85rem; color: var(--sun);
+    }
+    .canvas-stage {
+      position: relative; flex: 1; min-height: min(64vh, 680px); border-radius: 1.7rem;
+      background:
+        linear-gradient(180deg, transparent 0 32%, rgba(232,93,76,0.14) 32% 33.2%, transparent 33.2%),
+        linear-gradient(180deg, transparent 0 66%, rgba(59,130,246,0.16) 66% 67.2%, transparent 67.2%),
+        var(--paper);
+      box-shadow: var(--shadow), inset 0 0 0 3px rgba(255,255,255,0.7);
+      overflow: hidden; touch-action: none;
+    }
+    #guideCanvas, #drawCanvas {
+      position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+    }
+    #guideCanvas { pointer-events: none; z-index: 1; }
+    #drawCanvas { z-index: 2; touch-action: none; cursor: crosshair; }
+    .celebrate {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      background: rgba(255,250,240,0.6); z-index: 5;
+    }
+    .celebrate[hidden] { display: none !important; }
+    .celebrate-text {
+      margin: 0; font-family: var(--font-display); font-size: clamp(2.2rem, 9vw, 3.2rem);
+      font-weight: 700; color: var(--coral); text-shadow: 0 3px 0 rgba(255,255,255,0.85); z-index: 1;
+    }
+    .burst { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .burst i {
+      position: absolute; top: 50%; left: 50%; width: 14px; height: 14px; border-radius: 50%;
+      animation: spark 0.95s ease-out forwards;
+    }
+    @keyframes spark {
+      to { transform: translate(var(--x), var(--y)) scale(0.2); opacity: 0; }
+    }
+    .palette { display: flex; justify-content: center; gap: 0.6rem; flex-wrap: wrap; }
+    .swatch {
+      appearance: none; width: 2.7rem; height: 2.7rem; border-radius: 50%;
+      border: 3px solid #fff; background: var(--c); cursor: pointer;
+      box-shadow: 0 4px 10px rgba(30,58,76,0.18);
+    }
+    .swatch.active { transform: scale(1.18); box-shadow: 0 0 0 3px var(--c), 0 6px 14px rgba(30,58,76,0.2); }
+    .write-actions { display: grid; grid-template-columns: 1fr 1fr 1.3fr 1fr; gap: 0.5rem; }
+    .action-btn {
+      appearance: none; border: none; border-radius: 1.1rem; padding: 0.95rem 0.4rem;
+      font-family: var(--font-body); font-weight: 800; font-size: 0.98rem;
+      background: rgba(255,255,255,0.85); color: var(--ink); cursor: pointer;
+      box-shadow: 0 4px 12px rgba(26,107,138,0.12);
+    }
+    .action-btn.primary { background: linear-gradient(135deg, var(--mint), #1f9a5f); color: #fff; }
+    .action-btn:active { transform: scale(0.96); }
+    @media (max-width: 540px) {
+      .write-actions { grid-template-columns: 1fr 1fr; }
+      .action-btn.primary { grid-column: 1 / -1; order: -1; }
+      .pick-grid { grid-template-columns: repeat(auto-fill, minmax(4.6rem, 1fr)); }
+    }
+    @media (min-width: 640px) {
+      .home-actions { grid-template-columns: 1fr 1fr; }
+      .canvas-stage { min-height: 680px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sky" aria-hidden="true">
+    <span class="cloud c1"></span>
+    <span class="cloud c2"></span>
+    <span class="balloon b1"></span>
+    <span class="balloon b2"></span>
+  </div>
+
+  <div id="app">
+    <section id="home" class="screen active">
+      <header class="hero">
+        <p class="brand">Minik Kalem</p>
+        <h1>Yazmayı öğrenelim!</h1>
+        <p class="tagline">Büyük harfleri ve rakamları çiz, sesli yönergeyi dinle, yıldız topla.</p>
+        <button type="button" class="action-btn primary" id="btnEnableSound" style="margin:1rem auto 0;display:block;max-width:16rem;">🔊 Sesi aç</button>
+      </header>
+      <div class="home-actions">
+        <button type="button" class="big-btn letters" id="btnLetters">
+          <span class="btn-icon">Aa</span>
+          <span><span class="btn-label">Harfler</span><span class="btn-sub">Türk alfabesi</span></span>
+        </button>
+        <button type="button" class="big-btn numbers" id="btnNumbers">
+          <span class="btn-icon">123</span>
+          <span><span class="btn-label">Rakamlar</span><span class="btn-sub">0'dan 9'a</span></span>
+        </button>
+      </div>
+      <p class="stars-summary" id="starsSummary">⭐ 0 yıldız</p>
+    </section>
+
+    <section id="pick" class="screen">
+      <header class="top-bar">
+        <button type="button" class="icon-btn" id="backHome" aria-label="Geri">←</button>
+        <h2 id="pickTitle">Harfler</h2>
+        <span class="spacer"></span>
+      </header>
+      <div class="pick-grid" id="pickGrid"></div>
+    </section>
+
+    <section id="write" class="screen">
+      <header class="top-bar">
+        <button type="button" class="icon-btn" id="backPick" aria-label="Geri">←</button>
+        <div class="current-char-wrap">
+          <span class="current-label">Şimdi yaz</span>
+          <span class="current-char" id="currentChar">A</span>
+        </div>
+        <div class="star-count" id="starCount">⭐ 0</div>
+      </header>
+      <p class="voice-hint" id="voiceHint">Parmağınla büyük harfin üzerinden geç.</p>
+      <div class="canvas-stage" id="stage">
+        <canvas id="guideCanvas"></canvas>
+        <canvas id="drawCanvas"></canvas>
+        <div class="celebrate" id="celebrate" hidden>
+          <p class="celebrate-text" id="celebrateText">Harikasın!</p>
+          <div class="burst" id="burst"></div>
+        </div>
+      </div>
+      <div class="palette" id="palette">
+        <button type="button" class="swatch active" data-color="#e85d4c" style="--c:#e85d4c" aria-label="Kırmızı"></button>
+        <button type="button" class="swatch" data-color="#2bb673" style="--c:#2bb673" aria-label="Yeşil"></button>
+        <button type="button" class="swatch" data-color="#3b82f6" style="--c:#3b82f6" aria-label="Mavi"></button>
+        <button type="button" class="swatch" data-color="#f5a623" style="--c:#f5a623" aria-label="Sarı"></button>
+        <button type="button" class="swatch" data-color="#8b5e3c" style="--c:#8b5e3c" aria-label="Kahve"></button>
+        <button type="button" class="swatch" data-color="#1f2937" style="--c:#1f2937" aria-label="Siyah"></button>
+      </div>
+      <div class="write-actions">
+        <button type="button" class="action-btn" id="btnClear">Temizle</button>
+        <button type="button" class="action-btn" id="btnListen">🔊 Dinle</button>
+        <button type="button" class="action-btn primary" id="btnDone">Bitti ⭐</button>
+        <button type="button" class="action-btn" id="btnNext">Sonraki →</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+(function () {
+  "use strict";
+
+  var LETTERS = ["A","B","C","Ç","D","E","F","G","Ğ","H","I","İ","J","K","L","M","N","O","Ö","P","R","S","Ş","T","U","Ü","V","Y","Z"];
+  var NUMBERS = ["0","1","2","3","4","5","6","7","8","9"];
+  var PRAISE = ["Harikasın!", "Süpersin!", "Aferin!", "Çok güzel!", "Bravo!", "Muhteşem!"];
+  var SAY = { "Ç": "çe", "Ğ": "yumuşak ge", "I": "ı", "İ": "i", "Ö": "ö", "Ş": "şe", "Ü": "ü" };
+  var KEY = "minik-kalem-v2";
+
+  // Very generous for small kids
+  var PASS_COVER = 0.14;
+  var PASS_OUTSIDE = 0.82;
+  var MIN_INK = 0.0025;
+
+  var state = {
+    mode: "letters",
+    chars: LETTERS,
+    index: 0,
+    color: "#e85d4c",
+    drawing: false,
+    hasInk: false,
+    inkPixels: 0,
+    stars: 0,
+    completed: {},
+    locked: false,
+    checkTimer: null,
+    audioCtx: null,
+    lastX: 0,
+    lastY: 0
+  };
+
+  var home = document.getElementById("home");
+  var pick = document.getElementById("pick");
+  var write = document.getElementById("write");
+  var pickGrid = document.getElementById("pickGrid");
+  var pickTitle = document.getElementById("pickTitle");
+  var currentChar = document.getElementById("currentChar");
+  var voiceHint = document.getElementById("voiceHint");
+  var starCount = document.getElementById("starCount");
+  var starsSummary = document.getElementById("starsSummary");
+  var stage = document.getElementById("stage");
+  var guideCanvas = document.getElementById("guideCanvas");
+  var drawCanvas = document.getElementById("drawCanvas");
+  var celebrate = document.getElementById("celebrate");
+  var celebrateText = document.getElementById("celebrateText");
+  var burst = document.getElementById("burst");
+  var guideCtx = guideCanvas.getContext("2d", { willReadFrequently: true });
+  var drawCtx = drawCanvas.getContext("2d", { willReadFrequently: true });
+  var mask = document.createElement("canvas");
+  var maskCtx = mask.getContext("2d", { willReadFrequently: true });
+  var ttsAudio = new Audio();
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      state.stars = data.stars || 0;
+      state.completed = data.completed || {};
+    } catch (e) {}
+    updateStars();
+  }
+
+  function save() {
+    localStorage.setItem(KEY, JSON.stringify({ stars: state.stars, completed: state.completed }));
+  }
+
+  function updateStars() {
+    starCount.textContent = "⭐ " + state.stars;
+    starsSummary.textContent = "⭐ " + state.stars + " yıldız";
+  }
+
+  function show(name) {
+    home.classList.toggle("active", name === "home");
+    pick.classList.toggle("active", name === "pick");
+    write.classList.toggle("active", name === "write");
+  }
+
+  function setHint(text) {
+    voiceHint.textContent = text;
+  }
+
+  function sayName(ch) {
+    return SAY[ch] || String(ch).toLowerCase();
+  }
+
+  function instruction(ch) {
+    if (state.mode === "numbers") {
+      return sayName(ch) + " rakamını yaz. Büyük çizginin üzerinden geç.";
+    }
+    return sayName(ch) + " harfini yaz. Büyük çizginin üzerinden geç.";
+  }
+
+  function unlockAudio() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!state.audioCtx) state.audioCtx = new AC();
+      if (state.audioCtx.state === "suspended") state.audioCtx.resume();
+    } catch (e) {}
+    try { window.speechSynthesis && window.speechSynthesis.getVoices(); } catch (e2) {}
+  }
+
+  function beep(freq, dur, type, gain) {
+    try {
+      unlockAudio();
+      if (!state.audioCtx) return;
+      var o = state.audioCtx.createOscillator();
+      var g = state.audioCtx.createGain();
+      o.type = type || "sine";
+      o.frequency.value = freq;
+      g.gain.value = gain || 0.07;
+      g.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + (dur || 0.12));
+      o.connect(g); g.connect(state.audioCtx.destination);
+      o.start(); o.stop(state.audioCtx.currentTime + (dur || 0.12));
+    } catch (e) {}
+  }
+
+  function successBeeps() {
+    beep(523, 0.1, "triangle", 0.08);
+    setTimeout(function () { beep(659, 0.1, "triangle", 0.08); }, 90);
+    setTimeout(function () { beep(784, 0.2, "triangle", 0.09); }, 180);
+  }
+
+  function pickVoice() {
+    var voices = [];
+    try { voices = window.speechSynthesis.getVoices() || []; } catch (e) {}
+    var i, v;
+    for (i = 0; i < voices.length; i++) {
+      v = voices[i];
+      if ((v.lang || "").toLowerCase().indexOf("tr") === 0) return v;
+    }
+    for (i = 0; i < voices.length; i++) {
+      v = voices[i];
+      if (/turk|türk/i.test(v.name || "")) return v;
+    }
+    return voices[0] || null;
+  }
+
+  function speakSynth(text) {
+    return new Promise(function (resolve) {
+      if (!window.speechSynthesis) { resolve(false); return; }
+      try {
+        // Chrome/Android: cancel + immediate speak often fails; tiny delay helps
+        try { window.speechSynthesis.cancel(); } catch (e0) {}
+        voiceHint.classList.add("speaking");
+        setTimeout(function () {
+          try {
+            var u = new SpeechSynthesisUtterance(text);
+            u.lang = "tr-TR";
+            u.rate = 0.88;
+            u.pitch = 1.05;
+            u.volume = 1;
+            var voice = pickVoice();
+            if (voice) {
+              u.voice = voice;
+              if (voice.lang) u.lang = voice.lang;
+            }
+            var done = false;
+            function finish(ok) {
+              if (done) return;
+              done = true;
+              voiceHint.classList.remove("speaking");
+              resolve(ok);
+            }
+            u.onend = function () { finish(true); };
+            u.onerror = function () { finish(false); };
+            window.speechSynthesis.speak(u);
+            // Some mobile browsers pause speechSynthesis until resumed
+            setTimeout(function () {
+              try {
+                if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+              } catch (e1) {}
+            }, 250);
+            setTimeout(function () { finish(true); }, Math.min(14000, 2000 + text.length * 100));
+          } catch (e2) {
+            voiceHint.classList.remove("speaking");
+            resolve(false);
+          }
+        }, 60);
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  function speakAudioFallback(text) {
+    return new Promise(function (resolve) {
+      try {
+        ttsAudio.pause();
+        var url = "https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=tr&q=" + encodeURIComponent(text);
+        ttsAudio = new Audio(url);
+        ttsAudio.preload = "auto";
+        voiceHint.classList.add("speaking");
+        var finished = false;
+        function end() {
+          if (finished) return;
+          finished = true;
+          voiceHint.classList.remove("speaking");
+          resolve(true);
+        }
+        ttsAudio.onended = end;
+        ttsAudio.onerror = function () {
+          voiceHint.classList.remove("speaking");
+          resolve(false);
+        };
+        var p = ttsAudio.play();
+        if (p && p.catch) {
+          p.catch(function () {
+            voiceHint.classList.remove("speaking");
+            resolve(false);
+          });
+        }
+        setTimeout(end, Math.min(12000, 2000 + text.length * 80));
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  function speak(text) {
+    setHint(text);
+    unlockAudio();
+    return speakSynth(text).then(function (ok) {
+      if (ok) return true;
+      return speakAudioFallback(text);
+    });
+  }
+
+  function fontSize(w, h) {
+    return Math.min(w, h) * 0.95;
+  }
+
+  function penSize() {
+    return Math.max(22, Math.min(drawCanvas.clientWidth, drawCanvas.clientHeight) * 0.055);
+  }
+
+  function paintLetter(ctx, ch, w, h, opts) {
+    var size = fontSize(w, h);
+    ctx.save();
+    ctx.font = "700 " + size + "px Fredoka, Nunito, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    var y = h / 2 + size * 0.02;
+    if (opts.fill) {
+      ctx.fillStyle = opts.fill;
+      ctx.fillText(ch, w / 2, y);
+    }
+    if (opts.stroke) {
+      ctx.strokeStyle = opts.stroke;
+      ctx.lineWidth = opts.lineWidth || Math.max(8, size * 0.05);
+      if (opts.dash) ctx.setLineDash(opts.dash);
+      ctx.strokeText(ch, w / 2, y);
+    }
+    ctx.restore();
+  }
+
+  function rebuildMask(w, h, dpr, ch) {
+    mask.width = Math.floor(w * dpr);
+    mask.height = Math.floor(h * dpr);
+    maskCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    maskCtx.clearRect(0, 0, w, h);
+    var size = fontSize(w, h);
+    paintLetter(maskCtx, ch, w, h, {
+      fill: "#000",
+      stroke: "#000",
+      lineWidth: Math.max(36, size * 0.16)
+    });
+  }
+
+  function drawGuide() {
+    var w = guideCanvas.clientWidth;
+    var h = guideCanvas.clientHeight;
+    if (!w || !h) return;
+    var ch = state.chars[state.index];
+    var size = fontSize(w, h);
+    guideCtx.clearRect(0, 0, w, h);
+    paintLetter(guideCtx, ch, w, h, { fill: "rgba(26,107,138,0.10)" });
+    paintLetter(guideCtx, ch, w, h, {
+      stroke: "rgba(26,107,138,0.48)",
+      lineWidth: Math.max(10, size * 0.06),
+      dash: [18, 14]
+    });
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    rebuildMask(w, h, dpr, ch);
+  }
+
+  function resizeCanvases() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = stage.clientWidth;
+    var h = stage.clientHeight;
+    if (!w || !h) return;
+    [guideCanvas, drawCanvas].forEach(function (c) {
+      c.width = Math.floor(w * dpr);
+      c.height = Math.floor(h * dpr);
+      c.style.width = w + "px";
+      c.style.height = h + "px";
+      c.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+    });
+    drawGuide();
+    clearInk(false);
+  }
+
+  function clearInk(reset) {
+    drawCtx.clearRect(0, 0, drawCanvas.clientWidth, drawCanvas.clientHeight);
+    if (reset !== false) {
+      state.hasInk = false;
+      state.inkPixels = 0;
+    }
+    celebrate.hidden = true;
+  }
+
+  function pos(e) {
+    var rect = drawCanvas.getBoundingClientRect();
+    var p = e.touches && e.touches[0] ? e.touches[0] : e;
+    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+  }
+
+  function startDraw(e) {
+    if (state.locked) return;
+    e.preventDefault();
+    unlockAudio();
+    state.drawing = true;
+    var p = pos(e);
+    state.lastX = p.x; state.lastY = p.y;
+    drawCtx.beginPath();
+    drawCtx.lineCap = "round";
+    drawCtx.lineJoin = "round";
+    drawCtx.strokeStyle = state.color;
+    drawCtx.lineWidth = penSize();
+    drawCtx.moveTo(p.x, p.y);
+    drawCtx.lineTo(p.x + 0.1, p.y + 0.1);
+    drawCtx.stroke();
+    state.hasInk = true;
+    beep(360, 0.04, "sine", 0.03);
+  }
+
+  function moveDraw(e) {
+    if (!state.drawing || state.locked) return;
+    e.preventDefault();
+    var p = pos(e);
+    drawCtx.beginPath();
+    drawCtx.moveTo(state.lastX, state.lastY);
+    drawCtx.lineTo(p.x, p.y);
+    drawCtx.stroke();
+    state.lastX = p.x; state.lastY = p.y;
+  }
+
+  function endDraw(e) {
+    if (!state.drawing) return;
+    e.preventDefault();
+    state.drawing = false;
+    scheduleCheck();
+  }
+
+  function score() {
+    var w = drawCanvas.width;
+    var h = drawCanvas.height;
+    if (!w || !h || mask.width !== w || mask.height !== h) {
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      rebuildMask(drawCanvas.clientWidth, drawCanvas.clientHeight, dpr, state.chars[state.index]);
+    }
+    if (mask.width !== w || mask.height !== h) return { pass: false };
+
+    var drawData = drawCtx.getImageData(0, 0, w, h).data;
+    var maskData = maskCtx.getImageData(0, 0, w, h).data;
+    var maskPixels = 0, hits = 0, ink = 0, outside = 0;
+    for (var i = 0; i < drawData.length; i += 4) {
+      var on = maskData[i + 3] > 30;
+      var painted = drawData[i + 3] > 30;
+      if (on) {
+        maskPixels++;
+        if (painted) hits++;
+      }
+      if (painted) {
+        ink++;
+        if (!on) outside++;
+      }
+    }
+    var inkRatio = ink / (w * h);
+    var cover = maskPixels ? hits / maskPixels : 0;
+    var out = ink ? outside / ink : 1;
+    state.inkPixels = ink;
+    return {
+      pass: inkRatio >= MIN_INK && cover >= PASS_COVER && out <= PASS_OUTSIDE,
+      cover: cover,
+      out: out,
+      inkRatio: inkRatio
+    };
+  }
+
+  function scheduleCheck() {
+    clearTimeout(state.checkTimer);
+    state.checkTimer = setTimeout(function () {
+      if (state.locked || state.drawing) return;
+      var s = score();
+      if (s.pass) onSuccess();
+    }, 500);
+  }
+
+  function renderPick() {
+    pickGrid.innerHTML = "";
+    state.chars.forEach(function (ch, i) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "char-btn" + (state.completed[state.mode + ":" + ch] ? " done" : "");
+      btn.textContent = ch;
+      btn.addEventListener("click", function () { openWrite(i); });
+      pickGrid.appendChild(btn);
+    });
+  }
+
+  function openPick(mode) {
+    unlockAudio();
+    state.mode = mode;
+    state.chars = mode === "letters" ? LETTERS : NUMBERS;
+    pickTitle.textContent = mode === "letters" ? "Harfler" : "Rakamlar";
+    renderPick();
+    show("pick");
+    var msg = mode === "letters"
+      ? "Harf seç. Büyük harfleri yazacağız."
+      : "Rakam seç. Büyük rakamları yazacağız.";
+    speak(msg);
+  }
+
+  function openWrite(index) {
+    unlockAudio();
+    state.index = index;
+    state.locked = false;
+    currentChar.textContent = state.chars[index];
+    show("write");
+    function ready() {
+      resizeCanvases();
+      clearInk(true);
+      speak(instruction(state.chars[index]));
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () {
+        requestAnimationFrame(ready);
+      });
+    } else {
+      requestAnimationFrame(ready);
+    }
+  }
+
+  function goNext() {
+    state.index = (state.index + 1) % state.chars.length;
+    currentChar.textContent = state.chars[state.index];
+    clearInk(true);
+    drawGuide();
+    state.locked = false;
+    return speak(instruction(state.chars[state.index]));
+  }
+
+  function sparkles() {
+    burst.innerHTML = "";
+    var colors = ["#e85d4c", "#f5a623", "#2bb673", "#3b82f6", "#fff"];
+    for (var i = 0; i < 24; i++) {
+      var el = document.createElement("i");
+      var ang = (Math.PI * 2 * i) / 24;
+      var dist = 80 + Math.random() * 130;
+      el.style.setProperty("--x", Math.cos(ang) * dist + "px");
+      el.style.setProperty("--y", Math.sin(ang) * dist + "px");
+      el.style.background = colors[i % colors.length];
+      burst.appendChild(el);
+    }
+  }
+
+  function onSuccess() {
+    if (state.locked) return;
+    state.locked = true;
+    clearTimeout(state.checkTimer);
+
+    var ch = state.chars[state.index];
+    var key = state.mode + ":" + ch;
+    if (!state.completed[key]) {
+      state.completed[key] = 1;
+      state.stars += 1;
+      save();
+      updateStars();
+    }
+
+    var praise = PRAISE[Math.floor(Math.random() * PRAISE.length)];
+    celebrateText.textContent = praise;
+    celebrate.hidden = false;
+    sparkles();
+    successBeeps();
+
+    speak(praise + " Doğru yazdın. Şimdi sıradaki.").then(function () {
+      celebrate.hidden = true;
+      return goNext();
+    });
+  }
+
+  function onDone() {
+    if (state.locked) return;
+    unlockAudio();
+    if (!state.hasInk) {
+      speak("Biraz yaz bakalım. Büyük çizginin üzerinden geç.");
+      return;
+    }
+    var s = score();
+    // For kids: if they drew a decent amount, accept even if a bit messy
+    if (s.pass || (s.inkRatio > 0.01 && s.cover > 0.08)) {
+      onSuccess();
+      return;
+    }
+    speak("Tekrar dene. Harfin çizgilerinin üzerinden geç.");
+  }
+
+  // Events
+  document.getElementById("btnLetters").addEventListener("click", function () { openPick("letters"); });
+  document.getElementById("btnNumbers").addEventListener("click", function () { openPick("numbers"); });
+  document.getElementById("backHome").addEventListener("click", function () {
+    state.locked = false;
+    try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {}
+    show("home");
+    updateStars();
+  });
+  document.getElementById("backPick").addEventListener("click", function () {
+    state.locked = false;
+    try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {}
+    renderPick();
+    show("pick");
+  });
+  document.getElementById("btnClear").addEventListener("click", function () {
+    if (state.locked) return;
+    clearInk(true);
+    speak("Temizledim. Yeniden yaz.");
+  });
+  document.getElementById("btnListen").addEventListener("click", function () {
+    if (state.locked) return;
+    speak(instruction(state.chars[state.index]));
+  });
+  document.getElementById("btnDone").addEventListener("click", onDone);
+  document.getElementById("btnNext").addEventListener("click", function () {
+    if (state.locked) return;
+    state.locked = true;
+    goNext().then(function () { state.locked = false; });
+  });
+
+  document.querySelectorAll(".swatch").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll(".swatch").forEach(function (s) { s.classList.remove("active"); });
+      btn.classList.add("active");
+      state.color = btn.getAttribute("data-color");
+    });
+  });
+
+  drawCanvas.addEventListener("mousedown", startDraw);
+  drawCanvas.addEventListener("mousemove", moveDraw);
+  drawCanvas.addEventListener("mouseup", endDraw);
+  drawCanvas.addEventListener("mouseleave", endDraw);
+  drawCanvas.addEventListener("touchstart", startDraw, { passive: false });
+  drawCanvas.addEventListener("touchmove", moveDraw, { passive: false });
+  drawCanvas.addEventListener("touchend", endDraw, { passive: false });
+  drawCanvas.addEventListener("touchcancel", endDraw, { passive: false });
+
+  window.addEventListener("resize", function () {
+    if (write.classList.contains("active")) resizeCanvases();
+  });
+
+  document.body.addEventListener("touchmove", function (e) {
+    if (state.drawing) e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener("pointerdown", unlockAudio);
+  document.getElementById("btnEnableSound").addEventListener("click", function () {
+    unlockAudio();
+    speak("Ses açıldı. Harf veya rakam seçerek başla.");
+  });
+  if (window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = function () { pickVoice(); };
+    window.speechSynthesis.getVoices();
+  }
+
+  load();
+  setHint("Önce “Sesi aç”a bas, sonra harf veya rakam seç.");
+})();
+  </script>
+</body>
+</html>
