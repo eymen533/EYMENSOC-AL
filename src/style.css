@@ -318,10 +318,23 @@ body {
 
 .current-char {
   font-family: var(--font-display);
-  font-size: 2.2rem;
+  font-size: clamp(2.8rem, 12vw, 4rem);
   font-weight: 700;
   color: var(--brand);
   line-height: 1;
+}
+
+.voice-hint {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 4px 14px rgba(26, 107, 138, 0.1);
+  font-weight: 800;
+  font-size: clamp(1.05rem, 3.6vw, 1.25rem);
+  line-height: 1.35;
+  text-align: center;
+  color: var(--brand);
 }
 
 .star-count {
@@ -334,8 +347,8 @@ body {
 /* Pick grid */
 .pick-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(4.25rem, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(5.25rem, 1fr));
+  gap: 0.85rem;
   padding-bottom: 1rem;
 }
 
@@ -343,12 +356,12 @@ body {
   appearance: none;
   border: none;
   aspect-ratio: 1;
-  border-radius: 1.15rem;
+  border-radius: 1.25rem;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 1.85rem;
-  font-weight: 600;
+  font-size: clamp(2.1rem, 8vw, 2.75rem);
+  font-weight: 700;
   cursor: pointer;
   box-shadow: 0 6px 16px rgba(26, 107, 138, 0.12);
   transition: transform 0.12s ease, background 0.2s ease;
@@ -378,7 +391,7 @@ body {
 .canvas-stage {
   position: relative;
   flex: 1;
-  min-height: min(58vh, 520px);
+  min-height: min(62vh, 640px);
   border-radius: calc(var(--radius) + 0.35rem);
   background:
     linear-gradient(180deg, transparent 0 32%, rgba(232, 93, 76, 0.12) 32% 33%, transparent 33%),
@@ -485,8 +498,8 @@ body {
 
 .write-actions {
   display: grid;
-  grid-template-columns: 1fr 1.2fr 1fr;
-  gap: 0.65rem;
+  grid-template-columns: 1fr 1fr 1.25fr 1fr;
+  gap: 0.55rem;
 }
 
 .action-btn {
@@ -512,7 +525,7 @@ body {
   transform: scale(0.96);
 }
 
-@media (max-width: 420px) {
+@media (max-width: 520px) {
   .write-actions {
     grid-template-columns: 1fr 1fr;
   }
@@ -523,7 +536,7 @@ body {
   }
 
   .pick-grid {
-    grid-template-columns: repeat(auto-fill, minmax(3.75rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
   }
 }
 
@@ -533,6 +546,6 @@ body {
   }
 
   .canvas-stage {
-    min-height: 520px;
+    min-height: 640px;
   }
 }

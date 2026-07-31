@@ -64,6 +64,8 @@
           <div class="star-count" id="star-count" aria-live="polite">⭐ 0</div>
         </header>
 
+        <p class="voice-hint" id="voice-hint" aria-live="polite">Harf veya rakam seçerek başla.</p>
+
         <div class="canvas-stage">
           <canvas id="guide-canvas" aria-hidden="true"></canvas>
           <canvas id="draw-canvas" aria-label="Yazma alanı — parmağınla çiz"></canvas>
@@ -84,6 +86,7 @@
 
         <div class="write-actions">
           <button type="button" class="action-btn" id="btn-clear">Temizle</button>
+          <button type="button" class="action-btn" id="btn-repeat" aria-label="Yönergeyi tekrarla">🔊 Dinle</button>
           <button type="button" class="action-btn primary" id="btn-done">Bitti ⭐</button>
           <button type="button" class="action-btn" id="btn-next">Sonraki →</button>
         </div>

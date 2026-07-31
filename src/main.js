@@ -15,7 +15,22 @@ const PRAISE = [
   "Muhteşem!",
 ];
 
+const CHAR_SAY = {
+  Ç: "çe",
+  Ğ: "yumuşak ge",
+  I: "ı",
+  İ: "i",
+  Ö: "ö",
+  Ş: "şe",
+  Ü: "ü",
+};
+
 const STORAGE_KEY = "minik-kalem-stars-v1";
+
+/** Kids-friendly thresholds: generous coverage, allow some stray ink */
+const PASS_COVER = 0.32;
+const PASS_OUTSIDE = 0.55;
+const MIN_INK_RATIO = 0.004;
 
 const state = {
   mode: "letters",
@@ -26,6 +41,9 @@ const state = {
   hasInk: false,
   stars: 0,
   completed: new Set(),
+  locked: false,
+  checkTimer: null,
+  voicesReady: false,
 };
 
 const els = {
@@ -39,6 +57,7 @@ const els = {
   currentChar: document.getElementById("current-char"),
   starCount: document.getElementById("star-count"),
   starsSummary: document.getElementById("stars-summary"),
+  voiceHint: document.getElementById("voice-hint"),
   guide: document.getElementById("guide-canvas"),
   draw: document.getElementById("draw-canvas"),
   celebrate: document.getElementById("celebrate"),
@@ -46,8 +65,10 @@ const els = {
   burst: document.querySelector(".burst"),
 };
 
-const guideCtx = els.guide.getContext("2d");
-const drawCtx = els.draw.getContext("2d");
+const guideCtx = els.guide.getContext("2d", { willReadFrequently: true });
+const drawCtx = els.draw.getContext("2d", { willReadFrequently: true });
+const maskCanvas = document.createElement("canvas");
+const maskCtx = maskCanvas.getContext("2d", { willReadFrequently: true });
 
 function loadProgress() {
   try {
@@ -83,6 +104,61 @@ function showScreen(name) {
   });
 }
 
+function setHint(text) {
+  if (els.voiceHint) els.voiceHint.textContent = text;
+}
+
+function sayChar(ch) {
+  return CHAR_SAY[ch] || ch.toLowerCase();
+}
+
+function instructionFor(ch) {
+  if (state.mode === "numbers") {
+    return `${sayChar(ch)} rakamını yaz. Büyük çizgilerin üzerinden geç.`;
+  }
+  return `${sayChar(ch)} harfini yaz. Büyük çizgilerin üzerinden geç.`;
+}
+
+function pickTurkishVoice() {
+  const voices = window.speechSynthesis?.getVoices?.() || [];
+  return (
+    voices.find((v) => v.lang?.toLowerCase().startsWith("tr")) ||
+    voices.find((v) => /turkish|türkçe|turk/i.test(v.name)) ||
+    voices.find((v) => v.lang?.toLowerCase().startsWith("en")) ||
+    voices[0] ||
+    null
+  );
+}
+
+function speak(text, { rate = 0.92, interrupt = true } = {}) {
+  return new Promise((resolve) => {
+    if (!window.speechSynthesis) {
+      resolve();
+      return;
+    }
+    if (interrupt) window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "tr-TR";
+    u.rate = rate;
+    u.pitch = 1.08;
+    const voice = pickTurkishVoice();
+    if (voice) u.voice = voice;
+    u.onend = () => resolve();
+    u.onerror = () => resolve();
+    window.speechSynthesis.speak(u);
+  });
+}
+
+function warmVoices() {
+  if (!window.speechSynthesis) return;
+  const ready = () => {
+    state.voicesReady = true;
+  };
+  ready();
+  window.speechSynthesis.addEventListener("voiceschanged", ready);
+  window.speechSynthesis.getVoices();
+}
+
 function playTone(freq, duration = 0.12, type = "sine", gain = 0.08) {
   try {
     const ctx = playTone.ctx || (playTone.ctx = new (window.AudioContext || window.webkitAudioContext)());
@@ -107,6 +183,75 @@ function playSuccess() {
   setTimeout(() => playTone(784, 0.18, "triangle", 0.08), 180);
 }
 
+function guideFontSize(w, h) {
+  return Math.min(w, h) * 0.92;
+}
+
+function penWidth() {
+  return Math.max(18, Math.min(els.draw.clientWidth, els.draw.clientHeight) * 0.048);
+}
+
+function paintChar(ctx, char, w, h, { fill, stroke, lineWidth, dash } = {}) {
+  const fontSize = guideFontSize(w, h);
+  ctx.save();
+  ctx.font = `700 ${fontSize}px Fredoka, Nunito, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  const y = h / 2 + fontSize * 0.02;
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fillText(char, w / 2, y);
+  }
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth ?? Math.max(6, fontSize * 0.045);
+    if (dash) ctx.setLineDash(dash);
+    ctx.strokeText(char, w / 2, y);
+  }
+  ctx.restore();
+}
+
+function rebuildMask() {
+  const w = els.guide.clientWidth;
+  const h = els.guide.clientHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  maskCanvas.width = Math.floor(w * dpr);
+  maskCanvas.height = Math.floor(h * dpr);
+  maskCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  maskCtx.clearRect(0, 0, w, h);
+
+  const char = state.chars[state.index];
+  const fontSize = guideFontSize(w, h);
+  // Thick filled letter as forgiving target
+  paintChar(maskCtx, char, w, h, {
+    fill: "#000",
+    stroke: "#000",
+    lineWidth: Math.max(28, fontSize * 0.12),
+  });
+}
+
+function drawGuide() {
+  const w = els.guide.clientWidth;
+  const h = els.guide.clientHeight;
+  guideCtx.clearRect(0, 0, w, h);
+
+  const char = state.chars[state.index];
+  const fontSize = guideFontSize(w, h);
+
+  paintChar(guideCtx, char, w, h, {
+    fill: "rgba(26, 107, 138, 0.09)",
+  });
+  paintChar(guideCtx, char, w, h, {
+    stroke: "rgba(26, 107, 138, 0.42)",
+    lineWidth: Math.max(8, fontSize * 0.055),
+    dash: [16, 14],
+  });
+
+  rebuildMask();
+}
+
 function resizeCanvases() {
   const stage = els.draw.parentElement;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -123,35 +268,7 @@ function resizeCanvases() {
   });
 
   drawGuide();
-  // Clearing draw on resize is acceptable for kids app simplicity
   clearInk(false);
-}
-
-function drawGuide() {
-  const w = els.guide.clientWidth;
-  const h = els.guide.clientHeight;
-  guideCtx.clearRect(0, 0, w, h);
-
-  const char = state.chars[state.index];
-  const fontSize = Math.min(w, h) * 0.72;
-
-  guideCtx.save();
-  guideCtx.font = `700 ${fontSize}px Fredoka, Nunito, sans-serif`;
-  guideCtx.textAlign = "center";
-  guideCtx.textBaseline = "middle";
-  guideCtx.lineJoin = "round";
-  guideCtx.lineCap = "round";
-
-  // Soft filled ghost
-  guideCtx.fillStyle = "rgba(26, 107, 138, 0.07)";
-  guideCtx.fillText(char, w / 2, h / 2 + fontSize * 0.03);
-
-  // Dashed outline to trace
-  guideCtx.strokeStyle = "rgba(26, 107, 138, 0.35)";
-  guideCtx.lineWidth = Math.max(3, fontSize * 0.035);
-  guideCtx.setLineDash([10, 10]);
-  guideCtx.strokeText(char, w / 2, h / 2 + fontSize * 0.03);
-  guideCtx.restore();
 }
 
 function clearInk(resetFlag = true) {
@@ -172,6 +289,7 @@ function pointerPos(e) {
 }
 
 function startDraw(e) {
+  if (state.locked) return;
   e.preventDefault();
   state.drawing = true;
   const { x, y } = pointerPos(e);
@@ -180,7 +298,7 @@ function startDraw(e) {
   drawCtx.lineCap = "round";
   drawCtx.lineJoin = "round";
   drawCtx.strokeStyle = state.color;
-  drawCtx.lineWidth = Math.max(10, Math.min(els.draw.clientWidth, els.draw.clientHeight) * 0.028);
+  drawCtx.lineWidth = penWidth();
   drawCtx.lineTo(x + 0.01, y + 0.01);
   drawCtx.stroke();
   state.hasInk = true;
@@ -188,7 +306,7 @@ function startDraw(e) {
 }
 
 function moveDraw(e) {
-  if (!state.drawing) return;
+  if (!state.drawing || state.locked) return;
   e.preventDefault();
   const { x, y } = pointerPos(e);
   drawCtx.lineTo(x, y);
@@ -202,6 +320,58 @@ function endDraw(e) {
   e.preventDefault();
   state.drawing = false;
   drawCtx.beginPath();
+  scheduleAutoCheck();
+}
+
+function scheduleAutoCheck() {
+  clearTimeout(state.checkTimer);
+  state.checkTimer = setTimeout(() => {
+    if (state.locked || state.drawing) return;
+    const score = scoreDrawing();
+    if (score.pass) succeedAndAdvance();
+  }, 450);
+}
+
+function scoreDrawing() {
+  const w = els.draw.width;
+  const h = els.draw.height;
+  if (!w || !h) return { pass: false, cover: 0, outside: 1, ink: 0 };
+  if (maskCanvas.width !== w || maskCanvas.height !== h) rebuildMask();
+  if (maskCanvas.width !== w || maskCanvas.height !== h) {
+    return { pass: false, cover: 0, outside: 1, ink: 0 };
+  }
+
+  const drawData = drawCtx.getImageData(0, 0, w, h).data;
+  const maskData = maskCtx.getImageData(0, 0, w, h).data;
+
+  let maskPixels = 0;
+  let hitPixels = 0;
+  let inkPixels = 0;
+  let outsideInk = 0;
+
+  for (let i = 0; i < drawData.length; i += 4) {
+    const onMask = maskData[i + 3] > 40;
+    const hasInk = drawData[i + 3] > 40;
+    if (onMask) {
+      maskPixels += 1;
+      if (hasInk) hitPixels += 1;
+    }
+    if (hasInk) {
+      inkPixels += 1;
+      if (!onMask) outsideInk += 1;
+    }
+  }
+
+  const total = w * h;
+  const inkRatio = inkPixels / total;
+  const cover = maskPixels ? hitPixels / maskPixels : 0;
+  const outside = inkPixels ? outsideInk / inkPixels : 1;
+  const pass =
+    inkRatio >= MIN_INK_RATIO &&
+    cover >= PASS_COVER &&
+    outside <= PASS_OUTSIDE;
+
+  return { pass, cover, outside, ink: inkRatio };
 }
 
 function renderPickGrid() {
@@ -226,10 +396,14 @@ function openPick(mode) {
   renderPickGrid();
   showScreen("pick");
   playTone(440, 0.08, "triangle", 0.05);
+  const label = mode === "letters" ? "Harf seç. Büyük harfleri yazacağız." : "Rakam seç. Büyük rakamları yazacağız.";
+  setHint(label);
+  speak(label);
 }
 
-function openWrite(index) {
+async function openWrite(index) {
   state.index = index;
+  state.locked = false;
   els.currentChar.textContent = state.chars[index];
   showScreen("write");
   requestAnimationFrame(() => {
@@ -237,23 +411,37 @@ function openWrite(index) {
     clearInk();
   });
   playTone(520, 0.08, "triangle", 0.05);
+  const text = instructionFor(state.chars[index]);
+  setHint(text);
+  await speak(text);
 }
 
-function nextChar() {
+async function goToNext({ announce = true } = {}) {
   state.index = (state.index + 1) % state.chars.length;
   els.currentChar.textContent = state.chars[state.index];
   clearInk();
   drawGuide();
+  state.locked = false;
   playTone(480, 0.07, "triangle", 0.05);
+  if (announce) {
+    const text = instructionFor(state.chars[state.index]);
+    setHint(text);
+    await speak(text);
+  }
+}
+
+function nextChar() {
+  if (state.locked) return;
+  goToNext({ announce: true });
 }
 
 function spawnBurst() {
   els.burst.innerHTML = "";
   const colors = ["#e85d4c", "#f5a623", "#2bb673", "#3b82f6", "#ffffff"];
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < 22; i++) {
     const s = document.createElement("span");
-    const angle = (Math.PI * 2 * i) / 18;
-    const dist = 60 + Math.random() * 120;
+    const angle = (Math.PI * 2 * i) / 22;
+    const dist = 70 + Math.random() * 140;
     s.style.setProperty("--tx", `${Math.cos(angle) * dist}px`);
     s.style.setProperty("--ty", `${Math.sin(angle) * dist}px`);
     s.style.background = colors[i % colors.length];
@@ -262,19 +450,13 @@ function spawnBurst() {
   }
 }
 
-function markDone() {
-  if (!state.hasInk) {
-    els.celebrate.hidden = false;
-    els.celebrateText.textContent = "Biraz yaz bakalım!";
-    spawnBurst();
-    playTone(220, 0.12, "sine", 0.05);
-    setTimeout(() => {
-      els.celebrate.hidden = true;
-    }, 900);
-    return;
-  }
+async function succeedAndAdvance() {
+  if (state.locked) return;
+  state.locked = true;
+  clearTimeout(state.checkTimer);
 
-  const key = `${state.mode}:${state.chars[state.index]}`;
+  const ch = state.chars[state.index];
+  const key = `${state.mode}:${ch}`;
   if (!state.completed.has(key)) {
     state.completed.add(key);
     state.stars += 1;
@@ -282,14 +464,50 @@ function markDone() {
     updateStarUI();
   }
 
-  els.celebrateText.textContent = PRAISE[Math.floor(Math.random() * PRAISE.length)];
+  const praise = PRAISE[Math.floor(Math.random() * PRAISE.length)];
+  els.celebrateText.textContent = praise;
   els.celebrate.hidden = false;
   spawnBurst();
   playSuccess();
+  setHint(praise);
+  await speak(`${praise} Doğru yazdın.`);
 
-  setTimeout(() => {
+  els.celebrate.hidden = true;
+  await goToNext({ announce: true });
+}
+
+async function markDone() {
+  if (state.locked) return;
+
+  if (!state.hasInk) {
+    const msg = "Biraz yaz bakalım. Çizgilerin üzerinden geç.";
+    els.celebrate.hidden = false;
+    els.celebrateText.textContent = "Biraz yaz!";
+    spawnBurst();
+    playTone(220, 0.12, "sine", 0.05);
+    setHint(msg);
+    await speak(msg);
     els.celebrate.hidden = true;
-  }, 1200);
+    return;
+  }
+
+  const score = scoreDrawing();
+  if (score.pass) {
+    await succeedAndAdvance();
+    return;
+  }
+
+  const tip =
+    score.cover < PASS_COVER
+      ? "Harfin üzerinden daha fazla geç. Tekrar dene."
+      : "Biraz daha düzgün yaz. Çizgilerin içinden geç.";
+  setHint(tip);
+  els.celebrate.hidden = false;
+  els.celebrateText.textContent = "Tekrar dene!";
+  spawnBurst();
+  playTone(260, 0.12, "sine", 0.05);
+  await speak(tip);
+  els.celebrate.hidden = true;
 }
 
 /* Events */
@@ -298,22 +516,38 @@ document.querySelectorAll("[data-mode]").forEach((btn) => {
 });
 
 document.getElementById("btn-back-home").addEventListener("click", () => {
+  state.locked = false;
+  window.speechSynthesis?.cancel();
   showScreen("home");
   updateStarUI();
+  setHint("Harf veya rakam seçerek başla.");
 });
 
 document.getElementById("btn-back-pick").addEventListener("click", () => {
+  state.locked = false;
+  window.speechSynthesis?.cancel();
   renderPickGrid();
   showScreen("pick");
 });
 
 document.getElementById("btn-clear").addEventListener("click", () => {
+  if (state.locked) return;
   clearInk();
   playTone(300, 0.06, "sine", 0.04);
+  const tip = "Temizledim. Yeniden yaz.";
+  setHint(tip);
+  speak(tip);
 });
 
 document.getElementById("btn-done").addEventListener("click", markDone);
 document.getElementById("btn-next").addEventListener("click", nextChar);
+
+document.getElementById("btn-repeat")?.addEventListener("click", () => {
+  if (state.locked) return;
+  const text = instructionFor(state.chars[state.index]);
+  setHint(text);
+  speak(text);
+});
 
 document.querySelectorAll(".swatch").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -338,7 +572,6 @@ window.addEventListener("resize", () => {
   if (els.screens.write.classList.contains("active")) resizeCanvases();
 });
 
-// Prevent page scroll while drawing on mobile
 document.body.addEventListener(
   "touchmove",
   (e) => {
@@ -347,4 +580,21 @@ document.body.addEventListener(
   { passive: false },
 );
 
+// Unlock audio/speech on first tap (mobile browsers)
+document.addEventListener(
+  "pointerdown",
+  () => {
+    try {
+      playTone.ctx || (playTone.ctx = new (window.AudioContext || window.webkitAudioContext)());
+      playTone.ctx.resume?.();
+    } catch {
+      /* ignore */
+    }
+    warmVoices();
+  },
+  { once: true },
+);
+
+warmVoices();
 loadProgress();
+setHint("Harf veya rakam seçerek başla.");
