@@ -1,20 +1,23 @@
-# iPhone
+# iPhone — Vakit
 
-## Çalışan önizleme (şimdi)
-https://prefix-lovely-lifetime-suzuki.trycloudflare.com
+## Şimdi aç (şifresiz)
+https://specialist-towns-reseller-bra.trycloudflare.com
 
-Safari ile aç. jsDelivr kullanma (kod gösterir).
+Safari ile aç. Eski / suspended Netlify linklerini kullanma.
 
-Tunnel’lar zamanla düşer. Ana ekrana kalıcı eklemek için:
+## Kalıcı yapmak (önemli — 60 dk)
+Anonim Netlify siteleri sahiplenilmezse **This site has been suspended** olur.
 
-## Kalıcı (Netlify — önerilen)
-1. Aç: https://app.netlify.com/drop/fastidious-faloodeh-fdc23c#drop_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODU0NDQzOTMsImV4cCI6MTc4NTQ0Nzk5MywiaXNzIjoiTmV0bGlmeSIsInNlc3Npb25faWQiOiI4NjlhNWVkZi02N2RhLTQ3YzItYjIyOS0yZGE3MWJmNjU5NDkifQ.6ynGdNOihoNBqNNfUQsv-Qn8NsGLowevRonaRcM5QT0
-2. GitHub ile giriş → Claim (60 dk)
-3. Password’ü kapat
-4. `*.netlify.app` adresini Safari → Ana Ekrana Ekle
+1. Bu claim linkini aç (bir kez, 60 dk içinde):  
+   https://app.netlify.com/drop/adorable-sprite-995f0b#drop_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODU0ODA4MzcsImV4cCI6MTc4NTQ4NDQzNywiaXNzIjoiTmV0bGlmeSIsInNlc3Npb25faWQiOiIyNzQ2MWYyOC1lZDM5LTQ2M2QtOGYzYy1mYWYzZjRmOGExZDcifQ.TJ410wK8DuUCs7-X-f6IPLHo8mGVuYF9ITR320-7ZCw
+2. Netlify’a GitHub ile giriş → **Claim site**
+3. Site ayarlarından password korumasını kapat
+4. Verilen `*.netlify.app` adresini Safari → **Ana Ekrana Ekle**
 
-Geçici şifre (claim öncesi): https://fastidious-faloodeh-fdc23c.netlify.app  
+Claim öncesi şifreli önizleme:  
+https://adorable-sprite-995f0b.netlify.app  
 Şifre: `My-Drop-Site`
 
-## GitHub Pages
-Repo Settings → Pages → Source: GitHub Actions
+## GitHub Pages (en kalıcı)
+Repo → Settings → Pages → Source: **GitHub Actions**  
+Sonra `https://eymen533.github.io/EYMENSOC-AL/` yayınlanır.
