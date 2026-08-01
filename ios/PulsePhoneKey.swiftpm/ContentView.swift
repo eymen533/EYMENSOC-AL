@@ -18,9 +18,9 @@ struct ContentView: View {
                         .font(.caption.weight(.bold))
                         .padding(8)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(0.25)))
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(0.3)))
 
-                    Text("Eski proje çöp. Bu yeşil satırı görmeden Run etme. 🔑 Tesla görünce bağlanır.")
+                    Text("1) Aşağıdaki mavi butona bas\n2) Turuncu 🔑 Tesla satırına DOKUN\n3) Key Card’ı konsola koy")
                         .font(.subheadline)
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -34,38 +34,50 @@ struct ContentView: View {
                         .padding(12)
                         .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground)))
 
-                    Text("Beklenen: \(VCSECPayload.bleLocalName(vin: normalizedVin)) · Tesla \(String(normalizedVin.suffix(6)))")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary)
-
                     Button {
                         start()
                     } label: {
-                        Text(pairer.busy ? "Aranıyor… kapıyı aç!" : "Bluetooth ile eşleştir (60sn)")
+                        Text(pairer.busy ? "Taraniyor… turuncu 🔑’ye dokun" : "1. Taramayi baslat")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(pairer.busy || normalizedVin.count != 17)
+                    .disabled(normalizedVin.count != 17)
 
                     Text(pairer.status)
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(pairer.waitingForCard ? Color.orange.opacity(0.2) : Color.blue.opacity(0.12))
-                        )
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.blue.opacity(0.12)))
 
                     Text(pairer.lastDetail)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    if !pairer.nearby.isEmpty {
-                        DisclosureGroup("Yakında görülen BLE (\(pairer.nearby.count))") {
-                            ForEach(pairer.nearby, id: \.self) { line in
-                                Text(line)
-                                    .font(.system(size: 12, design: .monospaced))
+                    if !pairer.candidates.isEmpty {
+                        Text("2. TURUNCUYA DOKUN")
+                            .font(.headline)
+                        ForEach(pairer.candidates, id: \.id) { c in
+                            Button {
+                                pairer.connectCandidate(id: c.id)
+                            } label: {
+                                Text("BAĞLAN → \(c.label)")
+                                    .font(.system(.body, design: .monospaced).weight(.semibold))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(16)
                             }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.orange)
+                        }
+                    } else if pairer.busy {
+                        Text("🔑 Tesla görününce burada turuncu buton çıkacak…")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    DisclosureGroup("Yakında tüm BLE (\(pairer.nearby.count))") {
+                        ForEach(pairer.nearby, id: \.self) { line in
+                            Text(line)
+                                .font(.system(size: 12, design: .monospaced))
                         }
                     }
 

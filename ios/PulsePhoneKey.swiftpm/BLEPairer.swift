@@ -1,17 +1,19 @@
 import Foundation
 import CoreBluetooth
 
-/// Tesla VCSEC BLE pairer — aggressive scan for Playgrounds / iPad.
+/// Tesla VCSEC BLE pairer — connect by 🔑 / any Tesla-like name / manual tap.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "build-7-emoji"
+    static let buildId = "build-8-key"
 
     @Published var status: String = "Hazir"
     @Published var log: [String] = []
     @Published var busy = false
     @Published var waitingForCard = false
     @Published var paired = false
-    @Published var lastDetail: String = "\(BLEPairer.buildId) — eslemeden once kapıyı aç."
+    @Published var lastDetail: String = "\(BLEPairer.buildId)"
     @Published var nearby: [String] = []
+    /// Tappable rows: id.uuidString → label
+    @Published var candidates: [(id: UUID, label: String)] = []
 
     private let teslaService = CBUUID(string: VCSECPayload.serviceUUID)
     private let teslaWrite = CBUUID(string: VCSECPayload.writeUUID)
@@ -31,6 +33,7 @@ final class BLEPairer: NSObject, ObservableObject {
     private var seenIds = Set<UUID>()
     private var nearbyMap: [UUID: String] = [:]
     private var peripheralCache: [UUID: CBPeripheral] = [:]
+    private var nameCache: [UUID: String] = [:]
 
     private enum Phase {
         case idle, scanning, connecting, discovering, writing, waitingCard
@@ -40,22 +43,35 @@ final class BLEPairer: NSObject, ObservableObject {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
         let stamped = "\(f.string(from: Date())) \(line)"
-        // Already on main from CB queue; keep UI updates immediate
-        if Thread.isMainThread {
-            log.insert(stamped, at: 0)
-            if log.count > 100 { log = Array(log.prefix(100)) }
-        } else {
-            DispatchQueue.main.async {
-                self.log.insert(stamped, at: 0)
-                if self.log.count > 100 { self.log = Array(self.log.prefix(100)) }
-            }
+        let apply = {
+            self.log.insert(stamped, at: 0)
+            if self.log.count > 120 { self.log = Array(self.log.prefix(120)) }
         }
+        if Thread.isMainThread { apply() } else { DispatchQueue.main.async(execute: apply) }
     }
 
     func pair(vin: String, publicKey: Data) {
         let work = { self.startPair(vin: vin, publicKey: publicKey) }
-        if Thread.isMainThread { work() }
-        else { DispatchQueue.main.async(execute: work) }
+        if Thread.isMainThread { work() } else { DispatchQueue.main.async(execute: work) }
+    }
+
+    /// Manual: user taps a row (e.g. 🔑 Tesla …)
+    func connectCandidate(id: UUID) {
+        guard let p = peripheralCache[id] else {
+            appendLog("Aday yok \(id)")
+            return
+        }
+        if payload == nil {
+            status = "Once Eslestir'e bas (payload yok)"
+            return
+        }
+        busy = true
+        connecting = false
+        // Allow tap after timeout / during scan
+        if phase == .idle || phase == .scanning {
+            phase = .scanning
+        }
+        connect(to: p, why: "MANUAL:\(nameCache[id] ?? id.uuidString)")
     }
 
     private func startPair(vin: String, publicKey: Data) {
@@ -71,23 +87,26 @@ final class BLEPairer: NSObject, ObservableObject {
         seenIds.removeAll()
         nearbyMap.removeAll()
         nearby = []
+        candidates = []
+        // keep peripheralCache across? clear for fresh scan
         peripheralCache.removeAll()
+        nameCache.removeAll()
 
         targetNames = Set(VCSECPayload.bleNames(vin: vin))
         payload = VCSECPayload.addKeyRequest(publicKeyUncompressed: publicKey)
-        appendLog("\(Self.buildId)")
+        appendLog(Self.buildId)
         appendLog("VIN \(vin)")
         appendLog("Hedef \(targetNames.sorted().joined(separator: ", "))")
         appendLog("Payload \(payload?.count ?? 0) byte")
 
-        status = "[\(Self.buildId)] SIMDI kapıyı aç — tarama"
-        lastDetail = "🔑 Tesla … görünürse hemen bağlanır (emoji OK)"
+        status = "[\(Self.buildId)] Tarama — 🔑 gorunce baglanir / listeden dokun"
+        lastDetail = "Otomatik yetmezse asagidaki 🔑 satirina DOKUN"
 
         if central == nil {
             central = CBCentralManager(delegate: self, queue: .main, options: [
                 CBCentralManagerOptionShowPowerAlertKey: true,
             ])
-            appendLog("Central oluşturuldu")
+            appendLog("Central olusturuldu")
         } else {
             beginScanning()
         }
@@ -96,65 +115,42 @@ final class BLEPairer: NSObject, ObservableObject {
     private func beginScanning() {
         guard let central else { return }
         guard central.state == .poweredOn else {
-            status = "Bluetooth kapalı veya izin yok"
-            lastDetail = "Ayarlar → Playgrounds → Bluetooth açık"
+            status = "Bluetooth kapali / izin yok"
             busy = false
             phase = .idle
-            appendLog("BT not powered: \(central.state.rawValue)")
             return
         }
 
         let connected = central.retrieveConnectedPeripherals(withServices: [teslaService])
         if let p = connected.first {
-            appendLog("Zaten bağlı peripheral")
             connect(to: p, why: "retrieveConnected")
             return
         }
 
         phase = .scanning
         connecting = false
-        scanDeadline = Date().addingTimeInterval(60)
-        status = "[\(Self.buildId)] Tesla aranıyor… KAPİYİ AÇ"
-        restartScanBurst()
-
-        cleanupTimers()
-        tickTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
-            self?.scanTick()
-        }
-    }
-
-    private func restartScanBurst() {
-        guard let central, phase == .scanning else { return }
+        scanDeadline = Date().addingTimeInterval(75)
+        // Stay on unfiltered scan — don't bounce stop/start so hard
         central.stopScan()
         central.scanForPeripherals(withServices: nil, options: [
             CBCentralManagerScanOptionAllowDuplicatesKey: true,
         ])
-        appendLog("Tarama burst (filtresiz)")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            guard let self, self.phase == .scanning, let central = self.central else { return }
-            central.stopScan()
-            central.scanForPeripherals(withServices: [self.teslaService], options: [
-                CBCentralManagerScanOptionAllowDuplicatesKey: true,
-            ])
-            self.appendLog("Tarama burst (servis)")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-                guard let self, self.phase == .scanning, let central = self.central else { return }
-                central.stopScan()
-                central.scanForPeripherals(withServices: nil, options: [
-                    CBCentralManagerScanOptionAllowDuplicatesKey: true,
-                ])
-            }
+        appendLog("Tarama acik (filtresiz, surekli)")
+
+        cleanupTimers()
+        tickTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
+            self?.scanTick()
         }
     }
 
     private func scanTick() {
         guard phase == .scanning else { return }
 
-        // Rescue: connect to any cached peripheral whose name looks like Tesla
+        // Auto-rescue from cache
         for (id, p) in peripheralCache {
-            let n = p.name ?? nearbyMap[id] ?? ""
-            if Self.nameLooksLikeTesla(n) {
-                appendLog("Tick kurtarma: \(n)")
+            let n = nameCache[id] ?? p.name ?? ""
+            if Self.shouldConnect(name: n) {
+                appendLog("Tick auto: \(n)")
                 connect(to: p, why: "tick:\(n)")
                 return
             }
@@ -163,24 +159,25 @@ final class BLEPairer: NSObject, ObservableObject {
         if let deadline = scanDeadline, Date() > deadline {
             central?.stopScan()
             cleanupTimers()
-            let near = nearby.prefix(8).joined(separator: " | ")
-            let sawTesla = nearby.contains { Self.nameLooksLikeTesla($0) }
-            status = "HATA: Araç bulunamadı"
-            if sawTesla {
-                lastDetail = "⚠️ 🔑 Tesla görüldü ama bağlanılmadı. ESKİ sürüm olabilir — projeyi sil, build-7 zip’i yeniden aç. Görülen: \(near)"
-            } else if near.isEmpty {
-                lastDetail = "Hiç BLE yok. Bluetooth izni / iPad BT kontrol et."
-            } else {
-                lastDetail = "Görülenler: \(near)"
-            }
+            let keys = candidates.map(\.label).joined(separator: " | ")
+            status = "HATA: Otomatik baglanamadi"
+            lastDetail = keys.isEmpty
+                ? "Aday yok. Kapıyı acip tekrar dene."
+                : "Asagidan 🔑 satirina DOKUN: \(keys)"
             busy = false
             phase = .idle
-            appendLog("Timeout. nearby=\(nearby.count) sawTesla=\(sawTesla)")
+            appendLog("Timeout. candidates=\(candidates.count)")
             return
         }
         let left = Int(scanDeadline?.timeIntervalSinceNow ?? 0)
-        status = "[\(Self.buildId)] Aranıyor… \(left)sn — KAPİYİ AÇ"
-        restartScanBurst()
+        status = "[\(Self.buildId)] Araniyor \(left)sn — 🔑 gorursen listeden dokun"
+        // Soft resync scan without killing too often
+        if left % 12 < 4, let central {
+            central.stopScan()
+            central.scanForPeripherals(withServices: nil, options: [
+                CBCentralManagerScanOptionAllowDuplicatesKey: true,
+            ])
+        }
     }
 
     private func cleanupTimers() {
@@ -188,37 +185,52 @@ final class BLEPairer: NSObject, ObservableObject {
         tickTimer = nil
     }
 
-    /// "🔑 Tesla 🍃", "Tesla 159959", "Sc23…C", etc.
-    static func nameLooksLikeTesla(_ raw: String) -> Bool {
-        let n = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    /// Nuclear matching — emoji key OR any tesla-like letters OR S…C
+    static func shouldConnect(name: String) -> Bool {
+        let n = name
         if n.isEmpty { return false }
-        let upper = n.uppercased()
-        if upper.contains("TESLA") { return true }
-        // letters only
-        let letters = String(upper.unicodeScalars.filter { CharacterSet.letters.contains($0) })
-        if letters.contains("TESLA") { return true }
-        let compact = String(upper.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) })
+        // Phone-key style advertisement from Tesla / Tesla app
+        if n.contains("🔑") { return true }
+        if n.contains("\u{1F511}") { return true }
+
+        let folded = n.folding(
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+        if folded.contains("tesla") { return true }
+
+        // Letters only (unicode), then fold
+        let letterOnly = String(n.unicodeScalars.filter { CharacterSet.letters.contains($0) })
+        let foldedLetters = letterOnly.folding(
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+        if foldedLetters.contains("tesla") { return true }
+
+        // Raw lowercased ASCII extract
+        let ascii = String(n.unicodeScalars.filter { (48...57).contains(Int($0.value)) || (65...90).contains(Int($0.value)) || (97...122).contains(Int($0.value)) })
+        if ascii.lowercased().contains("tesla") { return true }
+
+        let compact = String(n.uppercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) })
         if compact.range(of: #"S[0-9A-F]{16}C"#, options: .regularExpression) != nil { return true }
+
         return false
     }
 
-    private func isTesla(name: String, adv: [String: Any]) -> (Bool, String) {
-        if Self.nameLooksLikeTesla(name) {
-            return (true, "name:\(name)")
+    private func publishCandidates() {
+        candidates = nameCache.compactMap { id, name in
+            guard Self.shouldConnect(name: name) || name.contains("🔑") else { return nil }
+            let rssi = nearbyMap[id] ?? name
+            return (id, rssi)
         }
-        for t in targetNames {
-            if name.localizedCaseInsensitiveContains(t) { return (true, "hedef:\(name)") }
-        }
-        for key in [CBAdvertisementDataServiceUUIDsKey, CBAdvertisementDataOverflowServiceUUIDsKey] {
-            if let uuids = adv[key] as? [CBUUID], uuids.contains(where: { $0 == teslaService }) {
-                return (true, "svc")
-            }
-        }
-        return (false, "")
+        .sorted { $0.label < $1.label }
     }
 
     private func connect(to peripheral: CBPeripheral, why: String) {
-        guard phase == .scanning || phase == .idle else { return }
+        guard phase == .scanning || phase == .idle else {
+            appendLog("connect skip phase=\(phase)")
+            return
+        }
         guard !connecting else { return }
         guard let central else { return }
         connecting = true
@@ -227,24 +239,24 @@ final class BLEPairer: NSObject, ObservableObject {
         central.stopScan()
         self.peripheral = peripheral
         peripheral.delegate = self
-        let label = peripheral.name ?? why
-        status = "Bağlanıyor: \(label)…"
-        appendLog("EŞLEŞTİ [\(why)]")
-        lastDetail = "Bağlanıyor — Ayarlar listesinden kaybolması normal"
+        let label = peripheral.name ?? nameCache[peripheral.identifier] ?? why
+        status = "Baglaniyor: \(label)…"
+        appendLog("ESLESTI [\(why)]")
+        lastDetail = "Baglaniyor…"
         central.connect(peripheral, options: nil)
     }
 
     private func beginWrite() {
         guard let payload, let peripheral, let writeChar else {
-            fail("Write hazır değil")
+            fail("Write hazir degil")
             return
         }
         guard peripheral.state == .connected else {
-            fail("Bağlantı yok")
+            fail("Baglanti yok")
             return
         }
         phase = .writing
-        status = "add-key gönderiliyor…"
+        status = "add-key gonderiliyor…"
         let mtu = max(20, peripheral.maximumWriteValueLength(for: .withResponse))
         appendLog("MTU \(mtu)")
         writeQueue = []
@@ -266,8 +278,8 @@ final class BLEPairer: NSObject, ObservableObject {
             waitingForCard = true
             busy = false
             cleanupTimers()
-            status = "OK: İstek gitti — Key Card KONSOLA → Pair"
-            lastDetail = "Kartı iPad'e değil konsola koy."
+            status = "OK: Istek gitti — Key Card KONSOLA → Pair"
+            lastDetail = "Karti konsola koy"
             appendLog("TX tamam")
             return
         }
@@ -293,15 +305,10 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         appendLog("BT state \(central.state.rawValue)")
         switch central.state {
         case .poweredOn:
-            if busy, phase == .scanning || phase == .idle {
-                beginScanning()
-            }
-        case .unauthorized:
-            fail("Bluetooth izni yok")
-        case .poweredOff:
-            if busy { fail("Bluetooth kapalı") }
-        default:
-            break
+            if busy, phase == .scanning || phase == .idle { beginScanning() }
+        case .unauthorized: fail("Bluetooth izni yok")
+        case .poweredOff: if busy { fail("Bluetooth kapali") }
+        default: break
         }
     }
 
@@ -311,51 +318,71 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         advertisementData: [String: Any],
         rssi RSSI: NSNumber
     ) {
-        let name = peripheral.name
-            ?? (advertisementData[CBAdvertisementDataLocalNameKey] as? String)
-            ?? ""
+        let advName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
+        let name = [peripheral.name, advName].compactMap { $0 }.first { !$0.isEmpty } ?? ""
         let id = peripheral.identifier
-        peripheralCache[id] = peripheral
 
-        let label = name.isEmpty ? String(id.uuidString.prefix(8)) : name
+        peripheralCache[id] = peripheral
+        if !name.isEmpty {
+            nameCache[id] = name
+        }
+
+        let label = nameCache[id] ?? (name.isEmpty ? String(id.uuidString.prefix(8)) : name)
         let line = "\(label) \(RSSI)dBm"
         nearbyMap[id] = line
         nearby = nearbyMap.values.sorted()
+        publishCandidates()
 
         if !seenIds.contains(id) {
             seenIds.insert(id)
-            appendLog("görüldü: \(line)")
+            appendLog("goruldu: \(line)")
+        } else if Self.shouldConnect(name: label), phase == .scanning, !connecting {
+            // Name may appear on a later advertisement — connect then
+            appendLog("isim guncellendi: \(label)")
+        }
+
+        // Service UUID in adv → always connect
+        var hasSvc = false
+        for key in [CBAdvertisementDataServiceUUIDsKey, CBAdvertisementDataOverflowServiceUUIDsKey] {
+            if let uuids = advertisementData[key] as? [CBUUID], uuids.contains(where: { $0 == teslaService }) {
+                hasSvc = true
+            }
         }
 
         guard phase == .scanning, !connecting else { return }
 
-        // Fast path: any "Tesla" in the name (emoji OK)
-        if Self.nameLooksLikeTesla(name) {
-            connect(to: peripheral, why: "FAST:\(name)")
+        let checkName = nameCache[id] ?? name
+        if hasSvc {
+            connect(to: peripheral, why: "SVC:\(checkName)")
             return
         }
-
-        let (match, why) = isTesla(name: name, adv: advertisementData)
-        if match {
-            connect(to: peripheral, why: why)
+        if Self.shouldConnect(name: checkName) {
+            connect(to: peripheral, why: "AUTO:\(checkName)")
+            return
+        }
+        // Also match target VIN names as substring of checkName
+        for t in targetNames where checkName.localizedCaseInsensitiveContains(t) {
+            connect(to: peripheral, why: "VIN:\(checkName)")
+            return
         }
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         phase = .discovering
         status = "Servisler…"
-        appendLog("GATT bağlı")
+        appendLog("GATT bagli")
         peripheral.discoverServices(nil)
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        fail("Bağlantı fail: \(error?.localizedDescription ?? "?")")
+        connecting = false
+        fail("Baglanti fail: \(error?.localizedDescription ?? "?")")
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         appendLog("GATT koptu \(error?.localizedDescription ?? "")")
         if phase == .waitingCard {
-            status = "Kopuk — yine de kartı konsola dene"
+            status = "Kopuk — yine de karti konsola dene"
             return
         }
         if busy, phase != .idle, phase != .waitingCard {
@@ -369,17 +396,15 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
             return
         }
         let services = peripheral.services ?? []
-        appendLog("Servis sayısı \(services.count)")
-        for s in services {
-            appendLog(" svc \(s.uuid.uuidString)")
-        }
+        appendLog("Servis sayisi \(services.count)")
+        for s in services { appendLog(" svc \(s.uuid.uuidString)") }
+
         guard let service = services.first(where: { $0.uuid == teslaService }) else {
-            appendLog("Tesla GATT servisi yok — tarama devam")
+            appendLog("Tesla GATT yok — yanlis cihaz, tarama devam")
             connecting = false
             phase = .scanning
             busy = true
-            scanDeadline = Date().addingTimeInterval(45)
-            // Don't keep wrong peripheral
+            scanDeadline = Date().addingTimeInterval(50)
             beginScanning()
             return
         }
@@ -400,8 +425,8 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
             fail("Write karakteristik yok")
             return
         }
-        appendLog("Write hazır")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+        appendLog("Write hazir")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             self?.beginWrite()
         }
     }
@@ -422,11 +447,11 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         appendLog("RX \(hex.prefix(48))")
         if hex.contains("0801") || hex.contains("2202") {
             waitingForCard = true
-            status = "Araç kart bekliyor — konsola Key Card"
+            status = "Arac kart bekliyor — konsola Key Card"
         }
         if hex.contains("1a08") || hex.contains("5f0d") {
             paired = true
-            status = "Onaylandı — Phone Key eklendi"
+            status = "Onaylandi — Phone Key eklendi"
         }
     }
 }
