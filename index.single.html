@@ -482,7 +482,8 @@
     city: 'Istanbul',
     label: 'İstanbul',
     theme: 'sari-siyah',
-    timings: null, dateLabel: '', hijri: '', error: '', loading: true, nextKey: ''
+    themeMode: 'auto',
+    timings: null, dateLabel: '', hijri: '', error: '', loading: true, nextKey: '', periodKey: ''
   };
 
   var PREF_KEYS = ['vakit-city', 'vakit-label', 'vakit-theme', 'vakit-tip-hide'];
@@ -556,13 +557,17 @@
     idbPromise.then(function(db){ return idbSet(db, key, value); });
   }
 
-  function applyPrefs(city, label, theme){
+  function applyPrefs(city, label, theme, themeMode){
     if (city) state.city = city;
     if (label) state.label = label;
-    if (theme) state.theme = theme;
-    var themeOk=false;
-    for(var i=0;i<THEMES.length;i++) if(THEMES[i][0]===state.theme){ themeOk=true; break; }
-    if(!themeOk) state.theme='sari-siyah';
+    if (themeMode === 'auto' || themeMode === 'manual') state.themeMode = themeMode;
+    else if (theme === 'auto') state.themeMode = 'auto';
+    if (theme && theme !== 'auto') state.theme = theme;
+    if (state.themeMode !== 'auto') {
+      var themeOk=false;
+      for(var i=0;i<THEMES.length;i++) if(THEMES[i][0]===state.theme){ themeOk=true; break; }
+      if(!themeOk) state.theme='sari-siyah';
+    }
     var cityOk=false;
     for(var j=0;j<CITIES.length;j++){
       if(CITIES[j][0]===state.city){
@@ -578,7 +583,8 @@
     applyPrefs(
       storeGet('vakit-city', 'Istanbul'),
       storeGet('vakit-label', 'İstanbul'),
-      storeGet('vakit-theme', 'sari-siyah')
+      storeGet('vakit-theme', 'sari-siyah'),
+      storeGet('vakit-theme-mode', 'auto')
     );
   }
 
@@ -588,17 +594,16 @@
       return Promise.all([
         idbGet(db, 'vakit-city'),
         idbGet(db, 'vakit-label'),
-        idbGet(db, 'vakit-theme')
+        idbGet(db, 'vakit-theme'),
+        idbGet(db, 'vakit-theme-mode')
       ]).then(function(vals){
         var city = vals[0] || storeGet('vakit-city', null);
         var label = vals[1] || storeGet('vakit-label', null);
         var theme = vals[2] || storeGet('vakit-theme', null);
-        if (city || label || theme) {
-          applyPrefs(city || state.city, label || state.label, theme || state.theme);
-          // mirror to localStorage/cookies so next cold start is fast
-          storeSet('vakit-city', state.city);
-          storeSet('vakit-label', state.label);
-          storeSet('vakit-theme', state.theme);
+        var themeMode = vals[3] || storeGet('vakit-theme-mode', null);
+        if (city || label || theme || themeMode) {
+          applyPrefs(city || state.city, label || state.label, theme || state.theme, themeMode || state.themeMode);
+          flushPrefs();
         }
       });
     });
@@ -608,6 +613,7 @@
     storeSet('vakit-city', state.city);
     storeSet('vakit-label', state.label);
     storeSet('vakit-theme', state.theme);
+    storeSet('vakit-theme-mode', state.themeMode);
   }
 
   loadPrefsSync();
@@ -643,15 +649,57 @@
     for(var i=0;i<list.length;i++) if(!list[i].meta && list[i].date.getTime()<=t) cur=list[i];
     return cur;
   }
-  function setTheme(id){
+
+  // Vakit dilimine göre renk: sabah orman, öğle sarı, ikindi kırmızı, akşam gün batımı, gece mavi
+  var AUTO_BY_PERIOD = {
+    Fajr: 'orman',
+    Sunrise: 'orman',
+    Dhuhr: 'sari-siyah',
+    Asr: 'kirmizi-siyah',
+    Maghrib: 'gun-batimi',
+    Isha: 'gece-mavi'
+  };
+
+  function currentPeriodKey(list){
+    if(!list || !list.length) return 'Isha';
+    var t=now().getTime(), by={};
+    for(var i=0;i<list.length;i++) by[list[i].key]=list[i];
+    var order=['Fajr','Sunrise','Dhuhr','Asr','Maghrib','Isha'];
+    var cur=null;
+    for(var j=0;j<order.length;j++){
+      var p=by[order[j]];
+      if(p && p.date.getTime()<=t) cur=order[j];
+    }
+    // İmsaktan önce = gece (yatsı dilimi)
+    return cur || 'Isha';
+  }
+
+  function themeForPeriod(list){
+    return AUTO_BY_PERIOD[currentPeriodKey(list)] || 'gece-mavi';
+  }
+
+  function setTheme(id, opts){
+    opts = opts || {};
     if(!id) id = 'sari-siyah';
     state.theme=id;
-    storeSet('vakit-theme', id);
+    if(opts.persist !== false && state.themeMode === 'manual'){
+      storeSet('vakit-theme', id);
+    }
     document.body.setAttribute('data-theme', id);
     var meta=document.querySelector('meta[name="theme-color"]');
     if(meta){
       meta.setAttribute('content',
         getComputedStyle(document.body).getPropertyValue('--bg0').trim() || '#000');
+    }
+  }
+
+  function applyActiveTheme(list){
+    if(state.themeMode === 'auto'){
+      var id = state.timings ? themeForPeriod(list || schedule()) : 'gece-mavi';
+      state.periodKey = state.timings ? currentPeriodKey(list || schedule()) : '';
+      setTheme(id, {persist:false});
+    } else {
+      setTheme(state.theme, {persist:false});
     }
   }
 
@@ -669,8 +717,10 @@
   }
 
   function themeOpts(){
-    return THEMES.map(function(t){
-      return '<option value="'+t[0]+'"'+(state.theme===t[0]?' selected':'')+'>'+t[1]+'</option>';
+    var html='<option value="auto"'+(state.themeMode==='auto'?' selected':'')+'>Otomatik (vakit)</option>';
+    return html + THEMES.map(function(t){
+      var sel = state.themeMode==='manual' && state.theme===t[0];
+      return '<option value="'+t[0]+'"'+(sel?' selected':'')+'>'+t[1]+'</option>';
     }).join('');
   }
 
@@ -707,7 +757,8 @@
   }
 
   function render(){
-    setTheme(state.theme);
+    var list = (!state.loading && !state.error && state.timings) ? schedule() : [];
+    applyActiveTheme(list);
     var root=document.getElementById('app');
     var cityOpts=CITIES.map(function(c){
       return '<option value="'+c[0]+'"'+(c[0]===state.city?' selected':'')+'>'+c[1]+'</option>';
@@ -721,7 +772,7 @@
       bind(root); return;
     }
 
-    var list=schedule(), next=nextPrayer(list), cur=currentPrayer(list);
+    var next=nextPrayer(list), cur=currentPrayer(list);
     state.nextKey=next?next.key:'';
     var rem=next?hms(next.date.getTime()-now().getTime()):{h:'00',m:'00',s:'00'};
     var n=now();
@@ -764,7 +815,18 @@
     }
     var theme=root.querySelector('#theme');
     if(theme){
-      var onTheme=function(){ setTheme(theme.value); flushPrefs(); };
+      var onTheme=function(){
+        var v=theme.value;
+        if(v==='auto'){
+          state.themeMode='auto';
+          flushPrefs();
+          applyActiveTheme();
+        } else {
+          state.themeMode='manual';
+          setTheme(v, {persist:true});
+          flushPrefs();
+        }
+      };
       theme.onchange=onTheme;
       theme.addEventListener('input', onTheme);
     }
@@ -781,6 +843,13 @@
   function tick(){
     if(state.loading||state.error||!state.timings) return;
     var list=schedule(), next=nextPrayer(list), cur=currentPrayer(list);
+    if(state.themeMode==='auto'){
+      var pk=currentPeriodKey(list);
+      if(pk!==state.periodKey){
+        state.periodKey=pk;
+        applyActiveTheme(list);
+      }
+    }
     if((next?next.key:'')!==state.nextKey){ render(); return; }
     var clock=document.getElementById('clock');
     var cdH=document.getElementById('cdH'), cdM=document.getElementById('cdM'), cdS=document.getElementById('cdS');
@@ -848,11 +917,11 @@
 
   killServiceWorkers();
   loadPrefsAsync().then(function(){
-    setTheme(state.theme);
+    applyActiveTheme();
     load();
     watchForUpdates();
   }).catch(function(){
-    setTheme(state.theme);
+    applyActiveTheme();
     load();
     watchForUpdates();
   });
