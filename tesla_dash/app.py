@@ -134,33 +134,53 @@ def _media_block(prefix: str) -> html.Div:
     )
 
 
+def _model_y_visual() -> html.Div:
+    """Top-down Model Y wireframe (CSS) for PSI layout."""
+    return html.Div(
+        className="model-y",
+        children=[
+            html.Div(className="my-body", children=[
+                html.Div(className="my-hood"),
+                html.Div(className="my-cabin"),
+                html.Div(className="my-roof"),
+                html.Div(className="my-trunk"),
+                html.Div(className="my-line"),
+                html.Span("Y", className="my-badge"),
+            ]),
+            html.Div(className="my-wheel fl"),
+            html.Div(className="my-wheel fr"),
+            html.Div(className="my-wheel rl"),
+            html.Div(className="my-wheel rr"),
+        ],
+    )
+
+
 def _tires_block(prefix: str) -> html.Div:
-    def cell(key: str, label: str) -> html.Div:
+    def psi(key: str, corner: str) -> html.Div:
         return html.Div(
-            className="tire-cell",
+            className=f"psi-tag {corner}",
             id=f"{prefix}-tire-{key}-wrap",
             children=[
-                html.Div(id=f"{prefix}-tire-{key}", className="tire-val"),
-                html.Div("bar", className="tire-unit"),
-                html.Div(label, className="tire-label"),
+                html.Span(id=f"{prefix}-tire-{key}", className="psi-val"),
+                html.Span(" psi", className="psi-unit"),
             ],
         )
 
     return html.Div(
         className="slide tires-slide",
         children=[
-            html.Div("LASTİK BASINCI", className="slide-heading"),
+            html.Div("LASTİK · PSI", className="slide-heading"),
             html.Div(
-                className="tire-grid",
+                className="psi-stage",
                 children=[
-                    cell("fl", "ÖN SOL"),
-                    cell("fr", "ÖN SAĞ"),
-                    html.Div(className="tire-car"),
-                    cell("rl", "ARKA SOL"),
-                    cell("rr", "ARKA SAĞ"),
+                    psi("fl", "fl"),
+                    psi("fr", "fr"),
+                    _model_y_visual(),
+                    psi("rl", "rl"),
+                    psi("rr", "rr"),
                 ],
             ),
-            html.Div("Yukarı / aşağı kaydır", className="slide-hint"),
+            html.Div("Model Y · TPMS", className="slide-hint"),
         ],
     )
 
@@ -369,6 +389,18 @@ app.layout = html.Div(
                             className="center-panel",
                             children=[
                                 html.Div(className="center-veil"),
+                                html.Div(
+                                    id="select-rail",
+                                    className="select-rail",
+                                    children=[
+                                        html.Div(className="rail-stack", children=[
+                                            html.Button("♪", className="rail-item", **{"data-i": "0"}, title="Medya"),
+                                            html.Button("▣", className="rail-item", **{"data-i": "1"}, title="Lastik PSI"),
+                                            html.Button("➤", className="rail-item", **{"data-i": "2"}, title="Harita"),
+                                        ]),
+                                        html.Div(id="select-rail-label", className="rail-label"),
+                                    ],
+                                ),
                                 html.Div(id="gear-display", className="gear-wrap"),
                                 html.Div(
                                     className="speed-ring",
@@ -565,7 +597,7 @@ clientside_callback(
 )
 
 
-# Slide transform + dots (clientside, smooth)
+# Slide transform + dots + selection rail flash
 clientside_callback(
     """
     function(left, right) {
@@ -583,6 +615,26 @@ clientside_callback(
         }
         apply('left', left);
         apply('right', right);
+        // Prefer flashing the side that just changed
+        const trig = (dash_clientside.callback_context.triggered || [])[0];
+        let side = 'left';
+        let idx = left;
+        if (trig && String(trig.prop_id).indexOf('right') !== -1) {
+            side = 'right'; idx = right;
+        }
+        if (window.TeslaCarousel && TeslaCarousel.set) {
+            // only flash rail without rewriting store
+            const rail = document.getElementById('select-rail');
+            const label = document.getElementById('select-rail-label');
+            const LABELS = ['Medya', 'Lastik · PSI', 'Harita'];
+            if (rail) {
+                rail.classList.add('visible');
+                rail.querySelectorAll('.rail-item').forEach((el, i) => el.classList.toggle('on', i === idx));
+                if (label) label.textContent = (side === 'left' ? 'Sol · ' : 'Sağ · ') + LABELS[idx];
+                clearTimeout(window.__railHide);
+                window.__railHide = setTimeout(() => rail.classList.remove('visible'), 1400);
+            }
+        }
         return window.dash_clientside.no_update;
     }
     """,
@@ -615,9 +667,11 @@ def _fill_side_outputs(prefix: str, state: dict) -> list:
     pct = float(state.get("media_progress") or 0) * 100
     tires = []
     for key in ("fl", "fr", "rl", "rr"):
-        val = float(state.get(f"tire_{key}") or 0)
-        tires.append(f"{val:.1f}")
-        tires.append(f"tire-cell{' low' if val < 2.4 else ''}")
+        # Prefer PSI; convert bar→psi if value looks like bar (< 10)
+        raw = float(state.get(f"tire_{key}") or 0)
+        psi = raw if raw >= 10 else raw * 14.5038
+        tires.append(f"{psi:.0f}")
+        tires.append(f"psi-tag {key}{' low' if psi < 35 else ''}")
     return [
         state.get("media_service") or "Music",
         state.get("media_title") or "—",
@@ -736,6 +790,13 @@ def refresh(_n, ble_store):
         btn_cls = "reconnect-btn"
         mode = "VIN + Tesla Kart ile BLE eşleş"
 
+    if linked:
+        batt_pct_txt = f"{int(batt)}%"
+        batt_range_txt = f"{int(display.get('battery_range_km') or 0)}km"
+    else:
+        batt_pct_txt = "--%"
+        batt_range_txt = "--km"
+
     left_bits = _fill_side_outputs("left", display)
     right_bits = _fill_side_outputs("right", display)
 
@@ -749,8 +810,8 @@ def refresh(_n, ble_store):
         _gear_row(gear),
         f"{int(display.get('speed_kmh') or 0)}",
         display.get("street") or "—",
-        f"%{int(batt)}",
-        f"{int(display.get('battery_range_km') or 0)}km",
+        batt_pct_txt,
+        batt_range_txt,
         batt_cls,
         {"--batt-fill": f"{max(4, min(100, batt)):.0f}%"},
         odo,

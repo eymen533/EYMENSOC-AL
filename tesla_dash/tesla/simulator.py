@@ -74,11 +74,11 @@ class VehicleState:
     trail: list[list[float]]
     # Cluster extras
     street: str = "Ertürk Sk. No:29"
-    tire_fl: float = 2.8
-    tire_fr: float = 2.8
-    tire_rl: float = 2.7
-    tire_rr: float = 2.7
-    tire_unit: str = "bar"
+    tire_fl: float = 42.0
+    tire_fr: float = 42.0
+    tire_rl: float = 40.0
+    tire_rr: float = 40.0
+    tire_unit: str = "psi"
     media_title: str = "Kayıp Kalp"
     media_artist: str = "BLOK3"
     media_service: str = "YouTube Music"
@@ -105,7 +105,7 @@ class DemoSimulator:
         self._speed = 0.0
         self._track_i = 0
         self._media_t0 = time.time()
-        self._tires = {"fl": 2.8, "fr": 2.8, "rl": 2.7, "rr": 2.7}
+        self._tires = {"fl": 42.0, "fr": 42.0, "rl": 40.0, "rr": 40.0}
 
     def _interp_route(self, idx: float) -> tuple[float, float, float]:
         n = len(_ROUTE)
@@ -122,8 +122,8 @@ class DemoSimulator:
     def _nudge_tires(self) -> None:
         for k in self._tires:
             self._tires[k] = round(
-                max(2.2, min(3.1, self._tires[k] + random.uniform(-0.01, 0.01))),
-                2,
+                max(32.0, min(48.0, self._tires[k] + random.uniform(-0.15, 0.15))),
+                1,
             )
 
     def tick(self) -> VehicleState:

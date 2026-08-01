@@ -1,12 +1,14 @@
 /**
- * Vertical side-panel carousels — swipe / wheel.
- * Writes to Dash stores left-slide-store / right-slide-store.
+ * Vertical side-panel carousels + transient selection rail.
  */
 (function () {
   "use strict";
 
   var COUNT = 3;
+  var LABELS = ["Medya", "Lastik · PSI", "Harita"];
+  var ICONS = ["♪", "▣", "➤"];
   var cool = { left: 0, right: 0 };
+  var hideTimer = null;
 
   function clamp(i) {
     return ((i % COUNT) + COUNT) % COUNT;
@@ -18,6 +20,24 @@
       return parseInt(track.dataset.index, 10) || 0;
     }
     return side === "right" ? 2 : 0;
+  }
+
+  function flashRail(side, index) {
+    var rail = document.getElementById("select-rail");
+    var label = document.getElementById("select-rail-label");
+    if (!rail) return;
+    rail.classList.add("visible");
+    rail.dataset.side = side;
+    rail.querySelectorAll(".rail-item").forEach(function (el, i) {
+      el.classList.toggle("on", i === index);
+    });
+    if (label) {
+      label.textContent = (side === "left" ? "Sol · " : "Sağ · ") + (LABELS[index] || "");
+    }
+    if (hideTimer) clearTimeout(hideTimer);
+    hideTimer = setTimeout(function () {
+      rail.classList.remove("visible");
+    }, 1400);
   }
 
   function writeIndex(side, index) {
@@ -39,6 +59,7 @@
         d.classList.toggle("on", i === index);
       });
     }
+    flashRail(side, index);
   }
 
   function bind(side) {
@@ -103,6 +124,18 @@
   function boot() {
     bind("left");
     bind("right");
+    var rail = document.getElementById("select-rail");
+    if (rail && rail.dataset.clickBound !== "1") {
+      rail.dataset.clickBound = "1";
+      rail.querySelectorAll(".rail-item").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var i = parseInt(btn.getAttribute("data-i") || "0", 10);
+          // Apply to the side that last moved, default left
+          var side = rail.dataset.side || "left";
+          writeIndex(side, i);
+        });
+      });
+    }
   }
 
   setInterval(boot, 600);
@@ -112,5 +145,12 @@
     boot();
   }
 
-  window.TeslaCarousel = { set: writeIndex, next: function (s) { writeIndex(s, readIndex(s) + 1); } };
+  window.TeslaCarousel = {
+    set: writeIndex,
+    next: function (s) {
+      writeIndex(s, readIndex(s) + 1);
+    },
+    icons: ICONS,
+    labels: LABELS,
+  };
 })();
