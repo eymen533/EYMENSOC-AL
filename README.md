@@ -1,59 +1,63 @@
-# Tesla Pulse — Cinematic vehicle HUD (Plotly Dash)
+# Tesla Pulse — BLE Vehicle HUD (Plotly Dash)
 
-Canlı hız, vites, batarya, şarj süresi ve harita üzerinde araç konumu gösteren
-Tesla dashboard uygulaması. **B / L** düğmesi ile Black (karanlık) ve Light
-(aydınlık) temalar arasında geçiş yapılır.
+Tesla araç HUD'u. Bağlantı **Bluetooth Low Energy (BLE)** üzerinden kurulur.
 
-## Hızlı başlangıç
+## Özellikler
+
+- **BLE BAĞLAN** — Web Bluetooth ile yakındaki Tesla'ya bağlanır (Chrome/Edge)
+- Adaptör yoksa veya tarayıcı desteklemiyorsa **BLE demo link** açılır
+- İsteğe bağlı sunucu tarama: `bleak` + `/api/ble/scan`
+- Tam ekran harita, hız, vites P/R/N/D, batarya %, şarj süresi, güç (kW)
+- RSSI sinyal çubukları ve BLE cihaz kimliği
+
+## Çalıştırma
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 python run.py
 ```
 
-Tarayıcıda: [http://127.0.0.1:8050](http://127.0.0.1:8050)
+Tarayıcı: [http://127.0.0.1:8050](http://127.0.0.1:8050)
 
-Token yoksa uygulama otomatik **DEMO** modunda gerçekçi sürüş/şarj simülasyonu
-çalıştırır (İstanbul güzergâhı + canlı telemetri).
+1. **BLE BAĞLAN** düğmesine basın
+2. Chrome cihaz seçicisinden Tesla'yı seçin (veya demo moda geçilsin)
+3. HUD canlı telemetriye geçer
 
-## Gerçek Tesla bağlantısı
+> Web Bluetooth için **localhost** veya **HTTPS** gerekir.
 
-1. `.env.example` dosyasını `.env` olarak kopyalayın.
-2. Tesla Owner API / Fleet API access token ve araç ID'sini girin:
+## BLE API
+
+| Endpoint | Açıklama |
+|----------|----------|
+| `POST /api/ble/demo` | Demo BLE link |
+| `POST /api/ble/disconnect` | Bağlantıyı kes |
+| `GET /api/ble/status` | Anlık BLE durumu |
+| `POST /api/ble/scan` | bleak ile yerel tarama |
+
+## Gerçek araç telemetrisi (opsiyonel)
+
+BLE araç yakınlık / kimlik linkidir. Tam hız-batarya verisi için Owner API:
 
 ```env
-TESLA_ACCESS_TOKEN=your_token
-TESLA_VEHICLE_ID=your_vehicle_id
+TESLA_ACCESS_TOKEN=...
+TESLA_VEHICLE_ID=...
 TESLA_LIVE=true
 ```
 
-3. Uygulamayı yeniden başlatın. Bağlantı başarısız olursa demo moda düşer.
-
-> Resmi Tesla Fleet API kayıt ve OAuth süreci Tesla developer portal üzerinden
-> yapılır. Token'ınızı repoya commit etmeyin.
-
-## Özellikler
-
-- Tam ekran harita arka planı (Carto dark/light tiles)
-- Hız göstergesi, güç (kW), vites P/R/N/D
-- Batarya %, menzil, şarj gücü ve tahmini dolum süresi
-- Sentry / Autopilot / kilit durum bayrakları
-- B/L (Black ↔ Light) tema geçişi
-- 1 sn telemetri yenileme
+Token yoksa BLE bağlantısından sonra gerçekçi **simülasyon** HUD'u besler.
 
 ## Yapı
 
 ```
 tesla_dash/
-  app.py              # Dash HUD
-  assets/style.css    # B/L tema + animasyonlar
+  app.py
+  assets/style.css
+  assets/ble.js          # Web Bluetooth istemcisi
   components/gauges.py
   tesla/
-    client.py         # Owner API istemcisi
-    simulator.py      # Demo telemetri
-run.py
-requirements.txt
-.env.example
+    ble.py               # BLE oturum + bleak tarama
+    client.py
+    simulator.py
 ```
