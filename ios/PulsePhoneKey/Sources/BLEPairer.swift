@@ -2,10 +2,11 @@ import Foundation
 import CoreBluetooth
 import Combine
 
-/// Robust Tesla VCSEC BLE pairer for iPad / Swift Playgrounds.
+/// Tesla VCSEC BLE pairer for iPad / Swift Playgrounds.
 ///
-/// Critical: writes use `.withResponse` and wait for each ACK before the next
-/// chunk. Flooding writes (sleep-only) drops bytes → car never shows Pair.
+/// Important: iOS often delivers the car with an **empty name** while still
+/// advertising service `00000211-…`. Matching only on "Tesla"/"S…C" then
+/// misses the vehicle and times out — that looked like "hata / bağlanmıyor".
 @MainActor
 final class BLEPairer: NSObject, ObservableObject {
     @Published var status: String = "Hazır — önce arabayı uyandır"
@@ -14,6 +15,10 @@ final class BLEPairer: NSObject, ObservableObject {
     @Published var waitingForCard = false
     @Published var paired = false
     @Published var lastDetail: String = ""
+
+    private let teslaService = CBUUID(string: VCSECPayload.serviceUUID)
+    private let teslaWrite = CBUUID(string: VCSECPayload.writeUUID)
+    private let teslaRead = CBUUID(string: VCSECPayload.readUUID)
 
     private var central: CBCentralManager!
     private var targetNames: Set<String> = []
@@ -25,10 +30,12 @@ final class BLEPairer: NSObject, ObservableObject {
     private var connectContinuation: CheckedContinuation<Void, Error>?
     private var writeContinuation: CheckedContinuation<Void, Error>?
     private var notifyContinuation: CheckedContinuation<Void, Error>?
+    private var bluetoothContinuation: CheckedContinuation<Void, Error>?
     private var scanTimeoutTask: Task<Void, Never>?
     private var connecting = false
     private var wrotePayload = false
     private var reconnectAttempts = 0
+    private var seenLogBudget = 0
 
     override init() {
         super.init()
@@ -40,7 +47,7 @@ final class BLEPairer: NSObject, ObservableObject {
     func appendLog(_ line: String) {
         let stamped = "\(Self.clock()) \(line)"
         log.insert(stamped, at: 0)
-        if log.count > 60 { log = Array(log.prefix(60)) }
+        if log.count > 80 { log = Array(log.prefix(80)) }
     }
 
     func pair(vin: String, publicKey: Data) async {
@@ -50,6 +57,7 @@ final class BLEPairer: NSObject, ObservableObject {
         wrotePayload = false
         connecting = false
         reconnectAttempts = 0
+        seenLogBudget = 0
         writeChar = nil
         readChar = nil
         defer { busy = false }
@@ -59,19 +67,15 @@ final class BLEPairer: NSObject, ObservableObject {
         let names = VCSECPayload.bleNames(vin: vin)
         targetNames = Set(names)
         payload = VCSECPayload.addKeyRequest(publicKeyUncompressed: publicKey)
-        appendLog("Hedef: \(names.joined(separator: ", "))")
+        appendLog("VIN \(vin)")
+        appendLog("Hedef isim: \(names.joined(separator: ", "))")
         appendLog("Payload \(payload!.count) byte")
-        lastDetail = "S…C listede kaybolursa normal — bağlanınca gizlenir."
+        lastDetail = "Log’u açık tut. İsim boş olsa da Tesla servisiyle bağlanır."
 
-        guard central.state == .poweredOn else {
-            status = "Bluetooth kapalı — Ayarlar’dan aç"
-            appendLog("Bluetooth state: \(central.state.rawValue)")
-            return
-        }
-
-        // Wake tip first — advertising stops when the car sleeps.
-        status = "Arabayı uyandır (kapı/ekran) → Tesla aranıyor…"
         do {
+            status = "Bluetooth kontrol…"
+            try await waitForPoweredOn(timeout: 12)
+            status = "Arabayı uyandır → Tesla aranıyor… (45 sn)"
             try await scanAndConnect(timeout: 45)
             status = "Bildirim açılıyor…"
             try await enableNotify()
@@ -82,12 +86,36 @@ final class BLEPairer: NSObject, ObservableObject {
             status = "✓ İstek gitti — Key Card’ı KONSOLA koy → Pair"
             lastDetail = "Uygulamadan çıkma. Kartı iPad’e değil konsola koy."
             appendLog("İstek gönderildi ✓ — kartı konsola koy")
-            // Stay connected so the car can reply WAIT / OK.
             try? await Task.sleep(nanoseconds: 90_000_000_000)
         } catch {
-            status = "Hata: \(error.localizedDescription)"
+            let msg = error.localizedDescription
+            status = "HATA: \(msg)"
             lastDetail = Self.hint(for: error)
-            appendLog(error.localizedDescription)
+            appendLog("HATA: \(msg)")
+        }
+    }
+
+    // MARK: - Bluetooth ready
+
+    private func waitForPoweredOn(timeout: TimeInterval) async throws {
+        if central.state == .poweredOn { return }
+        if central.state == .unauthorized { throw PairError.unauthorized }
+        if central.state == .poweredOff { throw PairError.bluetoothOff }
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            self.bluetoothContinuation = cont
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                await MainActor.run {
+                    guard let self, let b = self.bluetoothContinuation else { return }
+                    self.bluetoothContinuation = nil
+                    switch self.central.state {
+                    case .poweredOn: b.resume()
+                    case .unauthorized: b.resume(throwing: PairError.unauthorized)
+                    case .poweredOff: b.resume(throwing: PairError.bluetoothOff)
+                    default: b.resume(throwing: PairError.bluetoothOff)
+                    }
+                }
+            }
         }
     }
 
@@ -111,17 +139,15 @@ final class BLEPairer: NSObject, ObservableObject {
 
     private func startScan() {
         central.stopScan()
-        let service = CBUUID(string: VCSECPayload.serviceUUID)
-        appendLog("Tarama (servis filtresi)…")
-        central.scanForPeripherals(withServices: [service], options: [
+        appendLog("Tarama: Tesla servisi…")
+        central.scanForPeripherals(withServices: [teslaService], options: [
             CBCentralManagerScanOptionAllowDuplicatesKey: true,
         ])
-        // Many cars omit service UUID in advertisement — open scan after 2s.
         Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
             await MainActor.run {
                 guard let self, self.connectContinuation != nil, !self.connecting else { return }
-                self.appendLog("Filtresiz tarama…")
+                self.appendLog("Tarama: filtresiz (isim/servis)…")
                 self.central.stopScan()
                 self.central.scanForPeripherals(withServices: nil, options: [
                     CBCentralManagerScanOptionAllowDuplicatesKey: true,
@@ -130,24 +156,39 @@ final class BLEPairer: NSObject, ObservableObject {
         }
     }
 
+    private func isTeslaCandidate(name: String, advertisementData: [String: Any]) -> (Bool, String) {
+        if targetNames.contains(name) { return (true, "isim-hedef:\(name)") }
+        if name.hasPrefix("Tesla") { return (true, "isim-Tesla:\(name)") }
+        if name.hasPrefix("S"), name.hasSuffix("C"), name.count == 18 {
+            return (true, "isim-S…C:\(name)")
+        }
+        let svcKeys: [String] = [
+            CBAdvertisementDataServiceUUIDsKey,
+            CBAdvertisementDataOverflowServiceUUIDsKey,
+        ]
+        for key in svcKeys {
+            if let uuids = advertisementData[key] as? [CBUUID],
+               uuids.contains(where: { $0 == teslaService }) {
+                return (true, "servis-UUID\(name.isEmpty ? " (isim yok)" : ": \(name)")")
+            }
+        }
+        return (false, "")
+    }
+
     private func finishConnect(success: Bool, error: Error? = nil) {
         scanTimeoutTask?.cancel()
         scanTimeoutTask = nil
         central.stopScan()
         guard let c = connectContinuation else { return }
         connectContinuation = nil
-        if success {
-            c.resume()
-        } else {
-            c.resume(throwing: error ?? PairError.notReady)
-        }
+        if success { c.resume() }
+        else { c.resume(throwing: error ?? PairError.notReady) }
     }
 
     // MARK: - Notify + write
 
     private func enableNotify() async throws {
         guard let peripheral, let readChar else {
-            // Notify is helpful but not strictly required for add-key.
             appendLog("Read char yok — yine de yazılacak")
             return
         }
@@ -160,7 +201,6 @@ final class BLEPairer: NSObject, ObservableObject {
                 await MainActor.run {
                     guard let self, let n = self.notifyContinuation else { return }
                     self.notifyContinuation = nil
-                    // Proceed even if notify ACK is slow.
                     n.resume()
                 }
             }
@@ -171,7 +211,6 @@ final class BLEPairer: NSObject, ObservableObject {
         guard let peripheral, let writeChar, let payload else {
             throw PairError.notReady
         }
-        // Prefer one shot when MTU allows (Android path). Else chunk with ACK.
         let mtu = max(20, peripheral.maximumWriteValueLength(for: .withResponse))
         appendLog("MTU yazma: \(mtu) byte")
         var offset = 0
@@ -213,6 +252,8 @@ final class BLEPairer: NSObject, ObservableObject {
         writeContinuation = nil
         notifyContinuation?.resume(throwing: error)
         notifyContinuation = nil
+        bluetoothContinuation?.resume(throwing: error)
+        bluetoothContinuation = nil
         scanTimeoutTask?.cancel()
         scanTimeoutTask = nil
         central?.stopScan()
@@ -228,36 +269,34 @@ final class BLEPairer: NSObject, ObservableObject {
         if let e = error as? PairError {
             switch e {
             case .timeout:
-                return "Kapıyı aç / ekranı uyandır. Tesla uygulamasını kapat. iPad’i direksiyona yakın tut."
+                return "Hâlâ bulamadıysa: kapıyı aç, fren bas, Tesla app’i kapat, iPad’i konsola yaklaştır, tekrar Run ▶."
             case .disconnected:
-                return "Bağlantı koptu. Arabayı uyandırıp tekrar dene. Ayarlar’da S…C kaybolması bağlanınca normal."
+                return "Bağlantı koptu. Uyandırıp hemen tekrar dene."
             case .writeTimeout, .writeFailed:
-                return "Yazma tamamlanmadı. Playgrounds’ta Run ▶ ile çalıştır; uygulamadan çıkma."
+                return "Yazma bitmedi. Uygulamadan çıkmadan tekrar dene."
+            case .unauthorized:
+                return "Ayarlar → Swift Playgrounds → Bluetooth: Açık."
+            case .notReady:
+                return "Servis bulunamadı. Arabayı uyandırıp tekrar dene."
             default:
-                return "Tekrar dene. Log’a bak."
+                return "Log’daki HATA satırını gönder."
             }
         }
-        return error.localizedDescription
+        return "Log’daki HATA satırını gönder."
     }
 
     enum PairError: LocalizedError {
-        case timeout, notReady, bluetoothOff, disconnected, writeTimeout, writeFailed, cancelled
+        case timeout, notReady, bluetoothOff, unauthorized, disconnected, writeTimeout, writeFailed, cancelled
         var errorDescription: String? {
             switch self {
-            case .timeout:
-                return "Araç bulunamadı (BLE). Uyandır / yakınlaş."
-            case .notReady:
-                return "BLE hazır değil (servis/karakteristik)."
-            case .bluetoothOff:
-                return "Bluetooth kapalı"
-            case .disconnected:
-                return "GATT bağlantısı koptu"
-            case .writeTimeout:
-                return "Yazma zaman aşımı"
-            case .writeFailed:
-                return "Yazma başarısız"
-            case .cancelled:
-                return "İptal"
+            case .timeout: return "Araç bulunamadı (45sn). Uyandır / Tesla app kapat / yaklaş."
+            case .notReady: return "BLE servisi/karakteristik yok"
+            case .bluetoothOff: return "Bluetooth kapalı veya henüz hazır değil"
+            case .unauthorized: return "Bluetooth izni yok (Ayarlar → Playgrounds)"
+            case .disconnected: return "GATT bağlantısı koptu"
+            case .writeTimeout: return "Yazma zaman aşımı"
+            case .writeFailed: return "Yazma başarısız"
+            case .cancelled: return "İptal"
             }
         }
     }
@@ -267,10 +306,21 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
     nonisolated func centralManagerDidUpdateState(_ central: CBCentralManager) {
         Task { @MainActor in
             switch central.state {
-            case .poweredOn: appendLog("Bluetooth açık")
-            case .unauthorized: status = "Bluetooth izni yok — Ayarlar → Playgrounds"
-            case .poweredOff: status = "Bluetooth kapalı"
-            default: appendLog("Bluetooth state \(central.state.rawValue)")
+            case .poweredOn:
+                appendLog("Bluetooth açık")
+                if let b = bluetoothContinuation {
+                    bluetoothContinuation = nil
+                    b.resume()
+                }
+            case .unauthorized:
+                appendLog("Bluetooth İZİN YOK")
+                status = "Bluetooth izni yok — Ayarlar → Playgrounds"
+                bluetoothContinuation?.resume(throwing: PairError.unauthorized)
+                bluetoothContinuation = nil
+            case .poweredOff:
+                appendLog("Bluetooth kapalı")
+            default:
+                appendLog("Bluetooth state \(central.state.rawValue)")
             }
         }
     }
@@ -284,32 +334,39 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         let name = peripheral.name
             ?? (advertisementData[CBAdvertisementDataLocalNameKey] as? String)
             ?? ""
+        let adv = advertisementData
         Task { @MainActor in
             guard connectContinuation != nil, !connecting else { return }
-            let match = targetNames.contains(name)
-                || name.hasPrefix("Tesla")
-                || (name.hasPrefix("S") && name.hasSuffix("C") && name.count == 18)
-            guard match else { return }
+            let (match, why) = isTeslaCandidate(name: name, advertisementData: adv)
+            if !match {
+                // Occasional breadcrumb so we know scan is alive
+                if seenLogBudget < 8, RSS.intValue > -75 {
+                    seenLogBudget += 1
+                    let label = name.isEmpty ? peripheral.identifier.uuidString.prefix(8) : name
+                    appendLog("diğer: \(label) (\(RSSI) dBm)")
+                }
+                return
+            }
 
             connecting = true
-            appendLog("Bulundu: \(name) (\(RSSI) dBm)")
-            lastDetail = "\(name) bulundu — Ayarlar’dan kaybolması normal."
+            appendLog("Bulundu [\(why)] rssi=\(RSSI)")
+            lastDetail = "Bulundu — Ayarlar’dan kaybolması normal."
             self.central.stopScan()
             self.peripheral = peripheral
             peripheral.delegate = self
-            status = "Bağlanıyor: \(name)…"
-            self.central.connect(peripheral, options: [
-                CBConnectPeripheralOptionNotifyOnConnectionKey: true,
-                CBConnectPeripheralOptionNotifyOnDisconnectionKey: true,
-            ])
+            let label = name.isEmpty ? "Tesla BLE" : name
+            status = "Bağlanıyor: \(label)…"
+            // No background notify options — Playgrounds may lack that entitlement.
+            self.central.connect(peripheral, options: nil)
         }
     }
 
     nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         Task { @MainActor in
-            appendLog("GATT bağlı — servisler…")
+            appendLog("GATT bağlı — tüm servisler…")
             status = "Servisler keşfediliyor…"
-            peripheral.discoverServices([CBUUID(string: VCSECPayload.serviceUUID)])
+            // nil = don't miss service if cache is cold
+            peripheral.discoverServices(nil)
         }
     }
 
@@ -333,14 +390,12 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         Task { @MainActor in
             appendLog("GATT koptu: \(error?.localizedDescription ?? "ok")")
             if wrotePayload {
-                // After add-key, some cars drop the link; Pair UI can still appear.
                 if waitingForCard {
                     status = "Bağlantı koptu — yine de Key Card’ı konsola dene"
                 }
                 return
             }
             if connectContinuation != nil {
-                // Still in handshake — one automatic reconnect.
                 if reconnectAttempts < 2 {
                     reconnectAttempts += 1
                     connecting = true
@@ -352,10 +407,9 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
                 finishConnect(success: false, error: PairError.disconnected)
                 return
             }
-            if writeContinuation != nil {
-                let w = writeContinuation
+            if let w = writeContinuation {
                 writeContinuation = nil
-                w?.resume(throwing: PairError.disconnected)
+                w.resume(throwing: PairError.disconnected)
             }
         }
     }
@@ -366,21 +420,17 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
                 finishConnect(success: false, error: error)
                 return
             }
-            guard let service = peripheral.services?.first(where: {
-                $0.uuid == CBUUID(string: VCSECPayload.serviceUUID)
-            }) else {
-                appendLog("Tesla servisi yok")
+            let services = peripheral.services ?? []
+            appendLog("Servis sayısı: \(services.count)")
+            for s in services {
+                appendLog(" svc \(s.uuid.uuidString)")
+            }
+            guard let service = services.first(where: { $0.uuid == teslaService }) else {
+                appendLog("Tesla servisi YOK")
                 finishConnect(success: false, error: PairError.notReady)
                 return
             }
-            appendLog("Servis OK — karakteristikler…")
-            peripheral.discoverCharacteristics(
-                [
-                    CBUUID(string: VCSECPayload.writeUUID),
-                    CBUUID(string: VCSECPayload.readUUID),
-                ],
-                for: service
-            )
+            peripheral.discoverCharacteristics(nil, for: service)
         }
     }
 
@@ -394,17 +444,17 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
                 finishConnect(success: false, error: error)
                 return
             }
-            writeChar = service.characteristics?.first {
-                $0.uuid == CBUUID(string: VCSECPayload.writeUUID)
+            let chars = service.characteristics ?? []
+            for c in chars {
+                appendLog(" chr \(c.uuid.uuidString)")
             }
-            readChar = service.characteristics?.first {
-                $0.uuid == CBUUID(string: VCSECPayload.readUUID)
-            }
+            writeChar = chars.first { $0.uuid == teslaWrite }
+            readChar = chars.first { $0.uuid == teslaRead }
             if writeChar != nil {
-                appendLog("Write/Read karakteristik hazır")
+                appendLog("Write/Read hazır")
                 finishConnect(success: true)
             } else {
-                appendLog("Write characteristic yok")
+                appendLog("Write characteristic YOK")
                 finishConnect(success: false, error: PairError.notReady)
             }
         }
@@ -453,11 +503,10 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         let hex = data.map { String(format: "%02x", $0) }.joined()
         Task { @MainActor in
             appendLog("RX \(hex.prefix(64))")
-            // WAIT / card present signals commonly seen on VCSEC
             if hex.contains("0801") || hex.contains("2202") {
                 waitingForCard = true
                 status = "Araç kart bekliyor — konsola Key Card koy"
-                lastDetail = "Şimdi kartı konsol okuyucuya koy; ekranda Pair çıkmalı."
+                lastDetail = "Şimdi kartı konsola koy; ekranda Pair çıkmalı."
             }
             if hex.contains("1a08") || hex.contains("5f0d") {
                 paired = true

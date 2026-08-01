@@ -6,6 +6,7 @@ struct ContentView: View {
     @State private var vin: String = UserDefaults.standard.string(forKey: "pulse_vin")
         ?? "XP7YGCEK0PB159959"
     @State private var error: String?
+    @State private var logOpen = true
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
@@ -77,7 +78,11 @@ struct ContentView: View {
                         Text(error).foregroundStyle(.red).font(.footnote)
                     }
 
-                    DisclosureGroup("Log") {
+                    Text("Beklenen BLE adı: \(VCSECPayload.bleLocalName(vin: normalizedVin)) · Tesla \(String(normalizedVin.suffix(6)))")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+
+                    DisclosureGroup("Log (HATA satırını oku)", isExpanded: .constant(true)) {
                         ForEach(Array(pairer.log.enumerated()), id: \.offset) { _, line in
                             Text(line)
                                 .font(.system(size: 12, design: .monospaced))
