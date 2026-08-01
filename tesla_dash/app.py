@@ -24,10 +24,10 @@ from tesla_dash.tesla import get_vehicle_state
 from tesla_dash.tesla.ble import get_ble_session
 
 DIAL_STYLES = [
-    {"id": "bmw", "title": "BMW Diagonal", "desc": "Trapez cam · altın / turuncu"},
-    {"id": "blade", "title": "Blade Slash", "desc": "Keskin paralelkenar · cyan"},
-    {"id": "obsidian", "title": "Obsidian Glass", "desc": "Dumanlı cam · beyaz kenar"},
-    {"id": "volt", "title": "Volt Wing", "desc": "Asimetrik kanat · yeşil"},
+    {"id": "bmw", "title": "BMW Diagonal", "desc": "Trapez cam · sıcak amber metal"},
+    {"id": "porsche", "title": "Porsche Sport", "desc": "Kokpit kesit · siyah / racing kırmızı"},
+    {"id": "mercedes", "title": "Mercedes Glass", "desc": "Hyperscreen cam · gümüş / şampanya"},
+    {"id": "audi", "title": "Audi Quattro", "desc": "Keskin kanat · platin / buz mavisi"},
 ]
 
 TR_WEEKDAYS = [
@@ -576,7 +576,7 @@ app.layout = html.Div(
                                     ],
                                 ),
                                 html.P(
-                                    "Orta ekran stilini seç — BMW diagonal benzeri seçenekler",
+                                    "Orta ekran paneli — BMW · Porsche · Mercedes · Audi",
                                     className="settings-sub",
                                 ),
                                 html.Div(
@@ -624,10 +624,13 @@ app.layout = html.Div(
                                         html.Div(
                                             className="speed-dial-panel",
                                             children=[
+                                                html.Div(className="speed-dial-mesh"),
                                                 html.Div(className="speed-dial-sheen"),
+                                                html.Div(className="speed-dial-rim"),
                                                 html.Div(
                                                     className="speed-dial-inner",
                                                     children=[
+                                                        html.Div(className="speed-dial-halo"),
                                                         html.Div(
                                                             id="speed-num",
                                                             className="speed-num",
@@ -974,13 +977,17 @@ clientside_callback(
             open = true;
         }
 
-        const allowed = ['bmw','blade','obsidian','volt'];
+        const allowed = ['bmw','porsche','mercedes','audi'];
+        // migrate legacy ids
+        if (next === 'blade') next = 'porsche';
+        if (next === 'obsidian') next = 'mercedes';
+        if (next === 'volt') next = 'audi';
         if (allowed.indexOf(next) === -1) next = 'bmw';
         localStorage.setItem('pulse_dial', next);
 
         const c = document.getElementById('cluster');
         if (c) {
-            allowed.forEach(s => c.classList.remove('dial-' + s));
+            ['bmw','porsche','mercedes','audi','blade','obsidian','volt'].forEach(s => c.classList.remove('dial-' + s));
             c.classList.add('dial-' + next);
         }
         document.querySelectorAll('.dial-opt').forEach(el => {

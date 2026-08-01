@@ -115,12 +115,18 @@
     try {
       next = localStorage.getItem("pulse_dial") || "bmw";
     } catch (_) {}
-    var allowed = ["bmw", "blade", "obsidian", "volt"];
+    if (next === "blade") next = "porsche";
+    if (next === "obsidian") next = "mercedes";
+    if (next === "volt") next = "audi";
+    var allowed = ["bmw", "porsche", "mercedes", "audi"];
     if (allowed.indexOf(next) === -1) next = "bmw";
-    allowed.forEach(function (s) {
+    ["bmw", "porsche", "mercedes", "audi", "blade", "obsidian", "volt"].forEach(function (s) {
       root.classList.remove("dial-" + s);
     });
     root.classList.add("dial-" + next);
+    try {
+      localStorage.setItem("pulse_dial", next);
+    } catch (_) {}
     document.querySelectorAll(".dial-opt").forEach(function (el) {
       el.classList.toggle("on", el.getAttribute("data-style") === next);
     });
