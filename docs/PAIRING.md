@@ -28,12 +28,26 @@ Official / third-party clients sitting **next to the car** over BLE:
 
 Cloudflare (or any remote host) cannot substitute for step 2–3: BLE range is local to the radio that sends the protobuf.
 
-### In the car right now (Tesla app)
+### In the car right now
+
+**A. Pulse Phone Key (Android Chrome)** — `/phone-key`
+
+1. Open the HTTPS tunnel in **Chrome** (not iOS Safari)  
+2. PIN unlock → open **Phone Key**  
+3. Confirm VIN → **Bluetooth ile eşleştir** → pick the Tesla  
+4. Put Key Card on the **console** → Confirm **Pair** on the car screen  
+
+This sends the same VCSEC `SIGNATURE_TYPE_PRESENT_KEY` envelope as
+`tesla-control add-key-request`. The P-256 key stays in the phone’s `localStorage`.
+
+**B. Official Tesla app**
 
 1. Open **Tesla** app → **Phone Key** / add key  
 2. Tap **Start**  
 3. Put Key Card on the **console** (not the phone)  
-4. Confirm **Pair** on the vehicle screen
+4. Confirm **Pair** on the vehicle screen  
+
+**iPhone:** Web Bluetooth is unavailable — use the official Tesla app (path B).
 
 ### Open-source tools
 

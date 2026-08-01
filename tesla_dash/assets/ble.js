@@ -6,7 +6,7 @@
 (function (global) {
   "use strict";
 
-  var TESLA_SERVICE = "00000211-b2d1-4f76-bada-24be206df979";
+  var TESLA_SERVICE = "00000211-b2d1-43f0-9b88-960cebf8b91e";
 
   var state = {
     connected: false,

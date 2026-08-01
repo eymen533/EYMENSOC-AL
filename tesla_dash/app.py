@@ -19,6 +19,7 @@ import dash_leaflet as dl
 from dash import ALL, Dash, Input, Output, State, callback, clientside_callback, ctx, dcc, html
 
 from tesla_dash.auth import register_auth
+from tesla_dash.phone_key import register_phone_key
 from tesla_dash.prayer import next_prayer
 from tesla_dash.tesla import get_vehicle_state
 from tesla_dash.tesla.ble import get_ble_session, normalize_vin, valid_vin
@@ -85,6 +86,7 @@ app = Dash(
 )
 server = app.server
 register_auth(server)
+register_phone_key(server)
 
 app.index_string = """
 <!DOCTYPE html>
@@ -434,15 +436,21 @@ app.layout = html.Div(
                                     ],
                                 ),
                                 html.A(
-                                    "Tesla uygulamasını aç",
+                                    "Phone Key (Bluetooth eşleştir)",
+                                    href="/phone-key",
+                                    className="pair-primary pair-link-btn",
+                                ),
+                                html.A(
+                                    "Tesla resmi uygulaması",
                                     href="https://www.tesla.com/teslaapp",
                                     target="_blank",
                                     rel="noopener noreferrer",
-                                    className="pair-primary pair-link-btn",
+                                    className="pair-ghost pair-link-btn",
+                                    style={"marginTop": "0.45rem"},
                                 ),
                                 html.P(
-                                    "Pulse buluttan çalışır; arabadaki Pair penceresini açamaz. "
-                                    "Aşağıdaki adımlar sadece telefon HUD oturumudur.",
+                                    "Phone Key sayfası Android Chrome’da Web Bluetooth ile "
+                                    "add-key-request gönderir. iPhone’da Safari desteklemez.",
                                     className="howto-note",
                                 ),
                             ],
