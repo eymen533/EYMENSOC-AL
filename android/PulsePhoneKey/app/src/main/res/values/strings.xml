@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pulse Key</string>
+    <string name="title">Phone Key</string>
+    <string name="subtitle">Bluetooth ile araca add-key-request gönder. Sonra Key Card’ı konsola koy — Pair / Confirm.</string>
+    <string name="vin_label">VIN</string>
+    <string name="vin_hint">17 karakter VIN</string>
+    <string name="pair_button">Bluetooth ile eşleştir</string>
+    <string name="status_ready">Hazır. Araç yakında ve Bluetooth açık olsun.</string>
+    <string name="step1">1 · Bluetooth izni ver, Tesla’yı bul</string>
+    <string name="step2">2 · Key Card → konsol okuyucu (telefona değil)</string>
+    <string name="step3">3 · Araç ekranında Pair / Confirm</string>
+</resources>

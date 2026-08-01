@@ -30,7 +30,11 @@ Cloudflare (or any remote host) cannot substitute for step 2–3: BLE range is l
 
 ### In the car right now
 
-**A. Pulse Phone Key (Android Chrome)** — `/phone-key`
+**A. Android APK (recommended)** — [`releases/PulsePhoneKey.apk`](../releases/PulsePhoneKey.apk) or `/downloads/PulsePhoneKey.apk`
+
+Install → VIN → Bluetooth ile eşleştir → Key Card on console → Pair.
+
+**A2. Pulse Phone Key (Android Chrome)** — `/phone-key`
 
 1. Open the HTTPS tunnel in **Chrome** (not iOS Safari)  
 2. PIN unlock → open **Phone Key**  

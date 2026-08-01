@@ -264,9 +264,18 @@ def phone_key_html(vin: str = "") -> str:
     </div>
 
     <div class="card" id="android-panel">
+      <a class="btn" id="apk-download" href="/downloads/PulsePhoneKey.apk" style="text-decoration:none;text-align:center;margin-top:0">
+        Android APK indir · Pulse Key
+      </a>
+      <p class="support ok" style="margin-top:.75rem">
+        APK’yı kur → VIN gir → <strong>Bluetooth ile eşleştir</strong> → Key Card’ı <strong>konsola</strong> koy → Pair.
+        “Bilinmeyen kaynaklar” iznini açman gerekebilir.
+      </p>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:1rem 0" />
+      <div style="font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:.45rem">Tarayıcıdan dene (Chrome)</div>
       <label for="pk-vin">VIN</label>
       <input id="pk-vin" maxlength="17" value="{vin_attr}" placeholder="17 karakter VIN" autocomplete="off" />
-      <button class="btn" id="pk-go" type="button">Bluetooth ile eşleştir</button>
+      <button class="btn" id="pk-go" type="button">Web Bluetooth ile eşleştir</button>
       <button class="btn ghost" id="pk-reset" type="button">Anahtarı sıfırla</button>
       <div id="pk-support" class="support">Kontrol ediliyor…</div>
       <div id="pk-status" data-kind="info">Hazır. Araç yakında ve uyanık olsun.</div>
@@ -290,7 +299,7 @@ def phone_key_html(vin: str = "") -> str:
 
 def register_phone_key(server) -> None:
     """Register /phone-key UI and payload APIs on the Flask server."""
-    from flask import jsonify, request
+    from flask import jsonify, request, send_file, abort
 
     @server.get("/phone-key")
     def phone_key_page():  # type: ignore[no-redef]
@@ -301,6 +310,24 @@ def register_phone_key(server) -> None:
             return redirect("/login")
         vin = (request.args.get("vin") or owner_vin()).strip()
         return phone_key_html(vin)
+
+    @server.get("/downloads/PulsePhoneKey.apk")
+    def download_android_apk():  # type: ignore[no-redef]
+        from tesla_dash.auth import is_unlocked
+        from flask import redirect
+
+        if not is_unlocked():
+            return redirect("/login")
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path = os.path.join(root, "releases", "PulsePhoneKey.apk")
+        if not os.path.isfile(path):
+            abort(404)
+        return send_file(
+            path,
+            mimetype="application/vnd.android.package-archive",
+            as_attachment=True,
+            download_name="PulsePhoneKey.apk",
+        )
 
     @server.post("/api/phone-key/payload")
     def phone_key_payload():  # type: ignore[no-redef]

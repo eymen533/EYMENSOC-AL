@@ -3,6 +3,14 @@ venv/
 __pycache__/
 *.py[cod]
 .env
+.android-sdk/
+android/**/local.properties
+android/**/*.jks
+android/**/*.keystore
+android/**/build/
+android/**/.gradle/
+*.apk.idsig
+releases/*.apk.idsig
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
