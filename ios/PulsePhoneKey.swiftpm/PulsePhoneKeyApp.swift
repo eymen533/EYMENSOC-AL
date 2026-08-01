@@ -5,6 +5,7 @@ struct PulsePhoneKeyApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         }
     }
 }

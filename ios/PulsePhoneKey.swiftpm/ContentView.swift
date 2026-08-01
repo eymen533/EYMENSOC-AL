@@ -1,71 +1,84 @@
 import SwiftUI
 
+/// Root: Pair flow → native HUD (no WebView).
 struct ContentView: View {
     @StateObject private var ble = BLEPairer()
+    @StateObject private var hud = HUDModel()
     @State private var vin = UserDefaults.standard.string(forKey: "pulse_vin") ?? "XP7YGCEK0PB159959"
-    @State private var server = UserDefaults.standard.string(forKey: "pulse_server")
-        ?? "https://beach-mobiles-writers-developments.trycloudflare.com"
     @State private var err: String?
-    @State private var showDash = false
     @State private var logOpen = false
+    @State private var screen: Screen = .pair
+
+    enum Screen { case pair, hud }
 
     var body: some View {
+        Group {
+            switch screen {
+            case .hud:
+                NativeHUDView(model: hud) {
+                    screen = .pair
+                }
+                .onAppear {
+                    hud.configure(vin: vinNorm, paired: ble.paired || ble.waitingForCard || ble.readyForDashboard)
+                    hud.start()
+                }
+            case .pair:
+                pairScreen
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: screen)
+        .onChange(of: ble.readyForDashboard) { _, on in
+            if on { openHUD() }
+        }
+        .onChange(of: ble.paired) { _, on in
+            if on { openHUD() }
+        }
+    }
+
+    private var pairScreen: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("Pulse Phone Key")
-                        .font(.largeTitle.bold())
-                    Text("SÜRÜM: \(BLEPairer.buildId)")
+                    Text("Pulse")
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                    Text("SÜRÜM: \(BLEPairer.buildId) · native HUD")
                         .font(.caption.bold())
                         .padding(8)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(0.35)))
 
-                    // Dashboard CTA
-                    if ble.readyForDashboard || ble.waitingForCard || ble.paired {
-                        Button {
-                            save()
-                            showDash = true
-                        } label: {
-                            Text("Dashboard / HUD aç  (PIN 428462)")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.green)
-                    }
+                    Text("WebView yok — Pair sonrası cluster uygulama içi açılır.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
 
-                    Group {
-                        label("Dash server")
-                        TextField("https://…", text: $server)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .font(.system(.body, design: .monospaced))
-                            .padding(10)
-                            .background(fieldBG)
-                        Button("Sadece Dashboard aç") {
-                            save()
-                            showDash = true
-                        }
-                        .buttonStyle(.bordered)
+                    Button {
+                        openHUD()
+                    } label: {
+                        Text("Native HUD’u aç")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.cyan)
+
+                    if ble.readyForDashboard || ble.waitingForCard || ble.paired {
+                        Text("Pair OK — HUD’a geçiliyor…")
+                            .font(.subheadline)
+                            .foregroundStyle(.green)
                     }
 
                     Divider()
 
-                    Text("PAIR")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
-
-                    label("VIN")
+                    Text("VIN").font(.caption.weight(.semibold))
                     TextField("VIN", text: $vin)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                         .font(.system(.body, design: .monospaced))
                         .padding(10)
-                        .background(fieldBG)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemBackground)))
 
-                    Text("Beklenen: \(VCSECPayload.bleLocalName(vin: vinNorm))")
+                    Text("BLE: \(VCSECPayload.bleLocalName(vin: vinNorm))")
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(.secondary)
 
@@ -85,18 +98,18 @@ struct ContentView: View {
                         .background(RoundedRectangle(cornerRadius: 12).fill(Color.blue.opacity(0.12)))
 
                     if !ble.devices.isEmpty {
-                        Text("2. Cihaza dokun (🔑 Tesla en üstte)")
+                        Text("2. 🔑 Tesla satırına dokun")
                             .font(.headline)
                         ForEach(ble.devices.prefix(16)) { d in
+                            let hot = d.name.contains("🔑") || d.name.localizedCaseInsensitiveContains("tesla")
                             Button {
                                 ble.connect(id: d.id)
                             } label: {
                                 HStack {
-                                    Text(d.containsTeslaHint ? "BAĞLAN" : "dene")
+                                    Text(hot ? "BAĞLAN" : "dene")
                                         .font(.caption.bold())
                                         .padding(6)
-                                        .background(d.containsTeslaHint ? Color.orange : Color.gray.opacity(0.3))
-                                        .foregroundStyle(d.containsTeslaHint ? .black : .primary)
+                                        .background(hot ? Color.orange : Color.gray.opacity(0.35))
                                         .clipShape(RoundedRectangle(cornerRadius: 6))
                                     Text(d.label)
                                         .font(.system(.footnote, design: .monospaced))
@@ -104,10 +117,9 @@ struct ContentView: View {
                                     Spacer()
                                 }
                                 .padding(12)
-                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(d.containsTeslaHint ? .orange : .gray)
+                            .tint(hot ? .orange : .gray)
                         }
                     }
 
@@ -125,16 +137,6 @@ struct ContentView: View {
                 }
                 .padding(18)
             }
-            .navigationDestination(isPresented: $showDash) {
-                DashboardView(serverURL: $server, pin: "428462")
-            }
-            .onChange(of: ble.readyForDashboard) { _, on in
-                if on {
-                    // Offer dash; auto-open once write succeeded
-                    save()
-                    showDash = true
-                }
-            }
         }
     }
 
@@ -142,17 +144,10 @@ struct ContentView: View {
         vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 
-    private var fieldBG: some View {
-        RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemBackground))
-    }
-
-    private func label(_ t: String) -> some View {
-        Text(t).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-    }
-
-    private func save() {
+    private func openHUD() {
         UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
-        UserDefaults.standard.set(server.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pulse_server")
+        hud.configure(vin: vinNorm, paired: ble.paired || ble.waitingForCard || ble.readyForDashboard)
+        screen = .hud
     }
 
     private func startPair() {
@@ -161,18 +156,12 @@ struct ContentView: View {
             err = "VIN 17 karakter"
             return
         }
-        save()
+        UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
         do {
             let key = try KeyStore.loadOrCreatePrivateKey(forVIN: vinNorm)
             ble.start(vin: vinNorm, publicKey: KeyStore.publicKeyUncompressed(key))
         } catch {
             err = error.localizedDescription
         }
-    }
-}
-
-private extension BLEPairer.DeviceRow {
-    var containsTeslaHint: Bool {
-        name.contains("🔑") || name.localizedCaseInsensitiveContains("tesla")
     }
 }
