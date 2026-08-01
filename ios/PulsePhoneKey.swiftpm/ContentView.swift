@@ -14,7 +14,13 @@ struct ContentView: View {
                     Text("Pulse Phone Key")
                         .font(.largeTitle.bold())
 
-                    Text("ÖNEMLİ: Eşleştir’e bas → kapıyı aç. Tesla app kapat. (🔑 Tesla 🍃 görünüyorsa bağlanır)")
+                    Text("SÜRÜM: \(BLEPairer.buildId)")
+                        .font(.caption.weight(.bold))
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(0.25)))
+
+                    Text("Eski proje çöp. Bu yeşil satırı görmeden Run etme. 🔑 Tesla görünce bağlanır.")
                         .font(.subheadline)
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
