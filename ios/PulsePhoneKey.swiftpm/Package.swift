@@ -1,7 +1,7 @@
 // swift-tools-version: 5.9
 //
-// Swift Playgrounds (iPad) App project — open this folder in Swift Playgrounds.
-// Bluetooth privacy strings come from Info.plist via additionalInfoPlistContentFilePath.
+// IMPORTANT: Bluetooth permission must be declared via `capabilities`
+// (Playgrounds-native). Info.plist alone is often ignored → iOS kills the app.
 
 import PackageDescription
 import AppleProductTypes
@@ -31,13 +31,25 @@ let package = Package(
                 .landscapeLeft,
                 .portraitUpsideDown(.when(deviceFamilies: [.pad]))
             ],
+            capabilities: [
+                .bluetoothAlways(
+                    purposeString: "Tesla Phone Key eslesmesi icin Bluetooth gerekir."
+                )
+            ],
             additionalInfoPlistContentFilePath: "Info.plist"
         )
     ],
     targets: [
         .executableTarget(
             name: "AppModule",
-            path: "Sources"
+            path: ".",
+            exclude: [
+                "Package.swift",
+                "Info.plist",
+                "PLAYGROUNDS.md",
+                "CRASH_FIX.md",
+                "MANUAL.md"
+            ]
         )
     ]
 )

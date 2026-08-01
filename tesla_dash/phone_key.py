@@ -251,6 +251,10 @@ def phone_key_html(vin: str = "") -> str:
         <li>Bluetooth izni → eşleştir → Key Card’ı <strong>konsola</strong> koy → Pair</li>
       </ol>
       <a class="btn" href="/downloads/PulsePhoneKey-playground.zip" style="text-decoration:none;text-align:center">Swift Playgrounds projesi indir (.zip)</a>
+      <p class="support" style="background:rgba(255,214,10,.12);color:#ffe566;margin-top:.75rem">
+        Çökerse: eski projeyi sil → yeni zip’i aç → App Settings → Capabilities → <strong>Bluetooth Always</strong>.
+        Olmazsa boş App açıp <a href="/downloads/PulsePhoneKey-swift-files.zip" style="color:var(--cyan)">swift dosyalarını</a> yapıştır (önce Bluetooth capability).
+      </p>
       <a class="btn ghost" href="https://apps.apple.com/app/swift-playgrounds/id908519492" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Swift Playgrounds · App Store</a>
       <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:1rem 0" />
       <div style="font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:.45rem">Alternatif · Tesla uygulaması</div>
@@ -340,23 +344,30 @@ def register_phone_key(server) -> None:
     def download_tesla_pulse_apk():  # type: ignore[no-redef]
         return _send_apk("TeslaPulse.apk")
 
-    @server.get("/downloads/PulsePhoneKey-playground.zip")
-    def download_playgrounds_zip():  # type: ignore[no-redef]
+    def _send_release_zip(filename: str):
         from tesla_dash.auth import is_unlocked
         from flask import redirect
 
         if not is_unlocked():
             return redirect("/login")
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        path = os.path.join(root, "releases", "PulsePhoneKey-playground.zip")
+        path = os.path.join(root, "releases", filename)
         if not os.path.isfile(path):
             abort(404)
         return send_file(
             path,
             mimetype="application/zip",
             as_attachment=True,
-            download_name="PulsePhoneKey-playground.zip",
+            download_name=filename,
         )
+
+    @server.get("/downloads/PulsePhoneKey-playground.zip")
+    def download_playgrounds_zip():  # type: ignore[no-redef]
+        return _send_release_zip("PulsePhoneKey-playground.zip")
+
+    @server.get("/downloads/PulsePhoneKey-swift-files.zip")
+    def download_swift_files_zip():  # type: ignore[no-redef]
+        return _send_release_zip("PulsePhoneKey-swift-files.zip")
 
     @server.post("/api/phone-key/payload")
     def phone_key_payload():  # type: ignore[no-redef]

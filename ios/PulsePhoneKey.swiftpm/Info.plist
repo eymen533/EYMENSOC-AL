@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Tesla aracıyla Phone Key eşleşmesi için Bluetooth gerekir.</string>
+	<string>Tesla Phone Key eslesmesi icin Bluetooth gerekir.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>Tesla aracıyla Phone Key eşleşmesi için Bluetooth gerekir.</string>
+	<string>Tesla Phone Key eslesmesi icin Bluetooth gerekir.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Pulse Key</string>
 </dict>

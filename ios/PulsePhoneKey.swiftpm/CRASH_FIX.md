@@ -1,27 +1,21 @@
-# Playgrounds “Phone Key çöktü” — düzeltme
+# Çökme düzeltmesi (önemli)
 
-Bu **kod bug’ı değil**; iPadOS şunu yapıyor:
-
-> Bluetooth kullanılırken `NSBluetoothAlwaysUsageDescription` yoksa uygulamayı öldürür.
-
-Playgrounds bazen `Info.plist` satırını Package.swift’ten siler → Run deyince çöker.
-
-## Düzelt (2 dk)
-
-1. Swift Playgrounds’ta projeyi aç  
-2. Sol üstte **PulsePhoneKey** (veya App Settings / dişli)  
-3. **Capabilities** → **+** → **Bluetooth**  
-4. Açıklama yaz: `Tesla Phone Key eşleşmesi için Bluetooth gerekir`  
-5. Sol dosya listesinde `Package.swift` aç — şu satır **olmalı**:
+Playgrounds’ta Bluetooth izni **şöyle** tanımlanmalı:
 
 ```swift
-additionalInfoPlistContentFilePath: "Info.plist"
+capabilities: [
+    .bluetoothAlways(purposeString: "Tesla Phone Key eslesmesi icin Bluetooth gerekir.")
+]
 ```
 
-Yoksa `.iOSApplication(` bloğunun son parametresi olarak ekle (üst satıra virgül koy).  
-6. `Info.plist` dosyası proje kökünde dursun (zip’te var).  
-7. **Run ▶** — artık açılışta çökmemeli. Kırmızı uyarı varsa **İzin kontrolünü yenile**.
+Sadece `Info.plist` yetmez — iPadOS uygulamayı öldürür (“çöktü”).
 
-## Sonra Pair
+## Senin yapman gereken
 
-Arabayı uyandır → Tesla app kapat → **Bluetooth ile eşleştir** → Log’da `İstek gönderildi ✓` → Key Card **konsola**.
+1. **Eski** PulsePhoneKey projesini Playgrounds’tan sil  
+2. Yeni zip’i indir / aç  
+3. Sol üst → App Settings → **Signing** (Apple ID)  
+4. Capabilities’te **Bluetooth** göründüğünü kontrol et  
+5. **Run ▶**
+
+Hâlâ çökerse: Playgrounds’ta **yeni boş App** oluştur → Capabilities → + → Bluetooth Always ekle → sonra bu klasördeki `.swift` dosyalarını kopyala (`MANUAL.md`).

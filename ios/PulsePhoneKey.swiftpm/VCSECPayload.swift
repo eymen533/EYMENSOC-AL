@@ -1,8 +1,6 @@
 import Foundation
 import CryptoKit
 
-/// Minimal protobuf writer for Tesla VCSEC add-key-request
-/// (same envelope as `tesla-control -ble add-key-request`).
 enum VCSECPayload {
     static let serviceUUID = "00000211-B2D1-43F0-9B88-960CEBF8B91E"
     static let writeUUID = "00000212-B2D1-43F0-9B88-960CEBF8B91E"
@@ -24,7 +22,6 @@ enum VCSECPayload {
         return [bleLocalName(vin: v), "Tesla \(tail)", "Tesla\(tail)"]
     }
 
-    /// Length-prefixed ToVCSECMessage bytes ready for GATT write.
     static func addKeyRequest(publicKeyUncompressed: Data) -> Data {
         let publicKey = field(1, bytes: publicKeyUncompressed)
         let permissionChange = field(1, bytes: publicKey) + field(4, varint: roleOwner)
