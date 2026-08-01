@@ -264,12 +264,12 @@ def phone_key_html(vin: str = "") -> str:
     </div>
 
     <div class="card" id="android-panel">
-      <a class="btn" id="apk-download" href="/downloads/PulsePhoneKey.apk" style="text-decoration:none;text-align:center;margin-top:0">
-        Android APK indir · Pulse Key
+      <a class="btn" id="apk-download" href="/downloads/TeslaPulse.apk" style="text-decoration:none;text-align:center;margin-top:0">
+        Android APK indir · Tesla Pulse (tam uygulama)
       </a>
       <p class="support ok" style="margin-top:.75rem">
-        APK’yı kur → VIN gir → <strong>Bluetooth ile eşleştir</strong> → Key Card’ı <strong>konsola</strong> koy → Pair.
-        “Bilinmeyen kaynaklar” iznini açman gerekebilir.
+        Tam uygulama: PIN → BLE + Key Card Pair → cluster HUD.
+        Kur → PIN <strong>428462</strong> → VIN → eşleştir → kartı <strong>konsola</strong> koy → HUD.
       </p>
       <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:1rem 0" />
       <div style="font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:.45rem">Tarayıcıdan dene (Chrome)</div>
@@ -311,23 +311,35 @@ def register_phone_key(server) -> None:
         vin = (request.args.get("vin") or owner_vin()).strip()
         return phone_key_html(vin)
 
-    @server.get("/downloads/PulsePhoneKey.apk")
-    def download_android_apk():  # type: ignore[no-redef]
+    def _send_apk(filename: str):
         from tesla_dash.auth import is_unlocked
         from flask import redirect
 
         if not is_unlocked():
             return redirect("/login")
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        path = os.path.join(root, "releases", "PulsePhoneKey.apk")
+        path = os.path.join(root, "releases", filename)
         if not os.path.isfile(path):
-            abort(404)
+            # fall back to the other name
+            alt = "TeslaPulse.apk" if filename == "PulsePhoneKey.apk" else "PulsePhoneKey.apk"
+            path = os.path.join(root, "releases", alt)
+            if not os.path.isfile(path):
+                abort(404)
+            filename = alt
         return send_file(
             path,
             mimetype="application/vnd.android.package-archive",
             as_attachment=True,
-            download_name="PulsePhoneKey.apk",
+            download_name=filename,
         )
+
+    @server.get("/downloads/PulsePhoneKey.apk")
+    def download_android_apk():  # type: ignore[no-redef]
+        return _send_apk("TeslaPulse.apk")
+
+    @server.get("/downloads/TeslaPulse.apk")
+    def download_tesla_pulse_apk():  # type: ignore[no-redef]
+        return _send_apk("TeslaPulse.apk")
 
     @server.post("/api/phone-key/payload")
     def phone_key_payload():  # type: ignore[no-redef]

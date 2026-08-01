@@ -8,11 +8,22 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.teslapulse.phonekey"
+        applicationId = "com.teslapulse.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "2.0.0"
+        buildConfigField(
+            "String",
+            "DEFAULT_SERVER",
+            "\"https://prix-navy-webshots-administrator.trycloudflare.com\"",
+        )
+        buildConfigField("String", "DEFAULT_VIN", "\"XP7YGCEK0PB159959\"")
+    }
+
+    buildFeatures {
+        viewBinding = true
+        buildConfig = true
     }
 
     buildTypes {
@@ -34,9 +45,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
-    }
-    buildFeatures {
-        viewBinding = true
     }
 }
 

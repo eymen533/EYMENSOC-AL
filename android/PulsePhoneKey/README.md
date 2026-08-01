@@ -1,33 +1,32 @@
-# Pulse Phone Key (Android APK)
+# Tesla Pulse — Android APK (full app)
 
-Native Android app that sends Tesla VCSEC **add-key-request** over Bluetooth LE,
-then you tap the Key Card on the **console** and confirm **Pair** on the car screen.
+Full phone app:
+
+1. **PIN** login to your Pulse server  
+2. **BLE Phone Key** pair (`add-key-request` → Key Card on console → Pair)  
+3. **Cluster HUD** in a landscape WebView  
 
 ## Download
 
-Signed APK (repo root):
+- [`releases/TeslaPulse.apk`](../../releases/TeslaPulse.apk)  
+- Live: `/downloads/TeslaPulse.apk` (after PIN)
 
-- [`releases/PulsePhoneKey.apk`](../../releases/PulsePhoneKey.apk)
+## Flow
 
-Or from the running Pulse server: **`/downloads/PulsePhoneKey.apk`**
+1. Install APK (allow unknown sources)  
+2. Open **Tesla Pulse** → enter PIN  
+3. Enter VIN → **Key Card ile eşleştir**  
+4. Put Key Card on the **car console** → Confirm Pair  
+5. HUD opens (or tap **HUD’u aç**)  
 
-## Install on phone
+**Sunucu ayarı** on the login screen if the Cloudflare URL changes.
 
-1. Transfer the APK to the phone  
-2. Settings → allow install from unknown sources for the file app / browser  
-3. Open APK → Install  
-4. Open **Pulse Key** → enter VIN → **Bluetooth ile eşleştir**  
-5. Key Card → **console** → Pair / Confirm  
-
-Grant **Nearby devices / Bluetooth** and **Location** (needed for BLE scan on Android).
-
-## Build from source
+## Build
 
 ```bash
-export ANDROID_HOME=/path/to/Android/Sdk
+export ANDROID_HOME=/path/to/Sdk
+cd android/PulsePhoneKey
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew assembleRelease
-# sign with apksigner
+# zipalign + apksigner → ../../releases/TeslaPulse.apk
 ```
-
-Requires JDK 17+, Android SDK 34.

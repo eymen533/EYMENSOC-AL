@@ -1,27 +1,29 @@
-# Pulse Phone Key — Android APK
+# Tesla Pulse — full Android APK
 
-## Install
+One app for the whole flow:
 
-1. On the phone open Pulse → `/phone-key` (PIN unlock)  
-2. Tap **Android APK indir**  
-   or download [`releases/PulsePhoneKey.apk`](../releases/PulsePhoneKey.apk) from the repo  
-3. Allow install from that source → Install **Pulse Key**  
-4. Open app → VIN → **Bluetooth ile eşleştir**  
-5. Key Card on **console** → Pair / Confirm on the car  
+1. **PIN** → unlock Pulse server session  
+2. **BLE + Key Card** → VCSEC `add-key-request`, card on **console**, Pair on car screen  
+3. **Cluster HUD** → landscape WebView of the Dash UI  
 
-Permissions: Nearby devices / Bluetooth + Location (BLE scan).
+## Download
 
-## What it does
+- [`releases/TeslaPulse.apk`](../releases/TeslaPulse.apk)  
+- Live (after PIN): `/downloads/TeslaPulse.apk`  
 
-Same VCSEC `SIGNATURE_TYPE_PRESENT_KEY` add-key envelope as
-`tesla-control -ble add-key-request` and the iOS companion.
+Also aliased as `/downloads/PulsePhoneKey.apk`.
 
-## Rebuild
+## Install & use
 
-```bash
-export ANDROID_HOME=$PWD/.android-sdk   # or your SDK
-cd android/PulsePhoneKey
-echo "sdk.dir=$ANDROID_HOME" > local.properties
-./gradlew assembleRelease
-# zipalign + apksigner → releases/PulsePhoneKey.apk
-```
+1. Install APK (unknown sources)  
+2. Open **Tesla Pulse**  
+3. PIN (e.g. `428462`)  
+4. VIN → **Key Card ile eşleştir**  
+5. Key Card on console → Confirm Pair  
+6. HUD opens automatically (or tap **HUD’u aç**)  
+
+If the Cloudflare tunnel URL changes: login screen → **Sunucu ayarı**.
+
+## Permissions
+
+Bluetooth / Nearby devices + Location (required for BLE scan on Android).
