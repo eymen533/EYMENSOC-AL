@@ -15,7 +15,26 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("Pulse Phone Key")
                         .font(.largeTitle.bold())
-                    Text("iPad/iPhone · gerçek BLE Pair. Ayarlar’da S…C kaybolması bağlanınca normaldir.")
+
+                    if !pairer.bluetoothPrivacyOK {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Çökme engellendi")
+                                .font(.headline)
+                            Text("iOS, Bluetooth izin yazısı olmadan uygulamayı öldürüyor. Playgrounds bazen Info.plist’i yok sayıyor — elle ekle:")
+                                .font(.subheadline)
+                            Text("1) Sol üstte PulsePhoneKey / App Settings\n2) Capabilities → +\n3) Bluetooth seç\n4) Açıklama: Tesla Phone Key eşleşmesi için Bluetooth gerekir\n5) Run ▶ tekrar")
+                                .font(.footnote)
+                            Button("İzin kontrolünü yenile") {
+                                pairer.refreshPrivacyFlag()
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(Color.red.opacity(0.14)))
+                    }
+
+                    Text("iPad/iPhone · gerçek BLE Pair")
                         .foregroundStyle(.secondary)
 
                     Group {
@@ -31,14 +50,14 @@ struct ContentView: View {
                     Button {
                         Task { await start() }
                     } label: {
-                        Text(pairer.busy ? "Çalışıyor… uygulamadan çıkma" : "Bluetooth ile eşleştir")
+                        Text(pairer.busy ? "Çalışıyor… çıkma" : "Bluetooth ile eşleştir")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .font(.headline)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    .disabled(pairer.busy || normalizedVin.count != 17)
+                    .disabled(pairer.busy || normalizedVin.count != 17 || !pairer.bluetoothPrivacyOK)
 
                     Text(pairer.status)
                         .padding(14)
@@ -56,33 +75,11 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        step(1, "Arabayı uyandır + Tesla uygulamasını kapat", on: true)
-                        step(2, "Eşleştir → Log’da “İstek gönderildi ✓” bekle", on: pairer.waitingForCard || pairer.paired)
-                        step(3, "Key Card → konsol (iPad değil) → Pair", on: pairer.waitingForCard || pairer.paired)
-                    }
-
-                    DisclosureGroup("Takılınca oku") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("• Bluetooth Ayarları’nda Tesla / S…C bir an görünüp gitmesi = çoğu zaman bağlandı, kayboldu değil.")
-                            Text("• Pair / Confirm ancak “İstek gönderildi ✓” sonrası Key Card konsola konunca çıkar.")
-                            Text("• Araç uykudaysa S…C hiç gelmez — kapıyı aç / ekranı uyandır.")
-                            Text("• Resmi Tesla uygulaması BLE’yi tutuyorsa kapat (app switcher’dan sil).")
-                            Text("• Playgrounds’ta üstteki Run ▶ kullan; yan önizleme BLE için güvenilmez.")
-                        }
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    }
-
-                    if let error {
-                        Text(error).foregroundStyle(.red).font(.footnote)
-                    }
-
-                    Text("Beklenen BLE adı: \(VCSECPayload.bleLocalName(vin: normalizedVin)) · Tesla \(String(normalizedVin.suffix(6)))")
+                    Text("Beklenen BLE: \(VCSECPayload.bleLocalName(vin: normalizedVin)) · Tesla \(String(normalizedVin.suffix(6)))")
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(.secondary)
 
-                    DisclosureGroup("Log (HATA satırını oku)", isExpanded: .constant(true)) {
+                    DisclosureGroup("Log", isExpanded: $logOpen) {
                         ForEach(Array(pairer.log.enumerated()), id: \.offset) { _, line in
                             Text(line)
                                 .font(.system(size: 12, design: .monospaced))
@@ -90,28 +87,22 @@ struct ContentView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
+
+                    if let error {
+                        Text(error).foregroundStyle(.red).font(.footnote)
+                    }
                 }
                 .padding(sizeClass == .regular ? 28 : 16)
                 .frame(maxWidth: 720, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear { pairer.refreshPrivacyFlag() }
         }
     }
 
     private var normalizedVin: String {
         vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-    }
-
-    private func step(_ n: Int, _ text: String, on: Bool) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text("\(n)")
-                .font(.caption.bold())
-                .frame(width: 26, height: 26)
-                .background(Circle().fill(on ? Color.green : Color.secondary.opacity(0.3)))
-                .foregroundStyle(on ? .black : .primary)
-            Text(text).font(.subheadline).foregroundStyle(on ? .primary : .secondary)
-        }
     }
 
     private func start() async {

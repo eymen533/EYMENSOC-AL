@@ -12,12 +12,17 @@ Mac / Xcode **gerekmez**. App Store’daki **Swift Playgrounds** ile bu `.swiftp
 
 **Git yolu:** Working Copy / repo’dan `ios/PulsePhoneKey.swiftpm` klasörünü Playgrounds’a kopyala.
 
-## 2) Playgrounds ayarları
+## 2) Playgrounds ayarları (çökme olmasın)
 
 1. Sol üstte proje adına dokun → **App Settings**
 2. Apple ID ile **Signing** (Personal Team yeterli)
-3. Bluetooth izin metni `Info.plist` içinde; yine de Settings’te Capabilities varsa Bluetooth’u kontrol et
-4. Üstteki **Run ▶** — önizleme değil, gerçek uygulama penceresi
+3. **Capabilities → + → Bluetooth** ekle  
+   Metin: `Tesla Phone Key eşleşmesi için Bluetooth gerekir`  
+   (Yoksa iPadOS uygulamayı **öldürür** — “çöktü” der)
+4. `Package.swift` içinde `additionalInfoPlistContentFilePath: "Info.plist"` kalsın
+5. Üstteki **Run ▶** — önizleme değil
+
+Ayrıntı: [`CRASH_FIX.md`](CRASH_FIX.md)
 
 İlk çalıştırmada Bluetooth izni iste → **Allow**.
 
