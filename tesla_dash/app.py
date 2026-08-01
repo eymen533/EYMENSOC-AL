@@ -228,8 +228,8 @@ def _telltale_row() -> html.Div:
     )
 
 
-def _select_rail() -> html.Div:
-    """Narrow dark pill rail — 5 icons like the reference cluster."""
+def _select_rail(side: str) -> html.Div:
+    """Narrow dark pill rail — flashes on selection, hides after 1.02s."""
     items = [
         ("dash", "0", "Seyahat"),
         ("gear", "1", "Lastik"),
@@ -237,19 +237,21 @@ def _select_rail() -> html.Div:
         ("map", "2", "Harita"),
         ("music", "3", "Medya"),
     ]
+    default_on = "dash" if side == "left" else "nav"
     buttons = [
         html.Button(
             html.Span(className=f"ri ri-{kind}"),
-            className=f"rail-item{' on' if kind == 'nav' else ''}",
-            **{"data-i": slide_i, "data-kind": kind},
+            className=f"rail-item{' on' if kind == default_on else ''}",
+            **{"data-i": slide_i, "data-kind": kind, "data-side": side},
             title=title,
             n_clicks=0,
         )
         for kind, slide_i, title in items
     ]
     return html.Div(
-        id="select-rail",
-        className="select-rail",
+        id=f"select-rail-{side}",
+        className=f"select-rail {side}-rail",
+        **{"data-side": side},
         children=html.Div(className="rail-pill", children=buttons),
     )
 
@@ -459,7 +461,8 @@ app.layout = html.Div(
                             className="center-panel",
                             children=[
                                 html.Div(className="center-veil"),
-                                _select_rail(),
+                                _select_rail("left"),
+                                _select_rail("right"),
                                 html.Div(id="gear-display", className="gear-wrap"),
                                 _telltale_row(),
                                 html.Div(
@@ -657,12 +660,12 @@ clientside_callback(
 )
 
 
-# Slide transform + dots + selection rail flash
+# Slide transform + dots + selection rail flash (1.02s)
 clientside_callback(
     """
     function(left, right) {
-        left = ((left % 3) + 3) % 3;
-        right = ((right % 3) + 3) % 3;
+        left = ((left % 4) + 4) % 4;
+        right = ((right % 4) + 4) % 4;
         function apply(side, idx) {
             const track = document.getElementById(side + '-carousel');
             if (track) {
@@ -675,23 +678,14 @@ clientside_callback(
         }
         apply('left', left);
         apply('right', right);
-        // Prefer flashing the side that just changed
         const trig = (dash_clientside.callback_context.triggered || [])[0];
         let side = 'left';
         let idx = left;
         if (trig && String(trig.prop_id).indexOf('right') !== -1) {
             side = 'right'; idx = right;
         }
-        if (window.TeslaCarousel && TeslaCarousel.set) {
-            // only flash rail without rewriting store
-            const rail = document.getElementById('select-rail');
-            if (rail) {
-                rail.classList.add('visible');
-                rail.dataset.side = side;
-                rail.querySelectorAll('.rail-item').forEach((el, i) => el.classList.toggle('on', i === idx));
-                clearTimeout(window.__railHide);
-                window.__railHide = setTimeout(() => rail.classList.remove('visible'), 1600);
-            }
+        if (window.TeslaCarousel && TeslaCarousel.flash) {
+            TeslaCarousel.flash(side, idx);
         }
         return window.dash_clientside.no_update;
     }

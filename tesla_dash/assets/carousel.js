@@ -1,17 +1,23 @@
 /**
- * Side carousels + reference-style narrow selection pill.
+ * Side carousels + dual selection rails.
+ * Rails show on selection, hide after 1.02s; next selection shows again.
  * Slides: 0 trip, 1 tires, 2 map, 3 media
  */
 (function () {
   "use strict";
 
   var COUNT = 4;
+  var HIDE_MS = 1020;
   var cool = { left: 0, right: 0 };
-  var hideTimer = null;
+  var hideTimers = { left: null, right: null };
   var KIND_FOR_SLIDE = { 0: "dash", 1: "gear", 2: "nav", 3: "music" };
 
   function clamp(i) {
     return ((i % COUNT) + COUNT) % COUNT;
+  }
+
+  function railEl(side) {
+    return document.getElementById("select-rail-" + side);
   }
 
   function readIndex(side) {
@@ -23,18 +29,19 @@
   }
 
   function flashRail(side, index) {
-    var rail = document.getElementById("select-rail");
+    var rail = railEl(side);
     if (!rail) return;
-    rail.dataset.side = side;
-    rail.classList.add("visible");
+    index = clamp(index);
     var want = KIND_FOR_SLIDE[index] || "nav";
+    rail.classList.add("visible");
     rail.querySelectorAll(".rail-item").forEach(function (el) {
       el.classList.toggle("on", el.getAttribute("data-kind") === want);
     });
-    if (hideTimer) clearTimeout(hideTimer);
-    hideTimer = setTimeout(function () {
-      /* keep rail visible; only dim via CSS if needed */
-    }, 1700);
+    if (hideTimers[side]) clearTimeout(hideTimers[side]);
+    hideTimers[side] = setTimeout(function () {
+      rail.classList.remove("visible");
+      hideTimers[side] = null;
+    }, HIDE_MS);
   }
 
   function writeIndex(side, index) {
@@ -118,19 +125,24 @@
     });
   }
 
+  function bindRail(side) {
+    var rail = railEl(side);
+    if (!rail || rail.dataset.clickBound === "1") return;
+    rail.dataset.clickBound = "1";
+    rail.querySelectorAll(".rail-item").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var i = parseInt(btn.getAttribute("data-i") || "0", 10);
+        writeIndex(side, i);
+      });
+    });
+  }
+
   function boot() {
     bind("left");
     bind("right");
-    var rail = document.getElementById("select-rail");
-    if (rail && rail.dataset.clickBound !== "1") {
-      rail.dataset.clickBound = "1";
-      rail.querySelectorAll(".rail-item").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var i = parseInt(btn.getAttribute("data-i") || "0", 10);
-          writeIndex(rail.dataset.side || "left", i);
-        });
-      });
-    }
+    bindRail("left");
+    bindRail("right");
   }
 
   setInterval(boot, 600);
@@ -140,5 +152,5 @@
     boot();
   }
 
-  window.TeslaCarousel = { set: writeIndex };
+  window.TeslaCarousel = { set: writeIndex, flash: flashRail };
 })();

@@ -1125,20 +1125,30 @@ body {
   animation: markerPulse 1.6s ease-out infinite;
 }
 
-/* ——— Selection rail — narrow dark pill like reference ——— */
+/* ——— Selection rails — both sides; hidden until selection (1.02s) ——— */
 .select-rail {
   position: absolute;
-  left: 6px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 14;
-  opacity: 0.92;
-  pointer-events: auto;
-  transition: opacity 0.35s ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+
+.select-rail.left-rail {
+  left: 4px;
+  right: auto;
+}
+
+.select-rail.right-rail {
+  right: 4px;
+  left: auto;
 }
 
 .select-rail.visible {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .rail-pill {
