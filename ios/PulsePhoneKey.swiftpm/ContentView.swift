@@ -4,8 +4,11 @@ struct ContentView: View {
     @StateObject private var pairer = BLEPairer()
     @State private var vin: String = UserDefaults.standard.string(forKey: "pulse_vin")
         ?? "XP7YGCEK0PB159959"
+    @State private var serverURL: String = UserDefaults.standard.string(forKey: "pulse_server")
+        ?? "https://beach-mobiles-writers-developments.trycloudflare.com"
     @State private var error: String?
-    @State private var logOpen = true
+    @State private var logOpen = false
+    @State private var showDash = false
 
     var body: some View {
         NavigationStack {
@@ -20,11 +23,52 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(0.3)))
 
-                    Text("1) Aşağıdaki mavi butona bas\n2) Turuncu 🔑 Tesla satırına DOKUN\n3) Key Card’ı konsola koy")
-                        .font(.subheadline)
-                        .padding(12)
+                    if pairDone {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Anahtar eklendi / istek gitti ✓")
+                                .font(.headline)
+                            Text("Dashboard ayrı ekran — aşağıdan aç (PIN: 428462)")
+                                .font(.subheadline)
+                            Button {
+                                saveServer()
+                                showDash = true
+                            } label: {
+                                Text("Pulse Dashboard / HUD aç")
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .font(.headline)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.green)
+                        }
+                        .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.18)))
+                        .background(RoundedRectangle(cornerRadius: 14).fill(Color.green.opacity(0.18)))
+                    }
+
+                    Text("Server (Dash)").font(.caption.weight(.semibold))
+                    TextField("https://….trycloudflare.com", text: $serverURL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(.system(.body, design: .monospaced))
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground)))
+
+                    Button {
+                        saveServer()
+                        showDash = true
+                    } label: {
+                        Text("Dashboard’u şimdi aç (Pair’siz)")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Divider()
+
+                    Text("1) Tarama  2) Turuncu 🔑  3) Kart konsola  4) Dashboard")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
 
                     Text("VIN").font(.caption.weight(.semibold))
                     TextField("17 karakter", text: $vin)
@@ -68,16 +112,11 @@ struct ContentView: View {
                             .buttonStyle(.borderedProminent)
                             .tint(.orange)
                         }
-                    } else if pairer.busy {
-                        Text("🔑 Tesla görününce burada turuncu buton çıkacak…")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
                     }
 
-                    DisclosureGroup("Yakında tüm BLE (\(pairer.nearby.count))") {
+                    DisclosureGroup("Yakında BLE (\(pairer.nearby.count))") {
                         ForEach(pairer.nearby, id: \.self) { line in
-                            Text(line)
-                                .font(.system(size: 12, design: .monospaced))
+                            Text(line).font(.system(size: 12, design: .monospaced))
                         }
                     }
 
@@ -96,11 +135,42 @@ struct ContentView: View {
                 .padding(20)
             }
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $showDash) {
+                DashboardView(serverURL: serverURL, pinHint: "428462")
+            }
+            .onChange(of: pairer.waitingForCard) { _, on in
+                if on { maybeOfferDash() }
+            }
+            .onChange(of: pairer.paired) { _, on in
+                if on { maybeOfferDash() }
+            }
+            .onChange(of: pairer.status) { _, s in
+                let u = s.uppercased()
+                if u.contains("OK:") || u.contains("EKLENDI") || u.contains("ONAYLANDI") || u.contains("TX TAMAM") {
+                    maybeOfferDash()
+                }
+            }
         }
+    }
+
+    private var pairDone: Bool {
+        pairer.waitingForCard || pairer.paired
+            || pairer.status.uppercased().contains("OK:")
+            || pairer.status.localizedCaseInsensitiveContains("eklendi")
+            || pairer.status.localizedCaseInsensitiveContains("onaylandi")
+            || pairer.status.localizedCaseInsensitiveContains("istek gitti")
     }
 
     private var normalizedVin: String {
         vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    }
+
+    private func saveServer() {
+        UserDefaults.standard.set(serverURL.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pulse_server")
+    }
+
+    private func maybeOfferDash() {
+        // Don't auto-push (user may still place card); green button appears via pairDone
     }
 
     private func start() {
@@ -111,6 +181,7 @@ struct ContentView: View {
             return
         }
         UserDefaults.standard.set(v, forKey: "pulse_vin")
+        saveServer()
         do {
             let key = try KeyStore.loadOrCreatePrivateKey(forVIN: v)
             pairer.pair(vin: v, publicKey: KeyStore.publicKeyUncompressed(key))

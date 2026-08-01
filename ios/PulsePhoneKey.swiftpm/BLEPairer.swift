@@ -3,7 +3,7 @@ import CoreBluetooth
 
 /// Tesla VCSEC BLE pairer — connect by 🔑 / any Tesla-like name / manual tap.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "build-8-key"
+    static let buildId = "build-9-hud"
 
     @Published var status: String = "Hazir"
     @Published var log: [String] = []
