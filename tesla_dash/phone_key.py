@@ -240,26 +240,25 @@ def phone_key_html(vin: str = "") -> str:
       Sonra Key Card’ı <strong>orta konsola</strong> koy — ekranda Pair / Confirm çıkar.
     </p>
 
-    <!-- iPhone path: Safari has no Web Bluetooth → Tesla app -->
+    <!-- iPhone/iPad: Safari has no Web Bluetooth → Playgrounds or Tesla app -->
     <div class="card" id="ios-panel" hidden>
-      <div class="howto-title" style="color:var(--cyan);font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem">iPhone yöntemi</div>
-      <p class="lead" style="margin:0 0 .75rem">Safari’de Web Bluetooth yok. Resmi Tesla uygulaması telefonunun Bluetooth’unu kullanır — Pair ekranı böyle çıkar.</p>
+      <div class="howto-title" style="color:var(--cyan);font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem">iPad / iPhone</div>
+      <p class="lead" style="margin:0 0 .75rem">Safari’de Web Bluetooth yok. <strong>iPad’de Swift Playgrounds</strong> ile gerçek BLE Pair yapabilirsin (Mac şart değil).</p>
       <ol style="margin:0 0 .9rem;padding-left:1.15rem;color:rgba(255,255,255,.88);font-size:.88rem;line-height:1.45">
-        <li>Aşağıdan <strong>Tesla uygulamasını aç</strong></li>
-        <li><strong>Security → Set Up Phone Key</strong> (veya ana ekranda Set Up Phone Key)</li>
-        <li>Key Card’ı <strong>konsola / şarj yuvasına</strong> koy (telefona değil)</li>
-        <li>Araç ekranında <strong>Pair / Confirm</strong></li>
+        <li>App Store’dan <strong>Swift Playgrounds</strong> kur</li>
+        <li>Aşağıdaki zip’i indir → Dosyalar’da aç → <code>PulsePhoneKey.swiftpm</code></li>
+        <li>Playgrounds’ta aç → Signing (Apple ID) → <strong>Run ▶</strong></li>
+        <li>Bluetooth izni → eşleştir → Key Card’ı <strong>konsola</strong> koy → Pair</li>
       </ol>
-      <a class="btn" id="ios-open-tesla" href="tesla://">Tesla uygulamasını aç</a>
-      <a class="btn ghost" id="ios-open-security" href="tesla://security" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Security ekranını dene</a>
-      <a class="btn ghost" id="ios-appstore" href="https://apps.apple.com/app/tesla/id582007658" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Tesla yoksa App Store</a>
+      <a class="btn" href="/downloads/PulsePhoneKey-playground.zip" style="text-decoration:none;text-align:center">Swift Playgrounds projesi indir (.zip)</a>
+      <a class="btn ghost" href="https://apps.apple.com/app/swift-playgrounds/id908519492" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Swift Playgrounds · App Store</a>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:1rem 0" />
+      <div style="font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:.45rem">Alternatif · Tesla uygulaması</div>
+      <a class="btn ghost" id="ios-open-tesla" href="tesla://">Tesla uygulamasını aç</a>
+      <a class="btn ghost" id="ios-open-security" href="tesla://security" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Security → Phone Key</a>
       <p class="support ok" style="margin-top:.85rem">
-        Bluetooth: Ayarlar → Tesla → Bluetooth <strong>açık</strong> · Konum <strong>Her Zaman</strong> önerilir.
-        Araçta: Controls → Safety → Allow Mobile Access açık olsun.
-      </p>
-      <p class="support" style="background:rgba(255,255,255,.05);color:var(--muted)">
-        İstersen Mac + Xcode ile kendi CoreBluetooth uygulamanı da kurabilirsin:
-        repo içinde <code>ios/PulsePhoneKey</code>.
+        Playgrounds: gerçek CoreBluetooth · Safari değil.
+        Repo: <code>ios/PulsePhoneKey.swiftpm</code>
       </p>
     </div>
 
@@ -340,6 +339,24 @@ def register_phone_key(server) -> None:
     @server.get("/downloads/TeslaPulse.apk")
     def download_tesla_pulse_apk():  # type: ignore[no-redef]
         return _send_apk("TeslaPulse.apk")
+
+    @server.get("/downloads/PulsePhoneKey-playground.zip")
+    def download_playgrounds_zip():  # type: ignore[no-redef]
+        from tesla_dash.auth import is_unlocked
+        from flask import redirect
+
+        if not is_unlocked():
+            return redirect("/login")
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path = os.path.join(root, "releases", "PulsePhoneKey-playground.zip")
+        if not os.path.isfile(path):
+            abort(404)
+        return send_file(
+            path,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name="PulsePhoneKey-playground.zip",
+        )
 
     @server.post("/api/phone-key/payload")
     def phone_key_payload():  # type: ignore[no-redef]

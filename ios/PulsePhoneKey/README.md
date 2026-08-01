@@ -5,14 +5,24 @@ Yes — on an **iPad** this Swift app can do **real** Tesla Phone Key pairing ov
 
 Safari / Chrome on iPad **cannot** do this (no Web Bluetooth). You need this native app.
 
-## What you need
+## Prefer iPad-only? Use Swift Playgrounds
+
+**No Mac needed.** Open the App project:
+
+→ [`../PulsePhoneKey.swiftpm/`](../PulsePhoneKey.swiftpm/)  
+→ Turkish steps: [`../PulsePhoneKey.swiftpm/PLAYGROUNDS.md`](../PulsePhoneKey.swiftpm/PLAYGROUNDS.md)  
+→ Zip: `/downloads/PulsePhoneKey-playground.zip`
+
+Below is the **Mac + Xcode** path (optional).
+
+## What you need (Xcode path)
 
 | Item | Required? |
 |------|-----------|
 | iPad (Bluetooth on) near the car | Yes |
-| Mac with **Xcode 16+** | Yes (to build & install) |
+| Mac with **Xcode 16+** | Only for this Xcode path |
 | Free Apple ID (Signing → Personal Team) | Yes |
-| Cable or wireless debugging | Yes |
+| Cable or wireless debugging | Xcode path |
 | Key Card for console | Yes |
 
 This Linux cloud agent **cannot** compile or install the iPad app for you.
