@@ -1,67 +1,78 @@
 import SwiftUI
 import WebKit
 
-/// Pulse Dash HUD inside Playgrounds (same idea as Android HudActivity).
 struct DashboardView: View {
-    let serverURL: String
-    let pinHint: String
+    @Binding var serverURL: String
+    var pin: String = "428462"
     @Environment(\.dismiss) private var dismiss
+    @State private var reloadToken = 0
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Button("← Pair") { dismiss() }
+            HStack(spacing: 12) {
+                Button("Pair") { dismiss() }
                 Spacer()
                 Text("Pulse HUD")
                     .font(.headline)
                 Spacer()
-                Link("Safari", destination: url)
-                    .font(.subheadline)
+                Button("Yenile") { reloadToken += 1 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(10)
             .background(Color(.secondarySystemBackground))
 
-            Text("PIN: \(pinHint)  ·  Login gerekirse yaz")
+            Text("Login PIN: \(pin)")
                 .font(.caption)
-                .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
 
-            DashWebView(url: url)
+            DashWebView(urlString: serverURL, reloadToken: reloadToken)
                 .ignoresSafeArea(edges: .bottom)
         }
-        .navigationBarHidden(true)
-    }
-
-    private var url: URL {
-        var s = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if s.isEmpty { s = "https://example.com" }
-        if !s.hasPrefix("http") { s = "https://\(s)" }
-        while s.hasSuffix("/") { s.removeLast() }
-        return URL(string: s + "/") ?? URL(string: "https://example.com")!
     }
 }
 
 struct DashWebView: UIViewRepresentable {
-    let url: URL
+    let urlString: String
+    let reloadToken: Int
+
+    func makeCoordinator() -> Coord { Coord() }
 
     func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.allowsInlineMediaPlayback = true
-        config.mediaTypesRequiringUserActionForPlayback = []
-        let wv = WKWebView(frame: .zero, configuration: config)
+        let cfg = WKWebViewConfiguration()
+        cfg.allowsInlineMediaPlayback = true
+        cfg.websiteDataStore = .default()
+        let wv = WKWebView(frame: .zero, configuration: cfg)
+        wv.navigationDelegate = context.coordinator
         wv.allowsBackForwardNavigationGestures = true
-        wv.scrollView.contentInsetAdjustmentBehavior = .never
-        wv.customUserAgent = (wv.value(forKey: "userAgent") as? String ?? "") + " TeslaPulseiPad/9"
-        wv.load(URLRequest(url: url))
+        wv.scrollView.bounces = false
+        load(wv)
         return wv
     }
 
-    func updateUIView(_ uiView: WKWebView, context: Context) {
-        if uiView.url?.host != url.host {
-            uiView.load(URLRequest(url: url))
+    func updateUIView(_ wv: WKWebView, context: Context) {
+        if context.coordinator.lastToken != reloadToken {
+            context.coordinator.lastToken = reloadToken
+            load(wv)
+        }
+    }
+
+    private func load(_ wv: WKWebView) {
+        var s = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.isEmpty { return }
+        if !s.hasPrefix("http") { s = "https://\(s)" }
+        while s.hasSuffix("/") { s.removeLast() }
+        guard let url = URL(string: s + "/") else { return }
+        wv.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 60))
+    }
+
+    final class Coord: NSObject, WKNavigationDelegate {
+        var lastToken = -1
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            print("HUD nav fail \(error.localizedDescription)")
+        }
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            print("HUD provisional fail \(error.localizedDescription)")
         }
     }
 }

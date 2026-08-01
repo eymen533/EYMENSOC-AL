@@ -250,12 +250,11 @@ def phone_key_html(vin: str = "") -> str:
         <li>Playgrounds’ta aç → Signing (Apple ID) → <strong>Run ▶</strong></li>
         <li>Bluetooth izni → eşleştir → Key Card’ı <strong>konsola</strong> koy → Pair</li>
       </ol>
-      <a class="btn" href="/downloads/PulsePhoneKey-playground-build9.zip" style="text-decoration:none;text-align:center">Playgrounds build-9 indir (Pair + Dashboard HUD)</a>
+      <a class="btn" href="/downloads/PulsePhoneKey-playground-build10.zip" style="text-decoration:none;text-align:center">Playgrounds build-10 (Pair + HUD düzgün)</a>
       <a class="btn ghost" href="/downloads/PulsePhoneKey-playground.zip" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Aynı zip</a>
       <p class="support" style="background:rgba(255,214,10,.12);color:#ffe566;margin-top:.75rem">
-        Yeşil <strong>SÜRÜM: build-9-hud</strong> · Pair sonrası yeşil <strong>Pulse Dashboard / HUD aç</strong>.
+        <strong>SÜRÜM: build-10</strong> · Tüm BLE listesi → 🔑 Tesla’ya dokun → kart → HUD otomatik.
         PIN <strong>428462</strong>.
-        <a href="/downloads/PulsePhoneKey-swift-files.zip" style="color:var(--cyan)">swift dosyaları</a>
       </p>
       <a class="btn ghost" href="https://apps.apple.com/app/swift-playgrounds/id908519492" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Swift Playgrounds · App Store</a>
       <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:1rem 0" />
@@ -377,7 +376,11 @@ def register_phone_key(server) -> None:
 
     @server.get("/downloads/PulsePhoneKey-playground-build9.zip")
     def download_playgrounds_build9_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build9.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build10.zip")
+
+    @server.get("/downloads/PulsePhoneKey-playground-build10.zip")
+    def download_playgrounds_build10_zip():  # type: ignore[no-redef]
+        return _send_release_zip("PulsePhoneKey-playground-build10.zip")
 
     @server.get("/downloads/PulsePhoneKey-swift-files.zip")
     def download_swift_files_zip():  # type: ignore[no-redef]
