@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+*.local
+.netlify
+fonts/sf-src
+fonts/sf
+fonts/*.zip
+*.tgz
+node_modules

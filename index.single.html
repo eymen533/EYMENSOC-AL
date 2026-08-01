@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Vakit" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta name="vakit-version" content="__VAKIT_VERSION__" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
+  <title>VAKİT — Namaz Vakitleri</title>
+  <style>
+    @font-face { font-family: "SF Pro Display"; src: url("./fonts/SF-Pro-Display-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Display"; src: url("./fonts/SF-Pro-Display-Medium.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Display"; src: url("./fonts/SF-Pro-Display-Semibold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Display"; src: url("./fonts/SF-Pro-Display-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Text"; src: url("./fonts/SF-Pro-Text-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Text"; src: url("./fonts/SF-Pro-Text-Semibold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+    @font-face { font-family: "SF Pro Text"; src: url("./fonts/SF-Pro-Text-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+
+    :root {
+      --bg0: #000000;
+      --bg1: #1c1c1e;
+      --card: rgba(28,28,30,.82);
+      --ink: #ffffff;
+      --mute: rgba(235,235,245,.6);
+      --accent: #ffd60a;
+      --accent2: #ff9f0a;
+      --accent-ink: #1c1c1e;
+      --line: rgba(84,84,88,.55);
+      --glow: rgba(255,214,10,.35);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe: env(safe-area-inset-bottom, 0px);
+      --font-d: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      --font-t: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    }
+    body[data-theme="gri-siyah"] {
+      --bg0:#000; --bg1:#1c1c1e; --card:rgba(44,44,46,.88);
+      --ink:#f5f5f7; --mute:rgba(235,235,245,.58);
+      --accent:#d1d1d6; --accent2:#8e8e93; --accent-ink:#000;
+      --line:rgba(99,99,102,.5); --glow:rgba(209,209,214,.22);
+    }
+    body[data-theme="yesil"] {
+      --bg0:#02140c; --bg1:#0a2a1a; --card:rgba(12,40,28,.86);
+      --ink:#f2fff7; --mute:rgba(210,245,225,.62);
+      --accent:#30d158; --accent2:#64d2ff; --accent-ink:#003214;
+      --line:rgba(48,209,88,.28); --glow:rgba(48,209,88,.32);
+    }
+    body[data-theme="beyaz-yesil"] {
+      --bg0:#f2f8f4; --bg1:#dceee3; --card:rgba(255,255,255,.86);
+      --ink:#0b2b1c; --mute:rgba(11,43,28,.55);
+      --accent:#248a3d; --accent2:#34c759; --accent-ink:#fff;
+      --line:rgba(11,43,28,.12); --glow:rgba(36,138,61,.18);
+    }
+    body[data-theme="lacivert"] {
+      --bg0:#eef2ff; --bg1:#d7e0ff; --card:rgba(255,255,255,.9);
+      --ink:#0b1b4d; --mute:rgba(11,27,77,.55);
+      --accent:#2d4cff; --accent2:#5e5ce6; --accent-ink:#fff;
+      --line:rgba(11,27,77,.12); --glow:rgba(45,76,255,.16);
+    }
+    body[data-theme="gece-mavi"] {
+      --bg0:#010812; --bg1:#0b1d36; --card:rgba(10,28,52,.86);
+      --ink:#f0f7ff; --mute:rgba(210,230,255,.6);
+      --accent:#64d2ff; --accent2:#0a84ff; --accent-ink:#001828;
+      --line:rgba(100,210,255,.24); --glow:rgba(10,132,255,.34);
+    }
+    body[data-theme="zeytin"] {
+      --bg0:#120f08; --bg1:#2a2212; --card:rgba(36,30,16,.88);
+      --ink:#fff8e8; --mute:rgba(255,240,210,.58);
+      --accent:#ffd60a; --accent2:#ff9f0a; --accent-ink:#1a1400;
+      --line:rgba(255,214,10,.22); --glow:rgba(255,159,10,.3);
+    }
+    body[data-theme="sari-siyah"] {
+      --bg0:#000; --bg1:#1a1400; --card:rgba(28,24,8,.88);
+      --ink:#fff8e6; --mute:rgba(255,240,200,.6);
+      --accent:#ffd60a; --accent2:#ff9f0a; --accent-ink:#1a1400;
+      --line:rgba(255,214,10,.25); --glow:rgba(255,214,10,.35);
+    }
+    body[data-theme="kirmizi-siyah"] {
+      --bg0:#0a0000; --bg1:#2a0a0a; --card:rgba(40,12,12,.9);
+      --ink:#ffeceb; --mute:rgba(255,220,220,.58);
+      --accent:#ff453a; --accent2:#ff6961; --accent-ink:#1a0000;
+      --line:rgba(255,69,58,.28); --glow:rgba(255,69,58,.32);
+    }
+    body[data-theme="mor-siyah"] {
+      --bg0:#0a0614; --bg1:#1a1030; --card:rgba(28,18,48,.9);
+      --ink:#f6f0ff; --mute:rgba(230,220,255,.58);
+      --accent:#bf5af2; --accent2:#a855f7; --accent-ink:#180028;
+      --line:rgba(191,90,242,.28); --glow:rgba(191,90,242,.3);
+    }
+    body[data-theme="turkuaz"] {
+      --bg0:#001216; --bg1:#043038; --card:rgba(8,40,48,.9);
+      --ink:#e8fbff; --mute:rgba(200,240,250,.6);
+      --accent:#40c8e0; --accent2:#64d2ff; --accent-ink:#002028;
+      --line:rgba(64,200,224,.28); --glow:rgba(64,200,224,.3);
+    }
+    body[data-theme="pembe"] {
+      --bg0:#14040c; --bg1:#30101e; --card:rgba(48,16,32,.9);
+      --ink:#fff0f5; --mute:rgba(255,220,230,.58);
+      --accent:#ff375f; --accent2:#ff6b8a; --accent-ink:#280010;
+      --line:rgba(255,55,95,.28); --glow:rgba(255,55,95,.3);
+    }
+    body[data-theme="beyaz-siyah"] {
+      --bg0:#f2f2f7; --bg1:#e5e5ea; --card:rgba(255,255,255,.92);
+      --ink:#1c1c1e; --mute:rgba(28,28,30,.55);
+      --accent:#1c1c1e; --accent2:#636366; --accent-ink:#fff;
+      --line:rgba(28,28,30,.12); --glow:rgba(28,28,30,.1);
+    }
+    body[data-theme="bej"] {
+      --bg0:#1a1612; --bg1:#2c261e; --card:rgba(44,38,30,.9);
+      --ink:#f5efe6; --mute:rgba(245,239,230,.58);
+      --accent:#e7d3a4; --accent2:#c4a574; --accent-ink:#1a140c;
+      --line:rgba(231,211,164,.24); --glow:rgba(196,165,116,.28);
+    }
+    body[data-theme="orman"] {
+      --bg0:#07140a; --bg1:#14301a; --card:rgba(16,40,24,.9);
+      --ink:#eef8ee; --mute:rgba(220,240,220,.58);
+      --accent:#a8e067; --accent2:#34c759; --accent-ink:#0a1a08;
+      --line:rgba(168,224,103,.26); --glow:rgba(52,199,89,.28);
+    }
+    body[data-theme="gun-batimi"] {
+      --bg0:#1a0808; --bg1:#3a1820; --card:rgba(48,20,24,.9);
+      --ink:#fff2ea; --mute:rgba(255,230,210,.58);
+      --accent:#ff9f0a; --accent2:#ff453a; --accent-ink:#1a0a00;
+      --line:rgba(255,159,10,.28); --glow:rgba(255,69,58,.3);
+    }
+    body[data-theme="buz"] {
+      --bg0:#eef6fb; --bg1:#d5e8f5; --card:rgba(255,255,255,.9);
+      --ink:#0a2a3a; --mute:rgba(10,42,58,.55);
+      --accent:#007aff; --accent2:#5ac8fa; --accent-ink:#fff;
+      --line:rgba(10,42,58,.12); --glow:rgba(0,122,255,.14);
+    }
+    body[data-theme="altin-beyaz"] {
+      --bg0:#faf6ec; --bg1:#efe4c8; --card:rgba(255,255,255,.92);
+      --ink:#2a220e; --mute:rgba(42,34,14,.55);
+      --accent:#b8860b; --accent2:#daa520; --accent-ink:#fffdf5;
+      --line:rgba(42,34,14,.12); --glow:rgba(218,165,32,.16);
+    }
+    body[data-theme="mercan"] {
+      --bg0:#1a0604; --bg1:#3a1410; --card:rgba(52,18,14,.9);
+      --ink:#fff1ec; --mute:rgba(255,220,210,.58);
+      --accent:#ff6b4a; --accent2:#ff9f0a; --accent-ink:#1a0600;
+      --line:rgba(255,107,74,.28); --glow:rgba(255,107,74,.3);
+    }
+    body[data-theme="indigo"] {
+      --bg0:#08081a; --bg1:#16163a; --card:rgba(22,22,58,.9);
+      --ink:#eef0ff; --mute:rgba(210,215,255,.58);
+      --accent:#5e5ce6; --accent2:#7d7aff; --accent-ink:#0a0a28;
+      --line:rgba(94,92,230,.28); --glow:rgba(94,92,230,.3);
+    }
+    body[data-theme="nane"] {
+      --bg0:#f0faf6; --bg1:#d8efe6; --card:rgba(255,255,255,.92);
+      --ink:#0d2e24; --mute:rgba(13,46,36,.55);
+      --accent:#00c7a0; --accent2:#34c759; --accent-ink:#fff;
+      --line:rgba(13,46,36,.12); --glow:rgba(0,199,160,.14);
+    }
+    body[data-theme="seftali"] {
+      --bg0:#fff4ee; --bg1:#ffe3d4; --card:rgba(255,255,255,.92);
+      --ink:#3a1c10; --mute:rgba(58,28,16,.55);
+      --accent:#ff7a45; --accent2:#ff9f0a; --accent-ink:#fff;
+      --line:rgba(58,28,16,.1); --glow:rgba(255,122,69,.16);
+    }
+    body[data-theme="komur-turuncu"] {
+      --bg0:#0c0c0c; --bg1:#1e1610; --card:rgba(32,24,16,.92);
+      --ink:#fff6ee; --mute:rgba(255,230,210,.58);
+      --accent:#ff9500; --accent2:#ffcc00; --accent-ink:#1a0e00;
+      --line:rgba(255,149,0,.28); --glow:rgba(255,149,0,.3);
+    }
+    body[data-theme="gokyuzu"] {
+      --bg0:#041018; --bg1:#0a2840; --card:rgba(10,36,58,.9);
+      --ink:#eaf6ff; --mute:rgba(200,230,255,.6);
+      --accent:#5ac8fa; --accent2:#0a84ff; --accent-ink:#001828;
+      --line:rgba(90,200,250,.26); --glow:rgba(10,132,255,.32);
+    }
+    body[data-theme="lavanta"] {
+      --bg0:#f6f2ff; --bg1:#e8e0ff; --card:rgba(255,255,255,.92);
+      --ink:#2a1848; --mute:rgba(42,24,72,.55);
+      --accent:#7c5cff; --accent2:#bf5af2; --accent-ink:#fff;
+      --line:rgba(42,24,72,.1); --glow:rgba(124,92,255,.14);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body {
+      font-family: var(--font-t);
+      color: var(--ink);
+      min-height: 100dvh;
+      background:
+        radial-gradient(120% 70% at 80% -10%, var(--glow), transparent 55%),
+        radial-gradient(90% 50% at 10% 110%, color-mix(in srgb, var(--accent2) 28%, transparent), transparent 50%),
+        linear-gradient(180deg, var(--bg1), var(--bg0) 55%);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .wrap {
+      width: min(440px, 100%);
+      margin: 0 auto;
+      min-height: 100dvh;
+      padding: calc(10px + var(--safe-top)) 14px calc(22px + var(--safe));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 12px;
+      padding: 4px 2px 0;
+    }
+    .brand {
+      font-family: var(--font-d);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      flex: 1 1 auto;
+      min-width: 0;
+      line-height: 1.1;
+    }
+    .brand span { color: var(--accent); }
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1 1 100%;
+      width: 100%;
+    }
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      background: var(--card);
+      color: var(--ink);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 980px;
+      padding: 12px 34px 12px 14px;
+      font-family: var(--font-t);
+      font-size: 15px;
+      font-weight: 600;
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 48px;
+      max-width: none;
+      box-shadow: inset 0 0 0 1px var(--line);
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--accent) 50%),
+        linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+      background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+      background-size: 5px 5px;
+      background-repeat: no-repeat;
+    }
+    #theme {
+      max-width: none;
+    }
+
+    .install-tip {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: inset 0 0 0 1px var(--line);
+      font-size: 13px;
+      line-height: 1.35;
+      color: var(--mute);
+    }
+    .install-tip.show { display: flex; }
+    .install-tip strong { color: var(--ink); font-weight: 600; }
+    .install-tip button {
+      margin-left: auto;
+      flex: 0 0 auto;
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 4px 2px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      padding: 22px 18px 20px;
+      background:
+        radial-gradient(120% 100% at 100% 0%, var(--glow), transparent 45%),
+        linear-gradient(160deg, color-mix(in srgb, var(--accent) 18%, var(--card)), var(--card));
+      box-shadow: inset 0 0 0 1px var(--line), 0 18px 40px rgba(0,0,0,.28);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+    }
+    .hero .kicker {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: .04em;
+      margin-bottom: 6px;
+    }
+    .hero .clock {
+      font-family: var(--font-d);
+      font-size: clamp(52px, 16vw, 68px);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: .95;
+      font-variant-numeric: tabular-nums;
+      color: var(--ink);
+      text-shadow: 0 8px 30px var(--glow);
+    }
+    .hero .next-name {
+      margin-top: 18px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--mute);
+    }
+    .hero .next-name b {
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .countdown {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .cd {
+      background: color-mix(in srgb, var(--bg0) 45%, transparent);
+      border-radius: 18px;
+      padding: 14px 8px 12px;
+      text-align: center;
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+    .cd strong {
+      display: block;
+      font-family: var(--font-d);
+      font-size: clamp(30px, 9vw, 38px);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      color: var(--accent);
+    }
+    .cd span {
+      display: block;
+      margin-top: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--mute);
+    }
+    .meta {
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--mute);
+    }
+
+    .times {
+      background: var(--card);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px var(--line), 0 12px 28px rgba(0,0,0,.2);
+      margin-top: auto;
+    }
+    .times h2 {
+      padding: 14px 16px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 16px;
+      border-top: 1px solid var(--line);
+      font-weight: 600;
+    }
+    .row .n { font-size: 16px; letter-spacing: -0.01em; }
+    .row .t {
+      font-family: var(--font-d);
+      font-size: 20px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+    .row.meta { opacity: .55; }
+    .row.passed { opacity: .38; }
+    .row.next {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      color: var(--accent-ink);
+      opacity: 1;
+    }
+    .row.now .n::after {
+      content: "  ·  şimdi";
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .row.next.now .n::after { color: var(--accent-ink); opacity: .85; }
+
+    .msg {
+      padding: 48px 16px;
+      text-align: center;
+      color: var(--mute);
+      font-weight: 600;
+    }
+    .msg button {
+      margin-top: 14px;
+      border: 0;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      color: var(--accent-ink);
+      font-family: var(--font-t);
+      font-weight: 700;
+      padding: 12px 18px;
+      border-radius: 980px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body data-theme="sari-siyah">
+  <div class="wrap" id="app"><div class="msg">Yükleniyor…</div></div>
+  <script>
+(function () {
+  var PRAYERS = [
+    { key: 'Fajr', name: 'İmsak' },
+    { key: 'Sunrise', name: 'Güneş', meta: true },
+    { key: 'Dhuhr', name: 'Öğle' },
+    { key: 'Asr', name: 'İkindi' },
+    { key: 'Maghrib', name: 'Akşam' },
+    { key: 'Isha', name: 'Yatsı' }
+  ];
+  var CITIES = [
+    ['Istanbul','İstanbul'],['Ankara','Ankara'],['Izmir','İzmir'],['Bursa','Bursa'],
+    ['Antalya','Antalya'],['Konya','Konya'],['Gaziantep','Gaziantep'],
+    ['Adana','Adana'],['Trabzon','Trabzon'],['Erzurum','Erzurum']
+  ];
+  var THEMES = [
+    ['sari-siyah','Sarı / Siyah','#000000','#ffd60a'],
+    ['gri-siyah','Gri / Siyah','#1c1c1e','#d1d1d6'],
+    ['kirmizi-siyah','Kırmızı / Siyah','#2a0a0a','#ff453a'],
+    ['mor-siyah','Mor / Siyah','#1a1030','#bf5af2'],
+    ['yesil','Yeşil','#02140c','#30d158'],
+    ['orman','Orman','#14301a','#a8e067'],
+    ['beyaz-yesil','Beyaz / Yeşil','#f2f8f4','#248a3d'],
+    ['lacivert','Lacivert','#eef2ff','#2d4cff'],
+    ['gece-mavi','Gece / Mavi','#010812','#64d2ff'],
+    ['turkuaz','Turkuaz','#043038','#40c8e0'],
+    ['buz','Buz / Mavi','#eef6fb','#007aff'],
+    ['pembe','Pembe / Siyah','#30101e','#ff375f'],
+    ['gun-batimi','Gün batımı','#3a1820','#ff9f0a'],
+    ['zeytin','Zeytin / Altın','#120f08','#ffd60a'],
+    ['bej','Bej / Siyah','#2c261e','#e7d3a4'],
+    ['beyaz-siyah','Beyaz / Siyah','#f2f2f7','#1c1c1e'],
+    ['altin-beyaz','Altın / Beyaz','#faf6ec','#b8860b'],
+    ['mercan','Mercan','#3a1410','#ff6b4a'],
+    ['indigo','İndigo','#16163a','#5e5ce6'],
+    ['nane','Nane','#f0faf6','#00c7a0'],
+    ['seftali','Şeftali','#fff4ee','#ff7a45'],
+    ['komur-turuncu','Kömür / Turuncu','#0c0c0c','#ff9500'],
+    ['gokyuzu','Gökyüzü','#041018','#5ac8fa'],
+    ['lavanta','Lavanta','#f6f2ff','#7c5cff']
+  ];
+
+  var state = {
+    city: 'Istanbul',
+    label: 'İstanbul',
+    theme: 'sari-siyah',
+    themeMode: 'auto',
+    timings: null, dateLabel: '', hijri: '', error: '', loading: true, nextKey: '', periodKey: ''
+  };
+
+  var PREF_KEYS = ['vakit-city', 'vakit-label', 'vakit-theme', 'vakit-tip-hide'];
+
+  function cookieGet(key){
+    try {
+      var m = document.cookie.match(new RegExp('(?:^|; )' + key.replace(/[$()*+.?[\\\]^{|}]/g,'\\$&') + '=([^;]*)'));
+      if (m) return decodeURIComponent(m[1]);
+    } catch (e) {}
+    return null;
+  }
+  function cookieSet(key, value){
+    try {
+      var secure = location.protocol === 'https:' ? ';Secure' : '';
+      document.cookie = key + '=' + encodeURIComponent(value) +
+        ';path=/;max-age=157680000;SameSite=Lax' + secure;
+    } catch (e) {}
+  }
+
+  function idbOpen(){
+    return new Promise(function(resolve, reject){
+      if (!window.indexedDB) { resolve(null); return; }
+      var req = indexedDB.open('vakit-prefs', 1);
+      req.onupgradeneeded = function(){
+        var db = req.result;
+        if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+      };
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(){ resolve(null); };
+    });
+  }
+  function idbGet(db, key){
+    return new Promise(function(resolve){
+      if (!db) { resolve(null); return; }
+      try {
+        var tx = db.transaction('kv', 'readonly');
+        var req = tx.objectStore('kv').get(key);
+        req.onsuccess = function(){ resolve(req.result == null ? null : String(req.result)); };
+        req.onerror = function(){ resolve(null); };
+      } catch (e) { resolve(null); }
+    });
+  }
+  function idbSet(db, key, value){
+    return new Promise(function(resolve){
+      if (!db) { resolve(); return; }
+      try {
+        var tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(String(value), key);
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ resolve(); };
+      } catch (e) { resolve(); }
+    });
+  }
+
+  var idbPromise = idbOpen();
+  var idbCache = null;
+  idbPromise.then(function(db){ idbCache = db; });
+
+  function storeGet(key, fallback){
+    try {
+      var v = localStorage.getItem(key);
+      if (v != null && v !== '') return v;
+    } catch (e) {}
+    var c = cookieGet(key);
+    if (c != null && c !== '') return c;
+    return fallback;
+  }
+  function storeSet(key, value){
+    try { localStorage.setItem(key, value); } catch (e) {}
+    cookieSet(key, value);
+    idbPromise.then(function(db){ return idbSet(db, key, value); });
+  }
+
+  function applyPrefs(city, label, theme, themeMode){
+    if (city) state.city = city;
+    if (label) state.label = label;
+    if (themeMode === 'auto' || themeMode === 'manual') state.themeMode = themeMode;
+    else if (theme === 'auto') state.themeMode = 'auto';
+    if (theme && theme !== 'auto') state.theme = theme;
+    if (state.themeMode !== 'auto') {
+      var themeOk=false;
+      for(var i=0;i<THEMES.length;i++) if(THEMES[i][0]===state.theme){ themeOk=true; break; }
+      if(!themeOk) state.theme='sari-siyah';
+    }
+    var cityOk=false;
+    for(var j=0;j<CITIES.length;j++){
+      if(CITIES[j][0]===state.city){
+        cityOk=true;
+        state.label=CITIES[j][1];
+        break;
+      }
+    }
+    if(!cityOk){ state.city='Istanbul'; state.label='İstanbul'; }
+  }
+
+  function loadPrefsSync(){
+    applyPrefs(
+      storeGet('vakit-city', 'Istanbul'),
+      storeGet('vakit-label', 'İstanbul'),
+      storeGet('vakit-theme', 'sari-siyah'),
+      storeGet('vakit-theme-mode', 'auto')
+    );
+  }
+
+  function loadPrefsAsync(){
+    return idbPromise.then(function(db){
+      if (!db) return;
+      return Promise.all([
+        idbGet(db, 'vakit-city'),
+        idbGet(db, 'vakit-label'),
+        idbGet(db, 'vakit-theme'),
+        idbGet(db, 'vakit-theme-mode')
+      ]).then(function(vals){
+        var city = vals[0] || storeGet('vakit-city', null);
+        var label = vals[1] || storeGet('vakit-label', null);
+        var theme = vals[2] || storeGet('vakit-theme', null);
+        var themeMode = vals[3] || storeGet('vakit-theme-mode', null);
+        if (city || label || theme || themeMode) {
+          applyPrefs(city || state.city, label || state.label, theme || state.theme, themeMode || state.themeMode);
+          flushPrefs();
+        }
+      });
+    });
+  }
+
+  function flushPrefs(){
+    storeSet('vakit-city', state.city);
+    storeSet('vakit-label', state.label);
+    storeSet('vakit-theme', state.theme);
+    storeSet('vakit-theme-mode', state.themeMode);
+  }
+
+  loadPrefsSync();
+
+  function pad(n){ return (n<10?'0':'')+n; }
+  function now(){ return new Date(); }
+  function parseToday(hhmm){
+    var p=hhmm.split(':'), d=now();
+    d.setHours(+p[0], +p[1], 0, 0); return d;
+  }
+  function hms(ms){
+    var t=Math.max(0,Math.floor(ms/1000));
+    return {h:pad(Math.floor(t/3600)), m:pad(Math.floor((t%3600)/60)), s:pad(t%60)};
+  }
+  function clockStr(d){ return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); }
+  function schedule(){
+    if(!state.timings) return [];
+    return PRAYERS.map(function(p){
+      return {key:p.key,name:p.name,meta:!!p.meta,time:state.timings[p.key],date:parseToday(state.timings[p.key])};
+    });
+  }
+  function nextPrayer(list){
+    var t=now().getTime();
+    for(var i=0;i<list.length;i++) if(!list[i].meta && list[i].date.getTime()>t) return list[i];
+    var fajr=null;
+    for(var j=0;j<list.length;j++) if(list[j].key==='Fajr') fajr=list[j];
+    if(!fajr) return null;
+    var tom=new Date(fajr.date); tom.setDate(tom.getDate()+1);
+    return {key:fajr.key,name:fajr.name,time:fajr.time,date:tom,tomorrow:true};
+  }
+  function currentPrayer(list){
+    var t=now().getTime(), cur=null;
+    for(var i=0;i<list.length;i++) if(!list[i].meta && list[i].date.getTime()<=t) cur=list[i];
+    return cur;
+  }
+
+  // Vakit dilimine göre renk: sabah orman, öğle sarı, ikindi kırmızı, akşam gün batımı, gece mavi
+  var AUTO_BY_PERIOD = {
+    Fajr: 'orman',
+    Sunrise: 'orman',
+    Dhuhr: 'sari-siyah',
+    Asr: 'kirmizi-siyah',
+    Maghrib: 'gun-batimi',
+    Isha: 'gece-mavi'
+  };
+
+  function currentPeriodKey(list){
+    if(!list || !list.length) return 'Isha';
+    var t=now().getTime(), by={};
+    for(var i=0;i<list.length;i++) by[list[i].key]=list[i];
+    var order=['Fajr','Sunrise','Dhuhr','Asr','Maghrib','Isha'];
+    var cur=null;
+    for(var j=0;j<order.length;j++){
+      var p=by[order[j]];
+      if(p && p.date.getTime()<=t) cur=order[j];
+    }
+    // İmsaktan önce = gece (yatsı dilimi)
+    return cur || 'Isha';
+  }
+
+  function themeForPeriod(list){
+    return AUTO_BY_PERIOD[currentPeriodKey(list)] || 'gece-mavi';
+  }
+
+  function setTheme(id, opts){
+    opts = opts || {};
+    if(!id) id = 'sari-siyah';
+    state.theme=id;
+    if(opts.persist !== false && state.themeMode === 'manual'){
+      storeSet('vakit-theme', id);
+    }
+    document.body.setAttribute('data-theme', id);
+    var meta=document.querySelector('meta[name="theme-color"]');
+    if(meta){
+      meta.setAttribute('content',
+        getComputedStyle(document.body).getPropertyValue('--bg0').trim() || '#000');
+    }
+  }
+
+  function applyActiveTheme(list){
+    if(state.themeMode === 'auto'){
+      var id = state.timings ? themeForPeriod(list || schedule()) : 'gece-mavi';
+      state.periodKey = state.timings ? currentPeriodKey(list || schedule()) : '';
+      setTheme(id, {persist:false});
+    } else {
+      setTheme(state.theme, {persist:false});
+    }
+  }
+
+  function fetchTimings(){
+    var url='https://api.aladhan.com/v1/timingsByCity?city='+encodeURIComponent(state.city)+'&country=Turkey&method=13&school=1';
+    return fetch(url).then(function(r){ if(!r.ok) throw new Error('fail'); return r.json(); })
+      .then(function(json){
+        var d=json.data, months=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+        var g=d.date.gregorian;
+        state.timings=d.timings;
+        state.dateLabel=Number(g.day)+' '+months[Number(g.month.number)-1]+' '+g.year;
+        state.hijri=d.date.hijri.day+' '+d.date.hijri.month.en+' '+d.date.hijri.year;
+        state.error=''; state.loading=false;
+      });
+  }
+
+  function themeOpts(){
+    var html='<option value="auto"'+(state.themeMode==='auto'?' selected':'')+'>Otomatik (vakit)</option>';
+    return html + THEMES.map(function(t){
+      var sel = state.themeMode==='manual' && state.theme===t[0];
+      return '<option value="'+t[0]+'"'+(sel?' selected':'')+'>'+t[1]+'</option>';
+    }).join('');
+  }
+
+  function topBar(cityOpts){
+    return '<div class="top">'+
+      '<div class="brand">Vak<span>i</span>t</div>'+
+      '<div class="top-controls">'+
+        '<select id="theme" aria-label="Tema seç">'+themeOpts()+'</select>'+
+        '<select id="city" aria-label="Şehir seç">'+cityOpts+'</select>'+
+      '</div>'+
+    '</div>';
+  }
+
+  function isStandalone(){
+    return window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+  }
+
+  function installTipHtml(){
+    if(isStandalone() || storeGet('vakit-tip-hide','')==='1') return '';
+    var host=location.hostname||'';
+    var ephemeral=/trycloudflare\.com$|localhost|127\.0\.0\.1/.test(host);
+    var isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+    var text;
+    if(ephemeral){
+      text='<strong>Ana ekrana ekle:</strong> Bu geçici tunnel. Sayfa düzgün açılıyorsa Safari → Paylaş → Ana Ekrana Ekle. jsDelivr kullanma (kod gösterir).';
+    } else if(isiOS){
+      text='<strong>iPhone:</strong> Safari → Paylaş → Ana Ekrana Ekle. Eski kısayolu sil, bunu ekle. Widget: Scriptable.';
+    } else {
+      text='<strong>Telefona ekle:</strong> menüden “Ana ekrana ekle / Install”.';
+    }
+    return '<div class="install-tip show" id="installTip"><div>'+text+'</div><button type="button" id="tipClose" aria-label="Kapat">Tamam</button></div>';
+  }
+
+  function render(){
+    var list = (!state.loading && !state.error && state.timings) ? schedule() : [];
+    applyActiveTheme(list);
+    var root=document.getElementById('app');
+    var cityOpts=CITIES.map(function(c){
+      return '<option value="'+c[0]+'"'+(c[0]===state.city?' selected':'')+'>'+c[1]+'</option>';
+    }).join('');
+
+    if(state.loading || state.error){
+      root.innerHTML=
+        topBar(cityOpts)+installTipHtml()+
+        '<div class="msg">'+(state.error||'Vakitler yükleniyor…')+
+        (state.error?'<br><button type="button" id="retry">Tekrar dene</button>':'')+'</div>';
+      bind(root); return;
+    }
+
+    var next=nextPrayer(list), cur=currentPrayer(list);
+    state.nextKey=next?next.key:'';
+    var rem=next?hms(next.date.getTime()-now().getTime()):{h:'00',m:'00',s:'00'};
+    var n=now();
+    var rows=list.map(function(p){
+      var isNext=next&&p.key===next.key&&!next.tomorrow;
+      var isNow=cur&&p.key===cur.key&&!p.meta;
+      var passed=p.date.getTime()<=n.getTime()&&!isNext;
+      var cls='row'+(p.meta?' meta':'')+(isNext?' next':'')+(isNow?' now':'')+(passed?' passed':'');
+      return '<div class="'+cls+'" data-key="'+p.key+'"><span class="n">'+p.name+'</span><span class="t">'+p.time+'</span></div>';
+    }).join('');
+
+    root.innerHTML=
+      topBar(cityOpts)+installTipHtml()+
+      '<section class="hero">'+
+        '<div class="kicker">Şu anki saat</div>'+
+        '<div class="clock" id="clock">'+clockStr(n)+'</div>'+
+        '<div class="next-name">'+(next&&next.tomorrow?'Yarın':'Sıradaki')+' · <b id="nextName">'+(next?next.name:'—')+'</b></div>'+
+        '<div class="countdown">'+
+          '<div class="cd"><strong id="cdH">'+rem.h+'</strong><span>Saat</span></div>'+
+          '<div class="cd"><strong id="cdM">'+rem.m+'</strong><span>Dakika</span></div>'+
+          '<div class="cd"><strong id="cdS">'+rem.s+'</strong><span>Saniye</span></div>'+
+        '</div>'+
+        '<div class="meta" id="meta">'+state.label+' · '+(next?next.time:'')+' · '+state.dateLabel+'</div>'+
+      '</section>'+
+      '<section class="times"><h2>Günün vakitleri · '+state.hijri+'</h2>'+rows+'</section>';
+    bind(root);
+  }
+
+  function bind(root){
+    var city=root.querySelector('#city');
+    if(city){
+      var onCity=function(){
+        var opt=city.options[city.selectedIndex];
+        state.city=opt.value; state.label=opt.text;
+        flushPrefs();
+        load();
+      };
+      city.onchange=onCity;
+      city.addEventListener('input', onCity);
+    }
+    var theme=root.querySelector('#theme');
+    if(theme){
+      var onTheme=function(){
+        var v=theme.value;
+        if(v==='auto'){
+          state.themeMode='auto';
+          flushPrefs();
+          applyActiveTheme();
+        } else {
+          state.themeMode='manual';
+          setTheme(v, {persist:true});
+          flushPrefs();
+        }
+      };
+      theme.onchange=onTheme;
+      theme.addEventListener('input', onTheme);
+    }
+    var retry=root.querySelector('#retry');
+    if(retry) retry.onclick=load;
+    var tipClose=root.querySelector('#tipClose');
+    if(tipClose) tipClose.onclick=function(){
+      storeSet('vakit-tip-hide','1');
+      var tip=document.getElementById('installTip');
+      if(tip) tip.remove();
+    };
+  }
+
+  function tick(){
+    if(state.loading||state.error||!state.timings) return;
+    var list=schedule(), next=nextPrayer(list), cur=currentPrayer(list);
+    if(state.themeMode==='auto'){
+      var pk=currentPeriodKey(list);
+      if(pk!==state.periodKey){
+        state.periodKey=pk;
+        applyActiveTheme(list);
+      }
+    }
+    if((next?next.key:'')!==state.nextKey){ render(); return; }
+    var clock=document.getElementById('clock');
+    var cdH=document.getElementById('cdH'), cdM=document.getElementById('cdM'), cdS=document.getElementById('cdS');
+    if(!clock||!cdH) return;
+    clock.textContent=clockStr(now());
+    if(next){ var rem=hms(next.date.getTime()-now().getTime()); cdH.textContent=rem.h; cdM.textContent=rem.m; cdS.textContent=rem.s; }
+    var rows=document.querySelectorAll('.row');
+    for(var i=0;i<rows.length;i++){
+      var key=rows[i].getAttribute('data-key'), p=null;
+      for(var k=0;k<list.length;k++) if(list[k].key===key) p=list[k];
+      if(!p) continue;
+      var isNext=next&&p.key===next.key&&!next.tomorrow;
+      var isNow=cur&&p.key===cur.key&&!p.meta;
+      var passed=p.date.getTime()<=now().getTime()&&!isNext;
+      rows[i].className='row'+(p.meta?' meta':'')+(isNext?' next':'')+(isNow?' now':'')+(passed?' passed':'');
+    }
+  }
+
+  function load(){
+    state.loading=true; state.error=''; render();
+    fetchTimings().then(render).catch(function(){
+      state.loading=false; state.error='Vakitler yüklenemedi. İnternet bağlantını kontrol et.'; render();
+    });
+  }
+
+  // Eski service worker'ı kaldır (yeni SW kaydetme — Safari redirect hatası)
+  function killServiceWorkers(){
+    if(!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.getRegistrations().then(function(regs){
+      regs.forEach(function(r){ r.unregister(); });
+    }).catch(function(){});
+    if('caches' in window){
+      caches.keys().then(function(keys){
+        keys.forEach(function(k){ caches.delete(k); });
+      }).catch(function(){});
+    }
+  }
+
+  // Ana Ekran ikonu: yeni deploy gelince otomatik yenile
+  function watchForUpdates(){
+    var meta=document.querySelector('meta[name="vakit-version"]');
+    var local=meta && meta.getAttribute('content');
+    if(!local || local.indexOf('__VAKIT')===0) return;
+    function check(){
+      fetch('./version.json?t='+Date.now(),{cache:'no-store'})
+        .then(function(r){ return r.ok?r.json():null; })
+        .then(function(j){
+          if(j && j.version && j.version!==local){
+            location.reload();
+          }
+        }).catch(function(){});
+    }
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState==='visible') check();
+    });
+    window.addEventListener('focus', check);
+    setTimeout(check, 4000);
+  }
+
+  window.addEventListener('pagehide', flushPrefs);
+  window.addEventListener('beforeunload', flushPrefs);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='hidden') flushPrefs();
+  });
+
+  killServiceWorkers();
+  loadPrefsAsync().then(function(){
+    applyActiveTheme();
+    load();
+    watchForUpdates();
+  }).catch(function(){
+    applyActiveTheme();
+    load();
+    watchForUpdates();
+  });
+  setInterval(tick, 1000);
+})();
+  </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+name: Deploy Vakit to Netlify
+
+# Gerekli secrets (repo Settings → Secrets → Actions):
+#   NETLIFY_AUTH_TOKEN
+#   NETLIFY_SITE_ID = a5bf1d86-ea2f-4ae8-92a4-3b593f45fe1c
+# Alternatif: Netlify UI'da "Link repository" (secret gerekmez)
+
+on:
+  push:
+    branches: [cursor/namaz-vakitleri-1d93, main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build
+        run: npm run build
+      - name: Deploy to Netlify
+        if: ${{ secrets.NETLIFY_AUTH_TOKEN != '' && secrets.NETLIFY_SITE_ID != '' }}
+        run: npx --yes netlify-cli deploy --dir=docs --prod --site "$NETLIFY_SITE_ID"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      - name: Skip notice
+        if: ${{ secrets.NETLIFY_AUTH_TOKEN == '' || secrets.NETLIFY_SITE_ID == '' }}
+        run: echo "NETLIFY secrets yok — Netlify UI'da Link repository kullan veya secrets ekle."
