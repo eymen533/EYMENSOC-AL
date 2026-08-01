@@ -108,10 +108,29 @@
     });
   }
 
+  function restoreDialStyle() {
+    var root = cluster();
+    if (!root) return;
+    var next = "bmw";
+    try {
+      next = localStorage.getItem("pulse_dial") || "bmw";
+    } catch (_) {}
+    var allowed = ["bmw", "blade", "obsidian", "volt"];
+    if (allowed.indexOf(next) === -1) next = "bmw";
+    allowed.forEach(function (s) {
+      root.classList.remove("dial-" + s);
+    });
+    root.classList.add("dial-" + next);
+    document.querySelectorAll(".dial-opt").forEach(function (el) {
+      el.classList.toggle("on", el.getAttribute("data-style") === next);
+    });
+  }
+
   function boot() {
     bindPanel("left");
     bindPanel("right");
     bindHud();
+    restoreDialStyle();
   }
 
   setInterval(boot, 700);

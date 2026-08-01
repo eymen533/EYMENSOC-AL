@@ -19,8 +19,41 @@ import dash_leaflet as dl
 from dash import ALL, Dash, Input, Output, State, callback, clientside_callback, ctx, dcc, html
 
 from tesla_dash.auth import register_auth
+from tesla_dash.prayer import next_prayer
 from tesla_dash.tesla import get_vehicle_state
 from tesla_dash.tesla.ble import get_ble_session
+
+DIAL_STYLES = [
+    {"id": "bmw", "title": "BMW Diagonal", "desc": "Trapez cam · altın / turuncu"},
+    {"id": "blade", "title": "Blade Slash", "desc": "Keskin paralelkenar · cyan"},
+    {"id": "obsidian", "title": "Obsidian Glass", "desc": "Dumanlı cam · beyaz kenar"},
+    {"id": "volt", "title": "Volt Wing", "desc": "Asimetrik kanat · yeşil"},
+]
+
+TR_WEEKDAYS = [
+    "Pazartesi",
+    "Salı",
+    "Çarşamba",
+    "Perşembe",
+    "Cuma",
+    "Cumartesi",
+    "Pazar",
+]
+TR_MONTHS = [
+    "",
+    "Oca",
+    "Şub",
+    "Mar",
+    "Nis",
+    "May",
+    "Haz",
+    "Tem",
+    "Ağu",
+    "Eyl",
+    "Eki",
+    "Kas",
+    "Ara",
+]
 
 GEARS = ["P", "R", "N", "D"]
 SLIDES = ["trip", "tires", "map", "media"]
@@ -357,6 +390,8 @@ app.layout = html.Div(
         dcc.Store(id="left-slide-store", data=0),
         dcc.Store(id="right-slide-store", data=2),
         dcc.Store(id="theme-store", data="night"),
+        dcc.Store(id="dial-style-store", data="bmw"),
+        dcc.Store(id="settings-open", data=False),
         dcc.Interval(id="tick", interval=1000, n_intervals=0),
         # ——— Pairing modal (VIN + Tesla Card) ———
         html.Div(
@@ -459,7 +494,7 @@ app.layout = html.Div(
         ),
         html.Div(
             id="cluster",
-            className="cluster theme-night",
+            className="cluster theme-night dial-bmw",
             children=[
                 html.Header(
                     className="topbar",
@@ -467,7 +502,22 @@ app.layout = html.Div(
                         html.Div(
                             className="top-left",
                             children=[
+                                html.Div(
+                                    className="datetime-block",
+                                    children=[
+                                        html.Span(id="day-name", className="day-name"),
+                                        html.Span(id="date-line", className="date-line"),
+                                    ],
+                                ),
                                 html.Span(id="clock", className="clock"),
+                                html.Div(
+                                    className="prayer-chip",
+                                    title="Bir sonraki namaz",
+                                    children=[
+                                        html.Span("🕌", className="prayer-ico"),
+                                        html.Span(id="next-prayer", className="next-prayer"),
+                                    ],
+                                ),
                                 html.Span(id="out-temp", className="out-temp"),
                                 html.Span(id="ble-pill", className="ble-pill"),
                             ],
@@ -499,9 +549,60 @@ app.layout = html.Div(
                                     title="VIN + Tesla Kart + BLE eşleşme",
                                 ),
                                 html.Span("▮▮▯ 50%", className="phone-batt"),
-                                html.Span("⚙", className="settings-ico"),
+                                html.Button(
+                                    "⚙",
+                                    id="settings-btn",
+                                    n_clicks=0,
+                                    className="settings-btn",
+                                    title="Görünüm ayarları",
+                                ),
                             ],
                         ),
+                    ],
+                ),
+                # Settings sheet — dial style picker
+                html.Div(
+                    id="settings-sheet",
+                    className="settings-sheet hidden",
+                    children=[
+                        html.Div(
+                            className="settings-card",
+                            children=[
+                                html.Div(
+                                    className="settings-head",
+                                    children=[
+                                        html.Span("Görünüm", className="settings-title"),
+                                        html.Button("✕", id="settings-close", n_clicks=0, className="settings-close"),
+                                    ],
+                                ),
+                                html.P(
+                                    "Orta ekran stilini seç — BMW diagonal benzeri seçenekler",
+                                    className="settings-sub",
+                                ),
+                                html.Div(
+                                    className="dial-options",
+                                    children=[
+                                        html.Button(
+                                            [
+                                                html.Span(className=f"dial-preview dial-preview-{opt['id']}"),
+                                                html.Span(
+                                                    [
+                                                        html.Span(opt["title"], className="opt-title"),
+                                                        html.Span(opt["desc"], className="opt-desc"),
+                                                    ],
+                                                    className="opt-text",
+                                                ),
+                                            ],
+                                            id={"type": "dial-opt", "style": opt["id"]},
+                                            n_clicks=0,
+                                            className=f"dial-opt{' on' if opt['id'] == 'bmw' else ''}",
+                                            **{"data-style": opt["id"]},
+                                        )
+                                        for opt in DIAL_STYLES
+                                    ],
+                                ),
+                            ],
+                        )
                     ],
                 ),
                 html.Div(
@@ -519,15 +620,13 @@ app.layout = html.Div(
                                 html.Div(
                                     className="speed-dial",
                                     children=[
-                                        html.Div(className="speed-dial-aura"),
-                                        html.Div(className="speed-dial-beam speed-dial-beam-a"),
-                                        html.Div(className="speed-dial-beam speed-dial-beam-b"),
+                                        html.Div(className="speed-dial-glow"),
                                         html.Div(
-                                            className="speed-dial-shell",
+                                            className="speed-dial-panel",
                                             children=[
-                                                html.Div(className="speed-dial-shine"),
+                                                html.Div(className="speed-dial-sheen"),
                                                 html.Div(
-                                                    className="speed-dial-core",
+                                                    className="speed-dial-inner",
                                                     children=[
                                                         html.Div(
                                                             id="speed-num",
@@ -537,10 +636,7 @@ app.layout = html.Div(
                                                         html.Div("km/h", className="speed-unit"),
                                                     ],
                                                 ),
-                                                html.Span(className="speed-corner c-n"),
-                                                html.Span(className="speed-corner c-e"),
-                                                html.Span(className="speed-corner c-s"),
-                                                html.Span(className="speed-corner c-w"),
+                                                html.Div(className="speed-dial-edge"),
                                             ],
                                         ),
                                     ],
@@ -838,7 +934,7 @@ def _telltale_classes(state: dict, linked: bool) -> list[str]:
     ]
 
 
-# Vehicle theme → cluster.theme-day / theme-night (keeps fs-* classes)
+# Vehicle theme → cluster.theme-day / theme-night (keeps fs-* / dial-* classes)
 clientside_callback(
     """
     function(theme) {
@@ -854,10 +950,65 @@ clientside_callback(
     Input("theme-store", "data"),
 )
 
+# Dial style picker + settings sheet
+clientside_callback(
+    """
+    function(nOpen, nClose, optClicks, style, isOpen) {
+        const trig = (dash_clientside.callback_context.triggered || [])[0];
+        if (!trig) {
+            return [window.dash_clientside.no_update, window.dash_clientside.no_update];
+        }
+        const prop = String(trig.prop_id);
+        let next = style || localStorage.getItem('pulse_dial') || 'bmw';
+        let open = !!isOpen;
+
+        if (prop.indexOf('settings-btn') !== -1) {
+            open = !open;
+        } else if (prop.indexOf('settings-close') !== -1) {
+            open = false;
+        } else if (prop.indexOf('dial-opt') !== -1) {
+            try {
+                const id = JSON.parse(prop.split('.')[0]);
+                if (id && id.style) next = id.style;
+            } catch (e) {}
+            open = true;
+        }
+
+        const allowed = ['bmw','blade','obsidian','volt'];
+        if (allowed.indexOf(next) === -1) next = 'bmw';
+        localStorage.setItem('pulse_dial', next);
+
+        const c = document.getElementById('cluster');
+        if (c) {
+            allowed.forEach(s => c.classList.remove('dial-' + s));
+            c.classList.add('dial-' + next);
+        }
+        document.querySelectorAll('.dial-opt').forEach(el => {
+            el.classList.toggle('on', el.getAttribute('data-style') === next);
+        });
+        const sheet = document.getElementById('settings-sheet');
+        if (sheet) sheet.classList.toggle('hidden', !open);
+
+        return [next, open];
+    }
+    """,
+    Output("dial-style-store", "data"),
+    Output("settings-open", "data"),
+    Input("settings-btn", "n_clicks"),
+    Input("settings-close", "n_clicks"),
+    Input({"type": "dial-opt", "style": ALL}, "n_clicks"),
+    State("dial-style-store", "data"),
+    State("settings-open", "data"),
+    prevent_initial_call=True,
+)
+
 
 @callback(
     Output("theme-store", "data"),
+    Output("day-name", "children"),
+    Output("date-line", "children"),
     Output("clock", "children"),
+    Output("next-prayer", "children"),
     Output("out-temp", "children"),
     Output("ble-pill", "children"),
     Output("ble-pill", "className"),
@@ -999,9 +1150,23 @@ def refresh(_n, ble_store):
 
     speed_txt = f"{int(display.get('speed_kmh') or 0)}"
 
+    now = datetime.now()
+    day_name = TR_WEEKDAYS[now.weekday()]
+    date_line = f"{now.day} {TR_MONTHS[now.month]} {now.year}"
+    try:
+        lat_p = float(display.get("latitude") or 41.025)
+        lon_p = float(display.get("longitude") or 29.02)
+        prayer = next_prayer(lat=lat_p, lon=lon_p)
+        prayer_txt = prayer.get("label") or "--"
+    except Exception:
+        prayer_txt = "--"
+
     return (
         theme,
-        datetime.now().strftime("%H:%M"),
+        day_name,
+        date_line,
+        now.strftime("%H:%M"),
+        prayer_txt,
         f"{int(display.get('outside_temp_c') or 0)}°C",
         pill,
         pill_cls,
