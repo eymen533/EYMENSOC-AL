@@ -14,7 +14,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("Pulse Phone Key")
                         .font(.largeTitle.bold())
-                    Text("Swift Playgrounds (iPad) · CoreBluetooth ile gerçek add-key-request. Key Card → konsol → Pair.")
+                    Text("Swift Playgrounds · gerçek BLE Pair. Ayarlar’da S…C kaybolması bağlanınca normaldir.")
                         .foregroundStyle(.secondary)
 
                     Group {
@@ -30,7 +30,7 @@ struct ContentView: View {
                     Button {
                         Task { await start() }
                     } label: {
-                        Text(pairer.busy ? "Çalışıyor…" : "Bluetooth ile eşleştir")
+                        Text(pairer.busy ? "Çalışıyor… uygulamadan çıkma" : "Bluetooth ile eşleştir")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .font(.headline)
@@ -44,13 +44,33 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
                             RoundedRectangle(cornerRadius: 14)
-                                .fill(pairer.paired ? Color.green.opacity(0.22) : Color.blue.opacity(0.12))
+                                .fill(pairer.paired ? Color.green.opacity(0.22)
+                                      : pairer.waitingForCard ? Color.orange.opacity(0.18)
+                                      : Color.blue.opacity(0.12))
                         )
 
+                    if !pairer.lastDetail.isEmpty {
+                        Text(pairer.lastDetail)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
                     VStack(alignment: .leading, spacing: 10) {
-                        step(1, "Bluetooth izni ver — iPad araçta / yakında olsun", on: true)
-                        step(2, "Key Card → konsol okuyucu (iPad’e değil)", on: pairer.waitingForCard || pairer.paired)
-                        step(3, "Araç ekranında Pair / Confirm", on: pairer.paired)
+                        step(1, "Arabayı uyandır + Tesla uygulamasını kapat", on: true)
+                        step(2, "Eşleştir → Log’da “İstek gönderildi ✓” bekle", on: pairer.waitingForCard || pairer.paired)
+                        step(3, "Key Card → konsol (iPad değil) → Pair", on: pairer.waitingForCard || pairer.paired)
+                    }
+
+                    DisclosureGroup("Takılınca oku") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("• Bluetooth Ayarları’nda Tesla / S…C bir an görünüp gitmesi = çoğu zaman bağlandı, kayboldu değil.")
+                            Text("• Pair / Confirm ancak “İstek gönderildi ✓” sonrası Key Card konsola konunca çıkar.")
+                            Text("• Araç uykudaysa S…C hiç gelmez — kapıyı aç / ekranı uyandır.")
+                            Text("• Resmi Tesla uygulaması BLE’yi tutuyorsa kapat (app switcher’dan sil).")
+                            Text("• Playgrounds’ta üstteki Run ▶ kullan; yan önizleme BLE için güvenilmez.")
+                        }
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                     }
 
                     if let error {
@@ -65,10 +85,6 @@ struct ContentView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-
-                    Text("Bu proje Swift Playgrounds App’tir (.swiftpm). Safari Web Bluetooth değildir.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
                 .padding(sizeClass == .regular ? 28 : 16)
                 .frame(maxWidth: 720, alignment: .leading)

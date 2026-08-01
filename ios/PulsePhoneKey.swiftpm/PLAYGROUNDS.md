@@ -23,10 +23,18 @@ Mac / Xcode **gerekmez**. App Store’daki **Swift Playgrounds** ile bu `.swiftp
 
 ## 3) Arabada
 
-1. iPad Bluetooth açık, araç yakında
-2. **Bluetooth ile eşleştir**
-3. Key Card’ı **konsol okuyucuya** koy (iPad’e değil)
-4. Araç ekranında **Pair / Confirm**
+1. Arabayı **uyandır** (kapı aç / ekran) — uykuda S…C görünmez
+2. Resmi **Tesla uygulamasını kapat** (app switcher’dan sil)
+3. iPad Bluetooth açık, araç yakında
+4. **Bluetooth ile eşleştir** — Log’da `İstek gönderildi ✓` bekle
+5. Key Card’ı **konsol okuyucuya** koy (iPad’e değil)
+6. Araç ekranında **Pair / Confirm**
+
+### “Bluetooth’ta göründü sonra kayboldu”
+
+Bu çoğu zaman **hata değil**: bağlanınca iOS Ayarlar listesinden gizler.  
+Asıl başarı Log’daki `Write ACK` / `İstek gönderildi ✓` satırıdır.  
+Pair diyaloğu ancak istek gittikten + kart konsola konunca çıkar.
 
 ## Önemli
 
