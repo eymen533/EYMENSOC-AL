@@ -144,6 +144,18 @@ class TeslaClient:
             light_fog=bool(vehicle.get("front_fog") or vehicle.get("fog_lights")),
             turn_left=bool(vehicle.get("turn_indicator_left")),
             turn_right=bool(vehicle.get("turn_indicator_right")),
+            ui_theme=(
+                "night"
+                if (
+                    vehicle.get("high_beam")
+                    or vehicle.get("high_beams")
+                    or vehicle.get("headlamp")
+                    or vehicle.get("headlight")
+                    or __import__("time").localtime().tm_hour < 6
+                    or __import__("time").localtime().tm_hour >= 19
+                )
+                else "day"
+            ),
         )
 
     def get_state(self) -> VehicleState:

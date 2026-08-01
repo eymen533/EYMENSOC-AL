@@ -95,6 +95,8 @@ class VehicleState:
     light_fog: bool = False
     turn_left: bool = False
     turn_right: bool = False
+    # Vehicle-driven cluster theme
+    ui_theme: str = "night"  # "day" | "night"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -238,12 +240,12 @@ class DemoSimulator:
         street = _STREETS[int(self._route_idx) % len(_STREETS)]
         range_km = self._battery / 100.0 * 480.0
 
-        # Cycle exterior lights for demo telltales
+        # Cycle exterior lights for demo telltales (+ day/night UI)
         if now >= self._light_until:
-            modes = ["parking", "low", "high", "low", "fog", "off", "low"]
+            modes = ["off", "off", "parking", "low", "high", "low", "fog", "off"]
             self._light_i = (self._light_i + 1) % len(modes)
             self._light_mode = modes[self._light_i]
-            self._light_until = now + random.uniform(8, 14)
+            self._light_until = now + random.uniform(10, 16)
         if now >= self._turn_until:
             turns = ["off", "left", "off", "right", "off", "hazard", "off"]
             self._turn_i = (self._turn_i + 1) % len(turns)
@@ -276,6 +278,17 @@ class DemoSimulator:
             arrival_time = "--"
             energy_at_arrival = "--"
             trip_distance = "--"
+
+        # Vehicle decides day/night UI from headlights + ambient hour
+        hour = time.localtime(now).tm_hour
+        ambient_night = hour < 6 or hour >= 19
+        headlights_on = self._light_mode in {"low", "high", "fog"}
+        if headlights_on:
+            ui_theme = "night"
+        elif self._light_mode == "off" and 7 <= hour < 18:
+            ui_theme = "day"
+        else:
+            ui_theme = "night" if ambient_night or self._light_mode == "parking" else "day"
 
         return VehicleState(
             connected=True,
@@ -321,4 +334,5 @@ class DemoSimulator:
             light_fog=light_fog,
             turn_left=turn_left,
             turn_right=turn_right,
+            ui_theme=ui_theme,
         )

@@ -322,6 +322,7 @@ app.layout = html.Div(
         dcc.Store(id="pair-ui", data={"open": False, "step": 1, "vin": "", "error": ""}),
         dcc.Store(id="left-slide-store", data=0),
         dcc.Store(id="right-slide-store", data=2),
+        dcc.Store(id="theme-store", data="night"),
         dcc.Interval(id="tick", interval=1000, n_intervals=0),
         # ——— Pairing modal (VIN + Tesla Card) ———
         html.Div(
@@ -424,7 +425,7 @@ app.layout = html.Div(
         ),
         html.Div(
             id="cluster",
-            className="cluster",
+            className="cluster theme-night",
             children=[
                 html.Header(
                     className="topbar",
@@ -440,6 +441,22 @@ app.layout = html.Div(
                         html.Div(
                             className="top-right",
                             children=[
+                                html.Button(
+                                    [
+                                        html.Div(
+                                            className="fs-speed-row",
+                                            children=[
+                                                html.Span(id="fs-speed", className="fs-speed", children="0"),
+                                                html.Span("km/h", className="fs-unit"),
+                                            ],
+                                        ),
+                                        html.Div(id="fs-odo", className="fs-odo", children="ODO --km"),
+                                    ],
+                                    id="fs-hud",
+                                    n_clicks=0,
+                                    className="fs-hud",
+                                    title="Küme görünümüne dön",
+                                ),
                                 html.Button(
                                     [html.Span("↻", className="ico"), " Bağlan"],
                                     id="ble-btn",
@@ -766,7 +783,25 @@ def _telltale_classes(state: dict, linked: bool) -> list[str]:
     ]
 
 
+# Vehicle theme → cluster.theme-day / theme-night (keeps fs-* classes)
+clientside_callback(
+    """
+    function(theme) {
+        const c = document.getElementById('cluster');
+        if (!c) { return window.dash_clientside.no_update; }
+        const t = (theme === 'day') ? 'day' : 'night';
+        c.classList.remove('theme-day', 'theme-night');
+        c.classList.add('theme-' + t);
+        return t;
+    }
+    """,
+    Output("cluster", "data-theme"),
+    Input("theme-store", "data"),
+)
+
+
 @callback(
+    Output("theme-store", "data"),
     Output("clock", "children"),
     Output("out-temp", "children"),
     Output("ble-pill", "children"),
@@ -775,6 +810,8 @@ def _telltale_classes(state: dict, linked: bool) -> list[str]:
     Output("ble-btn", "className"),
     Output("gear-display", "children"),
     Output("speed-num", "children"),
+    Output("fs-speed", "children"),
+    Output("fs-odo", "children"),
     Output("tl-left", "className"),
     Output("tl-parking", "className"),
     Output("tl-low", "className"),
@@ -901,7 +938,14 @@ def refresh(_n, ble_store):
     # Show exterior-light telltales from live/demo telemetry on the center dial
     telltales = _telltale_classes(display, True)
 
+    theme = (display.get("ui_theme") or "night").lower()
+    if theme not in {"day", "night"}:
+        theme = "night"
+
+    speed_txt = f"{int(display.get('speed_kmh') or 0)}"
+
     return (
+        theme,
         datetime.now().strftime("%H:%M"),
         f"{int(display.get('outside_temp_c') or 0)}°C",
         pill,
@@ -909,7 +953,9 @@ def refresh(_n, ble_store):
         btn_children,
         btn_cls,
         _gear_row(gear),
-        f"{int(display.get('speed_kmh') or 0)}",
+        speed_txt,
+        speed_txt,
+        odo,
         *telltales,
         display.get("street") or "—",
         batt_pct_txt,
