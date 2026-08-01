@@ -250,11 +250,10 @@ def phone_key_html(vin: str = "") -> str:
         <li>Playgrounds’ta aç → Signing (Apple ID) → <strong>Run ▶</strong></li>
         <li>Bluetooth izni → eşleştir → Key Card’ı <strong>konsola</strong> koy → Pair</li>
       </ol>
-      <a class="btn" href="/downloads/PulsePhoneKey-playground-build12.zip" style="text-decoration:none;text-align:center">Playgrounds build-12 — gerçek Dash HUD</a>
+      <a class="btn" href="/downloads/PulsePhoneKey-playground-build13.zip" style="text-decoration:none;text-align:center">Playgrounds build-13 — Pair Vehicle akışı</a>
       <a class="btn ghost" href="/downloads/PulsePhoneKey-playground.zip" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Aynı zip</a>
       <p class="support" style="background:rgba(255,214,10,.12);color:#ffe566;margin-top:.75rem">
-        <strong>SÜRÜM: build-12-real</strong> · Sahte gösterge yok.
-        BLE Pair → eski Pulse cluster (otomatik PIN) canlı çalışır.
+        <strong>SÜRÜM: build-13-pairflow</strong> · Üst bar Pair · Before You Start → VIN → Scan → Key Card → canlı HUD.
       </p>
       <a class="btn ghost" href="https://apps.apple.com/app/swift-playgrounds/id908519492" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Swift Playgrounds · App Store</a>
       <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:1rem 0" />
@@ -388,7 +387,11 @@ def register_phone_key(server) -> None:
 
     @server.get("/downloads/PulsePhoneKey-playground-build12.zip")
     def download_playgrounds_build12_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build12.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build13.zip")
+
+    @server.get("/downloads/PulsePhoneKey-playground-build13.zip")
+    def download_playgrounds_build13_zip():  # type: ignore[no-redef]
+        return _send_release_zip("PulsePhoneKey-playground-build13.zip")
 
     @server.get("/downloads/PulsePhoneKey-swift-files.zip")
     def download_swift_files_zip():  # type: ignore[no-redef]
