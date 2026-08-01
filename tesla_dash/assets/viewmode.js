@@ -118,9 +118,18 @@
     if (next === "blade") next = "porsche";
     if (next === "obsidian") next = "mercedes";
     if (next === "volt") next = "audi";
-    var allowed = ["bmw", "porsche", "mercedes", "audi"];
+    var allowed = [
+      "bmw",
+      "porsche",
+      "mercedes",
+      "audi",
+      "round",
+      "square",
+      "hex",
+      "pill",
+    ];
     if (allowed.indexOf(next) === -1) next = "bmw";
-    ["bmw", "porsche", "mercedes", "audi", "blade", "obsidian", "volt"].forEach(function (s) {
+    allowed.concat(["blade", "obsidian", "volt"]).forEach(function (s) {
       root.classList.remove("dial-" + s);
     });
     root.classList.add("dial-" + next);

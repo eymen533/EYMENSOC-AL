@@ -488,7 +488,7 @@ body {
 }
 
 .settings-card {
-  width: min(92vw, 420px);
+  width: min(94vw, 520px);
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: linear-gradient(165deg, rgba(28, 30, 36, 0.96), rgba(12, 13, 16, 0.98));
@@ -526,9 +526,12 @@ body {
 }
 
 .dial-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  max-height: min(58vh, 360px);
+  overflow: auto;
+  padding-right: 0.15rem;
 }
 
 .dial-opt {
@@ -536,10 +539,10 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   border-radius: 14px;
-  padding: 0.55rem 0.65rem;
+  padding: 0.5rem 0.55rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.55rem;
   cursor: pointer;
   text-align: left;
   color: inherit;
@@ -586,6 +589,25 @@ body {
   clip-path: polygon(0 0, 100% 12%, 88% 100%, 12% 88%);
   background: linear-gradient(135deg, #0a1218 0%, #4a6070 32%, #b8d4e8 55%, #2a4050 78%, #060a0e 100%);
 }
+.dial-preview-round {
+  clip-path: none;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #1a1e28 0%, #6a7388 35%, #d0d6e0 55%, #2a303c 80%, #0a0c10 100%);
+}
+.dial-preview-square {
+  clip-path: none;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #121418 0%, #3a3f48 30%, #a8aeb8 52%, #2a2e36 78%, #0c0e12 100%);
+}
+.dial-preview-hex {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: linear-gradient(135deg, #061018 0%, #1a4058 30%, #5ec8e8 55%, #163848 80%, #040a10 100%);
+}
+.dial-preview-pill {
+  clip-path: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #061410 0%, #0e3a36 28%, #3dcdc0 55%, #0a2826 80%, #040c0c 100%);
+}
 
 .dial-opt.on[data-style="porsche"] {
   border-color: rgba(196, 30, 42, 0.65);
@@ -599,6 +621,25 @@ body {
   border-color: rgba(140, 190, 220, 0.6);
   background: rgba(100, 160, 200, 0.1);
 }
+.dial-opt.on[data-style="round"] {
+  border-color: rgba(180, 190, 210, 0.55);
+  background: rgba(160, 170, 190, 0.1);
+}
+.dial-opt.on[data-style="square"] {
+  border-color: rgba(170, 175, 185, 0.5);
+  background: rgba(150, 155, 165, 0.1);
+}
+.dial-opt.on[data-style="hex"] {
+  border-color: rgba(80, 200, 230, 0.6);
+  background: rgba(60, 180, 210, 0.1);
+}
+.dial-opt.on[data-style="pill"] {
+  border-color: rgba(60, 200, 190, 0.6);
+  background: rgba(40, 180, 170, 0.1);
+}
+
+.opt-title { font-size: 0.82rem !important; }
+.opt-desc { font-size: 0.65rem !important; }
 
 .opt-text {
   display: flex;
@@ -1343,6 +1384,208 @@ body {
 }
 .cluster.dial-audi .speed-unit {
   color: rgba(190, 225, 245, 0.78);
+}
+
+/* ——— Classic Round ——— */
+.cluster.dial-round .speed-dial {
+  aspect-ratio: 1;
+  width: min(42vw, 280px);
+}
+.cluster.dial-round .speed-dial-glow {
+  background:
+    radial-gradient(circle at 40% 35%, rgba(180, 200, 230, 0.32), transparent 55%),
+    radial-gradient(circle at 65% 70%, rgba(80, 90, 110, 0.22), transparent 60%);
+}
+.cluster.dial-round .speed-dial-panel,
+.cluster.dial-round .speed-dial-rim,
+.cluster.dial-round .speed-dial-inner {
+  clip-path: none;
+  border-radius: 50%;
+  transform: none;
+}
+.cluster.dial-round .speed-dial-panel {
+  border-color: rgba(200, 210, 230, 0.35);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.22), transparent 42%),
+    linear-gradient(145deg, #1a1e28 0%, #5a6578 28%, #c8d0dc 48%, #2a323e 72%, #0a0c12 100%);
+  background-size: 160% 160%;
+  box-shadow:
+    0 22px 55px rgba(0, 0, 0, 0.55),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -8px 24px rgba(0, 0, 0, 0.45),
+    0 0 40px rgba(160, 180, 210, 0.2);
+}
+.cluster.dial-round .speed-dial-inner {
+  width: 72%;
+  height: 72%;
+  border-color: rgba(200, 210, 230, 0.22);
+  background:
+    radial-gradient(circle at 45% 38%, rgba(255, 255, 255, 0.1), transparent 55%),
+    radial-gradient(circle at 50% 50%, #1c222c 0%, #07090d 72%);
+}
+.cluster.dial-round .speed-dial-edge {
+  background: conic-gradient(from 200deg, rgba(200, 220, 255, 0.55), transparent 30%, transparent 70%, rgba(160, 180, 200, 0.35));
+  opacity: 0.5;
+  border-radius: 50%;
+}
+.cluster.dial-round .speed-dial-halo {
+  background: radial-gradient(circle, rgba(180, 200, 230, 0.22), transparent 70%);
+}
+.cluster.dial-round .speed-unit {
+  color: rgba(200, 210, 230, 0.7);
+}
+
+/* ——— Square Tile ——— */
+.cluster.dial-square .speed-dial {
+  aspect-ratio: 1;
+  width: min(40vw, 260px);
+}
+.cluster.dial-square .speed-dial-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(170, 175, 185, 0.28), transparent 60%);
+}
+.cluster.dial-square .speed-dial-panel,
+.cluster.dial-square .speed-dial-rim,
+.cluster.dial-square .speed-dial-inner {
+  clip-path: none;
+  transform: none;
+}
+.cluster.dial-square .speed-dial-panel {
+  border-radius: 22px;
+  border-color: rgba(200, 205, 215, 0.3);
+  background:
+    linear-gradient(145deg, #101218 0%, #3a404c 26%, #b0b6c2 50%, #2a303a 74%, #0a0c10 100%);
+  background-size: 170% 170%;
+  box-shadow:
+    0 22px 50px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 36px rgba(160, 165, 180, 0.15);
+}
+.cluster.dial-square .speed-dial-rim {
+  border-radius: 16px;
+  inset: 7%;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.cluster.dial-square .speed-dial-inner {
+  width: 74%;
+  height: 74%;
+  border-radius: 14px;
+  border-color: rgba(200, 205, 215, 0.22);
+  background:
+    radial-gradient(circle at 40% 30%, rgba(255, 255, 255, 0.1), transparent 50%),
+    linear-gradient(165deg, rgba(28, 32, 40, 0.85), rgba(6, 8, 12, 0.92));
+}
+.cluster.dial-square .speed-dial-edge {
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(220, 225, 235, 0.45), transparent 40%, transparent 60%, rgba(140, 150, 165, 0.3));
+  opacity: 0.45;
+}
+.cluster.dial-square .speed-unit {
+  color: rgba(200, 205, 215, 0.7);
+}
+
+/* ——— Hex Core ——— */
+.cluster.dial-hex .speed-dial {
+  aspect-ratio: 1.05;
+  width: min(44vw, 290px);
+}
+.cluster.dial-hex .speed-dial-glow {
+  background:
+    radial-gradient(circle at 40% 40%, rgba(80, 210, 240, 0.35), transparent 55%),
+    radial-gradient(circle at 70% 65%, rgba(30, 120, 160, 0.22), transparent 60%);
+}
+.cluster.dial-hex .speed-dial-panel,
+.cluster.dial-hex .speed-dial-rim,
+.cluster.dial-hex .speed-dial-inner {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  transform: none;
+  border-radius: 0;
+}
+.cluster.dial-hex .speed-dial-panel {
+  border-color: rgba(100, 220, 245, 0.4);
+  background:
+    linear-gradient(150deg, #040a10 0%, #123040 22%, #4ec8e8 48%, #1a4058 72%, #060c12 100%);
+  background-size: 170% 170%;
+  box-shadow:
+    0 22px 55px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(180, 240, 255, 0.35),
+    0 0 46px rgba(80, 200, 230, 0.28);
+}
+.cluster.dial-hex .speed-dial-rim {
+  inset: 8%;
+  border-color: rgba(120, 220, 245, 0.28);
+}
+.cluster.dial-hex .speed-dial-inner {
+  width: 70%;
+  height: 70%;
+  border-color: rgba(100, 210, 240, 0.3);
+  background:
+    radial-gradient(circle at 50% 40%, rgba(100, 220, 255, 0.18), transparent 55%),
+    linear-gradient(165deg, rgba(10, 28, 40, 0.88), rgba(4, 8, 12, 0.94));
+}
+.cluster.dial-hex .speed-dial-edge {
+  background: linear-gradient(90deg, rgba(80, 210, 240, 0.65), transparent 25%, transparent 75%, rgba(80, 210, 240, 0.4));
+}
+.cluster.dial-hex .speed-dial-halo {
+  background: radial-gradient(circle, rgba(80, 210, 240, 0.28), transparent 70%);
+}
+.cluster.dial-hex .speed-num {
+  text-shadow: 0 0 28px rgba(80, 210, 240, 0.5), 0 2px 12px rgba(0, 0, 0, 0.55);
+}
+.cluster.dial-hex .speed-unit {
+  color: rgba(160, 230, 250, 0.78);
+}
+
+/* ——— Capsule Pill ——— */
+.cluster.dial-pill .speed-dial {
+  aspect-ratio: 1.85 / 1;
+  width: min(52vw, 380px);
+}
+.cluster.dial-pill .speed-dial-glow {
+  background:
+    radial-gradient(ellipse 60% 55% at 40% 45%, rgba(50, 200, 190, 0.32), transparent 58%),
+    radial-gradient(ellipse 45% 40% at 70% 55%, rgba(20, 100, 110, 0.2), transparent 62%);
+}
+.cluster.dial-pill .speed-dial-panel,
+.cluster.dial-pill .speed-dial-rim,
+.cluster.dial-pill .speed-dial-inner {
+  clip-path: none;
+  transform: none;
+  border-radius: 999px;
+}
+.cluster.dial-pill .speed-dial-panel {
+  border-color: rgba(80, 220, 210, 0.4);
+  background:
+    linear-gradient(145deg, #061210 0%, #0e3c38 24%, #4adfd0 48%, #124840 72%, #040c0c 100%);
+  background-size: 170% 170%;
+  box-shadow:
+    0 22px 55px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(180, 255, 245, 0.35),
+    0 0 44px rgba(60, 200, 190, 0.25);
+}
+.cluster.dial-pill .speed-dial-rim {
+  inset: 6% 4%;
+  border-color: rgba(100, 230, 220, 0.25);
+}
+.cluster.dial-pill .speed-dial-inner {
+  width: 82%;
+  height: 72%;
+  border-color: rgba(80, 220, 210, 0.28);
+  background:
+    radial-gradient(ellipse at 45% 40%, rgba(80, 230, 220, 0.16), transparent 55%),
+    linear-gradient(165deg, rgba(8, 28, 26, 0.85), rgba(4, 10, 10, 0.92));
+}
+.cluster.dial-pill .speed-dial-edge {
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(60, 220, 210, 0.65), transparent 22%, transparent 78%, rgba(60, 220, 210, 0.4));
+}
+.cluster.dial-pill .speed-dial-halo {
+  background: radial-gradient(circle, rgba(60, 210, 200, 0.26), transparent 70%);
+}
+.cluster.dial-pill .speed-num {
+  text-shadow: 0 0 28px rgba(60, 210, 200, 0.45), 0 2px 12px rgba(0, 0, 0, 0.55);
+}
+.cluster.dial-pill .speed-unit {
+  color: rgba(160, 240, 230, 0.78);
 }
 
 @keyframes dialBreath {

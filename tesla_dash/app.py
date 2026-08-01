@@ -24,10 +24,14 @@ from tesla_dash.tesla import get_vehicle_state
 from tesla_dash.tesla.ble import get_ble_session
 
 DIAL_STYLES = [
-    {"id": "bmw", "title": "BMW Diagonal", "desc": "Trapez cam · sıcak amber metal"},
-    {"id": "porsche", "title": "Porsche Sport", "desc": "Kokpit kesit · siyah / racing kırmızı"},
-    {"id": "mercedes", "title": "Mercedes Glass", "desc": "Hyperscreen cam · gümüş / şampanya"},
-    {"id": "audi", "title": "Audi Quattro", "desc": "Keskin kanat · platin / buz mavisi"},
+    {"id": "bmw", "title": "BMW Diagonal", "desc": "Trapez · amber metal"},
+    {"id": "porsche", "title": "Porsche Sport", "desc": "Diyagonal · racing kırmızı"},
+    {"id": "mercedes", "title": "Mercedes Glass", "desc": "Cam panel · gümüş / şampanya"},
+    {"id": "audi", "title": "Audi Quattro", "desc": "Kanat · platin / buz mavisi"},
+    {"id": "round", "title": "Classic Round", "desc": "Yuvarlak gösterge · koyu krom"},
+    {"id": "square", "title": "Square Tile", "desc": "Yuvarlatılmış kare · grafit"},
+    {"id": "hex", "title": "Hex Core", "desc": "Altıgen · elektrik cyan"},
+    {"id": "pill", "title": "Capsule Pill", "desc": "Yatay kapsül · mor-değil teal"},
 ]
 
 TR_WEEKDAYS = [
@@ -576,7 +580,7 @@ app.layout = html.Div(
                                     ],
                                 ),
                                 html.P(
-                                    "Orta ekran paneli — BMW · Porsche · Mercedes · Audi",
+                                    "Şekil seç: diyagonal, yuvarlak, kare, hex, kapsül…",
                                     className="settings-sub",
                                 ),
                                 html.Div(
@@ -977,7 +981,7 @@ clientside_callback(
             open = true;
         }
 
-        const allowed = ['bmw','porsche','mercedes','audi'];
+        const allowed = ['bmw','porsche','mercedes','audi','round','square','hex','pill'];
         // migrate legacy ids
         if (next === 'blade') next = 'porsche';
         if (next === 'obsidian') next = 'mercedes';
@@ -987,7 +991,7 @@ clientside_callback(
 
         const c = document.getElementById('cluster');
         if (c) {
-            ['bmw','porsche','mercedes','audi','blade','obsidian','volt'].forEach(s => c.classList.remove('dial-' + s));
+            allowed.concat(['blade','obsidian','volt']).forEach(s => c.classList.remove('dial-' + s));
             c.classList.add('dial-' + next);
         }
         document.querySelectorAll('.dial-opt').forEach(el => {
