@@ -517,11 +517,32 @@ app.layout = html.Div(
                                 html.Div(id="gear-display", className="gear-wrap"),
                                 _telltale_row(),
                                 html.Div(
-                                    className="speed-ring",
+                                    className="speed-dial",
                                     children=[
-                                        html.Div(className="speed-glow"),
-                                        html.Div(id="speed-num", className="speed-num", children="0"),
-                                        html.Div("km/h", className="speed-unit"),
+                                        html.Div(className="speed-dial-aura"),
+                                        html.Div(className="speed-dial-beam speed-dial-beam-a"),
+                                        html.Div(className="speed-dial-beam speed-dial-beam-b"),
+                                        html.Div(
+                                            className="speed-dial-shell",
+                                            children=[
+                                                html.Div(className="speed-dial-shine"),
+                                                html.Div(
+                                                    className="speed-dial-core",
+                                                    children=[
+                                                        html.Div(
+                                                            id="speed-num",
+                                                            className="speed-num",
+                                                            children="0",
+                                                        ),
+                                                        html.Div("km/h", className="speed-unit"),
+                                                    ],
+                                                ),
+                                                html.Span(className="speed-corner c-n"),
+                                                html.Span(className="speed-corner c-e"),
+                                                html.Span(className="speed-corner c-s"),
+                                                html.Span(className="speed-corner c-w"),
+                                            ],
+                                        ),
                                     ],
                                 ),
                             ],

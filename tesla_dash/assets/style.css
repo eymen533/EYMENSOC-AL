@@ -106,28 +106,37 @@ body {
   text-shadow: none;
 }
 
-.cluster.theme-day .speed-ring {
-  background: radial-gradient(circle at 50% 42%, #f7f8fa 0%, #d5dae0 68%);
+.cluster.theme-day .speed-dial-shell {
+  background:
+    linear-gradient(135deg, #ffffff 0%, #e8ecf1 42%, #cfd6de 100%);
   box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.08),
-    0 12px 36px rgba(0, 0, 0, 0.12);
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 16px 40px rgba(0, 0, 0, 0.18),
+    inset 0 0 28px rgba(255, 255, 255, 0.55);
+}
+
+.cluster.theme-day .speed-dial-core {
+  background:
+    linear-gradient(160deg, #f7f8fa 0%, #d9dee5 100%);
 }
 
 .cluster.theme-day .speed-num {
   color: #111;
+  text-shadow: none;
 }
 
 .cluster.theme-day .speed-unit {
   color: rgba(28, 28, 30, 0.45);
 }
 
-.cluster.theme-day .speed-glow {
-  background: radial-gradient(
-    circle,
-    rgba(223, 227, 232, 0.95) 28%,
-    rgba(223, 227, 232, 0.45) 48%,
-    transparent 70%
-  );
+.cluster.theme-day .speed-dial-aura {
+  background:
+    radial-gradient(circle, rgba(0, 0, 0, 0.12) 20%, transparent 68%);
+  filter: none;
+}
+
+.cluster.theme-day .speed-dial-beam {
+  opacity: 0.35;
 }
 
 .cluster.theme-day .center-veil {
@@ -277,22 +286,22 @@ body {
     transform: translateY(-2%);
   }
 
-  .speed-ring {
-    width: min(34vh, 28vw, 260px);
+  .speed-dial {
+    width: min(38vh, 30vw, 280px);
   }
 
   .speed-num {
-    font-size: clamp(3.8rem, 11vh, 6.5rem);
+    font-size: clamp(3.4rem, 10vh, 5.8rem);
   }
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
-  .speed-ring {
-    width: min(58vh, 22vw);
+  .speed-dial {
+    width: min(62vh, 24vw);
   }
 
   .speed-num {
-    font-size: clamp(2.8rem, 14vh, 4.5rem);
+    font-size: clamp(2.5rem, 12vh, 4.2rem);
   }
 
   .album-art {
@@ -781,7 +790,7 @@ body {
 }
 
 .gear-wrap,
-.speed-ring {
+.speed-dial {
   position: relative;
   z-index: 1;
   pointer-events: auto;
@@ -801,55 +810,176 @@ body {
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.35);
 }
 
-.speed-ring {
-  width: min(42vw, 270px);
+/* ——— Diagonal diamond speed dial (not circular) ——— */
+.speed-dial {
+  --dial: min(44vw, 290px);
+  width: var(--dial);
   aspect-ratio: 1;
-  border-radius: 50%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.speed-dial-aura {
+  position: absolute;
+  inset: -18%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(232, 33, 39, 0.22) 0%, transparent 42%),
+    radial-gradient(circle at 35% 40%, rgba(100, 210, 255, 0.28) 0%, transparent 50%),
+    radial-gradient(circle at 65% 60%, rgba(50, 215, 75, 0.12) 0%, transparent 48%);
+  filter: blur(6px);
+  z-index: 0;
+  pointer-events: none;
+  animation: dialPulse 3.6s ease-in-out infinite;
+}
+
+.speed-dial-beam {
+  position: absolute;
+  width: 118%;
+  height: 2px;
+  left: -9%;
+  top: 50%;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(100, 210, 255, 0.15) 22%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(232, 33, 39, 0.35) 78%,
+    transparent 100%
+  );
+  filter: blur(0.4px);
+  opacity: 0.85;
+}
+
+.speed-dial-beam-a {
+  transform: translateY(-50%) rotate(32deg);
+  animation: beamSweep 5.5s linear infinite;
+}
+
+.speed-dial-beam-b {
+  transform: translateY(-50%) rotate(-32deg);
+  opacity: 0.55;
+  animation: beamSweep 7s linear infinite reverse;
+}
+
+.speed-dial-shell {
+  position: relative;
+  z-index: 2;
+  width: 86%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  background:
+    linear-gradient(135deg, #2a3140 0%, #0b0d12 38%, #151a24 62%, #3a1220 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 22px 55px rgba(0, 0, 0, 0.55),
+    0 0 40px rgba(100, 210, 255, 0.18),
+    0 0 60px rgba(232, 33, 39, 0.12);
+}
+
+.speed-dial-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(100, 210, 255, 0.55) 40deg,
+    transparent 80deg,
+    rgba(232, 33, 39, 0.65) 180deg,
+    transparent 220deg,
+    rgba(255, 255, 255, 0.35) 300deg,
+    transparent 360deg
+  );
+  animation: dialSpin 4.8s linear infinite;
+  opacity: 0.9;
+}
+
+.speed-dial-shine {
+  position: absolute;
+  inset: 7%;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.2) 0%, transparent 38%, transparent 62%, rgba(100, 210, 255, 0.12) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.speed-dial-core {
+  position: relative;
+  z-index: 2;
+  width: 72%;
+  aspect-ratio: 1;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(circle at 50% 42%, #1c1f28 0%, #0a0c10 68%);
+    radial-gradient(circle at 45% 38%, #222833 0%, #07090d 70%);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
-    inset 0 0 50px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(0, 0, 0, 0.4),
-    0 18px 50px rgba(0, 0, 0, 0.45);
-  position: relative;
-  isolation: isolate;
+    inset 0 0 28px rgba(0, 0, 0, 0.65),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
-/* Soft halo so map/media pass under smoothly */
-.speed-glow {
+.speed-corner {
   position: absolute;
-  inset: -28%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(7, 8, 10, 0.95) 28%,
-    rgba(7, 8, 10, 0.55) 48%,
-    transparent 70%
-  );
-  z-index: -1;
-  pointer-events: none;
+  z-index: 3;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(100, 210, 255, 0.9), 0 0 18px rgba(232, 33, 39, 0.45);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
 }
+
+.speed-corner.c-n { top: 1%; left: 50%; transform: translateX(-50%); }
+.speed-corner.c-e { right: 1%; top: 50%; transform: translateY(-50%); background: #64d2ff; }
+.speed-corner.c-s { bottom: 1%; left: 50%; transform: translateX(-50%); background: #e82127; }
+.speed-corner.c-w { left: 1%; top: 50%; transform: translateY(-50%); }
 
 .speed-num {
   font-family: var(--sf);
-  font-size: clamp(4.4rem, 12vw, 6.6rem);
-  font-weight: 700;
-  line-height: 0.95;
-  letter-spacing: -0.045em;
+  font-size: clamp(3.6rem, 11vw, 5.8rem);
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.055em;
   font-variant-numeric: tabular-nums;
+  color: #fff;
+  text-shadow:
+    0 0 18px rgba(100, 210, 255, 0.35),
+    0 2px 14px rgba(0, 0, 0, 0.55);
+  position: relative;
+  z-index: 2;
 }
 
 .speed-unit {
-  font-size: 0.82rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--muted);
-  margin-top: 0.1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(245, 245, 247, 0.55);
+  margin-top: 0.15rem;
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes dialSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes dialPulse {
+  0%, 100% { opacity: 0.75; transform: scale(0.98); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
+
+@keyframes beamSweep {
+  0%, 100% { opacity: 0.35; filter: blur(0.4px) brightness(0.9); }
+  50% { opacity: 0.95; filter: blur(0.2px) brightness(1.35); }
 }
 
 /* ——— Bottom ——— */
