@@ -119,8 +119,10 @@ class BlePairer(
             val name = result.device.name
                 ?: result.scanRecord?.deviceName
                 ?: ""
-            val match = targetNames.contains(name)
-                || name.startsWith("Tesla")
+            // Car may advertise as "🔑 Tesla 🍃" (emoji prefix) — use contains
+            val match = targetNames.any { name.equals(it, true) || name.contains(it, true) }
+                || name.contains("Tesla", ignoreCase = true)
+                || (name.length >= 18 && Regex("""S[0-9a-fA-F]{16}C""").containsMatchIn(name))
                 || (name.startsWith("S") && name.endsWith("C") && name.length == 18)
             if (!match) return
             if (connected) return

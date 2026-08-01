@@ -14,7 +14,7 @@ struct ContentView: View {
                     Text("Pulse Phone Key")
                         .font(.largeTitle.bold())
 
-                    Text("ÖNEMLİ: Eşleştir’e basınca hemen kapıyı aç / ekranı uyandır. Tesla uygulamasını kapat.")
+                    Text("ÖNEMLİ: Eşleştir’e bas → kapıyı aç. Tesla app kapat. (🔑 Tesla 🍃 görünüyorsa bağlanır)")
                         .font(.subheadline)
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)

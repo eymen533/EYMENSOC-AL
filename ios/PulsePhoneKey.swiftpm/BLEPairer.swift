@@ -178,14 +178,29 @@ final class BLEPairer: NSObject, ObservableObject {
     private func isTesla(name: String, adv: [String: Any]) -> (Bool, String) {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let upper = n.uppercased()
+        // Strip emoji / symbols — car often advertises as "🔑 Tesla 🍃"
+        let alnum = String(upper.unicodeScalars.filter {
+            CharacterSet.alphanumerics.contains($0) || $0 == " "
+        })
+        let compact = alnum.replacingOccurrences(of: " ", with: "")
+
         for t in targetNames {
-            if n == t || upper == t.uppercased() { return (true, "hedef:\(n)") }
+            let tu = t.uppercased()
+            if n == t || upper == tu || alnum.contains(tu) || compact.contains(tu.replacingOccurrences(of: " ", with: "")) {
+                return (true, "hedef:\(n)")
+            }
         }
-        if upper.hasPrefix("TESLA") { return (true, "Tesla:\(n)") }
-        // S + 16 hex + C (case-insensitive)
+        // Official / phone-key style names: "🔑 Tesla 🍃", "Tesla 159959", etc.
+        if upper.contains("TESLA") || alnum.contains("TESLA") {
+            return (true, "Tesla-emoji:\(n)")
+        }
+        // S + 16 hex + C anywhere in the cleaned string
+        if let sc = compact.range(of: #"S[0-9A-F]{16}C"#, options: .regularExpression) {
+            return (true, "S…C:\(compact[sc])")
+        }
         if upper.count == 18, upper.hasPrefix("S"), upper.hasSuffix("C") {
             let mid = upper.dropFirst().dropLast()
-            if mid.count == 16, mid.allSatisfy({ $0.isHexDigit }) {
+            if mid.count == 16, mid.allSatisfy(\.isHexDigit) {
                 return (true, "S…C:\(n)")
             }
         }
