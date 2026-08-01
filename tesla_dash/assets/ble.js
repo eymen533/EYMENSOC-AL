@@ -43,17 +43,28 @@
 
     if (!supported()) {
       state.scanning = false;
-      state.error = "Web Bluetooth desteklenmiyor (Chrome/Edge + HTTPS veya localhost)";
-      // Fallback: tell Dash to use demo BLE link
+      state.error = "Web Bluetooth yok (iPhone Safari desteklemez). Araca bağlan kullan.";
       return Object.assign(snapshot(), { demo_fallback: true });
     }
 
     try {
-      var device = await navigator.bluetooth.requestDevice({
-        // Tesla names vary; accept all then filter by GATT when possible
-        acceptAllDevices: true,
-        optionalServices: [TESLA_SERVICE, "battery_service", "device_information"],
-      });
+      // Prefer Tesla-named devices; acceptAllDevices confuses drivers in the car
+      var device;
+      try {
+        device = await navigator.bluetooth.requestDevice({
+          filters: [
+            { namePrefix: "Tesla" },
+            { namePrefix: "Model" },
+            { services: [TESLA_SERVICE] },
+          ],
+          optionalServices: [TESLA_SERVICE, "battery_service", "device_information"],
+        });
+      } catch (filterErr) {
+        device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [TESLA_SERVICE, "battery_service", "device_information"],
+        });
+      }
 
       state.device = device;
       state.device_id = device.id || "";

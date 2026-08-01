@@ -85,7 +85,7 @@ class BleSession:
             "vin": self._pending_vin,
             "card_paired": True,
             "step": "ble",
-            "message": "Tesla Key Card doğrulandı. BLE bağlantısı kuruluyor…",
+            "message": "Kart onaylandı. Şimdi Araca bağlan’a bas.",
         }
 
     def pair_and_connect(

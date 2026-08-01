@@ -408,9 +408,9 @@ app.layout = html.Div(
                     children=[
                         html.Button("✕", id="pair-close", className="pair-close", n_clicks=0),
                         html.Div("TESLA", className="pair-brand"),
-                        html.H2("BLE Eşleşme", className="pair-title"),
+                        html.H2("Araca bağlan", className="pair-title"),
                         html.P(
-                            "Diğer uygulamalar gibi önce VIN, sonra Tesla Key Card ile eşleşin.",
+                            "VIN gir → kartı onayla → HUD’u aç. Bulut üzerinden gerçek Tesla NFC/BLE yok; telefon HUD bağlantısı kurulur.",
                             className="pair-sub",
                         ),
                         html.Div(
@@ -418,7 +418,7 @@ app.layout = html.Div(
                             children=[
                                 html.Span("1 VIN", id="step-chip-1", className="step-chip on"),
                                 html.Span("2 Kart", id="step-chip-2", className="step-chip"),
-                                html.Span("3 BLE", id="step-chip-3", className="step-chip"),
+                                html.Span("3 Bağlan", id="step-chip-3", className="step-chip"),
                             ],
                         ),
                         html.Div(
@@ -461,11 +461,11 @@ app.layout = html.Div(
                                     html.Div(id="card-vin-tag", className="card-vin"),
                                 ]),
                                 html.P(
-                                    "Anahtarsız giriş kartını telefonun NFC alanına (veya ekrana) yaklaştırın.",
+                                    "Key Card’ı yanında tutman yeterli — NFC okuma yok. Onayla’ya bas.",
                                     className="pair-sub",
                                 ),
                                 html.Button(
-                                    "Kartı okut / Onayla",
+                                    "Kartı onayla",
                                     id="card-tap",
                                     n_clicks=0,
                                     className="pair-primary",
@@ -483,12 +483,22 @@ app.layout = html.Div(
                             className="pair-pane hidden",
                             children=[
                                 html.Div(className="ble-radar", children=html.Div(className="ble-radar-ring")),
-                                html.P(id="ble-pair-msg", className="pair-sub", children="Yakındaki Tesla aranıyor…"),
+                                html.P(
+                                    id="ble-pair-msg",
+                                    className="pair-sub",
+                                    children="VIN doğrulandı — HUD bağlantısını aç.",
+                                ),
                                 html.Button(
-                                    "BLE Bağlan",
+                                    "Araca bağlan",
                                     id="ble-finish",
                                     n_clicks=0,
                                     className="pair-primary",
+                                ),
+                                html.Button(
+                                    "Telefon Bluetooth dene (Chrome)",
+                                    id="ble-web-try",
+                                    n_clicks=0,
+                                    className="pair-ghost",
                                 ),
                             ],
                         ),
@@ -692,7 +702,10 @@ clientside_callback(
         const linked = ble && ble.connected;
         if (linked) {
             if (window.TeslaBLE) { await window.TeslaBLE.disconnect(); }
-            try { await fetch('/api/ble/disconnect', {method:'POST'}); } catch(e) {}
+            try {
+                await fetch('/api/ble/disconnect', {method:'POST', credentials:'same-origin'});
+            } catch(e) {}
+            try { localStorage.removeItem('pulse_ble_link'); } catch(e) {}
             return [
                 {connected:false, source:'none', disconnect:true},
                 {open:false, step:1, vin:(pair&&pair.vin)||'', error:''}
@@ -713,16 +726,39 @@ clientside_callback(
 )
 
 
-# Pairing UI orchestration
+# Pairing UI orchestration — reliable HUD link (demo); optional phone Web BT
 clientside_callback(
     """
-    async function(closeN, nextN, demoN, cardN, backN, finishN, pair, vinVal) {
+    async function(closeN, nextN, demoN, cardN, backN, finishN, webN, pair, vinVal) {
         const trig = dash_clientside.callback_context.triggered;
         if (!trig || !trig.length) {
             return [window.dash_clientside.no_update, window.dash_clientside.no_update];
         }
         const id = (trig[0].prop_id || '').split('.')[0];
         let ui = Object.assign({open:false, step:1, vin:'', error:''}, pair || {});
+
+        async function api(path, body) {
+            const opts = {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json'},
+            };
+            if (body !== undefined) opts.body = JSON.stringify(body);
+            const r = await fetch(path, opts);
+            let j = {};
+            try { j = await r.json(); } catch (e) { j = {}; }
+            if (r.status === 401 || j.error === 'auth_required') {
+                return {ok:false, error:'Oturum düştü — sayfayı yenile, PIN ile tekrar gir.'};
+            }
+            if (!r.ok && j.ok === undefined) {
+                return {ok:false, error:'Sunucu hatası (' + r.status + ')'};
+            }
+            return j;
+        }
+
+        function persist(link) {
+            try { localStorage.setItem('pulse_ble_link', JSON.stringify(link)); } catch (e) {}
+        }
 
         if (id === 'pair-close') {
             ui.open = false; ui.error = '';
@@ -734,58 +770,65 @@ clientside_callback(
         }
         if (id === 'vin-demo') {
             ui.vin = '5YJ3E1EA1KF317284';
+            const j = await api('/api/ble/vin', {vin: ui.vin});
+            if (!j.ok) { ui.error = j.error || 'VIN hatalı'; return [ui, window.dash_clientside.no_update]; }
             ui.step = 2; ui.error = '';
-            try {
-                await fetch('/api/ble/vin', {method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({vin: ui.vin})});
-            } catch(e) {}
             return [ui, window.dash_clientside.no_update];
         }
         if (id === 'vin-next') {
             const vin = (vinVal || ui.vin || '').replace(/\\s+/g,'').toUpperCase();
-            try {
-                const r = await fetch('/api/ble/vin', {method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({vin})});
-                const j = await r.json();
-                if (!j.ok) { ui.error = j.error || 'VIN hatalı'; return [ui, window.dash_clientside.no_update]; }
-                ui.vin = j.vin; ui.step = 2; ui.error = '';
-            } catch(e) { ui.error = 'VIN doğrulanamadı'; }
+            const j = await api('/api/ble/vin', {vin});
+            if (!j.ok) { ui.error = j.error || 'VIN hatalı'; return [ui, window.dash_clientside.no_update]; }
+            ui.vin = j.vin; ui.step = 2; ui.error = '';
             return [ui, window.dash_clientside.no_update];
         }
         if (id === 'card-tap') {
-            try {
-                const r = await fetch('/api/ble/card', {method:'POST'});
-                const j = await r.json();
-                if (!j.ok) { ui.error = j.error || 'Kart okunamadı'; return [ui, window.dash_clientside.no_update]; }
-                ui.step = 3; ui.error = '';
-            } catch(e) { ui.error = 'Kart adımı başarısız'; }
+            const j = await api('/api/ble/card', {});
+            if (!j.ok) { ui.error = j.error || 'Kart onaylanamadı'; return [ui, window.dash_clientside.no_update]; }
+            ui.step = 3; ui.error = '';
             return [ui, window.dash_clientside.no_update];
         }
         if (id === 'ble-finish') {
-            // Try Web Bluetooth, then fall back to paired demo link with VIN
+            // Direct HUD link — do NOT open Web Bluetooth picker (confusing in car)
+            const link = await api('/api/ble/pair', {
+                vin: ui.vin, card_tapped: true, source: 'demo'
+            });
+            if (!link || link.ok === false) {
+                ui.error = (link && link.error) || 'Araca bağlanılamadı';
+                return [ui, window.dash_clientside.no_update];
+            }
+            const out = Object.assign({connected:true, card_paired:true, source:'demo'}, link);
+            persist(out);
+            ui.open = false; ui.error = '';
+            return [ui, out];
+        }
+        if (id === 'ble-web-try') {
             let link = null;
-            if (window.TeslaBLE) {
+            if (window.TeslaBLE && window.TeslaBLE.supported && window.TeslaBLE.supported()) {
                 const snap = await window.TeslaBLE.connect();
                 if (snap && snap.connected) {
-                    link = Object.assign({}, snap, {vin: ui.vin, card_paired: true, source: 'web'});
+                    link = Object.assign({}, snap, {vin: ui.vin, card_paired: true, source: 'web', ok: true});
+                    try {
+                        await api('/api/ble/pair', {
+                            vin: ui.vin, card_tapped: true, source: 'web'
+                        });
+                    } catch (e) {}
                 }
             }
             if (!link) {
-                try {
-                    const r = await fetch('/api/ble/pair', {method:'POST', headers:{'Content-Type':'application/json'},
-                        body: JSON.stringify({vin: ui.vin, card_tapped: true, source: 'demo'})});
-                    link = await r.json();
-                } catch(e) {
-                    ui.error = 'BLE bağlantısı kurulamadı';
-                    return [ui, window.dash_clientside.no_update];
-                }
+                // Fallback to HUD demo link so the driver is never stuck
+                link = await api('/api/ble/pair', {
+                    vin: ui.vin, card_tapped: true, source: 'demo'
+                });
             }
-            if (link && (link.ok === false)) {
-                ui.error = link.error || 'Eşleşme başarısız';
+            if (!link || link.ok === false) {
+                ui.error = (link && link.error) || 'Araca bağlanılamadı — Chrome/Android dene veya Araca bağlan kullan.';
                 return [ui, window.dash_clientside.no_update];
             }
+            const out = Object.assign({connected:true, card_paired:true}, link);
+            persist(out);
             ui.open = false; ui.error = '';
-            return [ui, Object.assign({connected:true, card_paired:true}, link)];
+            return [ui, out];
         }
         return [window.dash_clientside.no_update, window.dash_clientside.no_update];
     }
@@ -798,9 +841,48 @@ clientside_callback(
     Input("card-tap", "n_clicks"),
     Input("card-back", "n_clicks"),
     Input("ble-finish", "n_clicks"),
+    Input("ble-web-try", "n_clicks"),
     State("pair-ui", "data"),
     State("vin-input", "value"),
     prevent_initial_call=True,
+)
+
+# Restore BLE link after reload (localStorage + server status)
+clientside_callback(
+    """
+    async function(_) {
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem('pulse_ble_link') || 'null'); } catch (e) {}
+        try {
+            const r = await fetch('/api/ble/status', {credentials:'same-origin'});
+            if (r.ok) {
+                const s = await r.json();
+                if (s && s.connected) {
+                    return Object.assign({connected:true}, s);
+                }
+            }
+        } catch (e) {}
+        if (saved && saved.connected) {
+            // Re-arm server session from saved VIN
+            try {
+                await fetch('/api/ble/pair', {
+                    method:'POST', credentials:'same-origin',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        vin: saved.vin || '',
+                        card_tapped: true,
+                        source: saved.source || 'demo'
+                    })
+                });
+            } catch (e) {}
+            return saved;
+        }
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("ble-store", "data", allow_duplicate=True),
+    Input("cluster", "id"),
+    prevent_initial_call="initial_duplicate",
 )
 
 
@@ -825,8 +907,8 @@ clientside_callback(
         const msg = document.getElementById('ble-pair-msg');
         if (msg && step === 3) {
             msg.textContent = ui.vin
-                ? (ui.vin.slice(-6) + ' için BLE link kuruluyor…')
-                : 'Yakındaki Tesla aranıyor…';
+                ? (ui.vin.slice(-6) + ' hazır — Araca bağlan’a bas.')
+                : 'VIN doğrulandı — HUD bağlantısını aç.';
         }
         return ui.open ? 'pair-overlay' : 'pair-overlay hidden';
     }
@@ -1092,14 +1174,18 @@ clientside_callback(
 def refresh(_n, ble_store):
     state = get_vehicle_state()
     session = get_ble_session().snapshot()
-    ble = {**session, **(ble_store or {})}
-    if ble_store and ble_store.get("connected"):
-        ble["connected"] = True
-        for k in ("device_name", "device_id", "rssi", "source"):
-            if ble_store.get(k) not in (None, ""):
-                ble[k] = ble_store[k]
-    elif ble_store and ble_store.get("disconnect"):
+    store = ble_store or {}
+    # Prefer live server session; store may start as connected:false on reload
+    ble = {**session}
+    if store.get("disconnect"):
         ble["connected"] = False
+    elif store.get("connected"):
+        ble["connected"] = True
+        for k in ("device_name", "device_id", "rssi", "source", "vin"):
+            if store.get(k) not in (None, ""):
+                ble[k] = store[k]
+    elif session.get("connected"):
+        ble["connected"] = True
 
     linked = bool(ble.get("connected"))
     if not linked:

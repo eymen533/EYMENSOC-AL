@@ -54,12 +54,21 @@ def is_unlocked() -> bool:
 
 
 def register_auth(server: Flask) -> None:
+    # Cloudflare / reverse-proxy: trust X-Forwarded-Proto so secure cookies work
+    try:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+
+        server.wsgi_app = ProxyFix(server.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[method-assign]
+    except Exception:  # noqa: BLE001
+        pass
+
     server.secret_key = _secret()
     server.config.update(
         SESSION_COOKIE_NAME="pulse_session",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         PERMANENT_SESSION_LIFETIME=30 * 24 * 3600,
+        # false works on HTTPS tunnels too; set COOKIE_SECURE=true only if required
         SESSION_COOKIE_SECURE=os.getenv("COOKIE_SECURE", "false").lower()
         in {"1", "true", "yes"},
     )
