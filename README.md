@@ -1,37 +1,38 @@
-# Tesla Pulse — BLE Instrument Cluster
+# Tesla Pulse — kişisel BLE küme ekranı
 
-VIN + Tesla Key Card eşleşmesi ile BLE bağlantılı araç HUD.
+PIN korumalı; yalnızca senin telefonundan kullanılmak üzere.
 
 ## Hızlı çalıştırma
 
 ```bash
+cp .env.example .env
+# .env içinde ACCESS_PIN ve SECRET_KEY ayarla
 pip install -r requirements.txt
 python run.py
 ```
 
-Tarayıcı: **http://127.0.0.1:8050**
+Telefon: tünel veya yerel URL → **PIN** → küme ekranı.
 
-## BLE nasıl bağlanır? (VIN + kart)
+Safari / Chrome: **Paylaş → Ana Ekrana Ekle** ile tam ekran uygulama gibi açılır.
 
-Gerçek Tesla uygulamalarına benzer akış:
+## Güvenlik
 
-1. Sağ üstte **Bağlan**
-2. **VIN** girin (17 karakter) veya **Demo VIN kullan**
-3. **Tesla Key Card** adımında kartı okut / onayla
-4. **BLE Bağlan** — Web Bluetooth varsa cihaz seçici açılır; yoksa demo BLE link kurulur
+- `ACCESS_PIN` olmadan uygulama açılmaz
+- Oturum çerezi ~30 gün telefonda kalır
+- PIN’i kimseyle paylaşma; `.env` commit edilmez
 
-| Adım | Ne yapar |
-|------|----------|
-| VIN | Aracı tanımlar (`/api/ble/vin`) |
-| Kart | Key Card onayı (`/api/ble/card`) |
-| BLE | Yakınlık linki (`/api/ble/pair` veya Web Bluetooth) |
+## BLE
 
-> Not: Tarayıcıda gerçek Tesla BLE anahtar protokolü (VCSEC) kısıtlıdır. Bu uygulama eşleşme UX’ini + HUD’u sunar; tam telemetri için opsiyonel Owner API token kullanılabilir.
+1. **Bağlan**
+2. VIN veya Demo VIN
+3. Tesla Key Card
+4. BLE Bağlan
 
 ## Yan paneller
 
-Sol ve sağda ↕ kaydır: **Medya · Lastik · Harita**
+Kaydır: Seyahat · Lastik · Harita · Medya  
+Dokun: tam ekran · sağ üst hız chip’i ile geri dön
 
 ## Repo
 
-https://github.com/eymen533/EYMENSOC-AL/tree/cursor/tesla-dash-bl-mode-02d8
+https://github.com/eymen533/EYMENSOC-AL

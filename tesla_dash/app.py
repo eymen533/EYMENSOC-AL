@@ -18,6 +18,7 @@ import dash_bootstrap_components as dbc
 import dash_leaflet as dl
 from dash import ALL, Dash, Input, Output, State, callback, clientside_callback, ctx, dcc, html
 
+from tesla_dash.auth import register_auth
 from tesla_dash.tesla import get_vehicle_state
 from tesla_dash.tesla.ble import get_ble_session
 
@@ -36,10 +37,11 @@ app = Dash(
     __name__,
     external_stylesheets=[dbc.themes.DARKLY],
     suppress_callback_exceptions=True,
-    title="TESLA PULSE · BLE",
+    title="TESLA PULSE · Özel",
     update_title=None,
 )
 server = app.server
+register_auth(server)
 
 
 @server.post("/api/ble/demo")
