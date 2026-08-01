@@ -1,0 +1,654 @@
+/* Tesla Pulse Dash — B/L theme system */
+
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+:root,
+[data-theme="dark"] {
+  --bg-void: #050608;
+  --bg-glass: rgba(8, 10, 14, 0.55);
+  --bg-glass-strong: rgba(10, 12, 18, 0.78);
+  --stroke: rgba(255, 255, 255, 0.1);
+  --text: #f4f4f5;
+  --text-muted: rgba(244, 244, 245, 0.55);
+  --accent: #3de7c5;
+  --accent-dim: rgba(61, 231, 197, 0.18);
+  --danger: #e82127;
+  --amber: #f5a623;
+  --glow: 0 0 40px rgba(61, 231, 197, 0.15);
+  --map-overlay: linear-gradient(
+    180deg,
+    rgba(5, 6, 8, 0.55) 0%,
+    rgba(5, 6, 8, 0.15) 35%,
+    rgba(5, 6, 8, 0.45) 70%,
+    rgba(5, 6, 8, 0.85) 100%
+  );
+  --vignette: radial-gradient(
+    ellipse at center,
+    transparent 30%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+
+[data-theme="light"] {
+  --bg-void: #e8ecef;
+  --bg-glass: rgba(255, 255, 255, 0.62);
+  --bg-glass-strong: rgba(255, 255, 255, 0.82);
+  --stroke: rgba(11, 11, 12, 0.1);
+  --text: #0b0b0c;
+  --text-muted: rgba(11, 11, 12, 0.5);
+  --accent: #0d9488;
+  --accent-dim: rgba(13, 148, 136, 0.15);
+  --danger: #c41e24;
+  --amber: #d97706;
+  --glow: 0 0 28px rgba(13, 148, 136, 0.12);
+  --map-overlay: linear-gradient(
+    180deg,
+    rgba(232, 236, 239, 0.65) 0%,
+    rgba(232, 236, 239, 0.2) 35%,
+    rgba(232, 236, 239, 0.4) 70%,
+    rgba(232, 236, 239, 0.88) 100%
+  );
+  --vignette: radial-gradient(
+    ellipse at center,
+    transparent 40%,
+    rgba(180, 190, 200, 0.35) 100%
+  );
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg-void);
+  color: var(--text);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+body {
+  transition: background 0.45s ease, color 0.45s ease;
+}
+
+#react-entry-point,
+._dash-loading {
+  background: var(--bg-void);
+}
+
+/* ——— Stage ——— */
+.dash-stage {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.map-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+.map-layer .leaflet-container {
+  width: 100% !important;
+  height: 100vh !important;
+  background: #0a0c10;
+  font: inherit;
+}
+
+.map-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--map-overlay), var(--vignette);
+  transition: background 0.45s ease;
+}
+
+.ui-layer {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem clamp(1rem, 3vw, 2.5rem) 1.5rem;
+  pointer-events: none;
+}
+
+.ui-layer > * {
+  pointer-events: auto;
+}
+
+/* ——— Top bar ——— */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  animation: fadeSlideDown 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.brand-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.brand {
+  font-family: "Orbitron", sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.35rem, 3.2vw, 2rem);
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  margin: 0;
+  background: linear-gradient(90deg, var(--text) 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-transform: uppercase;
+}
+
+.brand-sub {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--stroke);
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: pulseDot 1.8s ease-in-out infinite;
+}
+
+.status-dot.offline {
+  background: var(--danger);
+  box-shadow: 0 0 10px var(--danger);
+  animation: none;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.theme-toggle {
+  appearance: none;
+  border: 1px solid var(--stroke);
+  background: var(--bg-glass-strong);
+  backdrop-filter: blur(16px);
+  color: var(--text);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+  transform: translateY(-1px);
+}
+
+.theme-toggle:active {
+  transform: translateY(0);
+}
+
+/* ——— Main grid ——— */
+.hud-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr minmax(220px, 300px);
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+  margin-top: 1.25rem;
+  align-items: stretch;
+}
+
+.panel {
+  background: var(--bg-glass);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(22px) saturate(1.2);
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  padding: 1rem 1.1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.55;
+}
+
+.panel-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Gear ——— */
+.gear-panel {
+  grid-column: 1;
+  grid-row: 1;
+  animation: fadeSlideLeft 0.75s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.gear-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.gear-slot {
+  flex: 1;
+  text-align: center;
+  padding: 0.85rem 0.25rem;
+  font-family: "Orbitron", sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.gear-slot.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: inset 0 0 24px var(--accent-dim), var(--glow);
+  text-shadow: 0 0 18px var(--accent);
+}
+
+/* Center speed ——— */
+.speed-panel {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  backdrop-filter: none;
+  padding: 0;
+  animation: scaleIn 0.85s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.speed-panel::before {
+  display: none;
+}
+
+.speed-hero {
+  width: min(100%, 420px);
+}
+
+.vehicle-meta {
+  margin-top: 0.25rem;
+  text-align: center;
+}
+
+.vehicle-name {
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.vehicle-flags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.flag {
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--stroke);
+  color: var(--text-muted);
+  background: var(--bg-glass);
+}
+
+.flag.on {
+  color: var(--accent);
+  border-color: rgba(61, 231, 197, 0.45);
+  background: var(--accent-dim);
+}
+
+.flag.charge {
+  color: var(--amber);
+  border-color: rgba(245, 166, 35, 0.5);
+  animation: chargePulse 1.4s ease-in-out infinite;
+}
+
+/* Battery ——— */
+.battery-panel {
+  grid-column: 3;
+  grid-row: 1;
+  animation: fadeSlideRight 0.75s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.charge-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.meta-cell {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--stroke);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .meta-cell {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.meta-label {
+  display: block;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.meta-value {
+  font-family: "Orbitron", sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Side stats ——— */
+.stats-panel {
+  grid-column: 1;
+  grid-row: 2;
+  animation: fadeSlideLeft 0.75s 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--stroke);
+  padding-bottom: 0.45rem;
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+.stat-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.stat-value {
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.power-panel {
+  grid-column: 3;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  animation: fadeSlideRight 0.75s 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Bottom strip ——— */
+.bottom-strip {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(18px);
+  animation: fadeSlideUp 0.7s 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.coords {
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.mode-badge {
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.odo {
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.8rem;
+}
+
+/* Map marker pulse */
+.tesla-marker {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--danger, #e82127);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 0 rgba(232, 33, 39, 0.55);
+  animation: markerPulse 2s ease-out infinite;
+}
+
+/* Plotly cleanup */
+.js-plotly-plot .plotly .modebar {
+  display: none !important;
+}
+
+.dash-graph {
+  background: transparent !important;
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+  .hud-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+  }
+
+  .gear-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .battery-panel {
+    grid-column: 2;
+    grid-row: auto;
+  }
+
+  .speed-panel {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    order: -1;
+  }
+
+  .stats-panel,
+  .power-panel {
+    grid-column: span 1;
+    grid-row: auto;
+  }
+
+  .bottom-strip {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .hud-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gear-panel,
+  .battery-panel,
+  .speed-panel,
+  .stats-panel,
+  .power-panel,
+  .bottom-strip {
+    grid-column: 1;
+  }
+
+  .brand {
+    letter-spacing: 0.16em;
+    text-indent: 0.16em;
+  }
+
+  .top-bar {
+    flex-wrap: wrap;
+  }
+}
+
+/* Motions */
+@keyframes fadeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeSlideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeSlideRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes chargePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 16px 2px rgba(245, 166, 35, 0.25);
+  }
+}
+
+@keyframes markerPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(232, 33, 39, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(232, 33, 39, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(232, 33, 39, 0);
+  }
+}
