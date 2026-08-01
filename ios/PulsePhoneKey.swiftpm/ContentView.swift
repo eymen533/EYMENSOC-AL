@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// Root: Pair flow → native HUD (no WebView).
+/// Pair (real BLE) → Real Dash HUD (same web cluster, auto PIN — not fake gauges).
 struct ContentView: View {
     @StateObject private var ble = BLEPairer()
-    @StateObject private var hud = HUDModel()
     @State private var vin = UserDefaults.standard.string(forKey: "pulse_vin") ?? "XP7YGCEK0PB159959"
+    @State private var server = UserDefaults.standard.string(forKey: "pulse_server")
+        ?? "https://beach-mobiles-writers-developments.trycloudflare.com"
+    @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
     @State private var err: String?
     @State private var logOpen = false
     @State private var screen: Screen = .pair
@@ -15,18 +17,16 @@ struct ContentView: View {
         Group {
             switch screen {
             case .hud:
-                NativeHUDView(model: hud) {
-                    screen = .pair
-                }
-                .onAppear {
-                    hud.configure(vin: vinNorm, paired: ble.paired || ble.waitingForCard || ble.readyForDashboard)
-                    hud.start()
-                }
+                RealHUDView(
+                    server: server,
+                    pin: pin,
+                    vin: vinNorm,
+                    onBack: { screen = .pair }
+                )
             case .pair:
                 pairScreen
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: screen)
         .onChange(of: ble.readyForDashboard) { _, on in
             if on { openHUD() }
         }
@@ -41,20 +41,37 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Text("Pulse")
                         .font(.system(size: 40, weight: .bold, design: .rounded))
-                    Text("SÜRÜM: \(BLEPairer.buildId) · native HUD")
+                    Text("SÜRÜM: \(BLEPairer.buildId) · gerçek Dash HUD")
                         .font(.caption.bold())
                         .padding(8)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(0.35)))
 
-                    Text("WebView yok — Pair sonrası cluster uygulama içi açılır.")
+                    Text("Sahte gösterge yok. Pair sonrası eski Tesla Pulse cluster açılır (canlı).")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
+                    Group {
+                        fieldLabel("Dash server")
+                        TextField("https://….trycloudflare.com", text: $server)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .font(.system(.body, design: .monospaced))
+                            .padding(10)
+                            .background(fieldBG)
+
+                        fieldLabel("PIN")
+                        TextField("PIN", text: $pin)
+                            .keyboardType(.numberPad)
+                            .padding(10)
+                            .background(fieldBG)
+                    }
+
                     Button {
+                        save()
                         openHUD()
                     } label: {
-                        Text("Native HUD’u aç")
+                        Text("Gerçek HUD’u aç")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
@@ -62,30 +79,22 @@ struct ContentView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.cyan)
 
-                    if ble.readyForDashboard || ble.waitingForCard || ble.paired {
-                        Text("Pair OK — HUD’a geçiliyor…")
-                            .font(.subheadline)
-                            .foregroundStyle(.green)
-                    }
-
                     Divider()
 
-                    Text("VIN").font(.caption.weight(.semibold))
+                    fieldLabel("VIN")
                     TextField("VIN", text: $vin)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                         .font(.system(.body, design: .monospaced))
                         .padding(10)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemBackground)))
+                        .background(fieldBG)
 
                     Text("BLE: \(VCSECPayload.bleLocalName(vin: vinNorm))")
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(.secondary)
 
-                    Button {
-                        startPair()
-                    } label: {
-                        Text(ble.step == .scanning ? "Taranıyor…" : "1. Taramayı başlat")
+                    Button { startPair() } label: {
+                        Text(ble.step == .scanning ? "Taranıyor…" : "1. BLE Pair taraması")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                     }
@@ -98,13 +107,11 @@ struct ContentView: View {
                         .background(RoundedRectangle(cornerRadius: 12).fill(Color.blue.opacity(0.12)))
 
                     if !ble.devices.isEmpty {
-                        Text("2. 🔑 Tesla satırına dokun")
+                        Text("2. 🔑 Tesla’ya dokun → kart konsola")
                             .font(.headline)
                         ForEach(ble.devices.prefix(16)) { d in
                             let hot = d.name.contains("🔑") || d.name.localizedCaseInsensitiveContains("tesla")
-                            Button {
-                                ble.connect(id: d.id)
-                            } label: {
+                            Button { ble.connect(id: d.id) } label: {
                                 HStack {
                                     Text(hot ? "BAĞLAN" : "dene")
                                         .font(.caption.bold())
@@ -144,9 +151,23 @@ struct ContentView: View {
         vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 
-    private func openHUD() {
+    private var fieldBG: some View {
+        RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemBackground))
+    }
+
+    private func fieldLabel(_ t: String) -> some View {
+        Text(t).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+    }
+
+    private func save() {
         UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
-        hud.configure(vin: vinNorm, paired: ble.paired || ble.waitingForCard || ble.readyForDashboard)
+        UserDefaults.standard.set(PulseSession.normalizeServer(server), forKey: "pulse_server")
+        UserDefaults.standard.set(pin, forKey: "pulse_pin")
+        server = PulseSession.normalizeServer(server)
+    }
+
+    private func openHUD() {
+        save()
         screen = .hud
     }
 
@@ -156,7 +177,7 @@ struct ContentView: View {
             err = "VIN 17 karakter"
             return
         }
-        UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
+        save()
         do {
             let key = try KeyStore.loadOrCreatePrivateKey(forVIN: vinNorm)
             ble.start(vin: vinNorm, publicKey: KeyStore.publicKeyUncompressed(key))
