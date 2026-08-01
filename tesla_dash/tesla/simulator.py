@@ -5,11 +5,9 @@ from __future__ import annotations
 import math
 import random
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
-
-# Istanbul → coastal drive path (demo map trail)
 _ROUTE = [
     (41.0082, 28.9784),
     (41.0150, 28.9850),
@@ -30,11 +28,28 @@ _ROUTE = [
     (41.0082, 28.9784),
 ]
 
+_STREETS = [
+    "Ertürk Sk. No:29",
+    "Şükrü Sk.",
+    "Bağdat Cad.",
+    "Caddebostan Sahil",
+    "Moda Cad.",
+    "Caferağa Mah.",
+]
+
+_PLAYLIST = [
+    {"title": "Kayıp Kalp", "artist": "BLOK3", "service": "YouTube Music"},
+    {"title": "Gesi Bağları", "artist": "Barış Manço", "service": "Spotify"},
+    {"title": "Holocene", "artist": "Bon Iver", "service": "Apple Music"},
+    {"title": "Midnight City", "artist": "M83", "service": "YouTube Music"},
+    {"title": "Instant Crush", "artist": "Daft Punk", "service": "Spotify"},
+]
+
 
 @dataclass
 class VehicleState:
     connected: bool
-    mode: str  # "demo" | "live"
+    mode: str
     vehicle_name: str
     model: str
     gear: str
@@ -57,6 +72,17 @@ class VehicleState:
     autopilot: bool
     timestamp: float
     trail: list[list[float]]
+    # Cluster extras
+    street: str = "Ertürk Sk. No:29"
+    tire_fl: float = 2.8
+    tire_fr: float = 2.8
+    tire_rl: float = 2.7
+    tire_rr: float = 2.7
+    tire_unit: str = "bar"
+    media_title: str = "Kayıp Kalp"
+    media_artist: str = "BLOK3"
+    media_service: str = "YouTube Music"
+    media_progress: float = 0.35
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -67,16 +93,19 @@ class DemoSimulator:
 
     def __init__(self) -> None:
         self._t0 = time.time()
-        self._battery = 72.0
-        self._odo = 18432.0
+        self._battery = 69.0
+        self._odo = 74832.0
         self._route_idx = 0.0
         self._charging = False
         self._charge_started = 0.0
-        self._phase = "drive"  # drive | charge | park
-        self._phase_until = self._t0 + 45
-        self._gear = "D"
+        self._phase = "park"
+        self._phase_until = self._t0 + 12
+        self._gear = "P"
         self._trail: list[list[float]] = []
         self._speed = 0.0
+        self._track_i = 0
+        self._media_t0 = time.time()
+        self._tires = {"fl": 2.8, "fr": 2.8, "rl": 2.7, "rr": 2.7}
 
     def _interp_route(self, idx: float) -> tuple[float, float, float]:
         n = len(_ROUTE)
@@ -90,13 +119,20 @@ class DemoSimulator:
         heading = math.degrees(math.atan2(lon1 - lon0, lat1 - lat0)) % 360
         return lat, lon, heading
 
+    def _nudge_tires(self) -> None:
+        for k in self._tires:
+            self._tires[k] = round(
+                max(2.2, min(3.1, self._tires[k] + random.uniform(-0.01, 0.01))),
+                2,
+            )
+
     def tick(self) -> VehicleState:
         now = time.time()
         elapsed = now - self._t0
 
         if now >= self._phase_until:
             if self._phase == "drive":
-                if self._battery < 28 or random.random() < 0.25:
+                if self._battery < 28 or random.random() < 0.2:
                     self._phase = "charge"
                     self._charging = True
                     self._gear = "P"
@@ -108,7 +144,7 @@ class DemoSimulator:
                     self._charging = False
                     self._gear = "P"
                     self._speed = 0.0
-                    self._phase_until = now + random.uniform(6, 10)
+                    self._phase_until = now + random.uniform(8, 14)
             elif self._phase == "charge":
                 self._phase = "drive"
                 self._charging = False
@@ -120,26 +156,19 @@ class DemoSimulator:
                 self._gear = "D"
                 self._phase_until = now + random.uniform(35, 60)
 
-        lat, lon, heading = self._interp_route(self._route_idx)
-
         if self._phase == "drive":
-            # Smooth speed profile with slight randomness
             wave = 0.5 + 0.5 * math.sin(elapsed * 0.35)
             target = 55 + wave * 70 + random.uniform(-4, 4)
             if random.random() < 0.02:
-                target = random.uniform(8, 25)  # brief slowdown
+                target = random.uniform(8, 25)
             self._speed += (target - self._speed) * 0.12
             self._speed = max(0.0, min(250.0, self._speed))
-
-            # Advance along route proportional to speed
-            self._route_idx += (self._speed / 3600.0) * 8.5  # demo scale
+            self._route_idx += (self._speed / 3600.0) * 8.5
             self._odo += self._speed / 3600.0 * 1.15
-
-            # Power draw ~ speed^1.6 + accel
             power = (self._speed / 100.0) ** 1.5 * 95 + random.uniform(-8, 12)
             if self._speed < 5:
                 power = random.uniform(-3, 2)
-            drain = max(0.0, power) / 3600.0 * 2.2  # % per tick-ish
+            drain = max(0.0, power) / 3600.0 * 2.2
             self._battery = max(5.0, self._battery - drain * 0.35)
             self._gear = "D" if self._speed > 1.5 else "N"
             charge_kw = 0.0
@@ -148,7 +177,6 @@ class DemoSimulator:
         elif self._phase == "charge":
             self._speed = 0.0
             self._gear = "P"
-            # Supercharger curve: faster when empty
             soc = self._battery / 100.0
             peak = 250.0
             charge_kw = peak * max(0.15, (1.0 - soc) ** 0.55)
@@ -157,7 +185,6 @@ class DemoSimulator:
             minutes_to_full = int((remaining / max(charge_kw, 1)) * 60 * 1.1)
             autopilot = False
             power = -charge_kw
-            lat, lon, heading = self._interp_route(self._route_idx)
         else:
             self._speed = max(0.0, self._speed * 0.7)
             self._gear = "P"
@@ -171,7 +198,19 @@ class DemoSimulator:
         if len(self._trail) > 80:
             self._trail = self._trail[-80:]
 
-        range_km = self._battery / 100.0 * 520.0
+        self._nudge_tires()
+
+        # Rotate tracks every ~45s
+        track_elapsed = now - self._media_t0
+        if track_elapsed > 45:
+            self._track_i = (self._track_i + 1) % len(_PLAYLIST)
+            self._media_t0 = now
+            track_elapsed = 0
+        track = _PLAYLIST[self._track_i]
+        progress = min(0.98, track_elapsed / 45.0)
+
+        street = _STREETS[int(self._route_idx) % len(_STREETS)]
+        range_km = self._battery / 100.0 * 480.0
 
         return VehicleState(
             connected=True,
@@ -191,11 +230,20 @@ class DemoSimulator:
             longitude=lon,
             heading=heading,
             odometer_km=round(self._odo, 1),
-            outside_temp_c=round(18 + 3 * math.sin(elapsed / 40), 1),
+            outside_temp_c=round(29 + 1.5 * math.sin(elapsed / 50), 0),
             inside_temp_c=21.5,
             is_locked=self._gear == "P",
             sentry_mode=self._gear == "P",
             autopilot=autopilot,
             timestamp=now,
             trail=list(self._trail),
+            street=street,
+            tire_fl=self._tires["fl"],
+            tire_fr=self._tires["fr"],
+            tire_rl=self._tires["rl"],
+            tire_rr=self._tires["rr"],
+            media_title=track["title"],
+            media_artist=track["artist"],
+            media_service=track["service"],
+            media_progress=round(progress, 3),
         )

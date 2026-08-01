@@ -1,9 +1,10 @@
-"""Tesla Pulse — cinematic vehicle Dash HUD over Bluetooth Low Energy."""
+"""Tesla Pulse — instrument cluster HUD with BLE + vertical side slides."""
 
 from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -15,15 +16,16 @@ load_dotenv()
 
 import dash_bootstrap_components as dbc
 import dash_leaflet as dl
-from dash import Dash, Input, Output, State, callback, clientside_callback, dcc, html
+from dash import ALL, Dash, Input, Output, State, callback, clientside_callback, ctx, dcc, html
 
-from tesla_dash.components import battery_gauge, power_spark, speed_gauge
 from tesla_dash.tesla import get_vehicle_state
 from tesla_dash.tesla.ble import get_ble_session
 
 GEARS = ["P", "R", "N", "D"]
-DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CARTO'
+SLIDES = ["media", "tires", "map"]
+SLIDE_LABELS = {"media": "Medya", "tires": "Lastik", "map": "Harita"}
+LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+TILE_ATTR = "&copy; OSM &copy; CARTO"
 
 app = Dash(
     __name__,
@@ -35,17 +37,14 @@ app = Dash(
 server = app.server
 
 
-# ——— REST helpers for BLE (optional bleak scan from phone-less host) ———
 @server.post("/api/ble/demo")
 def api_ble_demo():
-    link = get_ble_session().connect_demo()
-    return link.to_dict()
+    return get_ble_session().connect_demo().to_dict()
 
 
 @server.post("/api/ble/disconnect")
 def api_ble_disconnect():
-    link = get_ble_session().disconnect()
-    return link.to_dict()
+    return get_ble_session().disconnect().to_dict()
 
 
 @server.get("/api/ble/status")
@@ -60,384 +59,219 @@ def api_ble_scan():
 
 def _gear_row(active: str) -> html.Div:
     return html.Div(
-        [
-            html.Div(g, className=f"gear-slot{' active' if g == active else ''}")
-            for g in GEARS
-        ],
-        className="gear-row",
+        [html.Span(g, className=f"gear{' on' if g == active else ''}") for g in GEARS],
+        className="gear-line",
     )
 
 
-def _flags(state: dict, ble: dict) -> list:
-    flags = []
-    if ble.get("connected"):
-        rssi = ble.get("rssi")
-        label = f"BLE {rssi} dBm" if rssi is not None else "BLE"
-        flags.append(html.Span(label, className="flag on ble-flag"))
-    if state.get("charging"):
-        flags.append(html.Span("ŞARJ", className="flag charge"))
-    if state.get("autopilot"):
-        flags.append(html.Span("AUTOPILOT", className="flag on"))
-    if state.get("sentry_mode"):
-        flags.append(html.Span("SENTRY", className="flag on"))
-    if state.get("is_locked"):
-        flags.append(html.Span("KİLİTLİ", className="flag"))
-    else:
-        flags.append(html.Span("AÇIK", className="flag on"))
-    return flags
-
-
-def _fmt_charge_time(minutes: int) -> str:
-    if not minutes or minutes <= 0:
-        return "—"
-    h, m = divmod(int(minutes), 60)
-    if h:
-        return f"{h}s {m:02d}dk"
-    return f"{m} dk"
-
-
-def _signal_bars(rssi: int | None) -> html.Div:
-    """Visual BLE signal strength 0–4 bars from RSSI."""
-    if rssi is None:
-        level = 0
-    elif rssi >= -55:
-        level = 4
-    elif rssi >= -65:
-        level = 3
-    elif rssi >= -75:
-        level = 2
-    elif rssi >= -85:
-        level = 1
-    else:
-        level = 0
+def _dots(side: str, active: int = 0) -> html.Div:
     return html.Div(
         [
-            html.Span(
-                className=f"ble-bar{' on' if i <= level else ''}",
-                style={"height": f"{6 + i * 4}px"},
+            html.Button(
+                "",
+                id={"type": "slide-dot", "side": side, "index": i},
+                n_clicks=0,
+                className=f"slide-dot{' on' if i == active else ''}",
+                title=SLIDE_LABELS[SLIDES[i]],
             )
-            for i in range(1, 5)
+            for i in range(3)
         ],
-        className="ble-bars",
-        title=f"RSSI {rssi} dBm" if rssi is not None else "BLE sinyal yok",
+        className="slide-dots",
+        id=f"{side}-dots",
+    )
+
+
+def _media_block(prefix: str) -> html.Div:
+    return html.Div(
+        className="slide media-slide",
+        children=[
+            html.Div(id=f"{prefix}-media-service", className="media-service"),
+            html.Div(className="album-art", children=html.Div(className="album-glow")),
+            html.Div(id=f"{prefix}-media-title", className="media-title"),
+            html.Div(id=f"{prefix}-media-artist", className="media-artist"),
+            html.Div(
+                className="media-bar",
+                children=html.Div(id=f"{prefix}-media-fill", className="media-bar-fill"),
+            ),
+            html.Div(
+                className="media-controls",
+                children=[
+                    html.Span("⏮", className="mc"),
+                    html.Span("⏯", className="mc play"),
+                    html.Span("⏭", className="mc"),
+                ],
+            ),
+        ],
+    )
+
+
+def _tires_block(prefix: str) -> html.Div:
+    def cell(key: str, label: str) -> html.Div:
+        return html.Div(
+            className="tire-cell",
+            id=f"{prefix}-tire-{key}-wrap",
+            children=[
+                html.Div(id=f"{prefix}-tire-{key}", className="tire-val"),
+                html.Div("bar", className="tire-unit"),
+                html.Div(label, className="tire-label"),
+            ],
+        )
+
+    return html.Div(
+        className="slide tires-slide",
+        children=[
+            html.Div("LASTİK BASINCI", className="slide-heading"),
+            html.Div(
+                className="tire-grid",
+                children=[
+                    cell("fl", "ÖN SOL"),
+                    cell("fr", "ÖN SAĞ"),
+                    html.Div(className="tire-car"),
+                    cell("rl", "ARKA SOL"),
+                    cell("rr", "ARKA SAĞ"),
+                ],
+            ),
+            html.Div("Yukarı / aşağı kaydır", className="slide-hint"),
+        ],
+    )
+
+
+def _map_block(side: str) -> html.Div:
+    mid = f"{side}-map"
+    return html.Div(
+        className="slide map-slide",
+        children=[
+            dl.Map(
+                id=mid,
+                center=[41.025, 29.02],
+                zoom=16,
+                zoomControl=False,
+                attributionControl=False,
+                scrollWheelZoom=False,
+                className="side-map",
+                style={"width": "100%", "height": "100%"},
+                children=[
+                    dl.TileLayer(url=LIGHT_TILES, attribution=TILE_ATTR),
+                    dl.Polyline(
+                        id=f"{mid}-trail",
+                        positions=[],
+                        color="#E82127",
+                        weight=4,
+                        opacity=0.85,
+                    ),
+                    dl.Marker(id=f"{mid}-marker", position=[41.025, 29.02]),
+                    html.Div("N", className="compass"),
+                ],
+            ),
+            html.Div(id=f"{side}-map-odo", className="map-odo"),
+        ],
+    )
+
+
+def _side_panel(side: str, initial_index: int) -> html.Aside:
+    return html.Aside(
+        id=f"{side}-panel",
+        className=f"side-panel {side}-panel",
+        children=[
+            html.Div(
+                className="carousel-host",
+                children=[
+                    html.Div(
+                        id=f"{side}-carousel",
+                        className="carousel-track",
+                        **{"data-index": str(initial_index)},
+                        style={"transform": f"translateY(-{initial_index * 100}%)"},
+                        children=[
+                            _media_block(side),
+                            _tires_block(side),
+                            _map_block(side),
+                        ],
+                    )
+                ],
+            ),
+            _dots(side, initial_index),
+            html.Div("↕ kaydır", className="swipe-cue"),
+        ],
     )
 
 
 app.layout = html.Div(
     [
         dcc.Store(id="ble-store", data={"connected": False, "source": "none"}),
-        dcc.Store(id="ble-action", data=None),
+        dcc.Store(id="left-slide-store", data=0),
+        dcc.Store(id="right-slide-store", data=2),
         dcc.Interval(id="tick", interval=1000, n_intervals=0),
         html.Div(
-            id="stage",
-            className="dash-stage",
-            **{"data-theme": "dark"},
+            id="cluster",
+            className="cluster",
             children=[
-                html.Div(
-                    className="map-layer",
+                html.Header(
+                    className="topbar",
                     children=[
-                        dl.Map(
-                            id="map",
-                            center=[41.025, 29.02],
-                            zoom=13,
-                            zoomControl=False,
-                            attributionControl=False,
-                            style={"width": "100%", "height": "100vh"},
+                        html.Div(
+                            className="top-left",
                             children=[
-                                dl.TileLayer(
-                                    id="tiles",
-                                    url=DARK_TILES,
-                                    attribution=TILE_ATTR,
-                                ),
-                                dl.Polyline(
-                                    id="trail-line",
-                                    positions=[],
-                                    color="#3DE7C5",
-                                    weight=3,
-                                    opacity=0.75,
-                                ),
-                                dl.Marker(
-                                    id="car-marker",
-                                    position=[41.025, 29.02],
-                                    children=[
-                                        dl.Tooltip(id="car-tooltip", children="Tesla"),
-                                    ],
-                                ),
+                                html.Span(id="clock", className="clock"),
+                                html.Span(id="out-temp", className="out-temp"),
+                                html.Span(id="ble-pill", className="ble-pill"),
                             ],
-                        )
+                        ),
+                        html.Div(
+                            className="top-right",
+                            children=[
+                                html.Button(
+                                    [html.Span("↻", className="ico"), " Bağlan"],
+                                    id="ble-btn",
+                                    n_clicks=0,
+                                    className="reconnect-btn",
+                                    title="Bluetooth Low Energy bağlan / kes",
+                                ),
+                                html.Span("▮▮▯ 50%", className="phone-batt"),
+                                html.Span("⚙", className="settings-ico"),
+                            ],
+                        ),
                     ],
                 ),
-                html.Div(className="map-overlay"),
                 html.Div(
-                    className="ui-layer",
+                    className="triad",
                     children=[
-                        html.Header(
-                            className="top-bar",
+                        _side_panel("left", 0),
+                        html.Main(
+                            className="center-panel",
                             children=[
+                                html.Div(id="gear-display", className="gear-wrap"),
                                 html.Div(
-                                    className="brand-block",
+                                    className="speed-ring",
                                     children=[
-                                        html.H1("TESLA", className="brand"),
-                                        html.P(
-                                            "PULSE  ·  BLE VEHICLE HUD",
-                                            className="brand-sub",
-                                        ),
+                                        html.Div(id="speed-num", className="speed-num", children="0"),
+                                        html.Div("km/h", className="speed-unit"),
                                     ],
                                 ),
                                 html.Div(
-                                    className="top-actions",
+                                    className="place-row",
                                     children=[
-                                        html.Div(
-                                            id="conn-status",
-                                            className="status-pill",
-                                            children=[
-                                                html.Span(
-                                                    className="status-dot offline",
-                                                    id="conn-dot",
-                                                ),
-                                                html.Span(
-                                                    id="conn-label",
-                                                    children="BLE HAZIR",
-                                                ),
-                                                html.Div(id="ble-signal"),
-                                            ],
-                                        ),
-                                        html.Button(
-                                            "BLE BAĞLAN",
-                                            id="ble-btn",
-                                            className="theme-toggle ble-btn",
-                                            n_clicks=0,
-                                            title="Bluetooth Low Energy ile Tesla'ya bağlan",
-                                        ),
+                                        html.Span("📍", className="pin"),
+                                        html.Span(id="street", className="street"),
                                     ],
                                 ),
                             ],
                         ),
+                        _side_panel("right", 2),
+                    ],
+                ),
+                html.Footer(
+                    className="bottombar",
+                    children=[
                         html.Div(
-                            id="ble-banner",
-                            className="ble-banner",
-                            children="Bluetooth Low Energy ile araca bağlanın — hız, vites, batarya ve harita canlı HUD.",
-                        ),
-                        html.Div(
-                            className="hud-grid",
+                            className="batt-chip",
                             children=[
-                                html.Section(
-                                    className="panel gear-panel",
-                                    children=[
-                                        html.H2("VİTES", className="panel-title"),
-                                        html.Div(id="gear-display"),
-                                    ],
-                                ),
-                                html.Section(
-                                    className="speed-panel",
-                                    children=[
-                                        dcc.Graph(
-                                            id="speed-gauge",
-                                            className="speed-hero dash-graph",
-                                            config={
-                                                "displayModeBar": False,
-                                                "staticPlot": True,
-                                            },
-                                        ),
-                                        html.Div(
-                                            className="vehicle-meta",
-                                            children=[
-                                                html.P(
-                                                    id="vehicle-name",
-                                                    className="vehicle-name",
-                                                ),
-                                                html.Div(
-                                                    id="vehicle-flags",
-                                                    className="vehicle-flags",
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
-                                html.Section(
-                                    className="panel battery-panel",
-                                    children=[
-                                        html.H2("BATARYA", className="panel-title"),
-                                        dcc.Graph(
-                                            id="battery-gauge",
-                                            className="dash-graph",
-                                            config={
-                                                "displayModeBar": False,
-                                                "staticPlot": True,
-                                            },
-                                        ),
-                                        html.Div(
-                                            className="charge-meta",
-                                            children=[
-                                                html.Div(
-                                                    className="meta-cell",
-                                                    children=[
-                                                        html.Span(
-                                                            "Şarj süresi",
-                                                            className="meta-label",
-                                                        ),
-                                                        html.Span(
-                                                            id="charge-eta",
-                                                            className="meta-value",
-                                                        ),
-                                                    ],
-                                                ),
-                                                html.Div(
-                                                    className="meta-cell",
-                                                    children=[
-                                                        html.Span(
-                                                            "Şarj gücü",
-                                                            className="meta-label",
-                                                        ),
-                                                        html.Span(
-                                                            id="charge-kw",
-                                                            className="meta-value",
-                                                        ),
-                                                    ],
-                                                ),
-                                                html.Div(
-                                                    className="meta-cell",
-                                                    children=[
-                                                        html.Span(
-                                                            "Limit",
-                                                            className="meta-label",
-                                                        ),
-                                                        html.Span(
-                                                            id="charge-limit",
-                                                            className="meta-value",
-                                                        ),
-                                                    ],
-                                                ),
-                                                html.Div(
-                                                    className="meta-cell",
-                                                    children=[
-                                                        html.Span(
-                                                            "Menzil",
-                                                            className="meta-label",
-                                                        ),
-                                                        html.Span(
-                                                            id="range-km",
-                                                            className="meta-value",
-                                                        ),
-                                                    ],
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
-                                html.Section(
-                                    className="panel stats-panel",
-                                    children=[
-                                        html.H2("TELEMETRİ", className="panel-title"),
-                                        html.Div(
-                                            className="stat-list",
-                                            children=[
-                                                html.Div(
-                                                    className="stat-row",
-                                                    children=[
-                                                        html.Span(
-                                                            "BLE cihaz",
-                                                            className="stat-label",
-                                                        ),
-                                                        html.Span(
-                                                            id="ble-device",
-                                                            className="stat-value",
-                                                        ),
-                                                    ],
-                                                ),
-                                                html.Div(
-                                                    className="stat-row",
-                                                    children=[
-                                                        html.Span(
-                                                            "RSSI",
-                                                            className="stat-label",
-                                                        ),
-                                                        html.Span(
-                                                            id="ble-rssi",
-                                                            className="stat-value",
-                                                        ),
-                                                    ],
-                                                ),
-                                                html.Div(
-                                                    className="stat-row",
-                                                    children=[
-                                                        html.Span(
-                                                            "Dış sıcaklık",
-                                                            className="stat-label",
-                                                        ),
-                                                        html.Span(
-                                                            id="temp-out",
-                                                            className="stat-value",
-                                                        ),
-                                                    ],
-                                                ),
-                                                html.Div(
-                                                    className="stat-row",
-                                                    children=[
-                                                        html.Span(
-                                                            "İç sıcaklık",
-                                                            className="stat-label",
-                                                        ),
-                                                        html.Span(
-                                                            id="temp-in",
-                                                            className="stat-value",
-                                                        ),
-                                                    ],
-                                                ),
-                                                html.Div(
-                                                    className="stat-row",
-                                                    children=[
-                                                        html.Span(
-                                                            "Yön",
-                                                            className="stat-label",
-                                                        ),
-                                                        html.Span(
-                                                            id="heading",
-                                                            className="stat-value",
-                                                        ),
-                                                    ],
-                                                ),
-                                                html.Div(
-                                                    className="stat-row",
-                                                    children=[
-                                                        html.Span(
-                                                            "Hız",
-                                                            className="stat-label",
-                                                        ),
-                                                        html.Span(
-                                                            id="speed-text",
-                                                            className="stat-value",
-                                                        ),
-                                                    ],
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
-                                html.Section(
-                                    className="panel power-panel",
-                                    children=[
-                                        html.H2("GÜÇ AKIŞI", className="panel-title"),
-                                        dcc.Graph(
-                                            id="power-gauge",
-                                            className="dash-graph",
-                                            config={
-                                                "displayModeBar": False,
-                                                "staticPlot": True,
-                                            },
-                                        ),
-                                    ],
-                                ),
-                                html.Footer(
-                                    className="bottom-strip",
-                                    children=[
-                                        html.Span(id="coords", className="coords"),
-                                        html.Span(id="mode-badge", className="mode-badge"),
-                                        html.Span(id="odo", className="odo"),
-                                    ],
-                                ),
+                                html.Span(id="batt-ico", className="batt-ico"),
+                                html.Span(id="batt-pct", className="batt-pct"),
+                                html.Span(id="batt-range", className="batt-range"),
                             ],
                         ),
+                        html.Div(className="home-bar"),
+                        html.Div(id="mode-line", className="mode-line"),
                     ],
                 ),
             ],
@@ -446,18 +280,13 @@ app.layout = html.Div(
 )
 
 
-# Web Bluetooth connect / disconnect from the BLE button
 clientside_callback(
     """
     async function(n, ble) {
         if (!n) { return window.dash_clientside.no_update; }
         const linked = ble && ble.connected;
         if (linked) {
-            if (window.TeslaBLE) {
-                const snap = await window.TeslaBLE.disconnect();
-                try { await fetch('/api/ble/disconnect', {method:'POST'}); } catch(e) {}
-                return Object.assign({}, snap, {disconnect:true, connected:false});
-            }
+            if (window.TeslaBLE) { await window.TeslaBLE.disconnect(); }
             try { await fetch('/api/ble/disconnect', {method:'POST'}); } catch(e) {}
             return {connected:false, source:'none', disconnect:true};
         }
@@ -466,25 +295,19 @@ clientside_callback(
             if (snap.demo_fallback && !snap.connected) {
                 try {
                     const r = await fetch('/api/ble/demo', {method:'POST'});
-                    const demo = await r.json();
-                    return Object.assign({}, demo, {source: demo.source || 'demo'});
+                    return await r.json();
                 } catch(e) {
                     return {connected:true, source:'demo', device_name:'Model S Plaid · BLE',
-                            device_id:'ble-demo', rssi:-52, error:''};
+                            device_id:'ble-demo', rssi:-52};
                 }
             }
-            try {
-                await fetch('/api/ble/status');
-            } catch(e) {}
             return snap;
         }
-        // No Web Bluetooth script — server demo link
         try {
             const r = await fetch('/api/ble/demo', {method:'POST'});
             return await r.json();
         } catch(e) {
-            return {connected:true, source:'demo', device_name:'Model S Plaid · BLE',
-                    device_id:'ble-demo', rssi:-52};
+            return {connected:true, source:'demo', device_name:'Model S Plaid · BLE', rssi:-52};
         }
     }
     """,
@@ -495,61 +318,120 @@ clientside_callback(
 )
 
 
+# Slide transform + dots (clientside, smooth)
+clientside_callback(
+    """
+    function(left, right) {
+        left = ((left % 3) + 3) % 3;
+        right = ((right % 3) + 3) % 3;
+        function apply(side, idx) {
+            const track = document.getElementById(side + '-carousel');
+            if (track) {
+                track.style.transform = 'translateY(-' + (idx * 100) + '%)';
+                track.dataset.index = String(idx);
+            }
+            const dots = document.querySelectorAll('button[id*=\"\\\"side\\\":\\\"' + side + '\\\"\"]');
+            // fallback query
+            document.querySelectorAll('#' + side + '-dots .slide-dot').forEach((d, i) => {
+                d.classList.toggle('on', i === idx);
+            });
+        }
+        apply('left', left);
+        apply('right', right);
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("cluster", "data-slides"),
+    Input("left-slide-store", "data"),
+    Input("right-slide-store", "data"),
+)
+
+
 @callback(
+    Output("left-slide-store", "data", allow_duplicate=True),
+    Output("right-slide-store", "data", allow_duplicate=True),
+    Input({"type": "slide-dot", "side": ALL, "index": ALL}, "n_clicks"),
+    State("left-slide-store", "data"),
+    State("right-slide-store", "data"),
+    prevent_initial_call=True,
+)
+def on_dot_click(n_clicks, left_i, right_i):
+    if not ctx.triggered_id or not any(n_clicks or []):
+        return left_i or 0, right_i if right_i is not None else 2
+    tid = ctx.triggered_id
+    side = tid["side"]
+    idx = int(tid["index"])
+    if side == "left":
+        return idx, right_i if right_i is not None else 2
+    return left_i or 0, idx
+
+
+def _fill_side_outputs(prefix: str, state: dict) -> list:
+    pct = float(state.get("media_progress") or 0) * 100
+    tires = []
+    for key in ("fl", "fr", "rl", "rr"):
+        val = float(state.get(f"tire_{key}") or 0)
+        tires.append(f"{val:.1f}")
+        tires.append(f"tire-cell{' low' if val < 2.4 else ''}")
+    return [
+        state.get("media_service") or "Music",
+        state.get("media_title") or "—",
+        state.get("media_artist") or "—",
+        {"width": f"{pct}%"},
+        *tires,
+    ]
+
+
+@callback(
+    Output("clock", "children"),
+    Output("out-temp", "children"),
+    Output("ble-pill", "children"),
+    Output("ble-pill", "className"),
     Output("ble-btn", "children"),
     Output("ble-btn", "className"),
-    Output("ble-banner", "children"),
-    Output("ble-banner", "className"),
-    Input("ble-store", "data"),
-)
-def ble_chrome(ble):
-    ble = ble or {}
-    if ble.get("connected"):
-        src = (ble.get("source") or "ble").upper()
-        name = ble.get("device_name") or "Tesla"
-        return (
-            "BLE KES",
-            "theme-toggle ble-btn connected",
-            f"Bağlı · {name} · {src} Low Energy link aktif",
-            "ble-banner on",
-        )
-    err = ble.get("error") or ""
-    msg = err or "Bluetooth Low Energy ile araca bağlanın — hız, vites, batarya ve harita canlı HUD."
-    return (
-        "BLE BAĞLAN",
-        "theme-toggle ble-btn",
-        msg,
-        "ble-banner",
-    )
-
-
-@callback(
-    Output("speed-gauge", "figure"),
-    Output("battery-gauge", "figure"),
-    Output("power-gauge", "figure"),
     Output("gear-display", "children"),
-    Output("vehicle-name", "children"),
-    Output("vehicle-flags", "children"),
-    Output("charge-eta", "children"),
-    Output("charge-kw", "children"),
-    Output("charge-limit", "children"),
-    Output("range-km", "children"),
-    Output("ble-device", "children"),
-    Output("ble-rssi", "children"),
-    Output("temp-out", "children"),
-    Output("temp-in", "children"),
-    Output("heading", "children"),
-    Output("speed-text", "children"),
-    Output("coords", "children"),
-    Output("mode-badge", "children"),
-    Output("odo", "children"),
-    Output("conn-label", "children"),
-    Output("conn-dot", "className"),
-    Output("ble-signal", "children"),
-    Output("car-marker", "position"),
-    Output("car-tooltip", "children"),
-    Output("trail-line", "positions"),
-    Output("map", "center"),
+    Output("speed-num", "children"),
+    Output("street", "children"),
+    Output("batt-pct", "children"),
+    Output("batt-range", "children"),
+    Output("batt-ico", "className"),
+    Output("batt-ico", "style"),
+    Output("mode-line", "children"),
+    # left media/tires
+    Output("left-media-service", "children"),
+    Output("left-media-title", "children"),
+    Output("left-media-artist", "children"),
+    Output("left-media-fill", "style"),
+    Output("left-tire-fl", "children"),
+    Output("left-tire-fl-wrap", "className"),
+    Output("left-tire-fr", "children"),
+    Output("left-tire-fr-wrap", "className"),
+    Output("left-tire-rl", "children"),
+    Output("left-tire-rl-wrap", "className"),
+    Output("left-tire-rr", "children"),
+    Output("left-tire-rr-wrap", "className"),
+    # right media/tires
+    Output("right-media-service", "children"),
+    Output("right-media-title", "children"),
+    Output("right-media-artist", "children"),
+    Output("right-media-fill", "style"),
+    Output("right-tire-fl", "children"),
+    Output("right-tire-fl-wrap", "className"),
+    Output("right-tire-fr", "children"),
+    Output("right-tire-fr-wrap", "className"),
+    Output("right-tire-rl", "children"),
+    Output("right-tire-rl-wrap", "className"),
+    Output("right-tire-rr", "children"),
+    Output("right-tire-rr-wrap", "className"),
+    # maps
+    Output("left-map", "center"),
+    Output("left-map-marker", "position"),
+    Output("left-map-trail", "positions"),
+    Output("left-map-odo", "children"),
+    Output("right-map", "center"),
+    Output("right-map-marker", "position"),
+    Output("right-map-trail", "positions"),
+    Output("right-map-odo", "children"),
     Input("tick", "n_intervals"),
     Input("ble-store", "data"),
 )
@@ -557,7 +439,6 @@ def refresh(_n, ble_store):
     state = get_vehicle_state()
     session = get_ble_session().snapshot()
     ble = {**session, **(ble_store or {})}
-    # Prefer explicit store connection flag
     if ble_store and ble_store.get("connected"):
         ble["connected"] = True
         for k in ("device_name", "device_id", "rssi", "source"):
@@ -566,81 +447,75 @@ def refresh(_n, ble_store):
     elif ble_store and ble_store.get("disconnect"):
         ble["connected"] = False
 
-    gear = (state.get("gear") or "P").upper()
-    if gear not in GEARS:
-        gear = "P"
-
-    lat = float(state.get("latitude") or 41.025)
-    lon = float(state.get("longitude") or 29.02)
-    trail = state.get("trail") or [[lat, lon]]
-    positions = [[float(p[0]), float(p[1])] for p in trail if len(p) >= 2]
-
     linked = bool(ble.get("connected"))
-    src = ble.get("source") or "none"
-    if linked:
-        label = "BLE LINK"
-        dot_cls = "status-dot"
-        mode_txt = f"BLE · {(src or 'link').upper()}  ·  {state.get('model', 'Tesla')}"
-        vname = ble.get("device_name") or state.get("vehicle_name") or "Tesla"
-    else:
-        label = "BLE HAZIR"
-        dot_cls = "status-dot offline"
-        mode_txt = f"BEKLENİYOR  ·  {state.get('model', 'Tesla')}"
-        vname = state.get("vehicle_name") or "Tesla"
-
-    # Until BLE is linked, park the HUD visually (P / 0) for dramatic connect moment
     if not linked:
         display = dict(state)
         display["speed_kmh"] = 0
         display["gear"] = "P"
-        display["power_kw"] = 0
-        display["autopilot"] = False
         gear = "P"
     else:
         display = state
-        # Optional GATT battery override from Web Bluetooth
-        if ble_store and ble_store.get("battery_level") is not None:
-            display = dict(state)
-            display["battery_percent"] = float(ble_store["battery_level"])
+        gear = (state.get("gear") or "P").upper()
+        if gear not in GEARS:
+            gear = "P"
 
-    rssi = ble.get("rssi") if linked else None
-    ble_dev = (ble.get("device_name") or "—") if linked else "—"
-    ble_rssi = f"{rssi} dBm" if linked and rssi is not None else "—"
+    lat = float(display.get("latitude") or 41.025)
+    lon = float(display.get("longitude") or 29.02)
+    trail = display.get("trail") or [[lat, lon]]
+    positions = [[float(p[0]), float(p[1])] for p in trail if len(p) >= 2]
+    if not linked:
+        positions = []
+
+    odo = f"ODO {int(display.get('odometer_km') or 0):,}km".replace(",", ".")
+    batt = float(display.get("battery_percent") or 0)
+    batt_cls = "batt-ico"
+    if batt < 20:
+        batt_cls += " low"
+    elif display.get("charging"):
+        batt_cls += " charge"
+
+    if linked:
+        rssi = ble.get("rssi")
+        pill = f"BLE {rssi} dBm" if rssi is not None else "BLE LINK"
+        pill_cls = "ble-pill on"
+        btn_children = [html.Span("✕", className="ico"), " Kes"]
+        btn_cls = "reconnect-btn on"
+        mode = f"{ble.get('device_name') or 'Tesla'} · {(ble.get('source') or 'ble').upper()}"
+    else:
+        pill = "BLE HAZIR"
+        pill_cls = "ble-pill"
+        btn_children = [html.Span("↻", className="ico"), " Bağlan"]
+        btn_cls = "reconnect-btn"
+        mode = "Bluetooth Low Energy bekleniyor"
+
+    left_bits = _fill_side_outputs("left", display)
+    right_bits = _fill_side_outputs("right", display)
 
     return (
-        speed_gauge(display["speed_kmh"], display["power_kw"], "dark"),
-        battery_gauge(
-            display["battery_percent"],
-            display["battery_range_km"],
-            display["charging"],
-            "dark",
-        ),
-        power_spark(display["power_kw"], "dark"),
+        datetime.now().strftime("%H:%M"),
+        f"{int(display.get('outside_temp_c') or 0)}°C",
+        pill,
+        pill_cls,
+        btn_children,
+        btn_cls,
         _gear_row(gear),
-        vname,
-        _flags(display, ble if linked else {}),
-        _fmt_charge_time(display.get("minutes_to_full") or 0) if linked else "—",
-        f"{display.get('charge_rate_kw', 0):.0f} kW" if linked else "—",
-        f"%{display.get('charge_limit', 90)}" if linked else "—",
-        f"{display.get('battery_range_km', 0):.0f} km" if linked else "—",
-        ble_dev,
-        ble_rssi,
-        f"{display.get('outside_temp_c', 0):.1f}°C" if linked else "—",
-        f"{display.get('inside_temp_c', 0):.1f}°C" if linked else "—",
-        f"{display.get('heading', 0):.0f}°" if linked else "—",
-        f"{display.get('speed_kmh', 0):.0f} km/h",
-        f"{lat:.5f}° N  ·  {lon:.5f}° E" if linked else "BLE bağlantısı bekleniyor",
-        mode_txt,
-        f"ODO  {display.get('odometer_km', 0):,.0f} km".replace(",", ".")
-        if linked
-        else "ODO  —",
-        label,
-        dot_cls,
-        _signal_bars(rssi) if linked else _signal_bars(None),
+        f"{int(display.get('speed_kmh') or 0)}",
+        display.get("street") or "—",
+        f"%{int(batt)}",
+        f"{int(display.get('battery_range_km') or 0)} km",
+        batt_cls,
+        {"--batt-fill": f"{max(4, min(100, batt)):.0f}%"},
+        mode,
+        *left_bits,
+        *right_bits,
         [lat, lon],
-        vname,
-        positions if linked else [],
         [lat, lon],
+        positions,
+        odo,
+        [lat, lon],
+        [lat, lon],
+        positions,
+        odo,
     )
 
 

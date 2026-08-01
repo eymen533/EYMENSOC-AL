@@ -129,6 +129,11 @@ class TeslaClient:
             autopilot=False,
             timestamp=__import__("time").time(),
             trail=[[lat, lon]] if lat and lon else [],
+            street="—",
+            tire_fl=float((vehicle.get("tpms_pressure_fl") or 2.8)),
+            tire_fr=float((vehicle.get("tpms_pressure_fr") or 2.8)),
+            tire_rl=float((vehicle.get("tpms_pressure_rl") or 2.7)),
+            tire_rr=float((vehicle.get("tpms_pressure_rr") or 2.7)),
         )
 
     def get_state(self) -> VehicleState:

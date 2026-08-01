@@ -1,52 +1,36 @@
-# Tesla Pulse — BLE Vehicle HUD (Plotly Dash)
+# Tesla Pulse — BLE Instrument Cluster (Plotly Dash)
 
-Tesla araç HUD'u. Bağlantı **Bluetooth Low Energy (BLE)** üzerinden kurulur.
+Referans Tesla cluster tarzı HUD. Bağlantı **Bluetooth Low Energy (BLE)**.
 
-## Özellikler
+## Sol / sağ paneller (dikey slayt)
 
-- **BLE BAĞLAN** — Web Bluetooth ile yakındaki Tesla'ya bağlanır (Chrome/Edge)
-- Adaptör yoksa veya tarayıcı desteklemiyorsa **BLE demo link** açılır
-- İsteğe bağlı sunucu tarama: `bleak` + `/api/ble/scan`
-- Tam ekran harita, hız, vites P/R/N/D, batarya %, şarj süresi, güç (kW)
-- RSSI sinyal çubukları ve BLE cihaz kimliği
+Her iki yan panelde yukarı–aşağı kaydırarak (veya noktalara tıklayarak):
+
+1. **Medya** — çalan şarkı
+2. **Lastik basıncı** — FL / FR / RL / RR
+3. **Harita** — konum + ODO
+
+Sol varsayılan: Medya · Sağ varsayılan: Harita. İkisi de bağımsız seçilir.
 
 ## Çalıştırma
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
 pip install -r requirements.txt
 python run.py
 ```
 
-Tarayıcı: [http://127.0.0.1:8050](http://127.0.0.1:8050)
+http://127.0.0.1:8050 → **Bağlan** (BLE)
 
-1. **BLE BAĞLAN** düğmesine basın
-2. Chrome cihaz seçicisinden Tesla'yı seçin (veya demo moda geçilsin)
-3. HUD canlı telemetriye geçer
+- Chrome/Edge + localhost/HTTPS → Web Bluetooth
+- Yoksa demo BLE link otomatik açılır
 
-> Web Bluetooth için **localhost** veya **HTTPS** gerekir.
+## Kontroller
 
-## BLE API
-
-| Endpoint | Açıklama |
-|----------|----------|
-| `POST /api/ble/demo` | Demo BLE link |
-| `POST /api/ble/disconnect` | Bağlantıyı kes |
-| `GET /api/ble/status` | Anlık BLE durumu |
-| `POST /api/ble/scan` | bleak ile yerel tarama |
-
-## Gerçek araç telemetrisi (opsiyonel)
-
-BLE araç yakınlık / kimlik linkidir. Tam hız-batarya verisi için Owner API:
-
-```env
-TESLA_ACCESS_TOKEN=...
-TESLA_VEHICLE_ID=...
-TESLA_LIVE=true
-```
-
-Token yoksa BLE bağlantısından sonra gerçekçi **simülasyon** HUD'u besler.
+| Jest | Sonuç |
+|------|--------|
+| Yan panelde kaydır / tekerlek | Slayt değiştir |
+| Noktalar | Medya / Lastik / Harita |
+| Bağlan / Kes | BLE link |
 
 ## Yapı
 
@@ -54,10 +38,7 @@ Token yoksa BLE bağlantısından sonra gerçekçi **simülasyon** HUD'u besler.
 tesla_dash/
   app.py
   assets/style.css
-  assets/ble.js          # Web Bluetooth istemcisi
-  components/gauges.py
-  tesla/
-    ble.py               # BLE oturum + bleak tarama
-    client.py
-    simulator.py
+  assets/ble.js
+  assets/carousel.js
+  tesla/ble.py · client.py · simulator.py
 ```
