@@ -84,10 +84,10 @@ class VehicleState:
     media_service: str = "YouTube Music"
     media_progress: float = 0.35
     # Trip / navigation panel
-    destination: str = "—"
-    arrival_time: str = "—"
-    energy_at_arrival: str = "—"
-    trip_distance_km: str = "—"
+    destination: str = "--"
+    arrival_time: str = "--"
+    energy_at_arrival: str = "--"
+    trip_distance_km: str = "--"
     # Exterior light telltales
     light_parking: bool = False
     light_low: bool = False
@@ -272,10 +272,10 @@ class DemoSimulator:
             energy_at_arrival = f"{energy_arr}%"
             trip_distance = f"{rem_km:.1f} km"
         else:
-            destination = "—"
-            arrival_time = "—"
-            energy_at_arrival = "—"
-            trip_distance = "—"
+            destination = "--"
+            arrival_time = "--"
+            energy_at_arrival = "--"
+            trip_distance = "--"
 
         return VehicleState(
             connected=True,

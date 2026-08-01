@@ -734,15 +734,18 @@ def _fill_side_outputs(prefix: str, state: dict, linked: bool) -> list:
             tires.append("--")
         tires.append(f"psi-tag {key}{' low' if linked and psi < 35 else ''}")
 
-    if linked:
-        trip = [
-            state.get("destination") or "--",
-            state.get("arrival_time") or "--",
-            state.get("energy_at_arrival") or "--",
-            state.get("trip_distance_km") or "--",
-        ]
-    else:
-        trip = ["--", "--", "--", "--"]
+    def _trip_txt(key: str) -> str:
+        val = state.get(key)
+        if not linked or val in (None, "", "—", "-"):
+            return "--"
+        return str(val)
+
+    trip = [
+        _trip_txt("destination"),
+        _trip_txt("arrival_time"),
+        _trip_txt("energy_at_arrival"),
+        _trip_txt("trip_distance_km"),
+    ]
 
     return [
         *trip,

@@ -1266,8 +1266,8 @@ body {
 .telltale {
   width: 18px;
   height: 18px;
-  opacity: 0.18;
-  background: rgba(255, 255, 255, 0.55);
+  opacity: 0.14;
+  background: rgba(255, 255, 255, 0.5);
   transition: opacity 0.15s ease, background 0.15s ease, filter 0.15s ease;
   -webkit-mask-position: center;
   mask-position: center;
@@ -1279,13 +1279,9 @@ body {
 
 .telltale.on {
   opacity: 1;
-  filter: drop-shadow(0 0 4px currentColor);
+  filter: drop-shadow(0 0 5px currentColor);
 }
 
-.tl-left,
-.tl-right {
-  background: #30d158;
-}
 .tl-left {
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M3 12l7-7v4h11v6H10v4z'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M3 12l7-7v4h11v6H10v4z'/%3E%3C/svg%3E");
@@ -1294,29 +1290,41 @@ body {
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M21 12l-7-7v4H3v6h11v4z'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M21 12l-7-7v4H3v6h11v4z'/%3E%3C/svg%3E");
 }
+.telltale.on.tl-left,
+.telltale.on.tl-right {
+  background: #30d158;
+}
 
 .tl-parking {
-  background: #30d158;
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M10 7h3.2a2.8 2.8 0 0 1 0 5.6H10V7zm0 5.6V17'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M10 7h3.2a2.8 2.8 0 0 1 0 5.6H10V7zm0 5.6V17'/%3E%3C/svg%3E");
 }
+.telltale.on.tl-parking {
+  background: #30d158;
+}
 
 .tl-low {
-  background: #30d158;
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M4 9c2.5 0 4-1.2 6-3 1.2 4 3.5 6 7 6v4c-4.2 0-7 1.8-9 5-1.2-2.2-2.8-3.5-4-4'/%3E%3Cpath d='M14 8.5h5M14 11.5h5M14 14.5h4'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M4 9c2.5 0 4-1.2 6-3 1.2 4 3.5 6 7 6v4c-4.2 0-7 1.8-9 5-1.2-2.2-2.8-3.5-4-4'/%3E%3Cpath d='M14 8.5h5M14 11.5h5M14 14.5h4'/%3E%3C/svg%3E");
 }
+.telltale.on.tl-low {
+  background: #30d158;
+}
 
 .tl-high {
-  background: #64d2ff;
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M4 9c2.5 0 4-1.2 6-3 1.2 4 3.5 6 7 6v4c-4.2 0-7 1.8-9 5-1.2-2.2-2.8-3.5-4-4'/%3E%3Cpath d='M14 8h6M14 11h6M14 14h6'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M4 9c2.5 0 4-1.2 6-3 1.2 4 3.5 6 7 6v4c-4.2 0-7 1.8-9 5-1.2-2.2-2.8-3.5-4-4'/%3E%3Cpath d='M14 8h6M14 11h6M14 14h6'/%3E%3C/svg%3E");
 }
+.telltale.on.tl-high {
+  background: #64d2ff;
+}
 
 .tl-fog {
-  background: #ffd60a;
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M4 9c2.5 0 4-1.2 6-3 1.2 4 3.5 6 7 6v4c-4.2 0-7 1.8-9 5-1.2-2.2-2.8-3.5-4-4'/%3E%3Cpath d='M14 8.2c1.2.6 2.4.8 4 .6M14 11c1.3.5 2.6.7 4.2.5M14 13.8c1.1.5 2.3.7 3.8.5'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M4 9c2.5 0 4-1.2 6-3 1.2 4 3.5 6 7 6v4c-4.2 0-7 1.8-9 5-1.2-2.2-2.8-3.5-4-4'/%3E%3Cpath d='M14 8.2c1.2.6 2.4.8 4 .6M14 11c1.3.5 2.6.7 4.2.5M14 13.8c1.1.5 2.3.7 3.8.5'/%3E%3C/svg%3E");
+}
+.telltale.on.tl-fog {
+  background: #ffd60a;
 }
 
 /* ——— Photoreal Model Y + PSI ——— */
