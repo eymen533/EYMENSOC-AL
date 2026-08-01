@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 420" fill="none">
+  <!-- Tesla-cluster Model Y: thin top-down wireframe -->
+  <g stroke="white" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- body silhouette -->
+    <path stroke-width="1.85"
+      d="M72 34
+         C72 18 84 10 100 10
+         C116 10 128 18 128 34
+         L142 72
+         L152 118
+         L152 268
+         L142 328
+         L128 386
+         C128 402 116 410 100 410
+         C84 410 72 402 72 386
+         L58 328
+         L48 268
+         L48 118
+         L58 72 Z"/>
+    <!-- front lip -->
+    <path stroke-width="1.25" opacity="0.45" d="M82 26 C90 20 110 20 118 26"/>
+    <!-- hood -->
+    <path stroke-width="1.35" opacity="0.55"
+      d="M74 68 C86 56 114 56 126 68 L130 96 L70 96 Z"/>
+    <!-- windshield -->
+    <path stroke-width="1.6"
+      d="M70 108 L130 108 L138 162 L62 162 Z"/>
+    <!-- roof -->
+    <path stroke-width="1.3" opacity="0.7"
+      d="M72 172 L128 172 L130 228 L70 228 Z"/>
+    <!-- rear glass -->
+    <path stroke-width="1.55"
+      d="M66 240 L134 240 L128 300 L72 300 Z"/>
+    <!-- trunk -->
+    <path stroke-width="1.25" opacity="0.45"
+      d="M76 314 L124 314 L120 352 L80 352 Z"/>
+    <!-- spine -->
+    <path stroke-width="0.9" opacity="0.22" d="M100 38 L100 402"/>
+    <!-- mirrors -->
+    <path stroke-width="1.6" d="M48 142 L36 134"/>
+    <path stroke-width="1.6" d="M152 142 L164 134"/>
+    <!-- wheels -->
+    <rect x="30" y="104" width="18" height="44" rx="4.5" stroke-width="1.75"/>
+    <rect x="152" y="104" width="18" height="44" rx="4.5" stroke-width="1.75"/>
+    <rect x="30" y="272" width="18" height="44" rx="4.5" stroke-width="1.75"/>
+    <rect x="152" y="272" width="18" height="44" rx="4.5" stroke-width="1.75"/>
+  </g>
+</svg>
