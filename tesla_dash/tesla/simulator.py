@@ -83,6 +83,18 @@ class VehicleState:
     media_artist: str = "BLOK3"
     media_service: str = "YouTube Music"
     media_progress: float = 0.35
+    # Trip / navigation panel
+    destination: str = "—"
+    arrival_time: str = "—"
+    energy_at_arrival: str = "—"
+    trip_distance_km: str = "—"
+    # Exterior light telltales
+    light_parking: bool = False
+    light_low: bool = False
+    light_high: bool = False
+    light_fog: bool = False
+    turn_left: bool = False
+    turn_right: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -106,6 +118,20 @@ class DemoSimulator:
         self._track_i = 0
         self._media_t0 = time.time()
         self._tires = {"fl": 42.0, "fr": 42.0, "rl": 40.0, "rr": 40.0}
+        self._light_mode = "low"  # off | parking | low | high | fog
+        self._light_i = 0
+        self._light_until = self._t0 + 14
+        self._turn = "off"  # off | left | right | hazard
+        self._turn_i = 0
+        self._turn_until = self._t0 + 8
+        self._destinations = [
+            "Zorlu Center",
+            "Sabiha Gökçen",
+            "Maslak 1453",
+            "Kadıköy İskele",
+            "İstinyePark",
+        ]
+        self._dest_i = 0
 
     def _interp_route(self, idx: float) -> tuple[float, float, float]:
         n = len(_ROUTE)
@@ -212,6 +238,45 @@ class DemoSimulator:
         street = _STREETS[int(self._route_idx) % len(_STREETS)]
         range_km = self._battery / 100.0 * 480.0
 
+        # Cycle exterior lights for demo telltales
+        if now >= self._light_until:
+            modes = ["parking", "low", "high", "low", "fog", "off", "low"]
+            self._light_i = (self._light_i + 1) % len(modes)
+            self._light_mode = modes[self._light_i]
+            self._light_until = now + random.uniform(8, 14)
+        if now >= self._turn_until:
+            turns = ["off", "left", "off", "right", "off", "hazard", "off"]
+            self._turn_i = (self._turn_i + 1) % len(turns)
+            self._turn = turns[self._turn_i]
+            self._turn_until = now + random.uniform(4, 8)
+
+        light_parking = self._light_mode in {"parking", "low", "high", "fog"}
+        light_low = self._light_mode in {"low", "fog"}
+        light_high = self._light_mode == "high"
+        light_fog = self._light_mode == "fog"
+        # Blink turns ~1.4Hz
+        blink_on = int(now * 1.4) % 2 == 0
+        turn_left = blink_on and self._turn in {"left", "hazard"}
+        turn_right = blink_on and self._turn in {"right", "hazard"}
+
+        # Trip panel — remaining route while driving
+        if self._phase == "drive":
+            rem_km = max(1.2, 18.0 - (self._route_idx % 18.0) * 0.85)
+            eta_min = int(rem_km / max(self._speed, 25.0) * 60)
+            arrive = time.localtime(now + eta_min * 60)
+            arrival = time.strftime("%H:%M", arrive)
+            energy_arr = max(8, int(self._battery - rem_km * 0.18))
+            dest = self._destinations[int(self._route_idx / 4) % len(self._destinations)]
+            destination = dest
+            arrival_time = arrival
+            energy_at_arrival = f"{energy_arr}%"
+            trip_distance = f"{rem_km:.1f} km"
+        else:
+            destination = "—"
+            arrival_time = "—"
+            energy_at_arrival = "—"
+            trip_distance = "—"
+
         return VehicleState(
             connected=True,
             mode="demo",
@@ -246,4 +311,14 @@ class DemoSimulator:
             media_artist=track["artist"],
             media_service=track["service"],
             media_progress=round(progress, 3),
+            destination=destination,
+            arrival_time=arrival_time,
+            energy_at_arrival=energy_at_arrival,
+            trip_distance_km=trip_distance,
+            light_parking=light_parking,
+            light_low=light_low,
+            light_high=light_high,
+            light_fog=light_fog,
+            turn_left=turn_left,
+            turn_right=turn_right,
         )

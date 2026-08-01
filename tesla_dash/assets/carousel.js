@@ -1,13 +1,14 @@
 /**
  * Side carousels + reference-style narrow selection pill.
+ * Slides: 0 trip, 1 tires, 2 map, 3 media
  */
 (function () {
   "use strict";
 
-  var COUNT = 3;
+  var COUNT = 4;
   var cool = { left: 0, right: 0 };
   var hideTimer = null;
-  var KIND_FOR_SLIDE = { 0: "music", 1: "gear", 2: "nav" };
+  var KIND_FOR_SLIDE = { 0: "dash", 1: "gear", 2: "nav", 3: "music" };
 
   function clamp(i) {
     return ((i % COUNT) + COUNT) % COUNT;
@@ -32,7 +33,7 @@
     });
     if (hideTimer) clearTimeout(hideTimer);
     hideTimer = setTimeout(function () {
-      rail.classList.remove("visible");
+      /* keep rail visible; only dim via CSS if needed */
     }, 1700);
   }
 

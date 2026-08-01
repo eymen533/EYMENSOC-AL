@@ -22,8 +22,13 @@ from tesla_dash.tesla import get_vehicle_state
 from tesla_dash.tesla.ble import get_ble_session
 
 GEARS = ["P", "R", "N", "D"]
-SLIDES = ["media", "tires", "map"]
-SLIDE_LABELS = {"media": "Medya", "tires": "Lastik", "map": "Harita"}
+SLIDES = ["trip", "tires", "map", "media"]
+SLIDE_LABELS = {
+    "trip": "Seyahat",
+    "tires": "Lastik",
+    "map": "Harita",
+    "media": "Medya",
+}
 LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
 TILE_ATTR = "&copy; OSM &copy; CARTO"
 
@@ -103,10 +108,38 @@ def _dots(side: str, active: int = 0) -> html.Div:
                 className=f"slide-dot{' on' if i == active else ''}",
                 title=SLIDE_LABELS[SLIDES[i]],
             )
-            for i in range(3)
+            for i in range(len(SLIDES))
         ],
         className="slide-dots",
         id=f"{side}-dots",
+    )
+
+
+def _trip_block(prefix: str) -> html.Div:
+    """Left-cluster trip readout — Destination / Arrival / Energy / Distance."""
+    rows = [
+        ("Destination", f"{prefix}-trip-dest"),
+        ("Arrival Time", f"{prefix}-trip-eta"),
+        ("Energy at Arrival", f"{prefix}-trip-energy"),
+        ("Distance", f"{prefix}-trip-dist"),
+    ]
+    return html.Div(
+        className="slide trip-slide",
+        children=[
+            html.Div(
+                className="trip-list",
+                children=[
+                    html.Div(
+                        className="trip-row",
+                        children=[
+                            html.Div(label, className="trip-label"),
+                            html.Div(id=eid, className="trip-value", children="--"),
+                        ],
+                    )
+                    for label, eid in rows
+                ],
+            )
+        ],
     )
 
 
@@ -135,8 +168,16 @@ def _media_block(prefix: str) -> html.Div:
 
 
 def _model_y_visual() -> html.Div:
-    """Thin wireframe Model Y via CSS mask (inherits panel color)."""
-    return html.Div(className="model-y", children=[html.Div(className="model-y-silhouette")])
+    """Photoreal top-down Model Y for PSI view."""
+    return html.Div(
+        className="model-y",
+        children=html.Img(
+            src="/assets/model-y-top.png",
+            className="model-y-photo",
+            alt="Model Y",
+            draggable="false",
+        ),
+    )
 
 
 def _tires_block(prefix: str) -> html.Div:
@@ -167,14 +208,34 @@ def _tires_block(prefix: str) -> html.Div:
     )
 
 
+def _telltale_row() -> html.Div:
+    """Center-console exterior light / indicator telltales."""
+    items = [
+        ("tl-left", "Sol sinyal"),
+        ("tl-parking", "Park"),
+        ("tl-low", "Kısa far"),
+        ("tl-high", "Uzun far"),
+        ("tl-fog", "Sis"),
+        ("tl-right", "Sağ sinyal"),
+    ]
+    return html.Div(
+        id="telltale-row",
+        className="telltale-row",
+        children=[
+            html.Span(id=tid, className=f"telltale {tid}", title=title)
+            for tid, title in items
+        ],
+    )
+
+
 def _select_rail() -> html.Div:
     """Narrow dark pill rail — 5 icons like the reference cluster."""
     items = [
-        ("dash", "0", "Genel"),
+        ("dash", "0", "Seyahat"),
         ("gear", "1", "Lastik"),
         ("nav", "2", "Navigasyon"),
         ("map", "2", "Harita"),
-        ("music", "0", "Medya"),
+        ("music", "3", "Medya"),
     ]
     buttons = [
         html.Button(
@@ -239,9 +300,10 @@ def _side_panel(side: str, initial_index: int) -> html.Aside:
                         **{"data-index": str(initial_index)},
                         style={"transform": f"translateY(-{initial_index * 100}%)"},
                         children=[
-                            _media_block(side),
+                            _trip_block(side),
                             _tires_block(side),
                             _map_block(side),
+                            _media_block(side),
                         ],
                     )
                 ],
@@ -399,6 +461,7 @@ app.layout = html.Div(
                                 html.Div(className="center-veil"),
                                 _select_rail(),
                                 html.Div(id="gear-display", className="gear-wrap"),
+                                _telltale_row(),
                                 html.Div(
                                     className="speed-ring",
                                     children=[
@@ -658,21 +721,51 @@ def on_dot_click(n_clicks, left_i, right_i):
     return left_i or 0, idx
 
 
-def _fill_side_outputs(prefix: str, state: dict) -> list:
+def _fill_side_outputs(prefix: str, state: dict, linked: bool) -> list:
     pct = float(state.get("media_progress") or 0) * 100
     tires = []
     for key in ("fl", "fr", "rl", "rr"):
         # Prefer PSI; convert bar→psi if value looks like bar (< 10)
         raw = float(state.get(f"tire_{key}") or 0)
         psi = raw if raw >= 10 else raw * 14.5038
-        tires.append(f"{psi:.0f}")
-        tires.append(f"psi-tag {key}{' low' if psi < 35 else ''}")
+        if linked:
+            tires.append(f"{psi:.0f}")
+        else:
+            tires.append("--")
+        tires.append(f"psi-tag {key}{' low' if linked and psi < 35 else ''}")
+
+    if linked:
+        trip = [
+            state.get("destination") or "--",
+            state.get("arrival_time") or "--",
+            state.get("energy_at_arrival") or "--",
+            state.get("trip_distance_km") or "--",
+        ]
+    else:
+        trip = ["--", "--", "--", "--"]
+
     return [
+        *trip,
         state.get("media_service") or "Music",
         state.get("media_title") or "—",
         state.get("media_artist") or "—",
         {"width": f"{pct}%"},
         *tires,
+    ]
+
+
+def _telltale_classes(state: dict, linked: bool) -> list[str]:
+    def on(flag: str, base: str) -> str:
+        active = linked and bool(state.get(flag))
+        return f"telltale {base}{' on' if active else ''}"
+
+    return [
+        on("turn_left", "tl-left"),
+        on("light_parking", "tl-parking"),
+        on("light_low", "tl-low"),
+        on("light_high", "tl-high"),
+        on("light_fog", "tl-fog"),
+        on("turn_right", "tl-right"),
     ]
 
 
@@ -685,6 +778,12 @@ def _fill_side_outputs(prefix: str, state: dict) -> list:
     Output("ble-btn", "className"),
     Output("gear-display", "children"),
     Output("speed-num", "children"),
+    Output("tl-left", "className"),
+    Output("tl-parking", "className"),
+    Output("tl-low", "className"),
+    Output("tl-high", "className"),
+    Output("tl-fog", "className"),
+    Output("tl-right", "className"),
     Output("street", "children"),
     Output("batt-pct", "children"),
     Output("batt-range", "children"),
@@ -692,7 +791,11 @@ def _fill_side_outputs(prefix: str, state: dict) -> list:
     Output("batt-ico", "style"),
     Output("footer-odo", "children"),
     Output("mode-line", "children"),
-    # left media/tires
+    # left trip/media/tires
+    Output("left-trip-dest", "children"),
+    Output("left-trip-eta", "children"),
+    Output("left-trip-energy", "children"),
+    Output("left-trip-dist", "children"),
     Output("left-media-service", "children"),
     Output("left-media-title", "children"),
     Output("left-media-artist", "children"),
@@ -705,7 +808,11 @@ def _fill_side_outputs(prefix: str, state: dict) -> list:
     Output("left-tire-rl-wrap", "className"),
     Output("left-tire-rr", "children"),
     Output("left-tire-rr-wrap", "className"),
-    # right media/tires
+    # right trip/media/tires
+    Output("right-trip-dest", "children"),
+    Output("right-trip-eta", "children"),
+    Output("right-trip-energy", "children"),
+    Output("right-trip-dist", "children"),
     Output("right-media-service", "children"),
     Output("right-media-title", "children"),
     Output("right-media-artist", "children"),
@@ -792,8 +899,10 @@ def refresh(_n, ble_store):
         batt_pct_txt = "--%"
         batt_range_txt = "--km"
 
-    left_bits = _fill_side_outputs("left", display)
-    right_bits = _fill_side_outputs("right", display)
+    left_bits = _fill_side_outputs("left", display, linked)
+    right_bits = _fill_side_outputs("right", display, linked)
+    # Show exterior-light telltales from live/demo telemetry on the center dial
+    telltales = _telltale_classes(display, True)
 
     return (
         datetime.now().strftime("%H:%M"),
@@ -804,6 +913,7 @@ def refresh(_n, ble_store):
         btn_cls,
         _gear_row(gear),
         f"{int(display.get('speed_kmh') or 0)}",
+        *telltales,
         display.get("street") or "—",
         batt_pct_txt,
         batt_range_txt,

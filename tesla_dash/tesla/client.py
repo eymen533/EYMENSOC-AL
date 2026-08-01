@@ -134,6 +134,16 @@ class TeslaClient:
             tire_fr=float((vehicle.get("tpms_pressure_fr") or 42)),
             tire_rl=float((vehicle.get("tpms_pressure_rl") or 40)),
             tire_rr=float((vehicle.get("tpms_pressure_rr") or 40)),
+            destination="—",
+            arrival_time="—",
+            energy_at_arrival="—",
+            trip_distance_km="—",
+            light_parking=bool(vehicle.get("parking_lights") or vehicle.get("drl")),
+            light_low=bool(vehicle.get("headlamp") or vehicle.get("headlight")),
+            light_high=bool(vehicle.get("high_beam") or vehicle.get("high_beams")),
+            light_fog=bool(vehicle.get("front_fog") or vehicle.get("fog_lights")),
+            turn_left=bool(vehicle.get("turn_indicator_left")),
+            turn_right=bool(vehicle.get("turn_indicator_right")),
         )
 
     def get_state(self) -> VehicleState:
