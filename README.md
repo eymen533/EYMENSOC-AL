@@ -13,7 +13,23 @@ python run.py
 
 Telefon: tünel veya yerel URL → **PIN** → küme ekranı.
 
-Safari / Chrome: **Paylaş → Ana Ekrana Ekle** ile tam ekran uygulama gibi açılır.
+### Telefona uygulama gibi yükleme (PWA)
+
+App Store / Play Store gerekmez — tarayıcıdan ana ekrana eklenir.
+
+**iPhone (Safari)**
+1. Linki **Safari** ile aç (Chrome’da “Ana Ekrana Ekle” olmayabilir)
+2. PIN ile gir
+3. Alttaki **Paylaş** (□↑) → **Ana Ekrana Ekle** → Ekle
+4. Ana ekrandaki **Pulse** ikonundan aç
+
+**Android (Chrome)**
+1. Linki **Chrome** ile aç
+2. PIN ile gir
+3. Menü **⋮** → **Uygulamayı yükle** veya **Ana ekrana ekle**
+4. Ana ekrandaki **Pulse** ikonundan aç
+
+Yatay (landscape) tutman önerilir.
 
 ## Güvenlik
 

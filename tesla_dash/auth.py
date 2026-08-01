@@ -128,18 +128,47 @@ def register_auth(server: Flask) -> None:
 
     @server.get("/manifest.webmanifest")
     def manifest():  # type: ignore[no-redef]
-        return jsonify(
+        resp = jsonify(
             {
+                "id": "/",
                 "name": "Tesla Pulse",
                 "short_name": "Pulse",
                 "start_url": "/",
+                "scope": "/",
                 "display": "standalone",
                 "orientation": "landscape",
                 "background_color": "#07080a",
                 "theme_color": "#07080a",
                 "description": "Kişisel Tesla Pulse küme ekranı",
+                "icons": [
+                    {
+                        "src": "/assets/icons/icon-192.png",
+                        "sizes": "192x192",
+                        "type": "image/png",
+                        "purpose": "any maskable",
+                    },
+                    {
+                        "src": "/assets/icons/icon-512.png",
+                        "sizes": "512x512",
+                        "type": "image/png",
+                        "purpose": "any maskable",
+                    },
+                ],
             }
         )
+        resp.headers["Content-Type"] = "application/manifest+json"
+        return resp
+
+    @server.get("/sw.js")
+    def service_worker():  # type: ignore[no-redef]
+        sw_path = os.path.join(os.path.dirname(__file__), "assets", "sw.js")
+        with open(sw_path, "r", encoding="utf-8") as fh:
+            body = fh.read()
+        resp = server.make_response(body)
+        resp.headers["Content-Type"] = "application/javascript; charset=utf-8"
+        resp.headers["Service-Worker-Allowed"] = "/"
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
 
 
 def _login_html(owner: str) -> str:
@@ -150,9 +179,13 @@ def _login_html(owner: str) -> str:
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Pulse" />
   <meta name="theme-color" content="#07080a" />
   <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png" />
   <title>Tesla Pulse · Kilit</title>
   <style>
     :root {{
@@ -170,11 +203,15 @@ def _login_html(owner: str) -> str:
       color: var(--text);
     }}
     body {{
-      display:grid; place-items:center; padding:1.5rem;
+      display:grid; place-items:center; padding:1.25rem;
     }}
     .card {{
-      width:min(100%, 360px);
+      width:min(100%, 380px);
       text-align:center;
+    }}
+    .app-ico {{
+      width:72px; height:72px; border-radius:18px; margin:0 auto 1rem;
+      box-shadow:0 10px 30px rgba(0,0,0,.45);
     }}
     .brand {{
       font-size: .78rem; letter-spacing: .18em; text-transform: uppercase;
@@ -184,7 +221,7 @@ def _login_html(owner: str) -> str:
       margin:0 0 .35rem; font-size:1.7rem; font-weight:600; letter-spacing:-.03em;
     }}
     .sub {{
-      margin:0 0 1.6rem; color:var(--muted); font-size:.95rem; line-height:1.4;
+      margin:0 0 1.25rem; color:var(--muted); font-size:.95rem; line-height:1.4;
     }}
     form {{ display:flex; flex-direction:column; gap:.75rem; }}
     input[type=password], input[type=tel] {{
@@ -203,25 +240,42 @@ def _login_html(owner: str) -> str:
     .err {{
       min-height:1.2rem; color:var(--danger); font-size:.88rem; margin-top:.35rem;
     }}
-    .hint {{
-      margin-top:1.4rem; font-size:.75rem; color:var(--muted);
+    .install {{
+      margin-top:1.35rem; text-align:left;
+      padding:0.9rem 1rem; border-radius:14px;
+      border:1px solid var(--line); background:rgba(255,255,255,.03);
+      font-size:.82rem; color:var(--muted); line-height:1.45;
     }}
+    .install strong {{ color:var(--text); font-weight:600; }}
+    .install ol {{ margin:.4rem 0 0 1.1rem; padding:0; }}
+    .install li {{ margin:.25rem 0; }}
   </style>
 </head>
 <body>
   <div class="card">
+    <img class="app-ico" src="/assets/icons/icon-192.png" alt="Pulse" />
     <div class="brand">Tesla Pulse</div>
     <h1>Özel erişim</h1>
-    <p class="sub">Bu ekran yalnızca senin telefonun için.<br/>PIN ile aç ({owner}).</p>
+    <p class="sub">Sadece senin telefonun · PIN ile aç ({owner}).</p>
     <form id="f">
       <input id="pin" name="pin" type="tel" inputmode="numeric" pattern="[0-9]*"
              autocomplete="one-time-code" maxlength="8" placeholder="••••" autofocus />
       <button type="submit" id="go">Kilidi aç</button>
       <div class="err" id="err"></div>
     </form>
-    <p class="hint">Ana ekrana ekle → tam ekran küme gibi kullan</p>
+    <div class="install">
+      <strong>Telefona uygulama gibi ekle</strong>
+      <ol>
+        <li><strong>iPhone:</strong> Safari ile aç → Paylaş (□↑) → <em>Ana Ekrana Ekle</em></li>
+        <li><strong>Android:</strong> Chrome ile aç → menü ⋮ → <em>Uygulamayı yükle</em> / <em>Ana ekrana ekle</em></li>
+        <li>Ana ekrandaki <em>Pulse</em> ikonundan aç (tam ekran)</li>
+      </ol>
+    </div>
   </div>
   <script>
+    if ('serviceWorker' in navigator) {{
+      navigator.serviceWorker.register('/sw.js', {{ scope: '/' }}).catch(() => {{}});
+    }}
     const f = document.getElementById('f');
     const err = document.getElementById('err');
     const go = document.getElementById('go');
