@@ -235,12 +235,35 @@ def phone_key_html(vin: str = "") -> str:
     <a class="back" href="/">← Pulse HUD</a>
     <div class="brand" style="margin-top:.85rem">TESLA PULSE</div>
     <h1>Phone Key</h1>
-    <p class="lead">
+    <p class="lead" id="pk-lead">
       Telefon Bluetooth ile araca <strong>add-key-request</strong> gönderir.
       Sonra Key Card’ı <strong>orta konsola</strong> koy — ekranda Pair / Confirm çıkar.
     </p>
 
-    <div class="card">
+    <!-- iPhone path: Safari has no Web Bluetooth → Tesla app -->
+    <div class="card" id="ios-panel" hidden>
+      <div class="howto-title" style="color:var(--cyan);font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem">iPhone yöntemi</div>
+      <p class="lead" style="margin:0 0 .75rem">Safari’de Web Bluetooth yok. Resmi Tesla uygulaması telefonunun Bluetooth’unu kullanır — Pair ekranı böyle çıkar.</p>
+      <ol style="margin:0 0 .9rem;padding-left:1.15rem;color:rgba(255,255,255,.88);font-size:.88rem;line-height:1.45">
+        <li>Aşağıdan <strong>Tesla uygulamasını aç</strong></li>
+        <li><strong>Security → Set Up Phone Key</strong> (veya ana ekranda Set Up Phone Key)</li>
+        <li>Key Card’ı <strong>konsola / şarj yuvasına</strong> koy (telefona değil)</li>
+        <li>Araç ekranında <strong>Pair / Confirm</strong></li>
+      </ol>
+      <a class="btn" id="ios-open-tesla" href="tesla://">Tesla uygulamasını aç</a>
+      <a class="btn ghost" id="ios-open-security" href="tesla://security" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Security ekranını dene</a>
+      <a class="btn ghost" id="ios-appstore" href="https://apps.apple.com/app/tesla/id582007658" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Tesla yoksa App Store</a>
+      <p class="support ok" style="margin-top:.85rem">
+        Bluetooth: Ayarlar → Tesla → Bluetooth <strong>açık</strong> · Konum <strong>Her Zaman</strong> önerilir.
+        Araçta: Controls → Safety → Allow Mobile Access açık olsun.
+      </p>
+      <p class="support" style="background:rgba(255,255,255,.05);color:var(--muted)">
+        İstersen Mac + Xcode ile kendi CoreBluetooth uygulamanı da kurabilirsin:
+        repo içinde <code>ios/PulsePhoneKey</code>.
+      </p>
+    </div>
+
+    <div class="card" id="android-panel">
       <label for="pk-vin">VIN</label>
       <input id="pk-vin" maxlength="17" value="{vin_attr}" placeholder="17 karakter VIN" autocomplete="off" />
       <button class="btn" id="pk-go" type="button">Bluetooth ile eşleştir</button>
@@ -249,13 +272,13 @@ def phone_key_html(vin: str = "") -> str:
       <div id="pk-status" data-kind="info">Hazır. Araç yakında ve uyanık olsun.</div>
     </div>
 
-    <div class="steps">
+    <div class="steps" id="pk-steps">
       <div class="step on"><span class="n">1</span><span>Bluetooth ile Tesla’yı seç ve isteği gönder</span></div>
       <div class="step" id="pk-step-card"><span class="n">2</span><span>Key Card → <strong>konsol okuyucu</strong> (telefona değil)</span></div>
       <div class="step" id="pk-step-done"><span class="n">3</span><span>Araç ekranında Pair / Confirm</span></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="pk-log-card">
       <div style="font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem">Log</div>
       <div id="pk-log"></div>
     </div>

@@ -251,6 +251,57 @@
     setStatus("Anahtar sıfırlandı", "warn");
   }
 
+  function isIOS() {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+      || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+
+  function setupIOS() {
+    var iosPanel = $("ios-panel");
+    var androidPanel = $("android-panel");
+    var steps = $("pk-steps");
+    var logCard = $("pk-log-card");
+    var lead = $("pk-lead");
+    if (iosPanel) iosPanel.hidden = false;
+    if (androidPanel) androidPanel.hidden = true;
+    if (steps) steps.hidden = true;
+    if (logCard) logCard.hidden = true;
+    if (lead) {
+      lead.innerHTML =
+        "<strong>iPhone:</strong> Safari Web Bluetooth desteklemez. " +
+        "Aşağıdaki Tesla uygulaması yolunu kullan — Pair ekranı böyle çıkar.";
+    }
+
+    var openTesla = $("ios-open-tesla");
+    if (openTesla) {
+      openTesla.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        // Try a few known schemes; fall back to App Store after a beat
+        var schemes = [
+          "tesla://",
+          "tesla://security",
+          "tesla://vehicle/phoneKey",
+          "tesla://phonekey",
+        ];
+        var i = 0;
+        function tryNext() {
+          if (i >= schemes.length) {
+            window.location.href = "https://apps.apple.com/app/tesla/id582007658";
+            return;
+          }
+          var s = schemes[i++];
+          var t = Date.now();
+          window.location.href = s;
+          setTimeout(function () {
+            // If still visible quickly, try next scheme
+            if (Date.now() - t < 1600 && !document.hidden) tryNext();
+          }, 700);
+        }
+        tryNext();
+      });
+    }
+  }
+
   function init() {
     els.vin = $("pk-vin");
     els.go = $("pk-go");
@@ -261,18 +312,23 @@
     els.stepDone = $("pk-step-done");
     els.support = $("pk-support");
 
+    if (isIOS()) {
+      setupIOS();
+      return;
+    }
+
     if (!supported()) {
       els.support.textContent =
-        "⚠️ Web Bluetooth yok. Android’de Chrome kullan. iPhone’da Safari desteklemez — Tesla uygulaması gerekir.";
+        "⚠️ Web Bluetooth yok. Android’de Chrome kullan. iPhone’da /phone-key Tesla uygulamasına yönlendirir.";
       els.support.className = "support bad";
-      els.go.disabled = true;
+      if (els.go) els.go.disabled = true;
     } else {
       els.support.textContent = "Web Bluetooth hazır (Chrome/Edge). Araç yakında olsun.";
       els.support.className = "support ok";
     }
 
-    els.go.addEventListener("click", connectAndPair);
-    els.reset.addEventListener("click", resetKey);
+    if (els.go) els.go.addEventListener("click", connectAndPair);
+    if (els.reset) els.reset.addEventListener("click", resetKey);
     ensureKey().catch(function (e) {
       log("Anahtar üretilemedi: " + e.message, "err");
     });

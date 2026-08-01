@@ -47,7 +47,18 @@ This sends the same VCSEC `SIGNATURE_TYPE_PRESENT_KEY` envelope as
 3. Put Key Card on the **console** (not the phone)  
 4. Confirm **Pair** on the vehicle screen  
 
-**iPhone:** Web Bluetooth is unavailable — use the official Tesla app (path B).
+**iPhone:** Web Bluetooth is unavailable in Safari (and all iOS browsers).
+
+### iPhone options
+
+1. **Official Tesla app (works now)**  
+   `/phone-key` detects iOS and shows: open Tesla → **Security → Set Up Phone Key** → Key Card on **console** → Pair.  
+   Deep link attempts: `tesla://`, `tesla://security`.
+
+2. **Native companion** — `ios/PulsePhoneKey/`  
+   SwiftUI + CoreBluetooth app that sends the same VCSEC add-key payload.  
+   Install with Mac + Xcode (personal team / free Apple ID), then trust the developer on the phone.  
+   See `ios/PulsePhoneKey/README.md`.
 
 ### Open-source tools
 

@@ -1,5 +1,5 @@
 /* Minimal service worker — enables Android "Install app" for Tesla Pulse */
-const CACHE = "pulse-shell-v4";
+const CACHE = "pulse-shell-v5";
 const SHELL = [
   "/login",
   "/phone-key",

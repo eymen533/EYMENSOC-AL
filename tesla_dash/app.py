@@ -449,8 +449,8 @@ app.layout = html.Div(
                                     style={"marginTop": "0.45rem"},
                                 ),
                                 html.P(
-                                    "Phone Key sayfası Android Chrome’da Web Bluetooth ile "
-                                    "add-key-request gönderir. iPhone’da Safari desteklemez.",
+                                    "Android: Chrome Web Bluetooth. iPhone: /phone-key Tesla uygulamasına yönlendirir "
+                                    "(Safari’de BLE yok). İstersen ios/PulsePhoneKey ile Xcode’dan yükle.",
                                     className="howto-note",
                                 ),
                             ],
