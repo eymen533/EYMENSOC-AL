@@ -1,52 +1,68 @@
-# Pulse Phone Key (iOS)
+# Pulse Phone Key — iPhone **and iPad** (real BLE)
 
-iPhone’da Safari **Web Bluetooth desteklemez**. Bu küçük SwiftUI uygulama CoreBluetooth ile
-Tesla’ya resmi `add-key-request` (VCSEC `SIGNATURE_TYPE_PRESENT_KEY`) gönderir.
+Yes — on an **iPad** this Swift app can do **real** Tesla Phone Key pairing over CoreBluetooth  
+(same VCSEC `add-key-request` as `tesla-control` / the Android APK).
 
-## Arabada hemen (Xcode yokken)
+Safari / Chrome on iPad **cannot** do this (no Web Bluetooth). You need this native app.
 
-1. [Tesla](https://apps.apple.com/app/tesla/id582007658) uygulamasını aç  
-2. **Security → Set Up Phone Key** (veya ana ekranda Set Up Phone Key)  
-3. Key Card’ı **orta konsola / telefon şarj yuvasına** koy  
-4. Araç ekranında **Pair / Confirm**
+## What you need
 
-Pulse web’deki `/phone-key` sayfası iPhone’da bu adımlara tek dokunuşla yönlendirir.
+| Item | Required? |
+|------|-----------|
+| iPad (Bluetooth on) near the car | Yes |
+| Mac with **Xcode 16+** | Yes (to build & install) |
+| Free Apple ID (Signing → Personal Team) | Yes |
+| Cable or wireless debugging | Yes |
+| Key Card for console | Yes |
 
-## Bu uygulamayı telefona yükle (Mac + Xcode)
+This Linux cloud agent **cannot** compile or install the iPad app for you.
 
-1. Mac’te Xcode 16+ kur  
-2. Bu klasörü aç: **File → New → Project → App** (SwiftUI, iOS 17+)  
-   veya aşağıdaki kaynakları yeni bir App target’ına ekle  
-3. `Info.plist` içine ekle:
+## Install on iPad (Mac)
 
-```xml
-<key>NSBluetoothAlwaysUsageDescription</key>
-<string>Tesla aracıyla Phone Key eşleşmesi için Bluetooth gerekir.</string>
-<key>UIBackgroundModes</key>
-<array>
-  <string>bluetooth-central</string>
-</array>
+```bash
+# optional: generate .xcodeproj
+brew install xcodegen
+cd ios/PulsePhoneKey
+xcodegen   # creates PulsePhoneKey.xcodeproj
+open PulsePhoneKey.xcodeproj
 ```
 
-4. Signing: kişisel Apple ID (free) ile Team seç  
-5. iPhone’u USB ile bağla → Run  
-6. Ayarlar → Genel → VPN ve Cihaz Yönetimi → geliştiriciyi güven  
+Or manually:
 
-### Kaynak dosyalar
+1. Xcode → **File → New → Project → App**  
+   - Interface: **SwiftUI**  
+   - Language: **Swift**  
+   - Destinations: **iPhone + iPad**  
+2. Delete the template `ContentView` / `App` files  
+3. Drag in everything under `Sources/` + use `Info.plist`  
+4. Signing & Capabilities → your **Team** (personal Apple ID)  
+5. Select your **iPad** as run destination → **Run** ▶  
+6. On iPad: **Settings → General → VPN & Device Management** → trust your developer  
 
-| Dosya | Rol |
-|--------|-----|
-| `Sources/PulsePhoneKeyApp.swift` | App giriş |
-| `Sources/ContentView.swift` | VIN + eşleştir UI |
-| `Sources/KeyStore.swift` | P-256 Keychain |
+App expires after ~7 days with a free Apple ID (re-Run from Xcode to refresh).
+
+## Use in the car
+
+1. Open **Pulse Key** on the iPad  
+2. VIN is prefilled (or enter yours)  
+3. Tap **Bluetooth ile eşleştir** → allow Bluetooth  
+4. Wait until status says put the card on the console  
+5. Put Key Card on the **console reader** (not on the iPad)  
+6. Confirm **Pair** on the vehicle screen  
+
+## Without Xcode (right now)
+
+Use the official **Tesla** app on the iPad:  
+**Security → Set Up Phone Key** → card on console → Pair.
+
+## Files
+
+| File | Role |
+|------|------|
+| `Sources/PulsePhoneKeyApp.swift` | App entry |
+| `Sources/ContentView.swift` | UI (iPad-friendly) |
+| `Sources/KeyStore.swift` | P-256 in Keychain |
 | `Sources/VCSECPayload.swift` | add-key protobuf |
-| `Sources/BLEPairer.swift` | CoreBluetooth yazma |
-
-### Kullanım
-
-1. VIN gir (kayıtlıysa otomatik)  
-2. **Eşleştir** → Bluetooth izni ver  
-3. Araç bulununca istek gider  
-4. Key Card → konsol → Pair  
-
-Anahtar iPhone Keychain’de kalır (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`).
+| `Sources/BLEPairer.swift` | CoreBluetooth |
+| `Info.plist` | Bluetooth usage + iPad orientations |
+| `project.yml` | XcodeGen recipe |
