@@ -111,14 +111,15 @@
   function restoreDialStyle() {
     var root = cluster();
     if (!root) return;
-    var next = "bmw";
+    var next = "ring";
     try {
-      next = localStorage.getItem("pulse_dial") || "bmw";
+      next = localStorage.getItem("pulse_dial") || "ring";
     } catch (_) {}
     if (next === "blade") next = "porsche";
     if (next === "obsidian") next = "mercedes";
     if (next === "volt") next = "audi";
     var allowed = [
+      "ring",
       "bmw",
       "porsche",
       "mercedes",
@@ -128,7 +129,7 @@
       "hex",
       "pill",
     ];
-    if (allowed.indexOf(next) === -1) next = "bmw";
+    if (allowed.indexOf(next) === -1) next = "ring";
     allowed.concat(["blade", "obsidian", "volt"]).forEach(function (s) {
       root.classList.remove("dial-" + s);
     });

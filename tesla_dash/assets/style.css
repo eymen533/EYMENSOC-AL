@@ -572,6 +572,14 @@ body {
   background: linear-gradient(115deg, rgba(255, 255, 255, 0.35), transparent 42%, transparent 60%, rgba(255, 255, 255, 0.08));
 }
 
+.dial-preview-ring {
+  clip-path: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, #1c1f28 0%, #0a0c10 68%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 6px 14px rgba(0, 0, 0, 0.35);
+}
 .dial-preview-bmw {
   clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
   background: linear-gradient(135deg, #2a1c10 0%, #8a5a22 28%, #f0b15a 52%, #6b3d14 78%, #140c08 100%);
@@ -609,6 +617,10 @@ body {
   background: linear-gradient(135deg, #061410 0%, #0e3a36 28%, #3dcdc0 55%, #0a2826 80%, #040c0c 100%);
 }
 
+.dial-opt.on[data-style="ring"] {
+  border-color: rgba(220, 225, 235, 0.45);
+  background: rgba(255, 255, 255, 0.06);
+}
 .dial-opt.on[data-style="porsche"] {
   border-color: rgba(196, 30, 42, 0.65);
   background: rgba(196, 30, 42, 0.1);
@@ -1384,6 +1396,92 @@ body {
 }
 .cluster.dial-audi .speed-unit {
   color: rgba(190, 225, 245, 0.78);
+}
+
+/* ——— İlk Yuvarlak (original simple black ring) ——— */
+.cluster.dial-ring .speed-dial {
+  aspect-ratio: 1;
+  width: min(42vw, 270px);
+}
+.cluster.dial-ring .speed-dial-glow {
+  background: radial-gradient(
+    circle,
+    rgba(7, 8, 10, 0.95) 28%,
+    rgba(7, 8, 10, 0.55) 48%,
+    transparent 70%
+  );
+  filter: none;
+  inset: -28%;
+  border-radius: 50%;
+}
+.cluster.dial-ring .speed-dial-panel,
+.cluster.dial-ring .speed-dial-rim,
+.cluster.dial-ring .speed-dial-inner {
+  clip-path: none;
+  border-radius: 50%;
+  transform: none;
+}
+.cluster.dial-ring .speed-dial-panel {
+  border: none;
+  border-color: transparent;
+  background: radial-gradient(circle at 50% 42%, #1c1f28 0%, #0a0c10 68%);
+  background-size: auto;
+  animation: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 0 50px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 18px 50px rgba(0, 0, 0, 0.45);
+}
+.cluster.dial-ring .speed-dial-mesh,
+.cluster.dial-ring .speed-dial-sheen,
+.cluster.dial-ring .speed-dial-rim,
+.cluster.dial-ring .speed-dial-edge,
+.cluster.dial-ring .speed-dial-halo {
+  display: none;
+}
+.cluster.dial-ring .speed-dial-inner {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.cluster.dial-ring .speed-num {
+  font-size: clamp(4.4rem, 12vw, 6.6rem);
+  letter-spacing: -0.045em;
+  color: #fff;
+  text-shadow: none;
+}
+.cluster.dial-ring .speed-unit {
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+.cluster.theme-day.dial-ring .speed-dial-panel {
+  background: radial-gradient(circle at 50% 42%, #f7f8fa 0%, #d5dae0 68%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 12px 36px rgba(0, 0, 0, 0.12);
+}
+.cluster.theme-day.dial-ring .speed-dial-glow {
+  background: radial-gradient(
+    circle,
+    rgba(223, 227, 232, 0.95) 28%,
+    rgba(223, 227, 232, 0.45) 48%,
+    transparent 70%
+  );
+}
+.cluster.theme-day.dial-ring .speed-num {
+  color: #111;
+  text-shadow: none;
+}
+.cluster.theme-day.dial-ring .speed-unit {
+  color: rgba(28, 28, 30, 0.45);
 }
 
 /* ——— Classic Round ——— */

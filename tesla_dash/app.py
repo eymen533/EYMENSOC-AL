@@ -24,14 +24,15 @@ from tesla_dash.tesla import get_vehicle_state
 from tesla_dash.tesla.ble import get_ble_session
 
 DIAL_STYLES = [
+    {"id": "ring", "title": "İlk Yuvarlak", "desc": "Orijinal sade daire · siyah halka"},
+    {"id": "round", "title": "Classic Round", "desc": "Yuvarlak gösterge · koyu krom"},
     {"id": "bmw", "title": "BMW Diagonal", "desc": "Trapez · amber metal"},
     {"id": "porsche", "title": "Porsche Sport", "desc": "Diyagonal · racing kırmızı"},
     {"id": "mercedes", "title": "Mercedes Glass", "desc": "Cam panel · gümüş / şampanya"},
     {"id": "audi", "title": "Audi Quattro", "desc": "Kanat · platin / buz mavisi"},
-    {"id": "round", "title": "Classic Round", "desc": "Yuvarlak gösterge · koyu krom"},
     {"id": "square", "title": "Square Tile", "desc": "Yuvarlatılmış kare · grafit"},
     {"id": "hex", "title": "Hex Core", "desc": "Altıgen · elektrik cyan"},
-    {"id": "pill", "title": "Capsule Pill", "desc": "Yatay kapsül · mor-değil teal"},
+    {"id": "pill", "title": "Capsule Pill", "desc": "Yatay kapsül · teal"},
 ]
 
 TR_WEEKDAYS = [
@@ -394,7 +395,7 @@ app.layout = html.Div(
         dcc.Store(id="left-slide-store", data=0),
         dcc.Store(id="right-slide-store", data=2),
         dcc.Store(id="theme-store", data="night"),
-        dcc.Store(id="dial-style-store", data="bmw"),
+        dcc.Store(id="dial-style-store", data="ring"),
         dcc.Store(id="settings-open", data=False),
         dcc.Interval(id="tick", interval=1000, n_intervals=0),
         # ——— Pairing modal (VIN + Tesla Card) ———
@@ -498,7 +499,7 @@ app.layout = html.Div(
         ),
         html.Div(
             id="cluster",
-            className="cluster theme-night dial-bmw",
+            className="cluster theme-night dial-ring",
             children=[
                 html.Header(
                     className="topbar",
@@ -599,7 +600,7 @@ app.layout = html.Div(
                                             ],
                                             id={"type": "dial-opt", "style": opt["id"]},
                                             n_clicks=0,
-                                            className=f"dial-opt{' on' if opt['id'] == 'bmw' else ''}",
+                                            className=f"dial-opt{' on' if opt['id'] == 'ring' else ''}",
                                             **{"data-style": opt["id"]},
                                         )
                                         for opt in DIAL_STYLES
@@ -966,7 +967,7 @@ clientside_callback(
             return [window.dash_clientside.no_update, window.dash_clientside.no_update];
         }
         const prop = String(trig.prop_id);
-        let next = style || localStorage.getItem('pulse_dial') || 'bmw';
+        let next = style || localStorage.getItem('pulse_dial') || 'ring';
         let open = !!isOpen;
 
         if (prop.indexOf('settings-btn') !== -1) {
@@ -981,12 +982,12 @@ clientside_callback(
             open = true;
         }
 
-        const allowed = ['bmw','porsche','mercedes','audi','round','square','hex','pill'];
+        const allowed = ['ring','bmw','porsche','mercedes','audi','round','square','hex','pill'];
         // migrate legacy ids
         if (next === 'blade') next = 'porsche';
         if (next === 'obsidian') next = 'mercedes';
         if (next === 'volt') next = 'audi';
-        if (allowed.indexOf(next) === -1) next = 'bmw';
+        if (allowed.indexOf(next) === -1) next = 'ring';
         localStorage.setItem('pulse_dial', next);
 
         const c = document.getElementById('cluster');
