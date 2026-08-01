@@ -154,10 +154,13 @@ class BleSession:
             return self.link
 
     def connect_demo(self, vin: str | None = None) -> BleLink:
-        vin_n = normalize_vin(vin or self._pending_vin or "5YJ3E1EA1KF317284")
+        fallback = normalize_vin(os.getenv("TESLA_VIN") or os.getenv("OWNER_VIN") or "")
+        if not valid_vin(fallback):
+            fallback = "5YJ3E1EA1KF317284"
+        vin_n = normalize_vin(vin or self._pending_vin or fallback)
         if not valid_vin(vin_n):
-            vin_n = "5YJ3E1EA1KF317284"
-        result = self.pair_and_connect(vin_n, card_tapped=True, source="demo")
+            vin_n = fallback
+        self.pair_and_connect(vin_n, card_tapped=True, source="demo")
         return self.link
 
     def disconnect(self) -> BleLink:

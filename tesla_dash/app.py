@@ -21,7 +21,12 @@ from dash import ALL, Dash, Input, Output, State, callback, clientside_callback,
 from tesla_dash.auth import register_auth
 from tesla_dash.prayer import next_prayer
 from tesla_dash.tesla import get_vehicle_state
-from tesla_dash.tesla.ble import get_ble_session
+from tesla_dash.tesla.ble import get_ble_session, normalize_vin, valid_vin
+
+# Owner VIN from gitignored .env — never hardcode in repo
+OWNER_VIN = normalize_vin(os.getenv("TESLA_VIN") or os.getenv("OWNER_VIN") or "")
+if OWNER_VIN and not valid_vin(OWNER_VIN):
+    OWNER_VIN = ""
 
 DIAL_STYLES = [
     {"id": "ring", "title": "İlk Yuvarlak", "desc": "Orijinal sade daire · siyah halka"},
@@ -391,7 +396,8 @@ def _side_panel(side: str, initial_index: int) -> html.Aside:
 app.layout = html.Div(
     [
         dcc.Store(id="ble-store", data={"connected": False, "source": "none"}),
-        dcc.Store(id="pair-ui", data={"open": False, "step": 1, "vin": "", "error": ""}),
+        dcc.Store(id="pair-ui", data={"open": False, "step": 1, "vin": OWNER_VIN, "error": ""}),
+        dcc.Store(id="owner-vin-store", data=OWNER_VIN),
         dcc.Store(id="left-slide-store", data=0),
         dcc.Store(id="right-slide-store", data=2),
         dcc.Store(id="theme-store", data="night"),
@@ -429,13 +435,21 @@ app.layout = html.Div(
                                 dcc.Input(
                                     id="vin-input",
                                     type="text",
-                                    placeholder="Örn. 5YJ3E1EA1KF317284",
+                                    placeholder=OWNER_VIN or "17 karakter VIN",
                                     maxLength=17,
                                     className="vin-input",
-                                    value="",
+                                    value=OWNER_VIN,
                                     debounce=False,
                                 ),
-                                html.Div(id="vin-hint", className="vin-hint", children="17 karakter · I / O / Q yok"),
+                                html.Div(
+                                    id="vin-hint",
+                                    className="vin-hint",
+                                    children=(
+                                        f"Kayıtlı VIN · …{OWNER_VIN[-6:]}"
+                                        if OWNER_VIN
+                                        else "17 karakter · I / O / Q yok"
+                                    ),
+                                ),
                                 html.Button(
                                     "Devam",
                                     id="vin-next",
@@ -443,7 +457,7 @@ app.layout = html.Div(
                                     className="pair-primary",
                                 ),
                                 html.Button(
-                                    "Demo VIN kullan",
+                                    "Kayıtlı VIN’i kullan" if OWNER_VIN else "Demo VIN kullan",
                                     id="vin-demo",
                                     n_clicks=0,
                                     className="pair-ghost",
@@ -729,7 +743,7 @@ clientside_callback(
 # Pairing UI orchestration — reliable HUD link (demo); optional phone Web BT
 clientside_callback(
     """
-    async function(closeN, nextN, demoN, cardN, backN, finishN, webN, pair, vinVal) {
+    async function(closeN, nextN, demoN, cardN, backN, finishN, webN, pair, vinVal, ownerVin) {
         const trig = dash_clientside.callback_context.triggered;
         if (!trig || !trig.length) {
             return [window.dash_clientside.no_update, window.dash_clientside.no_update];
@@ -769,10 +783,10 @@ clientside_callback(
             return [ui, window.dash_clientside.no_update];
         }
         if (id === 'vin-demo') {
-            ui.vin = '5YJ3E1EA1KF317284';
+            ui.vin = (ownerVin || ui.vin || '5YJ3E1EA1KF317284').toString().replace(/\\s+/g,'').toUpperCase();
             const j = await api('/api/ble/vin', {vin: ui.vin});
             if (!j.ok) { ui.error = j.error || 'VIN hatalı'; return [ui, window.dash_clientside.no_update]; }
-            ui.step = 2; ui.error = '';
+            ui.vin = j.vin; ui.step = 2; ui.error = '';
             return [ui, window.dash_clientside.no_update];
         }
         if (id === 'vin-next') {
@@ -844,6 +858,7 @@ clientside_callback(
     Input("ble-web-try", "n_clicks"),
     State("pair-ui", "data"),
     State("vin-input", "value"),
+    State("owner-vin-store", "data"),
     prevent_initial_call=True,
 )
 
