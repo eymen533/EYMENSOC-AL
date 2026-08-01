@@ -2010,6 +2010,49 @@ body {
   font-weight: 400;
 }
 
+.pair-howto {
+  margin: 0 0 1.1rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 0.9rem;
+  background: rgba(100, 210, 255, 0.08);
+  border: 1px solid rgba(100, 210, 255, 0.22);
+}
+
+.howto-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64d2ff;
+  margin-bottom: 0.45rem;
+}
+
+.howto-list {
+  margin: 0 0 0.75rem;
+  padding-left: 1.15rem;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.howto-list li {
+  margin-bottom: 0.28rem;
+}
+
+.howto-note {
+  margin: 0.65rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.pair-link-btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
 .pair-steps {
   display: flex;
   gap: 0.45rem;

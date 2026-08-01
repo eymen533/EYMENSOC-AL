@@ -14,6 +14,10 @@ Web Bluetooth in `assets/ble.js` may open a Chrome device picker and `gatt.conne
 
 ## What actually triggers Pair on the car
 
+**Important:** the Key Card goes on the **car’s console reader**, not on the phone.
+The phone (or laptop) only sends the BLE `add-key` request; the card on the console
+authorizes it — then the car screen shows Pair / Confirm.
+
 Official / third-party clients sitting **next to the car** over BLE:
 
 1. Generate a P-256 keypair
@@ -23,6 +27,13 @@ Official / third-party clients sitting **next to the car** over BLE:
 5. Car UI asks to authorize the new key → Confirm
 
 Cloudflare (or any remote host) cannot substitute for step 2–3: BLE range is local to the radio that sends the protobuf.
+
+### In the car right now (Tesla app)
+
+1. Open **Tesla** app → **Phone Key** / add key  
+2. Tap **Start**  
+3. Put Key Card on the **console** (not the phone)  
+4. Confirm **Pair** on the vehicle screen
 
 ### Open-source tools
 

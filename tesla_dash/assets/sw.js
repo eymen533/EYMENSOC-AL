@@ -1,5 +1,5 @@
 /* Minimal service worker — enables Android "Install app" for Tesla Pulse */
-const CACHE = "pulse-shell-v2";
+const CACHE = "pulse-shell-v3";
 const SHELL = ["/login", "/manifest.webmanifest", "/assets/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {

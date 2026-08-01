@@ -414,12 +414,38 @@ app.layout = html.Div(
                     children=[
                         html.Button("✕", id="pair-close", className="pair-close", n_clicks=0),
                         html.Div("TESLA", className="pair-brand"),
-                        html.H2("Pulse HUD oturumu", className="pair-title"),
-                        html.P(
-                            "Bu ekran arabadaki Pair penceresini açmaz. "
-                            "Cloudflare tüneli üzerinden gerçek Key Card / BLE yok — "
-                            "yalnızca telefonundaki Pulse HUD’u açılır.",
-                            className="pair-sub",
+                        html.H2("Bağlantı", className="pair-title"),
+                        html.Div(
+                            className="pair-howto",
+                            children=[
+                                html.Div("Gerçek Pair (araba ekranı)", className="howto-title"),
+                                html.Ol(
+                                    className="howto-list",
+                                    children=[
+                                        html.Li("Tesla uygulamasını aç → Phone Key / Anahtar ekle"),
+                                        html.Li("Start / Başlat — telefon araçla Bluetooth konuşur"),
+                                        html.Li(
+                                            [
+                                                html.Strong("Key Card’ı telefona değil, "),
+                                                "orta konsola / okuyucuya koy",
+                                            ]
+                                        ),
+                                        html.Li("Araç ekranında Pair / Confirm’e bas"),
+                                    ],
+                                ),
+                                html.A(
+                                    "Tesla uygulamasını aç",
+                                    href="https://www.tesla.com/teslaapp",
+                                    target="_blank",
+                                    rel="noopener noreferrer",
+                                    className="pair-primary pair-link-btn",
+                                ),
+                                html.P(
+                                    "Pulse buluttan çalışır; arabadaki Pair penceresini açamaz. "
+                                    "Aşağıdaki adımlar sadece telefon HUD oturumudur.",
+                                    className="howto-note",
+                                ),
+                            ],
                         ),
                         html.Div(
                             className="pair-steps",
