@@ -13,12 +13,12 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Pulse Phone Key")
                         .font(.largeTitle.bold())
-                    Text("iPad Playgrounds · Tesla BLE Pair")
-                        .foregroundStyle(.secondary)
 
-                    Text("Ilk kez: App Settings → Capabilities → Bluetooth Always acik olmali (Package.swift icinde de var).")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    Text("ÖNEMLİ: Eşleştir’e basınca hemen kapıyı aç / ekranı uyandır. Tesla uygulamasını kapat.")
+                        .font(.subheadline)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.18)))
 
                     Text("VIN").font(.caption.weight(.semibold))
                     TextField("17 karakter", text: $vin)
@@ -28,10 +28,14 @@ struct ContentView: View {
                         .padding(12)
                         .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground)))
 
+                    Text("Beklenen: \(VCSECPayload.bleLocalName(vin: normalizedVin)) · Tesla \(String(normalizedVin.suffix(6)))")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+
                     Button {
                         start()
                     } label: {
-                        Text(pairer.busy ? "Calisiyor… cikma" : "Bluetooth ile eslestir")
+                        Text(pairer.busy ? "Aranıyor… kapıyı aç!" : "Bluetooth ile eşleştir (60sn)")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                     }
@@ -50,8 +54,14 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    Text("BLE: \(VCSECPayload.bleLocalName(vin: normalizedVin))")
-                        .font(.system(size: 11, design: .monospaced))
+                    if !pairer.nearby.isEmpty {
+                        DisclosureGroup("Yakında görülen BLE (\(pairer.nearby.count))") {
+                            ForEach(pairer.nearby, id: \.self) { line in
+                                Text(line)
+                                    .font(.system(size: 12, design: .monospaced))
+                            }
+                        }
+                    }
 
                     DisclosureGroup("Log", isExpanded: $logOpen) {
                         ForEach(Array(pairer.log.enumerated()), id: \.offset) { _, line in
