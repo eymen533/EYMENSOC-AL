@@ -39,7 +39,11 @@ server = app.server
 
 @server.post("/api/ble/demo")
 def api_ble_demo():
-    return get_ble_session().connect_demo().to_dict()
+    from flask import request
+
+    body = request.get_json(silent=True) or {}
+    vin = body.get("vin")
+    return get_ble_session().connect_demo(vin=vin).to_dict()
 
 
 @server.post("/api/ble/disconnect")
@@ -55,6 +59,31 @@ def api_ble_status():
 @server.post("/api/ble/scan")
 def api_ble_scan():
     return get_ble_session().scan_bleak(timeout=4.0)
+
+
+@server.post("/api/ble/vin")
+def api_ble_vin():
+    from flask import request
+
+    body = request.get_json(silent=True) or {}
+    return get_ble_session().set_vin(body.get("vin") or "")
+
+
+@server.post("/api/ble/card")
+def api_ble_card():
+    return get_ble_session().tap_card()
+
+
+@server.post("/api/ble/pair")
+def api_ble_pair():
+    from flask import request
+
+    body = request.get_json(silent=True) or {}
+    return get_ble_session().pair_and_connect(
+        vin=body.get("vin") or "",
+        card_tapped=bool(body.get("card_tapped", True)),
+        source=body.get("source") or "demo",
+    )
 
 
 def _gear_row(active: str) -> html.Div:
@@ -198,9 +227,109 @@ def _side_panel(side: str, initial_index: int) -> html.Aside:
 app.layout = html.Div(
     [
         dcc.Store(id="ble-store", data={"connected": False, "source": "none"}),
+        dcc.Store(id="pair-ui", data={"open": False, "step": 1, "vin": "", "error": ""}),
         dcc.Store(id="left-slide-store", data=0),
         dcc.Store(id="right-slide-store", data=2),
         dcc.Interval(id="tick", interval=1000, n_intervals=0),
+        # ——— Pairing modal (VIN + Tesla Card) ———
+        html.Div(
+            id="pair-overlay",
+            className="pair-overlay hidden",
+            children=[
+                html.Div(
+                    className="pair-sheet",
+                    children=[
+                        html.Button("✕", id="pair-close", className="pair-close", n_clicks=0),
+                        html.Div("TESLA", className="pair-brand"),
+                        html.H2("BLE Eşleşme", className="pair-title"),
+                        html.P(
+                            "Diğer uygulamalar gibi önce VIN, sonra Tesla Key Card ile eşleşin.",
+                            className="pair-sub",
+                        ),
+                        html.Div(
+                            className="pair-steps",
+                            children=[
+                                html.Span("1 VIN", id="step-chip-1", className="step-chip on"),
+                                html.Span("2 Kart", id="step-chip-2", className="step-chip"),
+                                html.Span("3 BLE", id="step-chip-3", className="step-chip"),
+                            ],
+                        ),
+                        html.Div(
+                            id="pair-step-vin",
+                            className="pair-pane",
+                            children=[
+                                html.Label("Araç VIN kodu", className="pair-label"),
+                                dcc.Input(
+                                    id="vin-input",
+                                    type="text",
+                                    placeholder="Örn. 5YJ3E1EA1KF317284",
+                                    maxLength=17,
+                                    className="vin-input",
+                                    value="",
+                                    debounce=False,
+                                ),
+                                html.Div(id="vin-hint", className="vin-hint", children="17 karakter · I / O / Q yok"),
+                                html.Button(
+                                    "Devam",
+                                    id="vin-next",
+                                    n_clicks=0,
+                                    className="pair-primary",
+                                ),
+                                html.Button(
+                                    "Demo VIN kullan",
+                                    id="vin-demo",
+                                    n_clicks=0,
+                                    className="pair-ghost",
+                                ),
+                            ],
+                        ),
+                        html.Div(
+                            id="pair-step-card",
+                            className="pair-pane hidden",
+                            children=[
+                                html.Div(className="card-visual", children=[
+                                    html.Div("TESLA", className="card-logo"),
+                                    html.Div("KEY CARD", className="card-sub"),
+                                    html.Div(className="card-chip"),
+                                    html.Div(id="card-vin-tag", className="card-vin"),
+                                ]),
+                                html.P(
+                                    "Anahtarsız giriş kartını telefonun NFC alanına (veya ekrana) yaklaştırın.",
+                                    className="pair-sub",
+                                ),
+                                html.Button(
+                                    "Kartı okut / Onayla",
+                                    id="card-tap",
+                                    n_clicks=0,
+                                    className="pair-primary",
+                                ),
+                                html.Button(
+                                    "Geri",
+                                    id="card-back",
+                                    n_clicks=0,
+                                    className="pair-ghost",
+                                ),
+                            ],
+                        ),
+                        html.Div(
+                            id="pair-step-ble",
+                            className="pair-pane hidden",
+                            children=[
+                                html.Div(className="ble-radar", children=html.Div(className="ble-radar-ring")),
+                                html.P(id="ble-pair-msg", className="pair-sub", children="Yakındaki Tesla aranıyor…"),
+                                html.Button(
+                                    "BLE Bağlan",
+                                    id="ble-finish",
+                                    n_clicks=0,
+                                    className="pair-primary",
+                                ),
+                            ],
+                        ),
+                        html.Div(id="pair-error", className="pair-error"),
+                    ],
+                )
+            ],
+        ),
         html.Div(
             id="cluster",
             className="cluster",
@@ -224,7 +353,7 @@ app.layout = html.Div(
                                     id="ble-btn",
                                     n_clicks=0,
                                     className="reconnect-btn",
-                                    title="Bluetooth Low Energy bağlan / kes",
+                                    title="VIN + Tesla Kart + BLE eşleşme",
                                 ),
                                 html.Span("▮▮▯ 50%", className="phone-batt"),
                                 html.Span("⚙", className="settings-ico"),
@@ -280,41 +409,155 @@ app.layout = html.Div(
 )
 
 
+# Bağlan → pairing modal aç / Kes → disconnect
 clientside_callback(
     """
-    async function(n, ble) {
-        if (!n) { return window.dash_clientside.no_update; }
+    async function(n, ble, pair) {
+        if (!n) { return [window.dash_clientside.no_update, window.dash_clientside.no_update]; }
         const linked = ble && ble.connected;
         if (linked) {
             if (window.TeslaBLE) { await window.TeslaBLE.disconnect(); }
             try { await fetch('/api/ble/disconnect', {method:'POST'}); } catch(e) {}
-            return {connected:false, source:'none', disconnect:true};
+            return [
+                {connected:false, source:'none', disconnect:true},
+                {open:false, step:1, vin:(pair&&pair.vin)||'', error:''}
+            ];
         }
-        if (window.TeslaBLE) {
-            const snap = await window.TeslaBLE.connect();
-            if (snap.demo_fallback && !snap.connected) {
-                try {
-                    const r = await fetch('/api/ble/demo', {method:'POST'});
-                    return await r.json();
-                } catch(e) {
-                    return {connected:true, source:'demo', device_name:'Model S Plaid · BLE',
-                            device_id:'ble-demo', rssi:-52};
-                }
-            }
-            return snap;
-        }
-        try {
-            const r = await fetch('/api/ble/demo', {method:'POST'});
-            return await r.json();
-        } catch(e) {
-            return {connected:true, source:'demo', device_name:'Model S Plaid · BLE', rssi:-52};
-        }
+        return [
+            window.dash_clientside.no_update,
+            {open:true, step:1, vin:(pair&&pair.vin)||'', error:''}
+        ];
     }
     """,
     Output("ble-store", "data"),
+    Output("pair-ui", "data"),
     Input("ble-btn", "n_clicks"),
     State("ble-store", "data"),
+    State("pair-ui", "data"),
     prevent_initial_call=True,
+)
+
+
+# Pairing UI orchestration
+clientside_callback(
+    """
+    async function(closeN, nextN, demoN, cardN, backN, finishN, pair, vinVal) {
+        const trig = dash_clientside.callback_context.triggered;
+        if (!trig || !trig.length) {
+            return [window.dash_clientside.no_update, window.dash_clientside.no_update];
+        }
+        const id = (trig[0].prop_id || '').split('.')[0];
+        let ui = Object.assign({open:false, step:1, vin:'', error:''}, pair || {});
+
+        if (id === 'pair-close') {
+            ui.open = false; ui.error = '';
+            return [ui, window.dash_clientside.no_update];
+        }
+        if (id === 'card-back') {
+            ui.step = 1; ui.error = '';
+            return [ui, window.dash_clientside.no_update];
+        }
+        if (id === 'vin-demo') {
+            ui.vin = '5YJ3E1EA1KF317284';
+            ui.step = 2; ui.error = '';
+            try {
+                await fetch('/api/ble/vin', {method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({vin: ui.vin})});
+            } catch(e) {}
+            return [ui, window.dash_clientside.no_update];
+        }
+        if (id === 'vin-next') {
+            const vin = (vinVal || ui.vin || '').replace(/\\s+/g,'').toUpperCase();
+            try {
+                const r = await fetch('/api/ble/vin', {method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({vin})});
+                const j = await r.json();
+                if (!j.ok) { ui.error = j.error || 'VIN hatalı'; return [ui, window.dash_clientside.no_update]; }
+                ui.vin = j.vin; ui.step = 2; ui.error = '';
+            } catch(e) { ui.error = 'VIN doğrulanamadı'; }
+            return [ui, window.dash_clientside.no_update];
+        }
+        if (id === 'card-tap') {
+            try {
+                const r = await fetch('/api/ble/card', {method:'POST'});
+                const j = await r.json();
+                if (!j.ok) { ui.error = j.error || 'Kart okunamadı'; return [ui, window.dash_clientside.no_update]; }
+                ui.step = 3; ui.error = '';
+            } catch(e) { ui.error = 'Kart adımı başarısız'; }
+            return [ui, window.dash_clientside.no_update];
+        }
+        if (id === 'ble-finish') {
+            // Try Web Bluetooth, then fall back to paired demo link with VIN
+            let link = null;
+            if (window.TeslaBLE) {
+                const snap = await window.TeslaBLE.connect();
+                if (snap && snap.connected) {
+                    link = Object.assign({}, snap, {vin: ui.vin, card_paired: true, source: 'web'});
+                }
+            }
+            if (!link) {
+                try {
+                    const r = await fetch('/api/ble/pair', {method:'POST', headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({vin: ui.vin, card_tapped: true, source: 'demo'})});
+                    link = await r.json();
+                } catch(e) {
+                    ui.error = 'BLE bağlantısı kurulamadı';
+                    return [ui, window.dash_clientside.no_update];
+                }
+            }
+            if (link && (link.ok === false)) {
+                ui.error = link.error || 'Eşleşme başarısız';
+                return [ui, window.dash_clientside.no_update];
+            }
+            ui.open = false; ui.error = '';
+            return [ui, Object.assign({connected:true, card_paired:true}, link)];
+        }
+        return [window.dash_clientside.no_update, window.dash_clientside.no_update];
+    }
+    """,
+    Output("pair-ui", "data", allow_duplicate=True),
+    Output("ble-store", "data", allow_duplicate=True),
+    Input("pair-close", "n_clicks"),
+    Input("vin-next", "n_clicks"),
+    Input("vin-demo", "n_clicks"),
+    Input("card-tap", "n_clicks"),
+    Input("card-back", "n_clicks"),
+    Input("ble-finish", "n_clicks"),
+    State("pair-ui", "data"),
+    State("vin-input", "value"),
+    prevent_initial_call=True,
+)
+
+
+# Reflect pair-ui on overlay visibility / steps
+clientside_callback(
+    """
+    function(ui) {
+        ui = ui || {open:false, step:1, vin:'', error:''};
+        const step = ui.step || 1;
+        ['pair-step-vin','pair-step-card','pair-step-ble'].forEach((id, i) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('hidden', step !== (i+1));
+        });
+        [1,2,3].forEach(i => {
+            const c = document.getElementById('step-chip-' + i);
+            if (c) c.classList.toggle('on', step === i);
+        });
+        const tag = document.getElementById('card-vin-tag');
+        if (tag) tag.textContent = ui.vin ? ('VIN · ' + ui.vin.slice(-6)) : '';
+        const err = document.getElementById('pair-error');
+        if (err) err.textContent = ui.error || '';
+        const msg = document.getElementById('ble-pair-msg');
+        if (msg && step === 3) {
+            msg.textContent = ui.vin
+                ? (ui.vin.slice(-6) + ' için BLE link kuruluyor…')
+                : 'Yakındaki Tesla aranıyor…';
+        }
+        return ui.open ? 'pair-overlay' : 'pair-overlay hidden';
+    }
+    """,
+    Output("pair-overlay", "className"),
+    Input("pair-ui", "data"),
 )
 
 
@@ -330,8 +573,6 @@ clientside_callback(
                 track.style.transform = 'translateY(-' + (idx * 100) + '%)';
                 track.dataset.index = String(idx);
             }
-            const dots = document.querySelectorAll('button[id*=\"\\\"side\\\":\\\"' + side + '\\\"\"]');
-            // fallback query
             document.querySelectorAll('#' + side + '-dots .slide-dot').forEach((d, i) => {
                 d.classList.toggle('on', i === idx);
             });
@@ -480,13 +721,15 @@ def refresh(_n, ble_store):
         pill_cls = "ble-pill on"
         btn_children = [html.Span("✕", className="ico"), " Kes"]
         btn_cls = "reconnect-btn on"
-        mode = f"{ble.get('device_name') or 'Tesla'} · {(ble.get('source') or 'ble').upper()}"
+        vin = ble.get("vin") or ""
+        vin_bit = f" · VIN {vin[-6:]}" if len(vin) >= 6 else ""
+        mode = f"{ble.get('device_name') or 'Tesla'}{vin_bit} · {(ble.get('source') or 'ble').upper()}"
     else:
         pill = "BLE HAZIR"
         pill_cls = "ble-pill"
         btn_children = [html.Span("↻", className="ico"), " Bağlan"]
         btn_cls = "reconnect-btn"
-        mode = "Bluetooth Low Energy bekleniyor"
+        mode = "VIN + Tesla Kart ile BLE eşleş"
 
     left_bits = _fill_side_outputs("left", display)
     right_bits = _fill_side_outputs("right", display)

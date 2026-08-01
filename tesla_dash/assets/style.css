@@ -756,3 +756,224 @@ body {
     width: min(78vw, 240px);
   }
 }
+
+/* ——— Pairing overlay (VIN + Tesla Card) ——— */
+.pair-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(4, 5, 8, 0.72);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.25s ease both;
+}
+
+.pair-overlay.hidden,
+.pair-pane.hidden,
+.hidden {
+  display: none !important;
+}
+
+.pair-sheet {
+  width: min(420px, 100%);
+  background: linear-gradient(165deg, #151820 0%, #0b0d12 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.35rem 1.35rem;
+  position: relative;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+
+.pair-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.pair-brand {
+  font-family: "Orbitron", sans-serif;
+  letter-spacing: 0.35em;
+  font-size: 0.78rem;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+}
+
+.pair-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.pair-sub {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.pair-steps {
+  display: flex;
+  gap: 0.45rem;
+  margin-bottom: 1.15rem;
+}
+
+.step-chip {
+  flex: 1;
+  text-align: center;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.25rem;
+  border: 1px solid var(--panel-edge);
+  color: var(--muted);
+}
+
+.step-chip.on {
+  color: var(--accent);
+  border-color: rgba(61, 231, 197, 0.45);
+  background: rgba(61, 231, 197, 0.1);
+}
+
+.pair-label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+
+.vin-input {
+  width: 100%;
+  appearance: none;
+  border: 1px solid var(--panel-edge);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font-family: "Orbitron", monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.5rem;
+  outline: none;
+}
+
+.vin-input:focus {
+  border-color: var(--accent);
+}
+
+.vin-hint {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin: 0.45rem 0 1rem;
+}
+
+.pair-primary,
+.pair-ghost {
+  width: 100%;
+  appearance: none;
+  border: none;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.pair-primary {
+  background: var(--accent);
+  color: #06110e;
+}
+
+.pair-primary:hover {
+  filter: brightness(1.05);
+}
+
+.pair-ghost {
+  background: transparent;
+  border: 1px solid var(--panel-edge);
+  color: var(--text);
+}
+
+.pair-error {
+  min-height: 1.1rem;
+  color: var(--danger);
+  font-size: 0.78rem;
+  margin-top: 0.35rem;
+}
+
+.card-visual {
+  width: 100%;
+  aspect-ratio: 1.6;
+  border-radius: 0.85rem;
+  background: linear-gradient(135deg, #1a1f2a 0%, #0c0e14 55%, #14201c 100%);
+  border: 1px solid rgba(61, 231, 197, 0.25);
+  padding: 1.1rem 1.2rem;
+  margin-bottom: 0.85rem;
+  position: relative;
+  overflow: hidden;
+  animation: softPulse 2.4s ease-in-out infinite;
+}
+
+.card-logo {
+  font-family: "Orbitron", sans-serif;
+  letter-spacing: 0.3em;
+  font-size: 0.85rem;
+}
+
+.card-sub {
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+
+.card-chip {
+  width: 36px;
+  height: 28px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #d4af37, #8a7020);
+  margin-top: 1.4rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.card-vin {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.85rem;
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.ble-radar {
+  width: 110px;
+  height: 110px;
+  margin: 0.5rem auto 1rem;
+  border-radius: 50%;
+  border: 1px solid rgba(61, 231, 197, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.ble-radar-ring {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 rgba(61, 231, 197, 0.5);
+  animation: markerPulse 1.6s ease-out infinite;
+}

@@ -1,44 +1,37 @@
-# Tesla Pulse — BLE Instrument Cluster (Plotly Dash)
+# Tesla Pulse — BLE Instrument Cluster
 
-Referans Tesla cluster tarzı HUD. Bağlantı **Bluetooth Low Energy (BLE)**.
+VIN + Tesla Key Card eşleşmesi ile BLE bağlantılı araç HUD.
 
-## Sol / sağ paneller (dikey slayt)
-
-Her iki yan panelde yukarı–aşağı kaydırarak (veya noktalara tıklayarak):
-
-1. **Medya** — çalan şarkı
-2. **Lastik basıncı** — FL / FR / RL / RR
-3. **Harita** — konum + ODO
-
-Sol varsayılan: Medya · Sağ varsayılan: Harita. İkisi de bağımsız seçilir.
-
-## Çalıştırma
+## Hızlı çalıştırma
 
 ```bash
 pip install -r requirements.txt
 python run.py
 ```
 
-http://127.0.0.1:8050 → **Bağlan** (BLE)
+Tarayıcı: **http://127.0.0.1:8050**
 
-- Chrome/Edge + localhost/HTTPS → Web Bluetooth
-- Yoksa demo BLE link otomatik açılır
+## BLE nasıl bağlanır? (VIN + kart)
 
-## Kontroller
+Gerçek Tesla uygulamalarına benzer akış:
 
-| Jest | Sonuç |
-|------|--------|
-| Yan panelde kaydır / tekerlek | Slayt değiştir |
-| Noktalar | Medya / Lastik / Harita |
-| Bağlan / Kes | BLE link |
+1. Sağ üstte **Bağlan**
+2. **VIN** girin (17 karakter) veya **Demo VIN kullan**
+3. **Tesla Key Card** adımında kartı okut / onayla
+4. **BLE Bağlan** — Web Bluetooth varsa cihaz seçici açılır; yoksa demo BLE link kurulur
 
-## Yapı
+| Adım | Ne yapar |
+|------|----------|
+| VIN | Aracı tanımlar (`/api/ble/vin`) |
+| Kart | Key Card onayı (`/api/ble/card`) |
+| BLE | Yakınlık linki (`/api/ble/pair` veya Web Bluetooth) |
 
-```
-tesla_dash/
-  app.py
-  assets/style.css
-  assets/ble.js
-  assets/carousel.js
-  tesla/ble.py · client.py · simulator.py
-```
+> Not: Tarayıcıda gerçek Tesla BLE anahtar protokolü (VCSEC) kısıtlıdır. Bu uygulama eşleşme UX’ini + HUD’u sunar; tam telemetri için opsiyonel Owner API token kullanılabilir.
+
+## Yan paneller
+
+Sol ve sağda ↕ kaydır: **Medya · Lastik · Harita**
+
+## Repo
+
+https://github.com/eymen533/EYMENSOC-AL/tree/cursor/tesla-dash-bl-mode-02d8
