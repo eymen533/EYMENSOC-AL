@@ -1,13 +1,13 @@
 /**
- * Side carousels + subtle selection rail (reference-style).
+ * Side carousels + reference-style narrow selection pill.
  */
 (function () {
   "use strict";
 
   var COUNT = 3;
-  var LABELS = ["Medya", "Lastik", "Harita"];
   var cool = { left: 0, right: 0 };
   var hideTimer = null;
+  var KIND_FOR_SLIDE = { 0: "music", 1: "gear", 2: "nav" };
 
   function clamp(i) {
     return ((i % COUNT) + COUNT) % COUNT;
@@ -26,19 +26,20 @@
     if (!rail) return;
     rail.dataset.side = side;
     rail.classList.add("visible");
-    rail.querySelectorAll(".rail-item").forEach(function (el, i) {
-      el.classList.toggle("on", i === index);
+    var want = KIND_FOR_SLIDE[index] || "nav";
+    rail.querySelectorAll(".rail-item").forEach(function (el) {
+      el.classList.toggle("on", el.getAttribute("data-kind") === want);
     });
     if (hideTimer) clearTimeout(hideTimer);
     hideTimer = setTimeout(function () {
       rail.classList.remove("visible");
-    }, 1600);
+    }, 1700);
   }
 
   function writeIndex(side, index) {
     index = clamp(index);
     var now = Date.now();
-    if (now - (cool[side] || 0) < 300) return;
+    if (now - (cool[side] || 0) < 280) return;
     cool[side] = now;
     if (window.dash_clientside && dash_clientside.set_props) {
       dash_clientside.set_props(side + "-slide-store", { data: index });
@@ -138,11 +139,5 @@
     boot();
   }
 
-  window.TeslaCarousel = {
-    set: writeIndex,
-    next: function (s) {
-      writeIndex(s, readIndex(s) + 1);
-    },
-    labels: LABELS,
-  };
+  window.TeslaCarousel = { set: writeIndex };
 })();

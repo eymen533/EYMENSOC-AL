@@ -167,43 +167,29 @@ def _tires_block(prefix: str) -> html.Div:
     )
 
 
-def _rail_icon(kind: str) -> html.Span:
-    """Minimal line icons matching the reference rail."""
-    icons = {
-        "media": html.Span(className="ri ri-music"),
-        "tires": html.Span(className="ri ri-car"),
-        "map": html.Span(className="ri ri-nav"),
-    }
-    return icons[kind]
-
-
 def _select_rail() -> html.Div:
+    """Narrow dark pill rail — 5 icons like the reference cluster."""
+    items = [
+        ("dash", "0", "Genel"),
+        ("gear", "1", "Lastik"),
+        ("nav", "2", "Navigasyon"),
+        ("map", "2", "Harita"),
+        ("music", "0", "Medya"),
+    ]
+    buttons = [
+        html.Button(
+            html.Span(className=f"ri ri-{kind}"),
+            className=f"rail-item{' on' if kind == 'nav' else ''}",
+            **{"data-i": slide_i, "data-kind": kind},
+            title=title,
+            n_clicks=0,
+        )
+        for kind, slide_i, title in items
+    ]
     return html.Div(
         id="select-rail",
         className="select-rail",
-        children=[
-            html.Button(
-                _rail_icon("media"),
-                className="rail-item",
-                **{"data-i": "0"},
-                title="Medya",
-                n_clicks=0,
-            ),
-            html.Button(
-                _rail_icon("tires"),
-                className="rail-item",
-                **{"data-i": "1"},
-                title="Lastik",
-                n_clicks=0,
-            ),
-            html.Button(
-                _rail_icon("map"),
-                className="rail-item on",
-                **{"data-i": "2"},
-                title="Harita",
-                n_clicks=0,
-            ),
-        ],
+        children=html.Div(className="rail-pill", children=buttons),
     )
 
 
