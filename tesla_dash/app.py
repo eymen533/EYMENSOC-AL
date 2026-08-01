@@ -368,19 +368,14 @@ app.layout = html.Div(
                         html.Main(
                             className="center-panel",
                             children=[
+                                html.Div(className="center-veil"),
                                 html.Div(id="gear-display", className="gear-wrap"),
                                 html.Div(
                                     className="speed-ring",
                                     children=[
+                                        html.Div(className="speed-glow"),
                                         html.Div(id="speed-num", className="speed-num", children="0"),
                                         html.Div("km/h", className="speed-unit"),
-                                    ],
-                                ),
-                                html.Div(
-                                    className="place-row",
-                                    children=[
-                                        html.Span("📍", className="pin"),
-                                        html.Span(id="street", className="street"),
                                     ],
                                 ),
                             ],
@@ -396,13 +391,22 @@ app.layout = html.Div(
                             children=[
                                 html.Span(id="batt-ico", className="batt-ico"),
                                 html.Span(id="batt-pct", className="batt-pct"),
+                                html.Span("/", className="batt-sep"),
                                 html.Span(id="batt-range", className="batt-range"),
                             ],
                         ),
-                        html.Div(className="home-bar"),
-                        html.Div(id="mode-line", className="mode-line"),
+                        html.Div(
+                            className="place-row",
+                            children=[
+                                html.Span("📍", className="pin"),
+                                html.Span(id="street", className="street"),
+                            ],
+                        ),
+                        html.Div(id="footer-odo", className="footer-odo"),
                     ],
                 ),
+                html.Div(className="home-bar"),
+                html.Div(id="mode-line", className="mode-line sr-only"),
             ],
         ),
     ]
@@ -637,6 +641,7 @@ def _fill_side_outputs(prefix: str, state: dict) -> list:
     Output("batt-range", "children"),
     Output("batt-ico", "className"),
     Output("batt-ico", "style"),
+    Output("footer-odo", "children"),
     Output("mode-line", "children"),
     # left media/tires
     Output("left-media-service", "children"),
@@ -745,9 +750,10 @@ def refresh(_n, ble_store):
         f"{int(display.get('speed_kmh') or 0)}",
         display.get("street") or "—",
         f"%{int(batt)}",
-        f"{int(display.get('battery_range_km') or 0)} km",
+        f"{int(display.get('battery_range_km') or 0)}km",
         batt_cls,
         {"--batt-fill": f"{max(4, min(100, batt)):.0f}%"},
+        odo,
         mode,
         *left_bits,
         *right_bits,
