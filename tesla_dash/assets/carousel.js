@@ -1,12 +1,11 @@
 /**
- * Vertical side-panel carousels + transient selection rail.
+ * Side carousels + subtle selection rail (reference-style).
  */
 (function () {
   "use strict";
 
   var COUNT = 3;
-  var LABELS = ["Medya", "Lastik · PSI", "Harita"];
-  var ICONS = ["♪", "▣", "➤"];
+  var LABELS = ["Medya", "Lastik", "Harita"];
   var cool = { left: 0, right: 0 };
   var hideTimer = null;
 
@@ -24,26 +23,22 @@
 
   function flashRail(side, index) {
     var rail = document.getElementById("select-rail");
-    var label = document.getElementById("select-rail-label");
     if (!rail) return;
-    rail.classList.add("visible");
     rail.dataset.side = side;
+    rail.classList.add("visible");
     rail.querySelectorAll(".rail-item").forEach(function (el, i) {
       el.classList.toggle("on", i === index);
     });
-    if (label) {
-      label.textContent = (side === "left" ? "Sol · " : "Sağ · ") + (LABELS[index] || "");
-    }
     if (hideTimer) clearTimeout(hideTimer);
     hideTimer = setTimeout(function () {
       rail.classList.remove("visible");
-    }, 1400);
+    }, 1600);
   }
 
   function writeIndex(side, index) {
     index = clamp(index);
     var now = Date.now();
-    if (now - (cool[side] || 0) < 320) return;
+    if (now - (cool[side] || 0) < 300) return;
     cool[side] = now;
     if (window.dash_clientside && dash_clientside.set_props) {
       dash_clientside.set_props(side + "-slide-store", { data: index });
@@ -130,9 +125,7 @@
       rail.querySelectorAll(".rail-item").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var i = parseInt(btn.getAttribute("data-i") || "0", 10);
-          // Apply to the side that last moved, default left
-          var side = rail.dataset.side || "left";
-          writeIndex(side, i);
+          writeIndex(rail.dataset.side || "left", i);
         });
       });
     }
@@ -150,7 +143,6 @@
     next: function (s) {
       writeIndex(s, readIndex(s) + 1);
     },
-    icons: ICONS,
     labels: LABELS,
   };
 })();

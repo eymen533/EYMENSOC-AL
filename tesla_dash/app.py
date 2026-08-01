@@ -135,24 +135,8 @@ def _media_block(prefix: str) -> html.Div:
 
 
 def _model_y_visual() -> html.Div:
-    """Top-down Model Y wireframe (CSS) for PSI layout."""
-    return html.Div(
-        className="model-y",
-        children=[
-            html.Div(className="my-body", children=[
-                html.Div(className="my-hood"),
-                html.Div(className="my-cabin"),
-                html.Div(className="my-roof"),
-                html.Div(className="my-trunk"),
-                html.Div(className="my-line"),
-                html.Span("Y", className="my-badge"),
-            ]),
-            html.Div(className="my-wheel fl"),
-            html.Div(className="my-wheel fr"),
-            html.Div(className="my-wheel rl"),
-            html.Div(className="my-wheel rr"),
-        ],
-    )
+    """Thin wireframe Model Y via CSS mask (inherits panel color)."""
+    return html.Div(className="model-y", children=[html.Div(className="model-y-silhouette")])
 
 
 def _tires_block(prefix: str) -> html.Div:
@@ -169,7 +153,6 @@ def _tires_block(prefix: str) -> html.Div:
     return html.Div(
         className="slide tires-slide",
         children=[
-            html.Div("LASTİK · PSI", className="slide-heading"),
             html.Div(
                 className="psi-stage",
                 children=[
@@ -180,7 +163,46 @@ def _tires_block(prefix: str) -> html.Div:
                     psi("rr", "rr"),
                 ],
             ),
-            html.Div("Model Y · TPMS", className="slide-hint"),
+        ],
+    )
+
+
+def _rail_icon(kind: str) -> html.Span:
+    """Minimal line icons matching the reference rail."""
+    icons = {
+        "media": html.Span(className="ri ri-music"),
+        "tires": html.Span(className="ri ri-car"),
+        "map": html.Span(className="ri ri-nav"),
+    }
+    return icons[kind]
+
+
+def _select_rail() -> html.Div:
+    return html.Div(
+        id="select-rail",
+        className="select-rail",
+        children=[
+            html.Button(
+                _rail_icon("media"),
+                className="rail-item",
+                **{"data-i": "0"},
+                title="Medya",
+                n_clicks=0,
+            ),
+            html.Button(
+                _rail_icon("tires"),
+                className="rail-item",
+                **{"data-i": "1"},
+                title="Lastik",
+                n_clicks=0,
+            ),
+            html.Button(
+                _rail_icon("map"),
+                className="rail-item on",
+                **{"data-i": "2"},
+                title="Harita",
+                n_clicks=0,
+            ),
         ],
     )
 
@@ -389,18 +411,7 @@ app.layout = html.Div(
                             className="center-panel",
                             children=[
                                 html.Div(className="center-veil"),
-                                html.Div(
-                                    id="select-rail",
-                                    className="select-rail",
-                                    children=[
-                                        html.Div(className="rail-stack", children=[
-                                            html.Button("♪", className="rail-item", **{"data-i": "0"}, title="Medya"),
-                                            html.Button("▣", className="rail-item", **{"data-i": "1"}, title="Lastik PSI"),
-                                            html.Button("➤", className="rail-item", **{"data-i": "2"}, title="Harita"),
-                                        ]),
-                                        html.Div(id="select-rail-label", className="rail-label"),
-                                    ],
-                                ),
+                                _select_rail(),
                                 html.Div(id="gear-display", className="gear-wrap"),
                                 html.Div(
                                     className="speed-ring",
@@ -625,14 +636,12 @@ clientside_callback(
         if (window.TeslaCarousel && TeslaCarousel.set) {
             // only flash rail without rewriting store
             const rail = document.getElementById('select-rail');
-            const label = document.getElementById('select-rail-label');
-            const LABELS = ['Medya', 'Lastik · PSI', 'Harita'];
             if (rail) {
                 rail.classList.add('visible');
+                rail.dataset.side = side;
                 rail.querySelectorAll('.rail-item').forEach((el, i) => el.classList.toggle('on', i === idx));
-                if (label) label.textContent = (side === 'left' ? 'Sol · ' : 'Sağ · ') + LABELS[idx];
                 clearTimeout(window.__railHide);
-                window.__railHide = setTimeout(() => rail.classList.remove('visible'), 1400);
+                window.__railHide = setTimeout(() => rail.classList.remove('visible'), 1600);
             }
         }
         return window.dash_clientside.no_update;

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 320" fill="none">
+  <!-- Tesla Model Y top-down thin wireframe -->
+  <path stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"
+        d="M56 28
+           C56 16 68 10 80 10
+           C92 10 104 16 104 28
+           L112 58
+           L118 100
+           L118 200
+           L112 248
+           L104 292
+           C104 304 92 310 80 310
+           C68 310 56 304 56 292
+           L48 248
+           L42 200
+           L42 100
+           L48 58 Z"/>
+  <!-- hood crease -->
+  <path stroke="currentColor" stroke-width="1" opacity="0.45"
+        d="M64 42 C72 36 88 36 96 42"/>
+  <!-- windshield -->
+  <path stroke="currentColor" stroke-width="1.2" opacity="0.7"
+        d="M60 88 L100 88 L104 128 L56 128 Z"/>
+  <!-- roof -->
+  <path stroke="currentColor" stroke-width="1" opacity="0.4"
+        d="M62 136 L98 136 L100 178 L60 178 Z"/>
+  <!-- rear glass -->
+  <path stroke="currentColor" stroke-width="1.2" opacity="0.65"
+        d="M58 188 L102 188 L98 228 L62 228 Z"/>
+  <!-- center line -->
+  <path stroke="currentColor" stroke-width="0.8" opacity="0.28"
+        d="M80 36 L80 300"/>
+  <!-- side mirrors -->
+  <path stroke="currentColor" stroke-width="1.2"
+        d="M42 108 L34 104 M118 108 L126 104"/>
+  <!-- wheels -->
+  <rect x="30" y="78" width="14" height="36" rx="3.5" stroke="currentColor" stroke-width="1.4"/>
+  <rect x="116" y="78" width="14" height="36" rx="3.5" stroke="currentColor" stroke-width="1.4"/>
+  <rect x="30" y="214" width="14" height="36" rx="3.5" stroke="currentColor" stroke-width="1.4"/>
+  <rect x="116" y="214" width="14" height="36" rx="3.5" stroke="currentColor" stroke-width="1.4"/>
+</svg>
