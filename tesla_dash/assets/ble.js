@@ -1,5 +1,6 @@
 /**
- * Tesla Pulse — Web Bluetooth Low Energy client
+ * Tesla Pulse — optional Web Bluetooth GATT probe (NOT vehicle key pairing).
+ * Chrome/Android only. Does not send VCSEC add-key; car Pair UI will not appear.
  * Loaded as a Dash asset. Exposes window.TeslaBLE for clientside callbacks.
  */
 (function (global) {
@@ -43,7 +44,7 @@
 
     if (!supported()) {
       state.scanning = false;
-      state.error = "Web Bluetooth yok (iPhone Safari desteklemez). Araca bağlan kullan.";
+      state.error = "Web Bluetooth yok (iPhone Safari desteklemez). HUD’u aç kullan — araç Pair için Tesla app.";
       return Object.assign(snapshot(), { demo_fallback: true });
     }
 

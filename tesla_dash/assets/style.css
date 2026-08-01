@@ -2098,6 +2098,24 @@ body {
   min-height: 1.1rem;
   color: var(--danger);
   font-size: 0.8rem;
+}
+
+a.pair-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  margin-top: 0.5rem;
+}
+
+.pair-hint {
+  margin: 0.85rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  opacity: 0.9;
+}
   margin-top: 0.35rem;
 }
 

@@ -414,17 +414,19 @@ app.layout = html.Div(
                     children=[
                         html.Button("✕", id="pair-close", className="pair-close", n_clicks=0),
                         html.Div("TESLA", className="pair-brand"),
-                        html.H2("Araca bağlan", className="pair-title"),
+                        html.H2("Pulse HUD oturumu", className="pair-title"),
                         html.P(
-                            "VIN gir → kartı onayla → HUD’u aç. Bulut üzerinden gerçek Tesla NFC/BLE yok; telefon HUD bağlantısı kurulur.",
+                            "Bu ekran arabadaki Pair penceresini açmaz. "
+                            "Cloudflare tüneli üzerinden gerçek Key Card / BLE yok — "
+                            "yalnızca telefonundaki Pulse HUD’u açılır.",
                             className="pair-sub",
                         ),
                         html.Div(
                             className="pair-steps",
                             children=[
                                 html.Span("1 VIN", id="step-chip-1", className="step-chip on"),
-                                html.Span("2 Kart", id="step-chip-2", className="step-chip"),
-                                html.Span("3 Bağlan", id="step-chip-3", className="step-chip"),
+                                html.Span("2 Onay", id="step-chip-2", className="step-chip"),
+                                html.Span("3 HUD", id="step-chip-3", className="step-chip"),
                             ],
                         ),
                         html.Div(
@@ -475,11 +477,12 @@ app.layout = html.Div(
                                     html.Div(id="card-vin-tag", className="card-vin"),
                                 ]),
                                 html.P(
-                                    "Key Card’ı yanında tutman yeterli — NFC okuma yok. Onayla’ya bas.",
+                                    "Simüle onay — telefon NFC’si arabadaki kart okuyucuyu tetiklemez. "
+                                    "Gerçek Pair için Tesla uygulamasında Phone Key kullan.",
                                     className="pair-sub",
                                 ),
                                 html.Button(
-                                    "Kartı onayla",
+                                    "Onayla (simülasyon)",
                                     id="card-tap",
                                     n_clicks=0,
                                     className="pair-primary",
@@ -500,19 +503,34 @@ app.layout = html.Div(
                                 html.P(
                                     id="ble-pair-msg",
                                     className="pair-sub",
-                                    children="VIN doğrulandı — HUD bağlantısını aç.",
+                                    children="HUD oturumunu aç — araç Pair ekranı gelmez.",
                                 ),
                                 html.Button(
-                                    "Araca bağlan",
+                                    "HUD’u aç",
                                     id="ble-finish",
                                     n_clicks=0,
                                     className="pair-primary",
                                 ),
+                                html.A(
+                                    "Tesla uygulamasında Phone Key aç",
+                                    id="ble-tesla-app",
+                                    href="https://www.tesla.com/teslaapp",
+                                    target="_blank",
+                                    rel="noopener noreferrer",
+                                    className="pair-ghost pair-link",
+                                ),
                                 html.Button(
-                                    "Telefon Bluetooth dene (Chrome)",
+                                    "Web Bluetooth dene (GATT only)",
                                     id="ble-web-try",
                                     n_clicks=0,
                                     className="pair-ghost",
+                                    title="GATT bağlantısı deneyebilir; VCSEC add-key / Pair UI yok",
+                                ),
+                                html.P(
+                                    "Gerçek Pair: araçtayken Tesla app → Phone Key → Start, "
+                                    "veya yanındaki laptopta tesla-control -ble add-key-request. "
+                                    "Sonra Key Card’ı konsola tut.",
+                                    className="pair-hint",
                                 ),
                             ],
                         ),
@@ -571,11 +589,11 @@ app.layout = html.Div(
                                     title="Küme görünümüne dön",
                                 ),
                                 html.Button(
-                                    [html.Span("↻", className="ico"), " Bağlan"],
+                                    [html.Span("↻", className="ico"), " HUD"],
                                     id="ble-btn",
                                     n_clicks=0,
                                     className="reconnect-btn",
-                                    title="VIN + Tesla Kart + BLE eşleşme",
+                                    title="Pulse HUD oturumu (araç Pair UI değil)",
                                 ),
                                 html.Span("▮▮▯ 50%", className="phone-batt"),
                                 html.Button(
@@ -922,8 +940,8 @@ clientside_callback(
         const msg = document.getElementById('ble-pair-msg');
         if (msg && step === 3) {
             msg.textContent = ui.vin
-                ? (ui.vin.slice(-6) + ' hazır — Araca bağlan’a bas.')
-                : 'VIN doğrulandı — HUD bağlantısını aç.';
+                ? ('…' + ui.vin.slice(-6) + ' — HUD oturumunu aç (araç Pair UI yok).')
+                : 'HUD oturumunu aç — araç Pair ekranı gelmez.';
         }
         return ui.open ? 'pair-overlay' : 'pair-overlay hidden';
     }
@@ -1231,19 +1249,26 @@ def refresh(_n, ble_store):
 
     if linked:
         rssi = ble.get("rssi")
-        pill = f"BLE {rssi} dBm" if rssi is not None else "BLE LINK"
+        src = (ble.get("source") or "demo").lower()
+        if src == "demo":
+            pill = "HUD LINK"
+        elif rssi is not None:
+            pill = f"GATT {rssi} dBm"
+        else:
+            pill = "GATT LINK"
         pill_cls = "ble-pill on"
         btn_children = [html.Span("✕", className="ico"), " Kes"]
         btn_cls = "reconnect-btn on"
         vin = ble.get("vin") or ""
-        vin_bit = f" · VIN {vin[-6:]}" if len(vin) >= 6 else ""
-        mode = f"{ble.get('device_name') or 'Tesla'}{vin_bit} · {(ble.get('source') or 'ble').upper()}"
+        vin_bit = f" · …{vin[-6:]}" if len(vin) >= 6 else ""
+        label = "HUD" if src == "demo" else (ble.get("device_name") or "GATT")
+        mode = f"{label}{vin_bit} · {src.upper()} (araç Pair değil)"
     else:
-        pill = "BLE HAZIR"
+        pill = "HUD HAZIR"
         pill_cls = "ble-pill"
-        btn_children = [html.Span("↻", className="ico"), " Bağlan"]
+        btn_children = [html.Span("↻", className="ico"), " HUD"]
         btn_cls = "reconnect-btn"
-        mode = "VIN + Tesla Kart ile BLE eşleş"
+        mode = "HUD oturumu · gerçek Pair için Tesla app"
 
     if linked:
         batt_pct_txt = f"{int(batt)}%"
