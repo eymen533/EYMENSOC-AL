@@ -1,8 +1,6 @@
-# iPhone — tek uygulama
-
-Pair + cluster **aynı native app** içinde. WebView / Dash sunucusu yok.
+# iPhone — klasik cluster, tek uygulama
 
 → [`PulsePhoneKey.swiftpm/IPHONE.md`](PulsePhoneKey.swiftpm/IPHONE.md)
 
-Zip: `/downloads/PulsePhoneKey-playground-build16.zip`  
-Sürüm: **`build-16-native`**
+Direkt: `/downloads/PulsePhoneKey-playground-build17.zip`  
+Sürüm: **`build-17-classic`**

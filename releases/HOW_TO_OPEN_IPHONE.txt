@@ -1,10 +1,9 @@
-PulsePhoneKey build-16-native — TEK UYGULAMA (WebView yok)
+PulsePhoneKey build-17-classic
 
-1) Zip'i Dosyalar'da ac
-2) PulsePhoneKey.swiftpm'ye BASILI TUT
-3) Paylas → Swift Playgrounds'ta Ac
-4) Signing (Apple ID) → Run ▶
-5) Surum: build-16-native
-6) Pair Vehicle → Key Card konsola → Cluster'i ac
+Direkt: .../downloads/PulsePhoneKey-playground-build17.zip
 
-Pair + hiz/batarya/lastik ayni uygulamada. Internet / web sunucu gerekmez.
+1) Zip ac
+2) PulsePhoneKey.swiftpm BASILI TUT → Paylas → Playgrounds
+3) Signing → Run ▶
+4) Surum: build-17-classic
+5) Pair → Cluster (klasik v14 gorunum, WebView yok)

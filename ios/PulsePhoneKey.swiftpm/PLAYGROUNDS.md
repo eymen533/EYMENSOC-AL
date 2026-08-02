@@ -1,9 +1,6 @@
-# Swift Playgrounds — tek native uygulama
+# Swift Playgrounds — klasik HUD (v14 görünüm)
 
-WebView yok. Pair + Cluster telefonda/tablette.
+Sürüm: **`build-17-classic`** · WebView yok · Pair + native cluster
 
-1. Zip → `PulsePhoneKey.swiftpm` → Paylaş → Playgrounds  
-2. Signing → Run ▶  
-3. Sürüm: **`build-16-native`**
-
-Detay: [`IPHONE.md`](IPHONE.md)
+Zip: `/downloads/PulsePhoneKey-playground-build17.zip`  
+Adımlar: [`IPHONE.md`](IPHONE.md)
