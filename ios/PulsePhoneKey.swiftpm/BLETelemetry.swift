@@ -15,7 +15,7 @@ final class BLETelemetry {
 
     private(set) var phase: Phase = .idle
     private(set) var status = "BLE telemetri kapali"
-    private(set) var snapshot = TeslaBLESession.Snapshot()
+    private(set) var snapshot = VehicleLiveSnapshot()
     private(set) var liveOK = false
 
     /// Fired on main when snapshot / phase changes.

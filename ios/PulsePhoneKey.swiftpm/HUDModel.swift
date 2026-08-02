@@ -113,7 +113,7 @@ final class HUDModel: ObservableObject {
     }
 
     /// Apply real signed BLE `getVehicleData` snapshot (highest priority).
-    func applyBLE(_ s: TeslaBLESession.Snapshot, linkOK: Bool) {
+    func applyBLE(_ s: VehicleLiveSnapshot, linkOK: Bool) {
         guard linkOK else { return }
         useBLE = true
         feedOK = true

@@ -1,6 +1,7 @@
-# build-38-nomapkit
+# build-39-lazy
 
-Sadece MapKit kaldırıldı (Playgrounds çökmesi).
-BLE hız/vites/lastik/medya aynı. Harita paneli = GPS + yön.
+BLE telemetri motoru uygulama açılışında YOK.
+Pair’e basınca oluşur → hız/vites/lastik/medya aynı.
+MapKit yok.
 
-Eski proje SIL → **build-38-nomapkit**
+Eski proje SIL → **build-39-lazy**

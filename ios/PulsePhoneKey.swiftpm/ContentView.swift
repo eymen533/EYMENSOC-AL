@@ -68,18 +68,11 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            let tele = ble.telemetry
-            hud.bleSetVolume = { level in
-                DispatchQueue.main.async { tele.setVolume(level) }
-            }
-            hud.bleMediaPlay = {
-                DispatchQueue.main.async { tele.mediaPlay() }
-            }
-            hud.bleMediaSkip = { delta in
-                DispatchQueue.main.async {
-                    if delta >= 0 { tele.mediaNext() } else { tele.mediaPrev() }
-                }
-            }
+            // Closures only; telemetry engine still created at Pair, not here.
+            let pairer = ble
+            hud.bleSetVolume = { level in pairer.mediaSetVolume(level) }
+            hud.bleMediaPlay = { pairer.mediaPlayToggle() }
+            hud.bleMediaSkip = { delta in pairer.mediaSkip(delta) }
         }
     }
 
@@ -103,7 +96,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("build-38 · BLE gerçek · MapKit yok\nPair → Key Card konsola → Cluster")
+                    Text("build-39 · BLE lazy (acilis guvenli)\nPair → Key Card konsola → Cluster")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)

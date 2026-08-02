@@ -1,2 +1,2 @@
-# build-38-nomapkit
-MapKit kaldırıldı. [`PulsePhoneKey.swiftpm/IPHONE.md`](PulsePhoneKey.swiftpm/IPHONE.md)
+# build-39-lazy
+[`PulsePhoneKey.swiftpm/IPHONE.md`](PulsePhoneKey.swiftpm/IPHONE.md)

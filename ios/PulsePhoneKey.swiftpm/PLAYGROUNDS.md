@@ -1,2 +1,2 @@
-# build-38-nomapkit
-Sil → zip → Run ▶ → `build-38-nomapkit`
+# build-39-lazy
+Sil → zip → Run ▶ → `build-39-lazy`

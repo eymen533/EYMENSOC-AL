@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Swift Playgrounds.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "build-38-nomapkit"
+    static let buildId = "build-39-lazy"
 
     enum Step: String {
         case idle = "Hazir"
@@ -33,13 +33,14 @@ final class BLEPairer: NSObject, ObservableObject {
     @Published var readyForDashboard = false
     @Published var linkUp = false
     @Published var linkLabel = "BLE kapali"
-    /// Flat published fields (nested ObservableObject crashed Playgrounds).
+    /// Flat published fields — telemetry is created only on Pair (launch-safe).
     @Published var bleLiveOK = false
     @Published var bleSnapRev = 0
     @Published var bleStatus = "BLE telemetri kapali"
-    @Published private(set) var bleSnapshot = TeslaBLESession.Snapshot()
+    @Published private(set) var bleSnapshot = VehicleLiveSnapshot()
 
-    let telemetry = BLETelemetry()
+    /// Lazy: nil until Pair starts — avoids Playgrounds launch crash.
+    private var telemetry: BLETelemetry?
 
     private let serviceUUID = CBUUID(string: "00000211-B2D1-43F0-9B88-960CEBF8B91E")
     private let writeUUID = CBUUID(string: "00000212-B2D1-43F0-9B88-960CEBF8B91E")
@@ -101,13 +102,17 @@ final class BLEPairer: NSObject, ObservableObject {
             self.writing = false
             self.peripheral = nil
             self.writeChar = nil
-            self.telemetry.detach()
+            self.telemetry?.detach()
+            self.telemetry = nil
             self.bleLiveOK = false
             self.bleStatus = "BLE telemetri kapali"
             self.bleSnapRev = 0
+            self.bleSnapshot = VehicleLiveSnapshot()
             self.logLine("\(Self.buildId) VIN \(vin)")
             self.logLine("hedef \(VCSECPayload.bleNames(vin: vin).joined(separator: ", "))")
             self.logLine("payload \(self.payload?.count ?? 0)b")
+            // Create telemetry engine only now (not at app launch).
+            self.ensureTelemetryEngine()
             self.step = .scanning
             self.status = "Tarama acik — asagidan 🔑 Tesla satirina DOKUN"
             self.deadline = Date().addingTimeInterval(90)
@@ -224,11 +229,36 @@ final class BLEPairer: NSObject, ObservableObject {
     func ensureTelemetry() {
         onMain {
             guard self.pairWriteDone || self.paired || self.readyForDashboard else { return }
+            self.ensureTelemetryEngine()
             self.startTelemetryIfPossible(force: true)
         }
     }
 
+    func mediaSetVolume(_ level: Double) {
+        onMain { self.telemetry?.setVolume(level) }
+    }
+
+    func mediaPlayToggle() {
+        onMain { self.telemetry?.mediaPlay() }
+    }
+
+    func mediaSkip(_ delta: Int) {
+        onMain {
+            if delta >= 0 { self.telemetry?.mediaNext() }
+            else { self.telemetry?.mediaPrev() }
+        }
+    }
+
+    private func ensureTelemetryEngine() {
+        if telemetry == nil {
+            logLine("telemetry engine create")
+            telemetry = BLETelemetry()
+        }
+    }
+
     private func startTelemetryIfPossible(force: Bool = false) {
+        ensureTelemetryEngine()
+        guard let telemetry else { return }
         guard let peripheral, let writeChar, let key = privateKey, !vin.isEmpty else { return }
         guard peripheral.state == .connected else {
             keepAliveReconnect()
@@ -240,19 +270,21 @@ final class BLEPairer: NSObject, ObservableObject {
         }
         let delay: TimeInterval = force ? 0.15 : 0.35
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            guard let self else { return }
-            guard let p = self.peripheral, let wc = self.writeChar, p.state == .connected else { return }
+            guard let self, let tele = self.telemetry else { return }
+            guard let p = self.peripheral, let wc = self.writeChar, let key = self.privateKey,
+                  p.state == .connected else { return }
             self.logLine("telemetry attach")
-            self.telemetry.onUpdate = { [weak self] in
+            tele.onUpdate = { [weak self] in
                 self?.syncTelemetryPublished()
             }
-            self.telemetry.attach(vin: self.vin, privateKey: key, peripheral: p, writeChar: wc)
+            tele.attach(vin: self.vin, privateKey: key, peripheral: p, writeChar: wc)
             self.linkLabel = "BLE telemetri…"
             self.syncTelemetryPublished()
         }
     }
 
     private func syncTelemetryPublished() {
+        guard let telemetry else { return }
         bleLiveOK = telemetry.liveOK
         bleStatus = telemetry.status
         bleSnapshot = telemetry.snapshot
@@ -438,7 +470,7 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         if pairWriteDone || resumeTelemetryOnly {
-            telemetry.didWrite(error: error)
+            telemetry?.didWrite(error: error)
             return
         }
         writing = false
@@ -455,8 +487,9 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         let hex = data.map { String(format: "%02x", $0) }.joined()
         logLine("RX \(hex.prefix(40))")
 
-        if pairWriteDone || resumeTelemetryOnly || telemetry.phase != .idle {
-            telemetry.onNotify(data)
+        let teleActive = telemetry.map { $0.phase != .idle } ?? false
+        if pairWriteDone || resumeTelemetryOnly || teleActive {
+            telemetry?.onNotify(data)
             syncTelemetryPublished()
         }
 
