@@ -138,22 +138,30 @@ final class HUDModel: ObservableObject {
     }
 
     private func flashLeftRail() {
-        leftRailVisible = true
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            leftRailVisible = true
+        }
         leftRailTask?.cancel()
         leftRailTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_050_000_000)
+            try? await Task.sleep(nanoseconds: 1_100_000_000)
             guard !Task.isCancelled else { return }
-            leftRailVisible = false
+            withAnimation(.easeOut(duration: 0.35)) {
+                leftRailVisible = false
+            }
         }
     }
 
     private func flashRightRail() {
-        rightRailVisible = true
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            rightRailVisible = true
+        }
         rightRailTask?.cancel()
         rightRailTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_050_000_000)
+            try? await Task.sleep(nanoseconds: 1_100_000_000)
             guard !Task.isCancelled else { return }
-            rightRailVisible = false
+            withAnimation(.easeOut(duration: 0.35)) {
+                rightRailVisible = false
+            }
         }
     }
 

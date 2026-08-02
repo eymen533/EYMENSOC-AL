@@ -1,5 +1,9 @@
-# build-22-nocrash
+# build-23-fluid
 
-https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build22.zip
+- Lastik: Tesla Model Y foto (küçük güvenli JPEG)
+- Harita: düzeltilmiş çizim (MapKit yok → çökmez)
+- Kaydırma / ikon rayı daha akıcı
 
-**Eski projeyi sil** → zip aç → Run ▶ → `build-22-nocrash`
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build23.zip
+
+Eski projeyi sil → Run ▶ → **`build-23-fluid`**

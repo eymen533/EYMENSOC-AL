@@ -1,6 +1,6 @@
-build-22-nocrash
+build-23-fluid
 
-https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build22.zip
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build23.zip
 
-ESKI PROJEYI SIL, sonra bu zip'i ac.
-Run ▶ → build-22-nocrash
+Eski projeyi sil. Surum: build-23-fluid
+Lastik: Model Y · akici kaydirma · duzeltilmis harita
