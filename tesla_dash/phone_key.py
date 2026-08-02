@@ -345,11 +345,12 @@ def register_phone_key(server) -> None:
     def download_tesla_pulse_apk():  # type: ignore[no-redef]
         return _send_apk("TeslaPulse.apk")
 
-    def _send_release_zip(filename: str):
+    def _send_release_zip(filename: str, *, public: bool = False):
         from tesla_dash.auth import is_unlocked
         from flask import redirect
 
-        if not is_unlocked():
+        # Playgrounds iPhone zip: allow direct link without PIN
+        if not public and not is_unlocked():
             return redirect("/login")
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         path = os.path.join(root, "releases", filename)
@@ -364,51 +365,51 @@ def register_phone_key(server) -> None:
 
     @server.get("/downloads/PulsePhoneKey-playground.zip")
     def download_playgrounds_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground.zip")
+        return _send_release_zip("PulsePhoneKey-playground.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build7.zip")
     def download_playgrounds_build7_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build16.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build16.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build8.zip")
     def download_playgrounds_build8_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build16.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build16.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build9.zip")
     def download_playgrounds_build9_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build16.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build16.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build10.zip")
     def download_playgrounds_build10_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build16.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build16.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build11.zip")
     def download_playgrounds_build11_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build16.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build16.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build12.zip")
     def download_playgrounds_build12_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build16.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build16.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build13.zip")
     def download_playgrounds_build13_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build16.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build16.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build14.zip")
     def download_playgrounds_build14_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build16.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build16.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build15.zip")
     def download_playgrounds_build15_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build16.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build16.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build16.zip")
     def download_playgrounds_build16_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build16.zip")
+        return _send_release_zip("PulsePhoneKey-playground-build16.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-swift-files.zip")
     def download_swift_files_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-swift-files.zip")
+        return _send_release_zip("PulsePhoneKey-swift-files.zip", public=True)
 
     @server.post("/api/phone-key/payload")
     def phone_key_payload():  # type: ignore[no-redef]
