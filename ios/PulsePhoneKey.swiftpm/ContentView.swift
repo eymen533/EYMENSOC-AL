@@ -60,7 +60,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("Eşli HUD · medya | hız | harita · animasyonlu SoftMap")
+                    Text("Gece triad · medya/seyahat/lastik | siyah hiz | 3D harita")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)

@@ -2,46 +2,46 @@ import Foundation
 import Combine
 import SwiftUI
 
-/// On-device cluster — day HUD + classic 4-slide carousels (trip/tires/map/media).
+/// On-device cluster — night triad (left slides | black dial | 3D map).
 @MainActor
 final class HUDModel: ObservableObject {
     static let slideCount = 4
     static let slideNames = ["Seyahat", "Lastik", "Harita", "Medya"]
 
     @Published var speed: Double = 0
-    @Published var battery: Double = 50
+    @Published var battery: Double = 69
     @Published var powerKW: Double = 0
     @Published var gear: String = "P"
-    @Published var rangeKm: Int = 240
+    @Published var rangeKm: Int = 331
     @Published var odometer: Double = 74_832
     @Published var tripKm: Double = 0
     @Published var psiFL = 42
     @Published var psiFR = 42
     @Published var psiRL = 41
     @Published var psiRR = 42
-    @Published var outdoorC: Int = 28
-    @Published var night = false
+    @Published var outdoorC: Int = 29
+    @Published var night = true
     @Published var vin: String = "XP7YGCEK0PB159959"
     @Published var vinTail: String = "159959"
     @Published var bleOK = false
     @Published var driving = false
     @Published var destination = "Sabiha Gökçen"
-    @Published var eta = "—"
+    @Published var eta = "19:12"
     @Published var energyAtArrival = "66%"
     @Published var tripDist = "13.3 km"
-    @Published var place = "İstanbul"
-    @Published var mediaService = "Apple Music"
-    @Published var mediaTitle = "Holocene"
-    @Published var mediaArtist = "Bon Iver"
+    @Published var place = "Ertürk Sk. No:29"
+    @Published var mediaService = "YouTube Music"
+    @Published var mediaTitle = "Kayıp Kalp"
+    @Published var mediaArtist = "BLOK3"
     @Published var mediaPlaying = false
     @Published var clock = ""
     @Published var dayName = ""
     @Published var dateLine = ""
     @Published var nextPrayer = "Öğle 13:10"
-    /// Paired day look: media | speed | map
+    /// Screenshot default: media left, map always right
     @Published var leftSlide = 3
     @Published var rightSlide = 2
-    @Published var leftRailVisible = false
+    @Published var leftRailVisible = true
     @Published var rightRailVisible = false
 
     private var timer: AnyCancellable?
@@ -75,9 +75,10 @@ final class HUDModel: ObservableObject {
         vin = v
         vinTail = String(v.suffix(6))
         bleOK = paired
-        night = false
+        night = true
         leftSlide = 3
         rightSlide = 2
+        leftRailVisible = true
         if paired {
             energyAtArrival = "\(Int(battery))%"
         }

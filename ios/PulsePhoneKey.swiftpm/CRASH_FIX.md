@@ -1,10 +1,9 @@
-# build-25-paired
+# build-26-night
 
-Çökmesiz eşli HUD:
+Gece triad · çökmesiz:
 
-- MapKit yok → SoftMap Canvas
-- Bundle.module / PNG yok
-- base64 UIImage yok → vektör Model Y
-- TimelineView animasyon (hafif)
+- MapKit yok → Canvas IsoMap
+- UIImage/base64 yok → Model Y wireframe
+- Bundle resources yok
 
-Kurulum: eski projeyi sil → build-25 zip → Run ▶ → **`build-25-paired`**
+Kurulum: eski projeyi sil → build-26 → Run ▶ → **`build-26-night`**

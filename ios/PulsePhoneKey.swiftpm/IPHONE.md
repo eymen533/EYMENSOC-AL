@@ -1,15 +1,15 @@
-# build-25-paired
+# build-26-night
 
-Eşli gündüz HUD (çökmesiz):
+Ekran görüntülerindeki gece triad HUD:
 
-- medya | hız | harita varsayılan
-- Animasyonlu SoftMap (Canvas + TimelineView — MapKit yok)
-- Model Y vektör (foto/base64 yok)
-- Kaydırınca icon rail flash
-- Akıcı carousel
+- Sol: Medya / Seyahat / Lastik (dikey kaydır + icon rail)
+- Orta: siyah hız dairesi · PRND · güç çubuğu
+- Sağ: açık 3D SoftMap (binalar, kırmızı ok, pusula)
+- Alt: batarya · sokak · ODO
+- MapKit / foto / base64 yok
 
-Eski projeyi sil → zip aç → Run ▶ → **`build-25-paired`**
+Eski projeyi sil → zip aç → Run ▶ → **`build-26-night`** → yatay çevir
 
-Zip: https://authorization-card-wonder-chuck.trycloudflare.com/downloads/PulsePhoneKey-playground-build25.zip
+Zip: https://authorization-card-wonder-chuck.trycloudflare.com/downloads/PulsePhoneKey-playground-build26.zip
 
-GitHub: https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build25.zip
+GitHub: https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build26.zip

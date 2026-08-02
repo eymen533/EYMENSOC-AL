@@ -1,7 +1,5 @@
 # iPhone · PulsePhoneKey
 
-**`build-25-paired`** — eşli animasyonlu HUD (SoftMap + Model Y vektör, MapKit/foto yok)
+**`build-26-night`** — gece triad (medya|siyah hız|3D harita), ekran görüntüsü gibi
 
-Zip: `/downloads/PulsePhoneKey-playground-build25.zip`
-
-Adımlar: `ios/PulsePhoneKey.swiftpm/IPHONE.md`
+Zip: `/downloads/PulsePhoneKey-playground-build26.zip`
