@@ -529,8 +529,12 @@ def register_phone_key(server) -> None:
     def download_playgrounds_build35_zip():  # type: ignore[no-redef]
         return _send_release_zip("PulsePhoneKey-playground-build37.zip", public=True)
 
-    @server.get("/downloads/PulsePhoneKey-playground-build37.zip")
+    @server.get("/downloads/PulsePhoneKey-playground-build36.zip")
     def download_playgrounds_build36_zip():  # type: ignore[no-redef]
+        return _send_release_zip("PulsePhoneKey-playground-build37.zip", public=True)
+
+    @server.get("/downloads/PulsePhoneKey-playground-build37.zip")
+    def download_playgrounds_build37_zip():  # type: ignore[no-redef]
         return _send_release_zip("PulsePhoneKey-playground-build37.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-swift-files.zip")
