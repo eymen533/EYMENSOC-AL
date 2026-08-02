@@ -26,6 +26,16 @@ open SOC.xcodeproj
 
 > Not: XcodeGen yüklüyse `project.yml` üzerinden proje üretir; değilse `scripts/generate_xcodeproj.py` kullanılır.
 
+## iPad (Swift Playgrounds)
+
+Mac yoksa iPad’de **Swift Playgrounds** ile de çalıştırabilirsin.
+
+1. Bu repodaki `SOC.swiftpm` paketini iPad’e indir (ZIP / AirDrop / Files).
+2. Swift Playgrounds ile aç → **Run ▶️**
+3. Bluetooth + konum izni ver, iPad’i yatay kullan.
+
+Detay: [docs/IPAD_PLAYGROUNDS.md](docs/IPAD_PLAYGROUNDS.md)
+
 ## İlk eşleştirme
 
 1. Arabaya bin, **Park**.
