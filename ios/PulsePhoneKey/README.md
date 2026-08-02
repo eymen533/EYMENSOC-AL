@@ -1,78 +1,45 @@
-# Pulse Phone Key — iPhone **and iPad** (real BLE)
+# Pulse Key — Xcode native (gerçek BLE LIVE)
 
-Yes — on an **iPad** this Swift app can do **real** Tesla Phone Key pairing over CoreBluetooth  
-(same VCSEC `add-key-request` as `tesla-control` / the Android APK).
+Swift Playgrounds’ta BLE AES telemetri **çöküyordu**. Bu paket **Mac + Xcode** ile telefona/iPad’e kurulur — Dashla gibi araç BLE’sinden hız / vites / lastik / medya / GPS.
 
-Safari / Chrome on iPad **cannot** do this (no Web Bluetooth). You need this native app.
+Ekranda sürüm: **`xcode-ble-1`**
 
-## Prefer iPad-only? Use Swift Playgrounds
+## İndir
 
-**No Mac needed.** Open the App project:
+- Zip: [`releases/PulsePhoneKey-xcode.zip`](../../releases/PulsePhoneKey-xcode.zip)
+- GitHub raw: https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-xcode.zip
 
-→ [`../PulsePhoneKey.swiftpm/`](../PulsePhoneKey.swiftpm/)  
-→ Turkish steps: [`../PulsePhoneKey.swiftpm/PLAYGROUNDS.md`](../PulsePhoneKey.swiftpm/PLAYGROUNDS.md)  
-→ Zip: `/downloads/PulsePhoneKey-playground.zip`
+## Kurulum (Mac zorunlu)
 
-Below is the **Mac + Xcode** path (optional).
+1. Mac’te **Xcode 16+** kur (App Store)
+2. Zip’i aç → `PulsePhoneKey.xcodeproj` çift tıkla
+3. Sol üstte hedefi **kendi iPhone / iPad** seç
+4. **Signing & Capabilities** → Team = kendi Apple ID (ücretsiz Personal Team olur)
+5. ▶ **Run**
+6. Telefonda: Ayarlar → Genel → VPN ve Cihaz Yönetimi → geliştiriciyi güven
 
-## What you need (Xcode path)
+Ücretsiz Apple ID ile imza ~7 günde biter; Xcode’dan tekrar Run yeter.
 
-| Item | Required? |
-|------|-----------|
-| iPad (Bluetooth on) near the car | Yes |
-| Mac with **Xcode 16+** | Only for this Xcode path |
-| Free Apple ID (Signing → Personal Team) | Yes |
-| Cable or wireless debugging | Xcode path |
-| Key Card for console | Yes |
+## Arabada kullanım
 
-This Linux cloud agent **cannot** compile or install the iPad app for you.
+1. Uygulamada **`xcode-ble-1`** gör
+2. **Pair Vehicle** → VIN → Tesla’ya dokun
+3. Key Card’ı **konsola** koy → Pair
+4. **Cluster HUD** aç
+5. Köşede **BLE** / **CANLI TESLA** = gerçek araç verisi
 
-## Install on iPad (Mac)
+Dash URL + token Settings’te yedek (BLE yoksa).
 
-```bash
-# optional: generate .xcodeproj
-brew install xcodegen
-cd ios/PulsePhoneKey
-xcodegen   # creates PulsePhoneKey.xcodeproj
-open PulsePhoneKey.xcodeproj
-```
+## Ne içerir
 
-Or manually:
+| Dosya | Rol |
+|-------|-----|
+| `TeslaBLESession.swift` | AES-GCM imzalı oturum |
+| `BLETelemetry.swift` | Hız/vites/lastik/medya poll |
+| `BLEPairer.swift` | Phone Key pair + telemetri |
+| `NativeHUDView.swift` | Cluster HUD |
+| `HUDModel.swift` | BLE öncelik, Dash yedek |
 
-1. Xcode → **File → New → Project → App**  
-   - Interface: **SwiftUI**  
-   - Language: **Swift**  
-   - Destinations: **iPhone + iPad**  
-2. Delete the template `ContentView` / `App` files  
-3. Drag in everything under `Sources/` + use `Info.plist`  
-4. Signing & Capabilities → your **Team** (personal Apple ID)  
-5. Select your **iPad** as run destination → **Run** ▶  
-6. On iPad: **Settings → General → VPN & Device Management** → trust your developer  
+## Playgrounds?
 
-App expires after ~7 days with a free Apple ID (re-Run from Xcode to refresh).
-
-## Use in the car
-
-1. Open **Pulse Key** on the iPad  
-2. VIN is prefilled (or enter yours)  
-3. Tap **Bluetooth ile eşleştir** → allow Bluetooth  
-4. Wait until status says put the card on the console  
-5. Put Key Card on the **console reader** (not on the iPad)  
-6. Confirm **Pair** on the vehicle screen  
-
-## Without Xcode (right now)
-
-Use the official **Tesla** app on the iPad:  
-**Security → Set Up Phone Key** → card on console → Pair.
-
-## Files
-
-| File | Role |
-|------|------|
-| `Sources/PulsePhoneKeyApp.swift` | App entry |
-| `Sources/ContentView.swift` | UI (iPad-friendly) |
-| `Sources/KeyStore.swift` | P-256 in Keychain |
-| `Sources/VCSECPayload.swift` | add-key protobuf |
-| `Sources/BLEPairer.swift` | CoreBluetooth |
-| `Info.plist` | Bluetooth usage + iPad orientations |
-| `project.yml` | XcodeGen recipe |
+Playgrounds zip’i sadece stabil Pair+demo içindir. **Gerçek BLE = bu Xcode proje.**

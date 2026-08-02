@@ -1,124 +1,280 @@
 import SwiftUI
-import CryptoKit
 
+/// Tek uygulama: BLE Pair + gerçek BLE cluster telemetrisi (+ Dash yedek).
 struct ContentView: View {
-    @StateObject private var pairer = BLEPairer()
-    @State private var vin: String = UserDefaults.standard.string(forKey: "pulse_vin")
-        ?? "XP7YGCEK0PB159959"
-    @State private var error: String?
-    @State private var logOpen = true
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @StateObject private var ble = BLEPairer()
+    @StateObject private var hud = HUDModel()
+    @State private var vin = UserDefaults.standard.string(forKey: "pulse_vin") ?? "XP7YGCEK0PB159959"
+    @State private var dashURL = UserDefaults.standard.string(forKey: "pulse_dash_url")
+        ?? "https://mon-holds-cloud-grateful.trycloudflare.com"
+    @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
+    @State private var teslaToken = UserDefaults.standard.string(forKey: "pulse_tesla_token") ?? ""
+    @State private var teslaVehicleId = UserDefaults.standard.string(forKey: "pulse_tesla_vid") ?? ""
+    @State private var liveStatus = ""
+    @State private var liveBusy = false
+    @State private var showPairFlow = false
+    @State private var screen: Screen = .home
+    @State private var showSettings = false
+
+    enum Screen { case home, hud }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("Pulse Phone Key")
-                        .font(.largeTitle.bold())
+        Group {
+            switch screen {
+            case .hud:
+                NativeHUDView(
+                    model: hud,
+                    linkLabel: ble.linkLabel,
+                    onBack: { screen = .home }
+                )
+            case .home:
+                home
+            }
+        }
+        .fullScreenCover(isPresented: $showPairFlow) {
+            PairingFlowView(
+                ble: ble,
+                vin: $vin,
+                onClose: { showPairFlow = false },
+                onFinished: {
+                    showPairFlow = false
+                    save()
+                    openHUD()
+                }
+            )
+        }
+        .sheet(isPresented: $showSettings) {
+            settingsSheet
+        }
+        .onChange(of: ble.paired) { _, on in
+            if on { hud.bleOK = true }
+        }
+        .onChange(of: ble.linkUp) { _, on in
+            if on { hud.bleOK = true }
+        }
+        .onChange(of: ble.readyForDashboard) { _, on in
+            if on { hud.bleOK = true }
+        }
+        .onChange(of: ble.bleSnapRev) { _, _ in
+            if ble.bleLiveOK {
+                hud.bleOK = true
+                hud.applyBLE(ble.bleSnapshot, linkOK: true)
+            }
+        }
+        .onChange(of: ble.bleLiveOK) { _, ok in
+            if ok {
+                hud.bleOK = true
+                hud.applyBLE(ble.bleSnapshot, linkOK: true)
+            }
+        }
+        .onAppear {
+            // Closures only; telemetry engine still created at Pair, not here.
+            let pairer = ble
+            hud.bleSetVolume = { level in pairer.mediaSetVolume(level) }
+            hud.bleMediaPlay = { pairer.mediaPlayToggle() }
+            hud.bleMediaSkip = { delta in pairer.mediaSkip(delta) }
+        }
+    }
 
-                    if !pairer.bluetoothPrivacyOK {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Çökme engellendi")
-                                .font(.headline)
-                            Text("iOS, Bluetooth izin yazısı olmadan uygulamayı öldürüyor. Playgrounds bazen Info.plist’i yok sayıyor — elle ekle:")
-                                .font(.subheadline)
-                            Text("1) Sol üstte PulsePhoneKey / App Settings\n2) Capabilities → +\n3) Bluetooth seç\n4) Açıklama: Tesla Phone Key eşleşmesi için Bluetooth gerekir\n5) Run ▶ tekrar")
-                                .font(.footnote)
-                            Button("İzin kontrolünü yenile") {
-                                pairer.refreshPrivacyFlag()
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(Color.red.opacity(0.14)))
+    private var home: some View {
+        NavigationStack {
+            ZStack {
+                LinearGradient(
+                    colors: [Color(red: 0.05, green: 0.06, blue: 0.09), Color.black],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+
+                VStack(spacing: 22) {
+                    Spacer()
+                    Text("PULSE")
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("Xcode native · gerçek BLE Cluster")
+                        .foregroundStyle(.white.opacity(0.55))
+                    Text(BLEPairer.buildId)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.white.opacity(0.35))
+                    Text("xcode-ble-1 · native BLE LIVE\nPair → Key Card → Cluster")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.4))
+                        .multilineTextAlignment(.center)
+
+                    if ble.linkUp {
+                        Label(ble.linkLabel, systemImage: "antenna.radiowaves.left.and.right")
+                            .foregroundStyle(Color(red: 0.3, green: 0.9, blue: 0.65))
+                    } else if ble.paired || ble.waitingForCard || ble.readyForDashboard {
+                        Label("Key session ready", systemImage: "checkmark.seal.fill")
+                            .foregroundStyle(Color(red: 0.3, green: 0.9, blue: 0.65))
                     }
 
-                    Text("iPad/iPhone · gerçek BLE Pair")
-                        .foregroundStyle(.secondary)
+                    Spacer()
 
-                    Group {
-                        Text("VIN").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                        TextField("17 karakter", text: $vin)
-                            .textInputAutocapitalization(.characters)
-                            .autocorrectionDisabled()
-                            .font(.system(.body, design: .monospaced))
-                            .padding(14)
-                            .background(RoundedRectangle(cornerRadius: 14).fill(Color(.secondarySystemBackground)))
+                    Button {
+                        save()
+                        showPairFlow = true
+                    } label: {
+                        Label("Pair Vehicle", systemImage: "key.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .foregroundStyle(.white)
+                            .background(
+                                Capsule().fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 0.2, green: 0.75, blue: 0.65),
+                                            Color(red: 0.15, green: 0.45, blue: 0.9),
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                            )
                     }
 
                     Button {
-                        Task { await start() }
+                        save()
+                        openHUD()
                     } label: {
-                        Text(pairer.busy ? "Çalışıyor… çıkma" : "Bluetooth ile eşleştir")
+                        Text(ble.bleLiveOK ? "Cluster HUD (BLE LIVE)" : "Cluster HUD")
+                            .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
-                            .font(.headline)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(pairer.busy || normalizedVin.count != 17 || !pairer.bluetoothPrivacyOK)
-
-                    Text(pairer.status)
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(pairer.paired ? Color.green.opacity(0.22)
-                                      : pairer.waitingForCard ? Color.orange.opacity(0.18)
-                                      : Color.blue.opacity(0.12))
-                        )
-
-                    if !pairer.lastDetail.isEmpty {
-                        Text(pairer.lastDetail)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white)
+                            .background(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
                     }
 
-                    Text("Beklenen BLE: \(VCSECPayload.bleLocalName(vin: normalizedVin)) · Tesla \(String(normalizedVin.suffix(6)))")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary)
-
-                    DisclosureGroup("Log", isExpanded: $logOpen) {
-                        ForEach(Array(pairer.log.enumerated()), id: \.offset) { _, line in
-                            Text(line)
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                    Spacer().frame(height: 36)
+                }
+                .padding(.horizontal, 28)
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Text("Pulse")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 14) {
+                        Button {
+                            save()
+                            showPairFlow = true
+                        } label: {
+                            Label("Pair", systemImage: "plus.viewfinder")
+                        }
+                        Button { showSettings = true } label: {
+                            Image(systemName: "gearshape")
                         }
                     }
-
-                    if let error {
-                        Text(error).foregroundStyle(.red).font(.footnote)
-                    }
                 }
-                .padding(sizeClass == .regular ? 28 : 16)
-                .frame(maxWidth: 720, alignment: .leading)
-                .frame(maxWidth: .infinity)
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .onAppear { pairer.refreshPrivacyFlag() }
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .preferredColorScheme(.dark)
         }
     }
 
-    private var normalizedVin: String {
+    private var settingsSheet: some View {
+        NavigationStack {
+            Form {
+                Section("VIN") {
+                    TextField("VIN", text: $vin)
+                        .textInputAutocapitalization(.characters)
+                }
+                Section("BLE telemetri (asıl kaynak)") {
+                    Text(ble.bleStatus)
+                        .font(.footnote)
+                    Text("Pair sonrası araçla imzalı BLE oturumu açılır: hız, vites, lastik, batarya, medya, GPS. Key Card konsolda olmalı.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Dash (yedek)") {
+                    TextField("Dash URL", text: $dashURL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                    SecureField("PIN", text: $pin)
+                        .keyboardType(.numberPad)
+                    Text("BLE yoksa yedek olarak /api/vehicle/state.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Tesla Owner API (opsiyonel yedek)") {
+                    SecureField("Access Token", text: $teslaToken)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    TextField("Vehicle ID (bos = VIN’den bul)", text: $teslaVehicleId)
+                        .keyboardType(.numberPad)
+                    Button {
+                        Task { await enableLive() }
+                    } label: {
+                        if liveBusy {
+                            ProgressView()
+                        } else {
+                            Text("Dash üzerinden API yedek aç")
+                        }
+                    }
+                    .disabled(liveBusy || teslaToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if !liveStatus.isEmpty {
+                        Text(liveStatus)
+                            .font(.footnote)
+                            .foregroundStyle(liveStatus.contains("✓") ? .green : .orange)
+                    }
+                }
+                Section("Not") {
+                    Text("Asıl veri: araç BLE (AES-GCM). Sahte demo YOK. D/hız/lastik/medya arabadan. Harita paneli MapKit’siz (GPS + yön).")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Settings")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        save()
+                        showSettings = false
+                    }
+                }
+            }
+        }
+    }
+
+    private var vinNorm: String {
         vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 
-    private func start() async {
-        error = nil
-        let v = normalizedVin
-        guard v.count == 17 else {
-            error = "VIN 17 karakter olmalı"
-            return
+    private func save() {
+        UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
+        let url = dashURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        UserDefaults.standard.set(url, forKey: "pulse_dash_url")
+        UserDefaults.standard.set(pin.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pulse_pin")
+        UserDefaults.standard.set(teslaToken, forKey: "pulse_tesla_token")
+        UserDefaults.standard.set(teslaVehicleId, forKey: "pulse_tesla_vid")
+    }
+
+    private func enableLive() async {
+        save()
+        liveBusy = true
+        liveStatus = "Baglanıyor…"
+        let msg = await hud.enableLiveOnDash(
+            token: teslaToken.trimmingCharacters(in: .whitespacesAndNewlines),
+            vehicleId: teslaVehicleId.trimmingCharacters(in: .whitespacesAndNewlines),
+            pin: pin.trimmingCharacters(in: .whitespacesAndNewlines),
+            dashURL: dashURL
+        )
+        liveStatus = msg
+        liveBusy = false
+    }
+
+    private func openHUD() {
+        let paired = ble.linkUp || ble.paired || ble.readyForDashboard || ble.waitingForCard || ble.bleLiveOK
+        hud.configure(vin: vinNorm, paired: paired)
+        ble.ensureTelemetry()
+        if ble.bleLiveOK {
+            hud.applyBLE(ble.bleSnapshot, linkOK: true)
         }
-        UserDefaults.standard.set(v, forKey: "pulse_vin")
-        do {
-            let key = try KeyStore.loadOrCreatePrivateKey(forVIN: v)
-            let pub = KeyStore.publicKeyUncompressed(key)
-            await pairer.pair(vin: v, publicKey: pub)
-        } catch {
-            self.error = error.localizedDescription
-        }
+        screen = .hud
     }
 }

@@ -242,21 +242,20 @@ def phone_key_html(vin: str = "") -> str:
 
     <!-- iPhone/iPad: Safari has no Web Bluetooth → Playgrounds native app -->
     <div class="card" id="ios-panel" hidden>
-      <div class="howto-title" style="color:var(--cyan);font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem">iPhone uygulaması</div>
-      <p class="lead" style="margin:0 0 .75rem"><strong>Tek uygulama:</strong> BLE Pair + Cluster aynı yerelde. <strong>WebView yok</strong> — web’den veri beklenmez. Swift Playgrounds → Run ▶ ile Ana Ekran’a kurulur.</p>
+      <div class="howto-title" style="color:var(--cyan);font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem">iPhone · gerçek BLE</div>
+      <p class="lead" style="margin:0 0 .75rem"><strong>Xcode native:</strong> Dashla gibi araç BLE’sinden hız/vites/lastik. Playgrounds BLE AES’i çökertiyor — Mac + Xcode şart.</p>
       <ol style="margin:0 0 .9rem;padding-left:1.15rem;color:rgba(255,255,255,.88);font-size:.88rem;line-height:1.45">
-        <li>App Store → <strong>Swift Playgrounds</strong> (iPhone)</li>
-        <li>Zip indir → Dosyalar → <code>PulsePhoneKey.swiftpm</code> → basılı tut → Paylaş → Playgrounds</li>
-        <li>Signing → <strong>Run ▶</strong> → sürüm <code>build-44-exact40</code></li>
-        <li>Pair Vehicle → Key Card konsola → <strong>Cluster’i ac</strong> (uygulama içi · yatay)</li>
+        <li>Mac → <strong>Xcode 16+</strong></li>
+        <li>Zip indir → <code>PulsePhoneKey.xcodeproj</code> aç</li>
+        <li>Signing → kendi Apple ID → iPhone seç → <strong>Run ▶</strong></li>
+        <li>Ekranda <code>xcode-ble-1</code> → Pair → Key Card → Cluster → <strong>BLE LIVE</strong></li>
       </ol>
-      <a class="btn" href="/downloads/PulsePhoneKey-playground-build44.zip" style="text-decoration:none;text-align:center">iPhone · build-44 exact40</a>
-      <a class="btn ghost" href="/downloads/PulsePhoneKey-playground.zip" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Aynı zip</a>
-      <a class="btn ghost" href="/downloads/PulsePhoneKey-swift-files.zip" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Zip açılmazsa · sadece Swift dosyaları</a>
-      <p class="support" style="background:rgba(255,214,10,.12);color:#ffe566;margin-top:.75rem">
-        <strong>SÜRÜM: build-44-exact40</strong> · Stabil acilis · Dash LIVE (BLE AES yok)
+      <a class="btn" href="/downloads/PulsePhoneKey-xcode.zip" style="text-decoration:none;text-align:center">iPhone · Xcode BLE LIVE</a>
+      <a class="btn ghost" href="/downloads/PulsePhoneKey-playground-build44.zip" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Alternatif · Playgrounds stabil (demo HUD)</a>
+      <p class="support" style="background:rgba(61,214,198,.12);color:#9ff;margin-top:.75rem">
+        <strong>SÜRÜM: xcode-ble-1</strong> · Native AES-GCM telemetri · Mac gerekli
       </p>
-      <a class="btn ghost" href="https://apps.apple.com/app/swift-playgrounds/id908519492" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Swift Playgrounds · App Store</a>
+      <a class="btn ghost" href="https://apps.apple.com/app/xcode/id497799835" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Xcode · Mac App Store</a>
       <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:1rem 0" />
       <div style="font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:.45rem">Alternatif · Tesla uygulaması</div>
       <a class="btn ghost" id="ios-open-tesla" href="tesla://">Tesla uygulamasını aç</a>
@@ -346,14 +345,12 @@ def register_phone_key(server) -> None:
   .ok{{background:rgba(61,214,198,.12);color:#9ff;padding:12px;border-radius:12px;font-size:.9rem}}
   code{{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:6px}}
 </style></head><body>
-<h1>PulsePhoneKey · build-44</h1>
-<p>PIN yok. Asagidan <strong>birini</strong> dene. Indir → Dosyalar → <code>.swiftpm</code> basili tut → Playgrounds → Run ▶ → ekranda <code>build-44-exact40</code></p>
-<a class="btn" href="/downloads/iphone.zip">1) Bu siteden indir (zip)</a>
-<a class="btn ghost" href="{gh}">2) GitHub raw indir</a>
-<a class="btn ghost" href="{cdn}">3) jsDelivr CDN indir</a>
-<a class="btn ghost" href="{blob}">4) GitHub sayfasi → Download raw file</a>
-<a class="btn ghost" href="/downloads/PulsePhoneKey-swift-files.zip">5) Sadece Swift dosyalari</a>
-<p class="ok">Safari bazen zip’i acamaz: Dosyalar uygulamasinda gorunur. Playgrounds’ta eski projeyi sil, yeniyi ac.</p>
+<h1>Pulse · Xcode BLE LIVE</h1>
+<p><strong>Gerçek hız/vites:</strong> Mac’te Xcode ile kur. Playgrounds sadece demo.</p>
+<a class="btn" href="/downloads/PulsePhoneKey-xcode.zip">1) Xcode proje zip (BLE LIVE)</a>
+<a class="btn ghost" href="https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-xcode.zip">2) GitHub raw · Xcode zip</a>
+<a class="btn ghost" href="/downloads/PulsePhoneKey-playground-build44.zip">3) Playgrounds stabil (demo)</a>
+<p class="ok">Xcode → Signing → iPhone Run ▶ → ekranda <code>xcode-ble-1</code> → Pair → Cluster → <strong>BLE</strong></p>
 </body></html>"""
         return Response(html, mimetype="text/html; charset=utf-8")
 
@@ -564,6 +561,10 @@ def register_phone_key(server) -> None:
     @server.get("/downloads/PulsePhoneKey-playground-build44.zip")
     def download_playgrounds_build44_zip():  # type: ignore[no-redef]
         return _send_release_zip("PulsePhoneKey-playground-build44.zip", public=True)
+
+    @server.get("/downloads/PulsePhoneKey-xcode.zip")
+    def download_xcode_zip():  # type: ignore[no-redef]
+        return _send_release_zip("PulsePhoneKey-xcode.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-swift-files.zip")
     def download_swift_files_zip():  # type: ignore[no-redef]

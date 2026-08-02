@@ -1,4 +1,5 @@
-# Generate Xcode project: brew install xcodegen && xcodegen
+# Generate: brew install xcodegen && xcodegen
+# Or open the committed PulsePhoneKey.xcodeproj directly.
 name: PulsePhoneKey
 options:
   bundleIdPrefix: com.teslapulse
@@ -7,9 +8,9 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    SWIFT_VERSION: "5.0"
-    TARGETED_DEVICE_FAMILY: "1,2" # iPhone + iPad
-    DEVELOPMENT_TEAM: "" # set in Xcode Signing
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    DEVELOPMENT_TEAM: ""
 targets:
   PulsePhoneKey:
     type: application
@@ -23,6 +24,11 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_STYLE: Automatic
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: "1.0"
+        MARKETING_VERSION: "2.0"
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
+        TARGETED_DEVICE_FAMILY: "1,2"
+    info:
+      path: Info.plist
+      properties:
+        UIBackgroundModes: [bluetooth-central]

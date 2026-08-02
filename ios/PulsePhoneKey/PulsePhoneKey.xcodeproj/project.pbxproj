@@ -1,0 +1,289 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		45FE96654702679006C1AE13 /* BLEPairer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B224B5D7F028C007B2CE105 /* BLEPairer.swift */; };
+		89A119D7DE94DE63D12195FC /* BLETelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92DC0FFEC3C3AF5FFC8DC0E /* BLETelemetry.swift */; };
+		B5A8198B1802A0584C988D2B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45CCADE0F29CAC283C0B30C7 /* ContentView.swift */; };
+		DD52675FAB4A884904983D36 /* HUDModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA724BD6F2F2EE5B2B67D6D6 /* HUDModel.swift */; };
+		864FF32F140F9314886485B3 /* KeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E87A51594EF374B79713CBEB /* KeyStore.swift */; };
+		9CE42C305FA03B70C93208B6 /* NativeHUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BD7E7B769034A40079F1221 /* NativeHUDView.swift */; };
+		1BD7F6943521CBA960353746 /* PairingFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 134713257B7CDEDADBE47632 /* PairingFlowView.swift */; };
+		28F83BB0470F05763E081723 /* ProtoWire.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79019F7208E9B2F76B6624DB /* ProtoWire.swift */; };
+		161F31C4D8D8949A69997DDC /* PulsePhoneKeyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55B56A0737A17416AB0BE56B /* PulsePhoneKeyApp.swift */; };
+		83EC530FDB294E243DA7E36D /* TeslaBLESession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 924E820613487F12D263B3A8 /* TeslaBLESession.swift */; };
+		8F7E853ADDB27F4184875681 /* VCSECPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */; };
+		DB4946C6B7F703E2B685FA39 /* VehicleLiveSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		73AD16181FDDB7427288C6BD /* PulsePhoneKey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PulsePhoneKey.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7D95B648EFA5C30BD8522A85 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5B224B5D7F028C007B2CE105 /* BLEPairer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEPairer.swift; sourceTree = "<group>"; };
+		E92DC0FFEC3C3AF5FFC8DC0E /* BLETelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLETelemetry.swift; sourceTree = "<group>"; };
+		45CCADE0F29CAC283C0B30C7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		FA724BD6F2F2EE5B2B67D6D6 /* HUDModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDModel.swift; sourceTree = "<group>"; };
+		E87A51594EF374B79713CBEB /* KeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyStore.swift; sourceTree = "<group>"; };
+		3BD7E7B769034A40079F1221 /* NativeHUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeHUDView.swift; sourceTree = "<group>"; };
+		134713257B7CDEDADBE47632 /* PairingFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingFlowView.swift; sourceTree = "<group>"; };
+		79019F7208E9B2F76B6624DB /* ProtoWire.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtoWire.swift; sourceTree = "<group>"; };
+		55B56A0737A17416AB0BE56B /* PulsePhoneKeyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PulsePhoneKeyApp.swift; sourceTree = "<group>"; };
+		924E820613487F12D263B3A8 /* TeslaBLESession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeslaBLESession.swift; sourceTree = "<group>"; };
+		6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VCSECPayload.swift; sourceTree = "<group>"; };
+		720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLiveSnapshot.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A9E872B0C4F3AB11D258C39F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0A85897F1A32FE9B91C081CD = {
+			isa = PBXGroup;
+			children = (
+				E4EB75DE02CBC566F8B7013A /* PulsePhoneKey */,
+				B88D7E26791946AEFDCC8BB7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B88D7E26791946AEFDCC8BB7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				73AD16181FDDB7427288C6BD /* PulsePhoneKey.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E4EB75DE02CBC566F8B7013A /* PulsePhoneKey */ = {
+			isa = PBXGroup;
+			children = (
+				E9AC4BD1540DF25F92F842D2 /* Sources */,
+				7D95B648EFA5C30BD8522A85 /* Info.plist */,
+			);
+			path = .;
+			sourceTree = "<group>";
+		};
+		E9AC4BD1540DF25F92F842D2 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				5B224B5D7F028C007B2CE105 /* BLEPairer.swift */,
+				E92DC0FFEC3C3AF5FFC8DC0E /* BLETelemetry.swift */,
+				45CCADE0F29CAC283C0B30C7 /* ContentView.swift */,
+				FA724BD6F2F2EE5B2B67D6D6 /* HUDModel.swift */,
+				E87A51594EF374B79713CBEB /* KeyStore.swift */,
+				3BD7E7B769034A40079F1221 /* NativeHUDView.swift */,
+				134713257B7CDEDADBE47632 /* PairingFlowView.swift */,
+				79019F7208E9B2F76B6624DB /* ProtoWire.swift */,
+				55B56A0737A17416AB0BE56B /* PulsePhoneKeyApp.swift */,
+				924E820613487F12D263B3A8 /* TeslaBLESession.swift */,
+				6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */,
+				720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		730950AD798A77AD508AA9E2 /* PulsePhoneKey */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A896B77C44E9302BC7C1C334 /* Build configuration list for PBXNativeTarget "PulsePhoneKey" */;
+			buildPhases = (
+				7EE609159AC086BAB15FF998 /* Sources */,
+				A9E872B0C4F3AB11D258C39F /* Frameworks */,
+				A2892AFC2D88060C0AA91373 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PulsePhoneKey;
+			productName = PulsePhoneKey;
+			productReference = 73AD16181FDDB7427288C6BD /* PulsePhoneKey.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1781F676DEDF5767F3243DB0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					730950AD798A77AD508AA9E2 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = 1E701A5F9C80F4B5DADD1F3C /* Build configuration list for PBXProject "PulsePhoneKey" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = tr;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				tr,
+			);
+			mainGroup = 0A85897F1A32FE9B91C081CD;
+			productRefGroup = B88D7E26791946AEFDCC8BB7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				730950AD798A77AD508AA9E2 /* PulsePhoneKey */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A2892AFC2D88060C0AA91373 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7EE609159AC086BAB15FF998 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				45FE96654702679006C1AE13 /* BLEPairer.swift in Sources */,
+				89A119D7DE94DE63D12195FC /* BLETelemetry.swift in Sources */,
+				B5A8198B1802A0584C988D2B /* ContentView.swift in Sources */,
+				DD52675FAB4A884904983D36 /* HUDModel.swift in Sources */,
+				864FF32F140F9314886485B3 /* KeyStore.swift in Sources */,
+				9CE42C305FA03B70C93208B6 /* NativeHUDView.swift in Sources */,
+				1BD7F6943521CBA960353746 /* PairingFlowView.swift in Sources */,
+				28F83BB0470F05763E081723 /* ProtoWire.swift in Sources */,
+				161F31C4D8D8949A69997DDC /* PulsePhoneKeyApp.swift in Sources */,
+				83EC530FDB294E243DA7E36D /* TeslaBLESession.swift in Sources */,
+				8F7E853ADDB27F4184875681 /* VCSECPayload.swift in Sources */,
+				DB4946C6B7F703E2B685FA39 /* VehicleLiveSnapshot.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		642436854D86EF337D2CEE9D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		00F007E16B7B8DF31EA0226B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		37A72370ED58F3DA5611E01C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.teslapulse.phonekey;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		44C732A3BAC66107F8E923F6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.teslapulse.phonekey;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1E701A5F9C80F4B5DADD1F3C /* Build configuration list for PBXProject "PulsePhoneKey" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				642436854D86EF337D2CEE9D /* Debug */,
+				00F007E16B7B8DF31EA0226B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A896B77C44E9302BC7C1C334 /* Build configuration list for PBXNativeTarget "PulsePhoneKey" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				37A72370ED58F3DA5611E01C /* Debug */,
+				44C732A3BAC66107F8E923F6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 1781F676DEDF5767F3243DB0 /* Project object */;
+}
