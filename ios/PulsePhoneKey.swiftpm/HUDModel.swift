@@ -7,7 +7,6 @@ import SwiftUI
 final class HUDModel: ObservableObject {
     static let slideCount = 5
     static let slideNames = ["Sade", "Lastik", "Rota", "Harita", "Medya"]
-    /// Safe SF Symbols only
     static let slideIcons = ["square", "car.fill", "flag.fill", "map", "music.note"]
 
     @Published var speed: Double = 0
@@ -36,8 +35,10 @@ final class HUDModel: ObservableObject {
     @Published var mediaTitle = "Kayıp Kalp"
     @Published var mediaArtist = "BLOK3"
     @Published var mediaPlaying = false
+    @Published var mediaProgress: Double = 0.28
+    @Published var mediaVolume: Double = 0.55
     @Published var clock = ""
-    @Published var leftSlide = 4
+    @Published var leftSlide = 0
     @Published var leftRailVisible = true
     @Published var mapHeading: Double = -8
     @Published var telemetrySource = "yerel"
@@ -48,6 +49,14 @@ final class HUDModel: ObservableObject {
     private var phase: Double = 0
     private var leftCool: Date = .distantPast
     private var useVehicleFeed = false
+
+    private let tracks: [(String, String)] = [
+        ("Kayıp Kalp", "BLOK3"),
+        ("Yıldız Tozu", "Sezen Aksu"),
+        ("Gesi Bağları", "Neşet Ertaş"),
+        ("Dudu", "Tarkan"),
+    ]
+    private var trackIndex = 0
 
     private let clockFmt: DateFormatter = {
         let f = DateFormatter()
@@ -61,9 +70,14 @@ final class HUDModel: ObservableObject {
         vinTail = String(vin.suffix(6))
         bleOK = paired
         night = true
-        leftSlide = 4
+        leftSlide = 0
         refreshClock()
         start()
+        // Demo: show moving speed so dial is obviously alive
+        if !useVehicleFeed {
+            driving = true
+            gear = "D"
+        }
     }
 
     func start() {
@@ -83,15 +97,62 @@ final class HUDModel: ObservableObject {
     func toggleDrive() {
         guard !useVehicleFeed else { return }
         driving.toggle()
-        gear = driving ? "D" : "P"
-        if !driving { speed = 0; powerKW = 0 }
+        if driving {
+            if gear == "P" || gear == "N" { gear = "D" }
+        } else {
+            gear = "P"
+            speed = 0
+            powerKW = 0
+        }
+    }
+
+    func setGear(_ g: String) {
+        guard ["P", "R", "N", "D"].contains(g) else { return }
+        gear = g
+        if useVehicleFeed { return }
+        if g == "D" || g == "R" {
+            driving = true
+        } else {
+            driving = false
+            speed = 0
+            powerKW = 0
+        }
     }
 
     func beginAfterPair() {}
+
     func togglePlay() { mediaPlaying.toggle() }
 
+    func skipTrack(_ delta: Int) {
+        trackIndex = ((trackIndex + delta) % tracks.count + tracks.count) % tracks.count
+        mediaTitle = tracks[trackIndex].0
+        mediaArtist = tracks[trackIndex].1
+        mediaProgress = 0.05
+        mediaPlaying = true
+    }
+
+    func nudgeVolume(_ delta: Double) {
+        mediaVolume = min(1, max(0, mediaVolume + delta))
+    }
+
+    func adjustTire(_ corner: String, delta: Int) {
+        switch corner {
+        case "FL": psiFL = clampPsi(psiFL + delta)
+        case "FR": psiFR = clampPsi(psiFR + delta)
+        case "RL": psiRL = clampPsi(psiRL + delta)
+        case "RR": psiRR = clampPsi(psiRR + delta)
+        default: break
+        }
+    }
+
+    func resetTires() {
+        psiFL = 42; psiFR = 42; psiRL = 41; psiRR = 42
+    }
+
+    private func clampPsi(_ v: Int) -> Int { min(50, max(28, v)) }
+
     func nudgeLeft(_ delta: Int) {
-        guard Date().timeIntervalSince(leftCool) > 0.22 else { return }
+        guard Date().timeIntervalSince(leftCool) > 0.18 else { return }
         leftCool = Date()
         leftSlide = ((leftSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
         leftRailVisible = true
@@ -180,21 +241,25 @@ final class HUDModel: ObservableObject {
         phase += 0.2
         mapPulse = phase
         if Int(phase * 5) % 5 == 0 { refreshClock() }
+        if mediaPlaying {
+            mediaProgress = min(1, mediaProgress + 0.002)
+            if mediaProgress >= 1 { skipTrack(1) }
+        }
         guard !useVehicleFeed else { return }
         if driving {
             let wave = (sin(phase * 0.35) + 1) * 0.5
-            let target = 40 + wave * 70
-            speed += (target - speed) * 0.1
-            powerKW = (target - speed) * 1.2
-            let dKm = speed / 3600.0 * 0.2
+            let target = gear == "R" ? -(20 + wave * 15) : (48 + wave * 62)
+            speed += (target - speed) * 0.12
+            powerKW = abs(target - speed) * 1.1 + (driving ? 8 : 0)
+            let dKm = abs(speed) / 3600.0 * 0.2
             tripKm += dKm
             odometer += dKm
             tripDist = String(format: "%.1f km", max(0, 13.3 - tripKm))
-            eta = clockFmt.string(from: Date().addingTimeInterval(900))
+            eta = clockFmt.string(from: Date().addingTimeInterval(max(60, 900 - tripKm * 40)))
             energyAtArrival = "\(max(5, Int(battery) - Int(tripKm / 3)))%"
             mapHeading = 10 + sin(phase) * 25
         } else {
-            speed += (0 - speed) * 0.15
+            speed += (0 - speed) * 0.18
             powerKW += (0 - powerKW) * 0.2
         }
     }

@@ -1,262 +1,491 @@
 import SwiftUI
 
-/// Ultra-stable night HUD — NO Canvas, TimelineView, MapKit, WebKit, UIImage.
-/// 5 left slides + dial + simple map panel. BLE link status from pairer.
+/// Fixed night triad HUD — no Canvas/MapKit/WebKit/UIImage.
+/// Left slides stay in a fixed frame (no layout jump). Center dial always readable.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     var linkLabel: String
     var onBack: () -> Void
 
     private let ink = Color.white
-    private let muted = Color.white.opacity(0.45)
-    private let bg = Color.black
+    private let muted = Color.white.opacity(0.5)
+    private let dim = Color.white.opacity(0.22)
+    private let accent = Color(red: 0.35, green: 0.85, blue: 0.75)
 
     var body: some View {
         GeometryReader { geo in
-            let wide = geo.size.width > geo.size.height
-            ZStack {
-                bg.ignoresSafeArea()
-                if wide {
-                    HStack(spacing: 0) {
-                        leftPane.frame(width: geo.size.width * 0.32)
-                        rail
-                        centerPane.frame(width: geo.size.width * 0.30)
-                        simpleMap.frame(maxWidth: .infinity)
-                    }
-                } else {
-                    VStack(spacing: 0) {
-                        centerPane.frame(height: geo.size.height * 0.35)
+            let wide = geo.size.width >= geo.size.height
+            let topH: CGFloat = 44
+            let botH: CGFloat = 36
+            ZStack(alignment: .top) {
+                Color.black.ignoresSafeArea()
+
+                Group {
+                    if wide {
                         HStack(spacing: 0) {
-                            leftPane
+                            leftColumn
+                                .frame(width: geo.size.width * 0.30)
                             rail
-                            simpleMap
+                                .padding(.horizontal, 4)
+                            centerDial
+                                .frame(width: geo.size.width * 0.34)
+                            mapPanel
+                                .frame(maxWidth: .infinity)
+                        }
+                    } else {
+                        VStack(spacing: 0) {
+                            centerDial
+                                .frame(height: max(210, geo.size.height * 0.38))
+                            HStack(spacing: 0) {
+                                leftColumn
+                                rail.padding(.horizontal, 4)
+                                mapPanel
+                            }
                         }
                     }
                 }
-                VStack {
-                    topBar
+                .padding(.top, topH)
+                .padding(.bottom, botH)
+
+                VStack(spacing: 0) {
+                    topBar.frame(height: topH)
                     Spacer()
-                    bottomBar
+                    bottomBar.frame(height: botH)
                 }
             }
         }
         .preferredColorScheme(.dark)
+        .statusBarHidden(true)
         .onAppear { model.start() }
         .onDisappear { model.stop() }
     }
 
+    // MARK: - Bars
+
     private var topBar: some View {
-        HStack {
+        HStack(spacing: 10) {
             Button(action: onBack) {
-                Image(systemName: "chevron.left").foregroundStyle(muted)
+                Image(systemName: "chevron.left")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(ink)
+                    .frame(width: 28, height: 28)
             }
             Text(model.clock.isEmpty ? "--:--" : model.clock)
                 .font(.headline.monospacedDigit())
                 .foregroundStyle(ink)
-            Text("\(model.outdoorC)°C").font(.subheadline).foregroundStyle(muted)
-            Spacer()
-            Text(linkLabel)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(model.bleOK ? Color.green : muted)
-            Button(model.driving ? "Dur" : "Sur") { model.toggleDrive() }
-                .font(.caption.weight(.semibold))
+            Text("\(model.outdoorC)°")
+                .font(.subheadline)
+                .foregroundStyle(muted)
+            Spacer(minLength: 8)
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(model.bleOK ? accent : Color.orange.opacity(0.8))
+                    .frame(width: 7, height: 7)
+                Text(linkLabel)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(model.bleOK ? accent : muted)
+                    .lineLimit(1)
+            }
+            Button(model.driving ? "DUR" : "SÜR") {
+                model.toggleDrive()
+            }
+            .font(.caption.weight(.bold))
+            .foregroundStyle(model.driving ? Color.orange : accent)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Capsule().stroke(model.driving ? Color.orange.opacity(0.5) : accent.opacity(0.5), lineWidth: 1))
+            Text("\(Int(model.battery))%")
+                .font(.caption.monospacedDigit().weight(.semibold))
                 .foregroundStyle(ink)
-            Text("\(Int(model.battery))%").font(.caption.monospacedDigit()).foregroundStyle(ink)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color.black.opacity(0.55))
+        .background(Color.black.opacity(0.92))
     }
 
     private var bottomBar: some View {
         HStack {
-            Text("\(Int(model.battery))% / \(model.rangeKm)km")
+            Text("\(Int(model.battery))%  ·  \(model.rangeKm) km")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(ink)
             Spacer()
-            Text(HUDModel.slideNames[model.leftSlide])
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(muted)
+            Text(HUDModel.slideNames[model.leftSlide].uppercased())
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(accent)
             Spacer()
+            Text(model.telemetrySource.uppercased())
+                .font(.caption2)
+                .foregroundStyle(dim)
             Text(String(format: "ODO %.0f", model.odometer))
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(muted)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color.black.opacity(0.55))
+        .background(Color.black.opacity(0.92))
     }
 
+    // MARK: - Rail
+
     private var rail: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             ForEach(0..<HUDModel.slideCount, id: \.self) { i in
                 Button { model.setLeft(i) } label: {
                     Image(systemName: HUDModel.slideIcons[i])
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(i == model.leftSlide ? Color.white : Color.white.opacity(0.3))
-                        .frame(width: 20, height: 20)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(i == model.leftSlide ? ink : dim)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(i == model.leftSlide ? Color.white.opacity(0.12) : Color.clear)
+                        )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(HUDModel.slideNames[i])
             }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 7)
-        .background(Capsule().fill(Color.white.opacity(0.08)))
+        .padding(.vertical, 14)
+        .padding(.horizontal, 6)
+        .background(Capsule().fill(Color.white.opacity(0.06)))
     }
 
-    private var leftPane: some View {
-        Group {
-            switch model.leftSlide {
-            case 1: tires
-            case 2: trip
-            case 3: mapInfo
-            case 4: media
-            default: simple
+    // MARK: - Left column (fixed box — no jump)
+
+    private var leftColumn: some View {
+        ZStack {
+            Color.black
+            Group {
+                switch model.leftSlide {
+                case 1: tiresPanel
+                case 2: tripPanel
+                case 3: mapInfoPanel
+                case 4: mediaPanel
+                default: simplePanel
+                }
             }
+            .padding(14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
         .contentShape(Rectangle())
         .gesture(
-            DragGesture(minimumDistance: 24)
+            DragGesture(minimumDistance: 28)
                 .onEnded { g in
-                    if g.translation.height < -30 { model.nudgeLeft(1) }
-                    else if g.translation.height > 30 { model.nudgeLeft(-1) }
+                    if g.translation.height < -36 { model.nudgeLeft(1) }
+                    else if g.translation.height > 36 { model.nudgeLeft(-1) }
                 }
         )
     }
 
-    private var simple: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("SADE").font(.caption).foregroundStyle(muted)
-            Text(model.bleOK ? "Araca bagli" : "Pair gerekli")
-                .font(.title3.weight(.semibold)).foregroundStyle(ink)
-            Text("…\(model.vinTail)").font(.footnote.monospaced()).foregroundStyle(muted)
-            Text(linkLabel).font(.caption2).foregroundStyle(muted)
-        }
-    }
-
-    private var trip: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            row("Destination", model.destination)
-            row("Arrival Time", model.eta)
-            row("Energy", model.energyAtArrival)
-            row("Distance", model.tripDist)
-        }
-    }
-
-    private func row(_ k: String, _ v: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(k).font(.caption2).foregroundStyle(muted)
-            Text(v).font(.headline).foregroundStyle(ink).lineLimit(1).minimumScaleFactor(0.7)
-        }
-    }
-
-    private var tires: some View {
-        VStack(spacing: 14) {
-            Text("MODEL Y").font(.caption.weight(.bold)).foregroundStyle(muted)
-            Image(systemName: "car.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(ink.opacity(0.7))
-                .rotationEffect(.degrees(90))
-            HStack {
-                Text("\(model.psiFL) psi").foregroundStyle(ink)
-                Spacer()
-                Text("\(model.psiFR) psi").foregroundStyle(ink)
-            }
-            .font(.subheadline.monospacedDigit())
-            HStack {
-                Text("\(model.psiRL) psi").foregroundStyle(ink)
-                Spacer()
-                Text("\(model.psiRR) psi").foregroundStyle(ink)
-            }
-            .font(.subheadline.monospacedDigit())
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var mapInfo: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("HARITA").font(.caption).foregroundStyle(muted)
-            Text(model.place).font(.headline).foregroundStyle(ink)
-            Text(model.destination).font(.subheadline).foregroundStyle(muted)
-            Text(model.tripDist).font(.title2.weight(.bold)).foregroundStyle(ink)
-        }
-    }
-
-    private var media: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(model.mediaService).font(.caption).foregroundStyle(muted)
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(red: 0.75, green: 0.4, blue: 0.15))
-                .frame(width: 100, height: 100)
-                .overlay(Image(systemName: "music.note").foregroundStyle(.white.opacity(0.4)))
-            Text(model.mediaTitle).font(.headline).foregroundStyle(ink)
-            Text(model.mediaArtist).font(.subheadline).foregroundStyle(muted)
-            Button { model.togglePlay() } label: {
-                Image(systemName: model.mediaPlaying ? "pause.fill" : "play.fill")
-                    .foregroundStyle(ink)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var centerPane: some View {
-        VStack(spacing: 8) {
+    private var simplePanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("SADE")
+            Text(model.bleOK ? "Araca bağlı" : "Pair gerekli")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(ink)
+            Text("VIN …\(model.vinTail)")
+                .font(.footnote.monospaced())
+                .foregroundStyle(muted)
+            Text(linkLabel)
+                .font(.caption)
+                .foregroundStyle(model.bleOK ? accent : muted)
+            Spacer(minLength: 0)
             HStack(spacing: 16) {
+                metric("Hız", "\(Int(abs(model.speed).rounded()))", "km/h")
+                metric("Güç", String(format: "%.0f", model.powerKW), "kW")
+            }
+            Text("Kaydır ↑↓ veya sağdaki ikonlara dokun")
+                .font(.caption2)
+                .foregroundStyle(dim)
+        }
+    }
+
+    private func metric(_ label: String, _ value: String, _ unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(.caption2).foregroundStyle(muted)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value).font(.title.monospacedDigit().weight(.bold)).foregroundStyle(ink)
+                Text(unit).font(.caption).foregroundStyle(muted)
+            }
+        }
+    }
+
+    private var tripPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle("ROTA")
+            tripRow("Hedef", model.destination)
+            tripRow("Varış", model.eta)
+            tripRow("Varışta enerji", model.energyAtArrival)
+            tripRow("Mesafe", model.tripDist)
+            Spacer(minLength: 0)
+            Text(model.place)
+                .font(.caption)
+                .foregroundStyle(muted)
+                .lineLimit(2)
+        }
+    }
+
+    private func tripRow(_ k: String, _ v: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(k.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(muted)
+            Text(v)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+        }
+    }
+
+    private var tiresPanel: some View {
+        VStack(spacing: 10) {
+            HStack {
+                sectionTitle("LASTİK")
+                Spacer()
+                Button("Sıfırla") { model.resetTires() }
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(accent)
+            }
+            Text("MODEL Y")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(dim)
+            Image(systemName: "car.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(ink.opacity(0.75))
+                .rotationEffect(.degrees(90))
+                .padding(.vertical, 4)
+            HStack {
+                tireCell("FL", model.psiFL) { model.adjustTire("FL", delta: $0) }
+                Spacer(minLength: 8)
+                tireCell("FR", model.psiFR) { model.adjustTire("FR", delta: $0) }
+            }
+            HStack {
+                tireCell("RL", model.psiRL) { model.adjustTire("RL", delta: $0) }
+                Spacer(minLength: 8)
+                tireCell("RR", model.psiRR) { model.adjustTire("RR", delta: $0) }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func tireCell(_ corner: String, _ psi: Int, adjust: @escaping (Int) -> Void) -> some View {
+        VStack(spacing: 6) {
+            Text(corner).font(.caption2.weight(.bold)).foregroundStyle(muted)
+            Text("\(psi)")
+                .font(.title2.monospacedDigit().weight(.bold))
+                .foregroundStyle(psi < 35 || psi > 46 ? Color.orange : ink)
+            Text("psi").font(.caption2).foregroundStyle(dim)
+            HStack(spacing: 10) {
+                Button { adjust(-1) } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(muted)
+                }
+                .buttonStyle(.plain)
+                Button { adjust(1) } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(accent)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(minWidth: 88)
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)))
+    }
+
+    private var mapInfoPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("HARİTA")
+            Text(model.place)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(ink)
+                .lineLimit(3)
+            Text(model.destination)
+                .font(.subheadline)
+                .foregroundStyle(muted)
+            Text(model.tripDist)
+                .font(.largeTitle.weight(.bold))
+                .foregroundStyle(ink)
+            Text(String(format: "Yön %.0f°", model.mapHeading))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(dim)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var mediaPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle(model.mediaService.uppercased())
+            RoundedRectangle(cornerRadius: 12)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(red: 0.85, green: 0.45, blue: 0.15), Color(red: 0.4, green: 0.15, blue: 0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 96, height: 96)
+                .overlay(
+                    Image(systemName: "music.note")
+                        .font(.largeTitle)
+                        .foregroundStyle(.white.opacity(0.45))
+                )
+            Text(model.mediaTitle)
+                .font(.headline)
+                .foregroundStyle(ink)
+                .lineLimit(1)
+            Text(model.mediaArtist)
+                .font(.subheadline)
+                .foregroundStyle(muted)
+            // Progress
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.12)).frame(height: 4)
+                    Capsule().fill(accent).frame(width: max(4, g.size.width * model.mediaProgress), height: 4)
+                }
+            }
+            .frame(height: 4)
+            // Transport
+            HStack(spacing: 22) {
+                Button { model.skipTrack(-1) } label: {
+                    Image(systemName: "backward.fill").font(.title3).foregroundStyle(ink)
+                }
+                .buttonStyle(.plain)
+                Button { model.togglePlay() } label: {
+                    Image(systemName: model.mediaPlaying ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(ink)
+                }
+                .buttonStyle(.plain)
+                Button { model.skipTrack(1) } label: {
+                    Image(systemName: "forward.fill").font(.title3).foregroundStyle(ink)
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(maxWidth: .infinity)
+            // Volume
+            HStack(spacing: 10) {
+                Button { model.nudgeVolume(-0.1) } label: {
+                    Image(systemName: "speaker.fill").foregroundStyle(muted)
+                }
+                .buttonStyle(.plain)
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.12)).frame(height: 4)
+                        Capsule().fill(ink.opacity(0.8)).frame(width: max(4, g.size.width * model.mediaVolume), height: 4)
+                    }
+                }
+                .frame(height: 4)
+                Button { model.nudgeVolume(0.1) } label: {
+                    Image(systemName: "speaker.wave.3.fill").foregroundStyle(muted)
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func sectionTitle(_ t: String) -> some View {
+        Text(t)
+            .font(.caption.weight(.bold))
+            .tracking(1.2)
+            .foregroundStyle(muted)
+    }
+
+    // MARK: - Center dial (always centered)
+
+    private var centerDial: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 18) {
                 ForEach(["P", "R", "N", "D"], id: \.self) { g in
-                    Text(g)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(model.gear == g ? ink : ink.opacity(0.25))
+                    Button { model.setGear(g) } label: {
+                        Text(g)
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(model.gear == g ? ink : dim)
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             ZStack {
-                Circle().fill(Color(white: 0.06))
-                    .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                Circle()
+                    .fill(Color(white: 0.07))
+                    .overlay(Circle().stroke(Color.white.opacity(0.14), lineWidth: 1.5))
+                Circle()
+                    .trim(from: 0, to: min(1, abs(model.speed) / 160))
+                    .stroke(accent.opacity(0.85), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .padding(6)
                 VStack(spacing: 0) {
-                    Text("\(Int(model.speed.rounded()))")
-                        .font(.system(size: 64, weight: .bold, design: .rounded))
+                    Text("\(Int(abs(model.speed).rounded()))")
+                        .font(.system(size: 72, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(ink)
-                    Text("km/h").font(.caption).foregroundStyle(muted)
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                    Text("km/h")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(muted)
                 }
             }
-            .frame(width: 180, height: 180)
+            .frame(width: 196, height: 196)
+            Text(String(format: "%+.0f kW", model.powerKW))
+                .font(.subheadline.monospacedDigit().weight(.medium))
+                .foregroundStyle(model.powerKW >= 0 ? accent : Color.orange)
             Text(model.place)
                 .font(.caption)
                 .foregroundStyle(muted)
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Plain SwiftUI shapes only — no Canvas.
-    private var simpleMap: some View {
+    // MARK: - Map panel (static shapes)
+
+    private var mapPanel: some View {
         ZStack(alignment: .bottomTrailing) {
-            Color(red: 0.88, green: 0.87, blue: 0.84)
-            VStack(spacing: 10) {
-                ForEach(0..<6, id: \.self) { i in
-                    Rectangle()
-                        .fill(Color(white: 0.72 - Double(i % 3) * 0.04))
-                        .frame(width: 40 + CGFloat(i % 3) * 18, height: 28 + CGFloat(i % 2) * 12)
-                        .rotationEffect(.degrees(-8))
-                        .offset(x: CGFloat((i % 3) - 1) * 36, y: CGFloat(i) * 8 - 40)
+            Color(red: 0.86, green: 0.85, blue: 0.82)
+            // Fixed grid — no animated offsets (prevents “kayma”)
+            VStack(spacing: 18) {
+                ForEach(0..<5, id: \.self) { row in
+                    HStack(spacing: 14) {
+                        ForEach(0..<3, id: \.self) { col in
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color(white: 0.70 - Double((row + col) % 3) * 0.04))
+                                .frame(width: 36 + CGFloat(col) * 10, height: 22 + CGFloat(row % 2) * 8)
+                        }
+                    }
                 }
             }
+            .rotationEffect(.degrees(-6))
+            .opacity(0.9)
             Image(systemName: "location.north.fill")
                 .font(.title)
                 .foregroundStyle(Color.red)
-                .offset(y: -30)
-            Text("N")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.black.opacity(0.7))
-                .padding(8)
-                .background(Circle().fill(Color.white.opacity(0.9)))
-                .padding(10)
+                .shadow(radius: 2)
+            VStack(alignment: .trailing, spacing: 6) {
+                Text("N")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.black.opacity(0.75))
+                    .padding(8)
+                    .background(Circle().fill(Color.white.opacity(0.92)))
+                Text(model.tripDist)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.black.opacity(0.7))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.white.opacity(0.9)))
+            }
+            .padding(10)
         }
         .overlay(alignment: .leading) {
-            LinearGradient(colors: [Color.black.opacity(0.75), .clear], startPoint: .leading, endPoint: .trailing)
-                .frame(width: 40)
+            LinearGradient(colors: [Color.black.opacity(0.8), .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: 36)
         }
+        .clipped()
     }
 }

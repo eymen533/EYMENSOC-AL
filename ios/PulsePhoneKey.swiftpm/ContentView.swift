@@ -6,7 +6,7 @@ struct ContentView: View {
     @StateObject private var hud = HUDModel()
     @State private var vin = UserDefaults.standard.string(forKey: "pulse_vin") ?? "XP7YGCEK0PB159959"
     @State private var dashURL = UserDefaults.standard.string(forKey: "pulse_dash_url")
-        ?? "https://authorization-card-wonder-chuck.trycloudflare.com"
+        ?? "https://mon-holds-cloud-grateful.trycloudflare.com"
     @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
     @State private var showPairFlow = false
     @State private var screen: Screen = .home
@@ -73,7 +73,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("build-31 · stabil HUD · gercek BLE baglanti\nSade · Lastik · Rota · Harita · Medya")
+                    Text("build-32 · ortali hiz · lastik/rota/medya kullanilabilir\nSade · Lastik · Rota · Harita · Medya")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)

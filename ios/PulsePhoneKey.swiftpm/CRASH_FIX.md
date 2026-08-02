@@ -1,7 +1,7 @@
-# build-31-ble
+# build-32-hud
 
-Kaldırılan çökme yolları: SoftMap Canvas, TimelineView, MapKit, WKWebView, CoreLocation, UIImage.
+Çökme yolları yok (Canvas/SoftMap/WebKit/MapKit yok).
 
-Kalan: 5’li slider + SF Symbol lastik + düz SwiftUI harita + BLE Pair + reconnect
+HUD: sabit triad, ortalı hız, lastik ±, rota, medya kontrolleri.
 
-Eski projeyi SIL → build-31 zip → Run ▶ → **build-31-ble**
+Eski projeyi SIL → build-32 zip → Run ▶ → **build-32-hud**
