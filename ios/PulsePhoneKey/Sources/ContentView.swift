@@ -98,8 +98,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-4 · Model Y · Apple Maps
-Performans / Düşük bağlantı")
+                    Text("xcode-ble-4 · Model Y · Apple Maps\nPerformans / Düşük bağlantı")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
