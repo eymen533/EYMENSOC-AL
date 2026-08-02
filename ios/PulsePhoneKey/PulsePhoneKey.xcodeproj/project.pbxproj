@@ -19,6 +19,7 @@
 		83EC530FDB294E243DA7E36D /* TeslaBLESession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 924E820613487F12D263B3A8 /* TeslaBLESession.swift */; };
 		8F7E853ADDB27F4184875681 /* VCSECPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */; };
 		DB4946C6B7F703E2B685FA39 /* VehicleLiveSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */; };
+		8054963B346D748C9183661A /* VehicleMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 183A0B4B8C216CD67D59E426 /* VehicleMapView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +37,7 @@
 		924E820613487F12D263B3A8 /* TeslaBLESession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeslaBLESession.swift; sourceTree = "<group>"; };
 		6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VCSECPayload.swift; sourceTree = "<group>"; };
 		720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLiveSnapshot.swift; sourceTree = "<group>"; };
+		183A0B4B8C216CD67D59E426 /* VehicleMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleMapView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,6 +91,7 @@
 				924E820613487F12D263B3A8 /* TeslaBLESession.swift */,
 				6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */,
 				720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */,
+				183A0B4B8C216CD67D59E426 /* VehicleMapView.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -174,6 +177,7 @@
 				83EC530FDB294E243DA7E36D /* TeslaBLESession.swift in Sources */,
 				8F7E853ADDB27F4184875681 /* VCSECPayload.swift in Sources */,
 				DB4946C6B7F703E2B685FA39 /* VehicleLiveSnapshot.swift in Sources */,
+				8054963B346D748C9183661A /* VehicleMapView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
