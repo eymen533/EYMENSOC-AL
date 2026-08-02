@@ -198,39 +198,24 @@ struct GoogleMapPanel: UIViewRepresentable {
     }
 }
 
-/// Map panel switcher — Apple (default) or Google.
+/// Vehicle nav on Apple Maps — uses car GPS + destination from BLE. No API key.
 struct VehicleMapView: View {
     var lat: Double
     var lon: Double
     var heading: Double
     var destination: String = ""
-    var apiKey: String = ""
+    var apiKey: String = "" // ignored — kept for call-site compatibility
     @ObservedObject private var settings = HUDSettings.shared
 
     var body: some View {
-        Group {
-            switch settings.mapsProvider {
-            case .apple:
-                AppleMapPanel(
-                    lat: lat,
-                    lon: lon,
-                    heading: heading,
-                    destination: destination,
-                    autoZoom: settings.autoZoom,
-                    theme: settings.mapTheme
-                )
-            case .google:
-                GoogleMapPanel(
-                    lat: lat,
-                    lon: lon,
-                    heading: heading,
-                    destination: destination,
-                    apiKey: apiKey.isEmpty
-                        ? (UserDefaults.standard.string(forKey: "pulse_google_maps_key") ?? "")
-                        : apiKey
-                )
-            }
-        }
+        AppleMapPanel(
+            lat: lat,
+            lon: lon,
+            heading: heading,
+            destination: destination,
+            autoZoom: settings.autoZoom,
+            theme: settings.mapTheme
+        )
         .background(Color(red: 0.86, green: 0.85, blue: 0.82))
     }
 }

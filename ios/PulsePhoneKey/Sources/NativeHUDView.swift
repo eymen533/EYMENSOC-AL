@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Dashla-style night triad HUD — left slides / center dial / Google Maps route.
+/// Dashla-style night triad HUD — left slides / center dial / Apple Maps · araç GPS/rota.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     @ObservedObject private var settings = HUDSettings.shared

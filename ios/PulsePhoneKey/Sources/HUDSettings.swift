@@ -45,6 +45,7 @@ final class HUDSettings: ObservableObject {
 
     enum MapsProvider: String, CaseIterable, Identifiable {
         case apple = "Apple"
+        /// Kept for migration; UI forces Apple (no API key).
         case google = "Google"
         var id: String { rawValue }
     }
@@ -91,7 +92,8 @@ final class HUDSettings: ObservableObject {
         speedColor = SpeedColor(rawValue: d.string(forKey: "pulse_speed_color") ?? "") ?? .multicolor
         powerStyle = PowerStyle(rawValue: d.string(forKey: "pulse_power_style") ?? "") ?? .ring
         liveLocation = LiveLocation(rawValue: d.string(forKey: "pulse_live_location") ?? "") ?? .bottom
-        mapsProvider = MapsProvider(rawValue: d.string(forKey: "pulse_maps_provider") ?? "") ?? .apple
+        mapsProvider = .apple
+        // Always Apple Maps — car GPS/route, no API key.
         autoZoom = d.object(forKey: "pulse_maps_auto_zoom") as? Bool ?? true
         mapTheme = MapTheme(rawValue: d.string(forKey: "pulse_map_theme") ?? "") ?? .light
         gearMulticolor = d.object(forKey: "pulse_gear_multicolor") as? Bool ?? true

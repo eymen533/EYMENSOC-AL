@@ -1,7 +1,7 @@
 import SwiftUI
 import MapKit
 
-/// Apple Maps panel with optional route to destination text.
+/// Apple Maps — car GPS + BLE destination. No Google/API key.
 struct AppleMapPanel: View {
     var lat: Double
     var lon: Double
