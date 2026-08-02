@@ -1,194 +1,239 @@
 import SwiftUI
 import MapKit
 
-/// Classic v14 Dash look — native SwiftUI, no WebView.
+/// Day-mode Dash HUD reference: media | white speed dial | map — native, no WebView.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     var onBack: () -> Void
+
+    private let bg = Color(red: 0.875, green: 0.890, blue: 0.910) // #dfe3e8
+    private let ink = Color(red: 0.110, green: 0.110, blue: 0.118) // #1c1c1e
+    private let muted = Color(red: 0.110, green: 0.110, blue: 0.118).opacity(0.48)
+    private let control = Color(red: 0.45, green: 0.55, blue: 0.68)
 
     var body: some View {
         GeometryReader { geo in
             let wide = geo.size.width >= geo.size.height * 0.95
             ZStack {
-                Color(red: 0.027, green: 0.031, blue: 0.039).ignoresSafeArea()
+                bg.ignoresSafeArea()
                 RadialGradient(
-                    colors: [Color(red: 0.07, green: 0.08, blue: 0.11), .clear],
+                    colors: [Color.white.opacity(0.65), .clear],
                     center: .center,
-                    startRadius: 40,
-                    endRadius: max(geo.size.width, geo.size.height) * 0.55
+                    startRadius: 20,
+                    endRadius: max(geo.size.width, geo.size.height) * 0.5
                 )
                 .ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     topBar
-                    if wide {
-                        triad.frame(maxHeight: .infinity)
-                    } else {
-                        portraitStack.frame(maxHeight: .infinity)
+                    Group {
+                        if wide { triad } else { portraitStack }
                     }
-                    bottomBar
+                    .frame(maxHeight: .infinity)
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .onAppear {
-            model.night = true
+            model.night = false
+            model.leftSlide = 0
             model.start()
             model.beginAfterPair()
         }
         .onDisappear { model.stop() }
     }
 
-    private var cyan: Color { Color(red: 0.2, green: 0.9, blue: 0.75) }
-    private var muted: Color { Color.white.opacity(0.48) }
-
-    // MARK: - Top / bottom (classic Dash)
+    // MARK: Top bar (reference)
 
     private var topBar: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(spacing: 12) {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(cyan)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(control)
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.dayName)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(muted)
+                    .font(.system(size: 12, weight: .semibold))
                 Text(model.dateLine)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(muted)
             }
+            .foregroundStyle(ink.opacity(0.85))
+
             Text(model.clock.isEmpty ? "—" : model.clock)
-                .font(.system(size: 22, weight: .semibold, design: .rounded))
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .monospacedDigit()
-            Text(model.nextPrayer)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(muted)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Color.white.opacity(0.06)))
+                .foregroundStyle(ink)
+
+            HStack(spacing: 5) {
+                Text("🕌")
+                    .font(.system(size: 12))
+                Text(model.nextPrayer)
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .foregroundStyle(ink.opacity(0.85))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(Color.white.opacity(0.55)))
+
             Text("\(model.outdoorC)°C")
                 .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(ink.opacity(0.8))
+
+            Text(model.bleOK ? "HUD HAZIR" : "HUD")
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(muted)
 
             Spacer(minLength: 8)
 
-            Text(model.bleOK ? model.bleLabel : "NO KEY")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(model.bleOK ? .black : .white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Capsule().fill(model.bleOK ? cyan : Color.red.opacity(0.85)))
-
-            Text("…\(model.vinTail)")
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(muted)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 14)
-        .padding(.top, 6)
-        .padding(.bottom, 4)
-    }
-
-    private var bottomBar: some View {
-        HStack {
-            HStack(spacing: 6) {
-                Image(systemName: "battery.75")
-                    .foregroundStyle(cyan)
-                Text("\(Int(model.battery))% / \(model.rangeKm) km")
-                    .foregroundStyle(cyan)
+            Button { model.toggleDrive() } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                    Text("HUD")
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(ink.opacity(0.7))
             }
-            Spacer()
+            .buttonStyle(.plain)
+
             HStack(spacing: 4) {
-                Image(systemName: "mappin.and.ellipse")
-                    .foregroundStyle(.red.opacity(0.85))
-                Text(model.place)
-                    .foregroundStyle(muted)
+                Image(systemName: "battery.50")
+                Text("\(Int(model.battery))%")
             }
-            Spacer()
-            Text("ODO \(odoText)km")
-                .foregroundStyle(muted)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(ink.opacity(0.75))
+
+            Image(systemName: "gearshape")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(ink.opacity(0.55))
         }
-        .font(.system(size: 13, weight: .semibold, design: .rounded))
-        .monospacedDigit()
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
     }
 
-    private var odoText: String {
-        let n = Int(model.odometer)
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.groupingSeparator = "."
-        return f.string(from: NSNumber(value: n)) ?? "\(n)"
-    }
-
-    // MARK: - Triad (classic soft sides, center proud)
+    // MARK: Triad
 
     private var triad: some View {
         HStack(spacing: 0) {
             leftPanel
                 .frame(maxWidth: .infinity)
-                .mask(
-                    LinearGradient(
-                        colors: [.white, .white, .white.opacity(0.55), .clear],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
+                .mask(sideFade(leading: true))
             centerPanel
                 .frame(maxWidth: .infinity)
                 .zIndex(2)
             rightPanel
                 .frame(maxWidth: .infinity)
-                .mask(
-                    LinearGradient(
-                        colors: [.clear, .white.opacity(0.55), .white, .white],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
+                .mask(sideFade(leading: false))
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 6)
+        .padding(.bottom, 10)
     }
 
     private var portraitStack: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             centerPanel.frame(maxHeight: .infinity)
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 leftPanel.frame(maxWidth: .infinity)
                 rightPanel.frame(maxWidth: .infinity)
             }
-            .frame(height: 210)
+            .frame(height: 220)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 10)
+        .padding(.bottom, 8)
     }
 
-    // MARK: - Left (trip / tires — swipe)
+    private func sideFade(leading: Bool) -> some View {
+        LinearGradient(
+            colors: leading
+                ? [.white, .white, .white.opacity(0.7), .clear]
+                : [.clear, .white.opacity(0.7), .white, .white],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    // MARK: Left — Apple Music (default)
 
     private var leftPanel: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack {
             Spacer(minLength: 0)
             Group {
-                if model.leftSlide == 0 { tripBlock } else { tiresBlock }
+                switch model.leftSlide {
+                case 1: tripBlock
+                case 2: tiresBlock
+                default: mediaBlock
+                }
             }
             .contentShape(Rectangle())
             .gesture(
-                DragGesture(minimumDistance: 24).onEnded { g in
+                DragGesture(minimumDistance: 20).onEnded { g in
                     if abs(g.translation.height) > 28 { model.cycleLeft() }
                 }
             )
             Spacer(minLength: 0)
-            dots(active: model.leftSlide, count: 2)
+            dots(active: model.leftSlide, count: 3)
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.trailing, 18)
-                .padding(.bottom, 8)
+                .padding(.trailing, 22)
+                .padding(.bottom, 6)
         }
-        .padding(.leading, 18)
+        .padding(.leading, 20)
         .padding(.trailing, 8)
+    }
+
+    private var mediaBlock: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(model.mediaService)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(muted)
+
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.22, green: 0.24, blue: 0.28),
+                            Color(red: 0.12, green: 0.13, blue: 0.15),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .aspectRatio(1, contentMode: .fit)
+                .frame(maxWidth: 200)
+                .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
+                .overlay {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 36, weight: .light))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+
+            Text(model.mediaTitle)
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(ink)
+            Text(model.mediaArtist)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(muted)
+
+            HStack(spacing: 28) {
+                Button { } label: {
+                    Image(systemName: "backward.fill")
+                }
+                Button { model.togglePlay() } label: {
+                    Image(systemName: model.mediaPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 22))
+                }
+                Button { } label: {
+                    Image(systemName: "forward.fill")
+                }
+            }
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(control)
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var tripBlock: some View {
@@ -204,215 +249,134 @@ struct NativeHUDView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label.uppercased())
                 .font(.system(size: 10, weight: .semibold))
-                .tracking(1.1)
+                .tracking(1)
                 .foregroundStyle(muted)
             Text(value)
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(ink)
         }
     }
 
     private var tiresBlock: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             Text("LASTİK")
                 .font(.system(size: 10, weight: .bold))
                 .tracking(1.2)
                 .foregroundStyle(muted)
-            HStack(spacing: 18) {
+            HStack {
                 psi("FL", model.psiFL)
                 psi("FR", model.psiFR)
             }
-            HStack(spacing: 18) {
+            HStack {
                 psi("RL", model.psiRL)
                 psi("RR", model.psiRR)
             }
         }
-        .frame(maxWidth: .infinity)
     }
 
     private func psi(_ c: String, _ v: Int) -> some View {
         VStack(spacing: 2) {
             Text(c).font(.system(size: 10, weight: .semibold)).foregroundStyle(muted)
-            Text("\(v)").font(.system(size: 28, weight: .bold, design: .rounded)).monospacedDigit()
+            Text("\(v)").font(.system(size: 26, weight: .bold, design: .rounded)).foregroundStyle(ink)
             Text("psi").font(.system(size: 10)).foregroundStyle(muted)
         }
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Center (classic speed dial)
+    // MARK: Center — white speed dial
 
     private var centerPanel: some View {
-        VStack(spacing: 10) {
-            gearRow
-            telltales
-            ClassicSpeedDial(speed: model.speed, powerKW: model.powerKW)
-                .frame(maxWidth: 300, maxHeight: 260)
-            if !model.bleOK {
-                Text("Pair Vehicle → sonra cluster")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(muted)
+        VStack(spacing: 14) {
+            HStack(spacing: 24) {
+                ForEach(["P", "R", "N", "D"], id: \.self) { g in
+                    Text(g)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(model.gear == g ? ink : ink.opacity(0.28))
+                }
             }
-            Button(model.driving ? "Durdur" : "Sür") {
-                model.toggleDrive()
-            }
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(muted)
-            .buttonStyle(.plain)
+
+            DaySpeedDial(speed: model.speed)
+                .frame(maxWidth: 280, maxHeight: 280)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
     }
 
-    private var gearRow: some View {
-        HStack(spacing: 22) {
-            ForEach(["P", "R", "N", "D"], id: \.self) { g in
-                Text(g)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(model.gear == g ? Color.white : Color.white.opacity(0.28))
-                    .shadow(color: model.gear == g ? .white.opacity(0.35) : .clear, radius: 8)
-            }
-        }
-    }
-
-    private var telltales: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "p.circle.fill").foregroundStyle(model.gear == "P" ? cyan : muted.opacity(0.35))
-            Image(systemName: "steeringwheel").foregroundStyle(model.driving ? cyan : muted.opacity(0.35))
-            Image(systemName: "car.side").foregroundStyle(model.bleOK ? cyan : muted.opacity(0.35))
-            Image(systemName: "headlight.high").foregroundStyle(muted.opacity(0.35))
-        }
-        .font(.system(size: 14, weight: .semibold))
-    }
-
-    // MARK: - Right (map / media)
+    // MARK: Right — map
 
     private var rightPanel: some View {
-        VStack(spacing: 0) {
+        VStack {
             Spacer(minLength: 0)
-            Group {
-                if model.rightSlide == 0 { mapBlock } else { mediaBlock }
+            ZStack(alignment: .bottomTrailing) {
+                Map(initialPosition: .region(
+                    MKCoordinateRegion(
+                        center: CLLocationCoordinate2D(latitude: 41.0215, longitude: 29.0210),
+                        span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
+                    )
+                ))
+                .mapStyle(.standard(elevation: .flat, pointsOfInterest: .including([.publicTransport]), showsTraffic: false))
+                .disabled(true)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+                .colorScheme(.light)
+
+                Text("N")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(ink.opacity(0.7))
+                    .padding(6)
+                    .background(Circle().fill(Color.white.opacity(0.85)))
+                    .padding(8)
             }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 24).onEnded { g in
-                    if abs(g.translation.height) > 28 { model.cycleRight() }
-                }
-            )
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 260, maxHeight: 340)
+            .padding(.leading, 8)
+            .padding(.trailing, 14)
             Spacer(minLength: 0)
-            dots(active: model.rightSlide, count: 2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 18)
-                .padding(.bottom, 8)
         }
-        .padding(.trailing, 14)
-    }
-
-    private var mapBlock: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Map(initialPosition: .region(
-                MKCoordinateRegion(
-                    center: CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784),
-                    span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
-                )
-            ))
-            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll, showsTraffic: false))
-            .disabled(true)
-            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-            )
-            .colorScheme(.dark)
-
-            Text("N")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white.opacity(0.7))
-                .padding(6)
-                .background(Circle().fill(Color.black.opacity(0.45)))
-                .padding(8)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 280)
-        .padding(.leading, 10)
-    }
-
-    private var mediaBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("MEDYA")
-                .font(.system(size: 10, weight: .bold))
-                .tracking(1.2)
-                .foregroundStyle(muted)
-            Text(model.mediaTitle)
-                .font(.system(size: 22, weight: .semibold, design: .rounded))
-            Text(model.mediaArtist)
-                .font(.system(size: 14))
-                .foregroundStyle(muted)
-            Capsule()
-                .fill(Color.white.opacity(0.12))
-                .frame(height: 4)
-                .overlay(alignment: .leading) {
-                    Capsule().fill(cyan).frame(width: 90, height: 4)
-                }
-        }
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.leading, 16)
     }
 
     private func dots(active: Int, count: Int) -> some View {
         VStack(spacing: 6) {
             ForEach(0..<count, id: \.self) { i in
                 Capsule()
-                    .fill(i == active ? Color.white : Color.white.opacity(0.28))
+                    .fill(i == active ? ink : ink.opacity(0.22))
                     .frame(width: 6, height: i == active ? 14 : 6)
             }
         }
     }
 }
 
-/// Dark circular dial like classic v14 cluster (not the teal demo ring).
-struct ClassicSpeedDial: View {
+struct DaySpeedDial: View {
     let speed: Double
-    let powerKW: Double
 
     var body: some View {
         ZStack {
             Circle()
                 .fill(
-                    RadialGradient(
-                        colors: [
-                            Color(red: 0.14, green: 0.15, blue: 0.18),
-                            Color(red: 0.05, green: 0.055, blue: 0.07),
-                        ],
-                        center: .center,
-                        startRadius: 10,
-                        endRadius: 160
+                    LinearGradient(
+                        colors: [Color.white, Color(red: 0.94, green: 0.95, blue: 0.97)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
                 )
-                .shadow(color: .black.opacity(0.55), radius: 28, y: 10)
+                .shadow(color: .black.opacity(0.14), radius: 22, y: 10)
+                .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
 
             Circle()
-                .stroke(Color.white.opacity(0.08), lineWidth: 10)
-                .padding(10)
-
-            Circle()
-                .trim(from: 0, to: min(1, speed / 220))
-                .stroke(Color.white.opacity(0.35), style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .padding(14)
-                .animation(.easeOut(duration: 0.12), value: speed)
+                .stroke(Color.black.opacity(0.04), lineWidth: 1)
+                .padding(1)
 
             VStack(spacing: 2) {
                 Text("\(Int(speed.rounded()))")
-                    .font(.system(size: 92, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 96, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.07, green: 0.07, blue: 0.08))
                     .monospacedDigit()
                     .contentTransition(.numericText())
                 Text("km/h")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.45))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Color(red: 0.11, green: 0.11, blue: 0.12).opacity(0.45))
             }
         }
         .aspectRatio(1, contentMode: .fit)
-        .padding(8)
+        .padding(12)
     }
 }

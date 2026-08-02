@@ -1,19 +1,15 @@
-# iPhone — tek uygulama, klasik v14 HUD
+# iPhone — gündüz HUD (referans ekran)
 
-WebView yok. Pair + **klasik Dash cluster görünümü** aynı uygulamada.
+Sol: Apple Music · Orta: beyaz hız kadranı · Sağ: harita  
+WebView yok — Pair + cluster aynı uygulamada.
 
-## Kur
+## Direkt zip
 
-1. App Store → **Swift Playgrounds**
-2. Direkt zip:  
-   `https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build17.zip`
-3. Dosyalar → `PulsePhoneKey.swiftpm` → basılı tut → Paylaş → Playgrounds  
-4. Signing → **Run ▶**  
-5. Sürüm: **`build-17-classic`**
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build18.zip
 
-## Kullan
+1. Dosyalar’da aç → `PulsePhoneKey.swiftpm` → Paylaş → Playgrounds  
+2. Signing → Run ▶  
+3. Sürüm: **`build-18-dayhud`**  
+4. Pair Vehicle → Cluster’i ac  
 
-1. **Pair Vehicle** → VIN → `🔑 Tesla …` → Key Card konsola  
-2. **Cluster’i ac** — koyu triad (seyahat | hız | harita), v14 gibi  
-
-Yan panellerde yukarı/aşağı kaydır: seyahat/lastik · harita/medya.
+Sol panelde yukarı/aşağı: Medya → Seyahat → Lastik.

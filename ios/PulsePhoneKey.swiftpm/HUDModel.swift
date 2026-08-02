@@ -2,40 +2,43 @@ import Foundation
 import Combine
 import SwiftUI
 
-/// On-device cluster state matching classic Dash fields — no WebView.
+/// On-device cluster — matches day-mode Dash HUD (media | speed | map).
 @MainActor
 final class HUDModel: ObservableObject {
     @Published var speed: Double = 0
-    @Published var battery: Double = 68
+    @Published var battery: Double = 50
     @Published var powerKW: Double = 0
     @Published var gear: String = "P"
-    @Published var rangeKm: Int = 328
+    @Published var rangeKm: Int = 240
     @Published var odometer: Double = 74_832
     @Published var tripKm: Double = 0
     @Published var psiFL = 42
     @Published var psiFR = 42
     @Published var psiRL = 42
     @Published var psiRR = 42
-    @Published var outdoorC: Int = 29
-    @Published var night = true
+    @Published var outdoorC: Int = 28
+    @Published var night = false
     @Published var vin: String = "XP7YGCEK0PB159959"
     @Published var vinTail: String = "159959"
     @Published var bleOK = false
-    @Published var bleLabel = "BLE"
     @Published var driving = false
     @Published var destination = "—"
     @Published var eta = "—"
     @Published var energyAtArrival = "—"
     @Published var tripDist = "—"
     @Published var place = "—"
-    @Published var mediaTitle = "—"
-    @Published var mediaArtist = "—"
+    @Published var mediaService = "Apple Music"
+    @Published var mediaTitle = "Holocene"
+    @Published var mediaArtist = "Bon Iver"
+    @Published var mediaPlaying = false
     @Published var clock = ""
     @Published var dayName = ""
     @Published var dateLine = ""
-    @Published var nextPrayer = "Öğle —"
-    @Published var leftSlide = 0   // 0 trip, 1 tires
-    @Published var rightSlide = 0  // 0 map, 1 media
+    @Published var nextPrayer = "Öğle 13:10"
+    /// 0 media, 1 trip, 2 tires
+    @Published var leftSlide = 0
+    /// 0 map
+    @Published var rightSlide = 0
 
     private var timer: AnyCancellable?
     private var phase: Double = 0
@@ -64,13 +67,12 @@ final class HUDModel: ObservableObject {
         vin = v
         vinTail = String(v.suffix(6))
         bleOK = paired
-        bleLabel = paired ? "GATT · KEY" : "BLE"
+        night = false
+        leftSlide = 0
         if paired {
             destination = "Sabiha Gökçen"
             energyAtArrival = "\(Int(battery))%"
-            place = "Konum · telefon"
-            mediaTitle = "Pulse"
-            mediaArtist = "Phone Key"
+            place = "İstanbul"
         }
         refreshClock()
         start()
@@ -91,28 +93,25 @@ final class HUDModel: ObservableObject {
 
     func toggleDrive() {
         driving.toggle()
-        if driving {
-            gear = "D"
-        } else {
-            gear = "P"
+        gear = driving ? "D" : "P"
+        if !driving {
             speed = 0
             powerKW = 0
         }
     }
 
     func beginAfterPair() {
-        if bleOK, !driving { toggleDrive() }
+        // Stay in Park like the reference screenshot until user drives.
     }
 
-    func cycleLeft() { leftSlide = (leftSlide + 1) % 2 }
-    func cycleRight() { rightSlide = (rightSlide + 1) % 2 }
+    func cycleLeft() { leftSlide = (leftSlide + 1) % 3 }
+    func togglePlay() { mediaPlaying.toggle() }
 
     private func refreshClock() {
         let now = Date()
         clock = clockFmt.string(from: now)
         dayName = dayFmt.string(from: now).capitalized
         dateLine = dateFmt.string(from: now)
-        nextPrayer = "Öğle 13:10"
     }
 
     private func tick() {
@@ -138,13 +137,6 @@ final class HUDModel: ObservableObject {
         } else {
             speed += (0 - speed) * 0.08
             powerKW += (0 - powerKW) * 0.1
-        }
-
-        if Int(phase * 10) % 90 == 0 {
-            psiFL = 41 + Int.random(in: 0...2)
-            psiFR = 41 + Int.random(in: 0...2)
-            psiRL = 41 + Int.random(in: 0...2)
-            psiRR = 41 + Int.random(in: 0...2)
         }
     }
 }

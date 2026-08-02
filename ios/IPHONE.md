@@ -1,6 +1,7 @@
-# iPhone — klasik cluster, tek uygulama
+# iPhone HUD
 
-→ [`PulsePhoneKey.swiftpm/IPHONE.md`](PulsePhoneKey.swiftpm/IPHONE.md)
+Referans: gündüz medya | hız | harita.
 
-Direkt: `/downloads/PulsePhoneKey-playground-build17.zip`  
-Sürüm: **`build-17-classic`**
+Direkt: https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build18.zip  
+
+Sürüm: **`build-18-dayhud`**

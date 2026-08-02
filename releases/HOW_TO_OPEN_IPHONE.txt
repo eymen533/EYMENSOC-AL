@@ -1,9 +1,7 @@
-PulsePhoneKey build-17-classic
+build-18-dayhud — gunduz HUD (medya | hiz | harita)
 
-Direkt: .../downloads/PulsePhoneKey-playground-build17.zip
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build18.zip
 
 1) Zip ac
-2) PulsePhoneKey.swiftpm BASILI TUT → Paylas → Playgrounds
-3) Signing → Run ▶
-4) Surum: build-17-classic
-5) Pair → Cluster (klasik v14 gorunum, WebView yok)
+2) PulsePhoneKey.swiftpm BASILI TUT → Playgrounds
+3) Run ▶ → build-18-dayhud

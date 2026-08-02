@@ -1,6 +1,5 @@
-# Swift Playgrounds — klasik HUD (v14 görünüm)
+# build-18-dayhud
 
-Sürüm: **`build-17-classic`** · WebView yok · Pair + native cluster
+Gündüz triad HUD (medya | beyaz dial | harita). WebView yok.
 
-Zip: `/downloads/PulsePhoneKey-playground-build17.zip`  
-Adımlar: [`IPHONE.md`](IPHONE.md)
+Zip: `/downloads/PulsePhoneKey-playground-build18.zip` · [`IPHONE.md`](IPHONE.md)
