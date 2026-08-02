@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var dashURL = UserDefaults.standard.string(forKey: "pulse_dash_url")
         ?? "https://mon-holds-cloud-grateful.trycloudflare.com"
     @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
+    @State private var teslaToken = UserDefaults.standard.string(forKey: "pulse_tesla_token") ?? ""
     @State private var showPairFlow = false
     @State private var screen: Screen = .home
     @State private var showSettings = false
@@ -73,7 +74,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("build-40 · stabil acilis · Pair + HUD\nSade · Lastik · Rota · Harita · Medya")
+                    Text("build-41 · Dash live · Pair + HUD\nSettings: Dash URL + PIN (+ token) → LIVE")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -166,12 +167,15 @@ struct ContentView: View {
                         .keyboardType(.URL)
                     SecureField("PIN", text: $pin)
                         .keyboardType(.numberPad)
-                    Text("Bos birakirsan harita telefon GPS kullanir. URL + PIN ile hiz/batarya/arac konumu Dash’ten gelir.")
+                    SecureField("Tesla access token (opsiyonel)", text: $teslaToken)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    Text("HUD açılınca Dash’ten hız/vites/batarya/lastik/medya çeker. Token yazarsan Dash live moda geçer. HUD’da LIVE = gerçek araç.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 Section("Arabaya baglaninca") {
-                    Text("BLE Pair = Tesla Phone Key (kilit/surus anahtari). Arabanin canli hiz/GPS’i BLE’den gelmez; Tesla API + Dash acikken Settings’teki URL ile HUD’a akar.")
+                    Text("BLE Pair = Phone Key. Canlı hız/vites BLE AES ile değil — Owner API + Dash üzerinden gelir (çökme riski düşük).")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -198,6 +202,10 @@ struct ContentView: View {
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         UserDefaults.standard.set(url, forKey: "pulse_dash_url")
         UserDefaults.standard.set(pin.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pulse_pin")
+        UserDefaults.standard.set(
+            teslaToken.trimmingCharacters(in: .whitespacesAndNewlines),
+            forKey: "pulse_tesla_token"
+        )
     }
 
     private func openHUD() {

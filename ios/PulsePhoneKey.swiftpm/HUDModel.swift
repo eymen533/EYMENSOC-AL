@@ -73,11 +73,6 @@ final class HUDModel: ObservableObject {
         leftSlide = 0
         refreshClock()
         start()
-        // Demo: show moving speed so dial is obviously alive
-        if !useVehicleFeed {
-            driving = true
-            gear = "D"
-        }
     }
 
     func start() {
@@ -86,9 +81,17 @@ final class HUDModel: ObservableObject {
         timer = Timer.publish(every: 0.2, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.tick() }
-        // build-36: no network poll (Playgrounds crash/hang risk). Local demo only.
+        // build-41: Dash Owner API poll (no BLE AES, no MapKit).
         useVehicleFeed = false
-        telemetrySource = "demo"
+        telemetrySource = "baglaniyor"
+        startVehiclePoll()
+        // Until first live packet: keep dial quiet in P (not fake driving).
+        if !useVehicleFeed {
+            driving = false
+            gear = "P"
+            speed = 0
+            powerKW = 0
+        }
     }
 
     func stop() {
@@ -173,14 +176,24 @@ final class HUDModel: ObservableObject {
         pollTask?.cancel()
         let base = (UserDefaults.standard.string(forKey: "pulse_dash_url") ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let pin = (UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let token = (UserDefaults.standard.string(forKey: "pulse_tesla_token") ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !base.isEmpty, let root = URL(string: base) else {
             useVehicleFeed = false
             telemetrySource = "demo"
+            // No Dash URL → local demo motion so HUD is not dead.
+            driving = true
+            gear = "D"
             return
         }
+        telemetrySource = "baglaniyor"
         pollTask = Task { @MainActor in
+            if !token.isEmpty {
+                await enableLiveIfNeeded(root: root, pin: pin, token: token)
+            }
             while !Task.isCancelled {
                 await pullVehicle(root: root, pin: pin)
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
@@ -188,24 +201,50 @@ final class HUDModel: ObservableObject {
         }
     }
 
+    private func enableLiveIfNeeded(root: URL, pin: String, token: String) async {
+        let url = root.appendingPathComponent("api/tesla/enable")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(pin, forHTTPHeaderField: "X-Pulse-Pin")
+        req.timeoutInterval = 20
+        let body: [String: String] = [
+            "pin": pin,
+            "access_token": token,
+            "vin": vin,
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
     private func pullVehicle(root: URL, pin: String) async {
         var comps = URLComponents(url: root.appendingPathComponent("api/vehicle/state"), resolvingAgainstBaseURL: false)
         comps?.queryItems = [URLQueryItem(name: "pin", value: pin)]
         guard let final = comps?.url else { return }
+        var req = URLRequest(url: final)
+        req.setValue(pin, forHTTPHeaderField: "X-Pulse-Pin")
+        req.timeoutInterval = 12
         do {
-            let (data, resp) = try await URLSession.shared.data(from: final)
-            guard let http = resp as? HTTPURLResponse, http.statusCode == 200,
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse else { return }
+            if http.statusCode == 401 {
+                useVehicleFeed = false
+                telemetrySource = "pin?"
+                return
+            }
+            guard http.statusCode == 200,
                   let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   (obj["ok"] as? Bool) == true else {
                 useVehicleFeed = false
-                telemetrySource = "demo"
+                telemetrySource = "dash?"
                 return
             }
             useVehicleFeed = true
             let src = (obj["source"] as? String) ?? "demo"
-            telemetrySource = src == "live" ? "live" : "dash"
+            telemetrySource = src == "live" ? "live" : (src == "demo" ? "dash-demo" : "dash")
             if let h = num(obj["heading"]) { mapHeading = h }
             if let sp = num(obj["speed_kmh"]) { speed = sp; driving = sp > 1.5 }
+            if let pw = num(obj["power_kw"]) { powerKW = pw }
             if let bat = num(obj["battery_percent"]) { battery = bat }
             if let rng = num(obj["battery_range_km"]) { rangeKm = Int(rng) }
             if let g = obj["gear"] as? String, !g.isEmpty { gear = g }
@@ -215,9 +254,9 @@ final class HUDModel: ObservableObject {
             if let a = obj["arrival_time"] as? String, !a.isEmpty, a != "--" { eta = a }
             if let e = obj["energy_at_arrival"] as? String, !e.isEmpty, e != "--" { energyAtArrival = e }
             if let td = obj["trip_distance_km"] as? String, !td.isEmpty, td != "--" { tripDist = td }
-            if let mt = obj["media_title"] as? String { mediaTitle = mt }
-            if let ma = obj["media_artist"] as? String { mediaArtist = ma }
-            if let ms = obj["media_service"] as? String { mediaService = ms }
+            if let mt = obj["media_title"] as? String, !mt.isEmpty { mediaTitle = mt }
+            if let ma = obj["media_artist"] as? String, !ma.isEmpty { mediaArtist = ma }
+            if let ms = obj["media_service"] as? String, !ms.isEmpty { mediaService = ms }
             if let t = num(obj["tire_fl"]) { psiFL = Int(t) }
             if let t = num(obj["tire_fr"]) { psiFR = Int(t) }
             if let t = num(obj["tire_rl"]) { psiRL = Int(t) }
@@ -225,7 +264,7 @@ final class HUDModel: ObservableObject {
             if let temp = num(obj["outside_temp_c"]) { outdoorC = Int(temp) }
         } catch {
             useVehicleFeed = false
-            telemetrySource = "demo"
+            telemetrySource = "offline"
         }
     }
 

@@ -1,8 +1,9 @@
-# build-40-stable
+# build-41-dash
 
-Plan A: önce açılan stabil uygulama.
+Plan B: stabil açılış + Dash Owner API poll.
 - Pair + Cluster HUD
 - MapKit yok
-- BLE AES telemetri dosyaları yok (sonra parça parça)
+- BLE AES telemetri dosyaları yok
+- Canlı hız/vites/batarya: Dash `/api/vehicle/state` (+ opsiyonel `/api/tesla/enable`)
 
-Eski proje SIL → **build-40-stable**
+Eski proje SIL → **build-41-dash**

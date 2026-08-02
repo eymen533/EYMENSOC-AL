@@ -8,5 +8,10 @@
 	<string>Tesla Phone Key eslesmesi icin Bluetooth gerekir.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Pulse Key</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

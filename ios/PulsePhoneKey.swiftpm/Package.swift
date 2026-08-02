@@ -17,8 +17,8 @@ let package = Package(
             targets: ["AppModule"],
             bundleIdentifier: "com.teslapulse.phonekey",
             teamIdentifier: "",
-            displayVersion: "4.0",
-            bundleVersion: "40",
+            displayVersion: "4.1",
+            bundleVersion: "41",
             appIcon: .placeholder(icon: .car),
             accentColor: .presetColor(.blue),
             supportedDeviceFamilies: [
