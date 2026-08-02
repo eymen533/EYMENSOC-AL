@@ -92,6 +92,9 @@ def register_auth(server: Flask) -> None:
             return None
         if path.startswith("/_favicon"):
             return None
+        # iPhone Playgrounds zip — direct link, no PIN
+        if path.startswith("/downloads/PulsePhoneKey-playground") or path == "/downloads/PulsePhoneKey-swift-files.zip":
+            return None
         if is_unlocked():
             return None
         # Unauthenticated
