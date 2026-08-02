@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Pulse HUD · xcode-ble-2 önizleme</title>
+<style>
+  :root {
+    --ink: #fff;
+    --muted: rgba(255,255,255,.55);
+    --dim: rgba(255,255,255,.22);
+    --accent: #59d9c0;
+    --map: #dbd9d4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #0a0a0a; color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    display: grid; place-items: center; padding: 18px;
+  }
+  .phone {
+    width: min(980px, 100%); aspect-ratio: 19.5 / 9;
+    background: #000; border-radius: 22px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.08);
+    box-shadow: 0 30px 80px rgba(0,0,0,.55);
+    display: grid; grid-template-rows: 40px 1fr;
+    position: relative;
+  }
+  .top {
+    display: flex; align-items: center; gap: 10px; padding: 0 14px;
+    background: linear-gradient(to bottom, rgba(0,0,0,.92), rgba(0,0,0,.2));
+    font-size: 13px; z-index: 2;
+  }
+  .pill {
+    margin-left: auto; display: flex; gap: 8px; align-items: center;
+  }
+  .batt {
+    background: rgba(255,255,255,.1); border-radius: 999px; padding: 3px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .main {
+    display: grid; grid-template-columns: 28% 34px 30% 1fr; min-height: 0;
+  }
+  .left {
+    padding: 14px 16px 40px; background: #000; position: relative;
+  }
+  .left h3 { margin: 0 0 6px; font-weight: 500; color: var(--muted); font-size: 12px; }
+  .left .val { font-size: 22px; font-weight: 600; margin-bottom: 14px; }
+  .batt-chip {
+    position: absolute; left: 16px; bottom: 12px; display: flex; gap: 6px; align-items: center;
+    font-size: 12px; font-variant-numeric: tabular-nums;
+  }
+  .batt-chip .g { color: #59d972; }
+  .rail {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  }
+  .rail span {
+    width: 26px; height: 26px; display: grid; place-items: center; color: var(--dim); font-size: 12px;
+  }
+  .rail span.on { color: #fff; outline: 1px solid rgba(255,255,255,.7); border-radius: 5px; }
+  .center {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    background: linear-gradient(90deg, #000 60%, rgba(0,0,0,.15));
+  }
+  .gears { display: flex; gap: 20px; font-weight: 700; font-size: 18px; }
+  .gears b { color: #fff; }
+  .gears i { color: var(--dim); font-style: normal; }
+  .dial {
+    width: 210px; height: 210px; border-radius: 50%; background: #000;
+    display: grid; place-items: center; box-shadow: -10px 0 28px rgba(0,0,0,.55);
+  }
+  .speed { font-size: 84px; font-weight: 700; line-height: .9; font-variant-numeric: tabular-nums; }
+  .unit { text-align: center; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .place { color: var(--muted); font-size: 12px; }
+  .map {
+    position: relative; background:
+      linear-gradient(180deg, rgba(0,0,0,.15), transparent 30%),
+      repeating-linear-gradient(90deg, #e8e6e1 0 28px, #ddd9d2 28px 30px),
+      repeating-linear-gradient(0deg, #e8e6e1 0 28px, #ddd9d2 28px 30px);
+    overflow: hidden;
+  }
+  .map::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(0,0,0,.95), rgba(0,0,0,.35), transparent 48px);
+    pointer-events: none;
+  }
+  .blocks {
+    position: absolute; inset: 18% 12% 28% 18%;
+    background:
+      linear-gradient(#cfcbc3, #cfcbc3) 10% 20% / 18% 28% no-repeat,
+      linear-gradient(#c4bfb6, #c4bfb6) 40% 35% / 22% 40% no-repeat,
+      linear-gradient(#d2cdc4, #d2cdc4) 70% 15% / 16% 32% no-repeat,
+      linear-gradient(#bbb6ad, #bbb6ad) 55% 70% / 20% 22% no-repeat;
+    opacity: .95;
+  }
+  .route {
+    position: absolute; left: 22%; top: 30%; width: 58%; height: 48%;
+    border: 0; border-left: 6px solid #1a73e8; border-bottom: 6px solid #1a73e8;
+    border-radius: 0 0 0 40px; opacity: .95;
+    filter: drop-shadow(0 0 4px rgba(26,115,232,.45));
+  }
+  .car {
+    position: absolute; left: 24%; bottom: 28%;
+    width: 0; height: 0;
+    border-left: 8px solid transparent; border-right: 8px solid transparent;
+    border-bottom: 16px solid #e53935;
+    transform: rotate(28deg);
+    filter: drop-shadow(0 1px 1px #fff);
+  }
+  .compass {
+    position: absolute; right: 12px; bottom: 42px; width: 36px; height: 36px;
+    border-radius: 50%; background: rgba(255,255,255,.92); color: #222;
+    display: grid; place-items: center; font-size: 10px; font-weight: 700;
+  }
+  .odo {
+    position: absolute; right: 12px; bottom: 12px;
+    background: rgba(255,255,255,.9); color: rgba(0,0,0,.7);
+    font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 600;
+    padding: 4px 8px; border-radius: 999px;
+  }
+  .caption {
+    max-width: 980px; width: 100%; margin-top: 14px; color: rgba(255,255,255,.65);
+    font-size: 14px; line-height: 1.45;
+  }
+  .caption a { color: #7de3d0; }
+  .tag {
+    display: inline-block; background: rgba(89,217,192,.15); color: #9ff3e4;
+    border: 1px solid rgba(89,217,192,.35); border-radius: 999px;
+    padding: 2px 10px; font-size: 12px; margin-bottom: 8px;
+  }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 0; }
+  .tabs button {
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+    color: #fff; border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  }
+  .tabs button.active { background: rgba(89,217,192,.2); border-color: rgba(89,217,192,.5); }
+</style>
+</head>
+<body>
+  <div>
+    <div class="phone" id="hud">
+      <div class="top">
+        <span>‹</span>
+        <strong>18:59</strong>
+        <span style="color:var(--muted)">29°C</span>
+        <span style="color:var(--accent)">▣</span>
+        <div class="pill">
+          <span style="color:var(--muted);font-size:12px">↻ Reconnect</span>
+          <span class="batt">🔋 69</span>
+          <span style="color:var(--muted)">⚙</span>
+        </div>
+      </div>
+      <div class="main">
+        <div class="left" id="left">
+          <h3>Destination</h3><div class="val">Sabiha Gökçen</div>
+          <h3>Arrival Time</h3><div class="val">19:12</div>
+          <h3>Energy at Arrival</h3><div class="val">66%</div>
+          <h3>Distance</h3><div class="val">13.3 km</div>
+          <div class="batt-chip"><span class="g">🔋</span><span>69% / 331km</span></div>
+        </div>
+        <div class="rail">
+          <span>□</span><span>🚗</span><span class="on">➤</span><span>🗺</span><span>♪</span>
+        </div>
+        <div class="center">
+          <div class="gears"><i>P</i><i>R</i><i>N</i><b>D</b></div>
+          <div class="dial"><div><div class="speed">0</div><div class="unit">km/h</div></div></div>
+          <div class="place">📍 Ertürk Sk. No:29</div>
+        </div>
+        <div class="map">
+          <div class="blocks"></div>
+          <div class="route" title="Google Directions rota"></div>
+          <div class="car"></div>
+          <div class="compass">N</div>
+          <div class="odo">ODO 74832km</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="caption">
+      <div class="tag">xcode-ble-2 önizleme · web</div>
+      <div><strong>Ne değişti:</strong> Dashla tarzı triad HUD · sağda Google Maps · hedef varken mavi rota çizgisi · iOS 16+</div>
+      <div class="tabs">
+        <button class="active" onclick="setPanel('rota', this)">Rota</button>
+        <button onclick="setPanel('lastik', this)">Lastik</button>
+        <button onclick="setPanel('medya', this)">Medya</button>
+      </div>
+      <p style="margin:.8rem 0 0">
+        Kod farkı:
+        <a href="https://github.com/eymen533/EYMENSOC-AL/pull/7/files" target="_blank" rel="noopener">PR #7 Files</a>
+        ·
+        <a href="https://github.com/eymen533/EYMENSOC-AL/commit/e0de41a" target="_blank" rel="noopener">Google Maps commit</a>
+        ·
+        <a href="https://github.com/eymen533/EYMENSOC-AL/tree/cursor/ble-pair-fix-02d8/ios/PulsePhoneKey" target="_blank" rel="noopener">Xcode kaynak</a>
+      </p>
+    </div>
+  </div>
+<script>
+function setPanel(kind, btn){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const left = document.getElementById('left');
+  if(kind==='lastik'){
+    left.innerHTML = `
+      <div style="height:70%;display:grid;place-items:center;position:relative">
+        <div style="width:38%;height:62%;border:2px solid rgba(255,255,255,.35);border-radius:28%"></div>
+        <div style="position:absolute;inset:12% 0;display:flex;flex-direction:column;justify-content:space-between">
+          <div style="display:flex;justify-content:space-between"><span>42 psi</span><span>42 psi</span></div>
+          <div style="display:flex;justify-content:space-between"><span>41 psi</span><span>42 psi</span></div>
+        </div>
+      </div>
+      <div class="batt-chip"><span class="g">🔋</span><span>69% / 331km</span></div>`;
+  } else if(kind==='medya'){
+    left.innerHTML = `
+      <h3>YouTube Music</h3>
+      <div style="width:88px;height:88px;border-radius:10px;background:linear-gradient(135deg,#e65a33,#731c19);display:grid;place-items:center;font-size:28px;margin:8px 0">♪</div>
+      <div class="val" style="margin:0">Kayıp Kalp</div>
+      <div style="color:var(--muted)">BLOK3</div>
+      <div class="batt-chip"><span class="g">🔋</span><span>69% / 331km</span></div>`;
+  } else {
+    left.innerHTML = `
+      <h3>Destination</h3><div class="val">Sabiha Gökçen</div>
+      <h3>Arrival Time</h3><div class="val">19:12</div>
+      <h3>Energy at Arrival</h3><div class="val">66%</div>
+      <h3>Distance</h3><div class="val">13.3 km</div>
+      <div class="batt-chip"><span class="g">🔋</span><span>69% / 331km</span></div>`;
+  }
+}
+</script>
+</body>
+</html>
