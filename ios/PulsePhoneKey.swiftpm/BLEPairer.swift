@@ -3,7 +3,7 @@ import CoreBluetooth
 
 /// Simple, reliable Tesla VCSEC pairer for Swift Playgrounds.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "build-30-nocrash"
+    static let buildId = "build-31-ble"
 
     enum Step: String {
         case idle = "Hazir"
@@ -30,6 +30,9 @@ final class BLEPairer: NSObject, ObservableObject {
     @Published var waitingForCard = false
     @Published var paired = false
     @Published var readyForDashboard = false
+    /// Live GATT link to the vehicle (true while peripheral connected).
+    @Published var linkUp = false
+    @Published var linkLabel = "BLE kapali"
 
     private let serviceUUID = CBUUID(string: "00000211-B2D1-43F0-9B88-960CEBF8B91E")
     private let writeUUID = CBUUID(string: "00000212-B2D1-43F0-9B88-960CEBF8B91E")
@@ -44,8 +47,27 @@ final class BLEPairer: NSObject, ObservableObject {
     private var peripherals: [UUID: CBPeripheral] = [:]
     private var deadline: Date?
     private var timer: Timer?
+    private var reconnectAttempts = 0
 
     // MARK: - Public
+
+    var isLinked: Bool { linkUp || paired || readyForDashboard }
+
+    func keepAliveReconnect() {
+        onMain {
+            guard let p = self.peripheral else { return }
+            guard p.state != .connected else {
+                self.linkUp = true
+                self.linkLabel = "BLE bagli"
+                return
+            }
+            guard self.reconnectAttempts < 5 else { return }
+            self.reconnectAttempts += 1
+            self.logLine("reconnect #\(self.reconnectAttempts)")
+            self.linkLabel = "Yeniden baglan…"
+            self.central?.connect(p, options: nil)
+        }
+    }
 
     func start(vin: String, publicKey: Data) {
         onMain {
@@ -53,6 +75,9 @@ final class BLEPairer: NSObject, ObservableObject {
             self.waitingForCard = false
             self.paired = false
             self.readyForDashboard = false
+            self.linkUp = false
+            self.linkLabel = "Baglanti yok"
+            self.reconnectAttempts = 0
             self.devices = []
             self.peripherals = [:]
             self.chunks = []
@@ -177,6 +202,8 @@ final class BLEPairer: NSObject, ObservableObject {
     private func fail(_ msg: String) {
         timer?.invalidate()
         central?.stopScan()
+        linkUp = false
+        linkLabel = "Baglanti yok"
         step = .failed
         status = "HATA: \(msg)"
         logLine("ERR \(msg)")
@@ -254,23 +281,42 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        step = .services
-        status = "GATT bagli — servisler…"
+        linkUp = true
+        linkLabel = "BLE bagli · \(peripheral.name ?? "Tesla")"
+        reconnectAttempts = 0
         logLine("GATT OK")
-        peripheral.discoverServices(nil)
+        // Fresh pair path: discover + write. Reconnect after card/done: keep session.
+        if step == .connecting || step == .services || step == .writing || step == .scanning {
+            step = .services
+            status = "GATT bagli — servisler…"
+            peripheral.discoverServices(nil)
+        } else {
+            status = "BLE yeniden baglandi"
+        }
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        linkUp = false
+        linkLabel = "Baglanti yok"
+        if step == .waitingCard || step == .done {
+            keepAliveReconnect()
+            return
+        }
         fail("Connect fail: \(error?.localizedDescription ?? "?")")
         step = .scanning
         startScan()
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        linkUp = false
+        linkLabel = "Baglanti koptu"
         logLine("disconnect \(error?.localizedDescription ?? "")")
         if step == .waitingCard || step == .done {
-            status = "BLE koptu — karti yine de konsola dene / Dashboard ac"
+            status = "BLE koptu — yeniden baglaniliyor…"
             readyForDashboard = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.keepAliveReconnect()
+            }
             return
         }
         if step == .writing || step == .services || step == .connecting {

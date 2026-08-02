@@ -1,16 +1,15 @@
-# build-30-nocrash
+# build-31-ble
 
-WKWebView / konum kaldirildi — cokmemeli.
+Stabil HUD (Canvas/SoftMap/WebKit yok) + gerçek BLE bağlantı durumu.
 
-5 ekran: Sade · Lastik · Rota · Harita · Medya
+1. Eski PulsePhoneKey projesini Playgrounds’tan **SİL**
+2. Zip indir → Dosyalar → `.swiftpm` basılı tut → Playgrounds
+3. Signing + Bluetooth Always → **Run ▶**
+4. Ana ekranda sürüm: **`build-31-ble`**
+5. Pair Vehicle → listeden 🔑 Tesla → Key Card **konsola** → Cluster
 
-## Indir (PIN yok)
-https://along-scene-designated-kits.trycloudflare.com/iphone
+GitHub: https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build31.zip
 
-Dogrudan: https://along-scene-designated-kits.trycloudflare.com/downloads/iphone.zip
+CDN: https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build31.zip
 
-GitHub: https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build30.zip
-
-CDN: https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build30.zip
-
-Eski PulsePhoneKey'i SIL → zip → Run ▶ → **build-30-nocrash**
+Dash `/iphone` (PIN yok) veya `/downloads/iphone.zip`

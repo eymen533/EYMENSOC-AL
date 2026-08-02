@@ -1,11 +1,7 @@
-# build-30-nocrash
+# build-31-ble
 
-Kaldirilan cokme kaynaklari:
-- WKWebView / Leaflet harita
-- CoreLocation / location capability
-- MapKit / base64 foto
-- Agir spring transition
+Kaldırılan çökme yolları: SoftMap Canvas, TimelineView, MapKit, WKWebView, CoreLocation, UIImage.
 
-Kalan: 5’li slider + Tesla lastik + Canvas SoftMap + BLE Pair
+Kalan: 5’li slider + SF Symbol lastik + düz SwiftUI harita + BLE Pair + reconnect
 
-Eski projeyi SIL → build-30 zip → Run ▶ → **build-30-nocrash**
+Eski projeyi SIL → build-31 zip → Run ▶ → **build-31-ble**

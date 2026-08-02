@@ -18,7 +18,11 @@ struct ContentView: View {
         Group {
             switch screen {
             case .hud:
-                NativeHUDView(model: hud, onBack: { screen = .home })
+                NativeHUDView(
+                    model: hud,
+                    linkLabel: ble.linkLabel,
+                    onBack: { screen = .home }
+                )
             case .home:
                 home
             }
@@ -39,6 +43,12 @@ struct ContentView: View {
             settingsSheet
         }
         .onChange(of: ble.paired) { _, on in
+            if on { hud.bleOK = true }
+        }
+        .onChange(of: ble.linkUp) { _, on in
+            if on { hud.bleOK = true }
+        }
+        .onChange(of: ble.readyForDashboard) { _, on in
             if on { hud.bleOK = true }
         }
     }
@@ -63,12 +73,15 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("build-30 · 5 ekran kaydir · SoftMap (cokmez)\nSade · Lastik · Rota · Harita · Medya")
+                    Text("build-31 · stabil HUD · gercek BLE baglanti\nSade · Lastik · Rota · Harita · Medya")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
 
-                    if ble.paired || ble.waitingForCard || ble.readyForDashboard {
+                    if ble.linkUp {
+                        Label(ble.linkLabel, systemImage: "antenna.radiowaves.left.and.right")
+                            .foregroundStyle(Color(red: 0.3, green: 0.9, blue: 0.65))
+                    } else if ble.paired || ble.waitingForCard || ble.readyForDashboard {
                         Label("Key session ready", systemImage: "checkmark.seal.fill")
                             .foregroundStyle(Color(red: 0.3, green: 0.9, blue: 0.65))
                     }
@@ -188,7 +201,10 @@ struct ContentView: View {
     }
 
     private func openHUD() {
-        hud.configure(vin: vinNorm, paired: ble.paired || ble.readyForDashboard || ble.waitingForCard)
+        hud.configure(
+            vin: vinNorm,
+            paired: ble.linkUp || ble.paired || ble.readyForDashboard || ble.waitingForCard
+        )
         screen = .hud
     }
 }

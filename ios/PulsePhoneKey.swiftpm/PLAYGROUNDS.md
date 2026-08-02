@@ -2,4 +2,5 @@
 
 Model Y lastik görseli · ortalanmış medya · flash ikon rayı.
 
-Zip: `/downloads/PulsePhoneKey-playground-build20.zip`
+Zip: `/downloads/PulsePhoneKey-playground-build31.zip`
+
