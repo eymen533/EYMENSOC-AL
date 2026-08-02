@@ -1,16 +1,11 @@
-# iPhone HUD — kayan menü (Dash gibi)
+# build-20-rails
 
-Gündüz triad + **her iki yanda dikey kaydırma**:
-
-1. Seyahat (Trip)  
-2. Lastik (PSI)  
-3. Harita  
-4. Medya  
-
-Sol varsayılan: Seyahat · Sağ varsayılan: Harita · Noktalara dokun veya **↕ kaydır**.
+- Lastik: gerçek Model Y üstten görünüm + PSI  
+- Medya ortalanmış  
+- Kaydırınca ~1 sn ikon rayı (Seyahat / Lastik / Harita / Medya) görünüp kaybolur  
 
 ## Direkt zip
 
-https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build19.zip
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build20.zip
 
-Run ▶ → sürüm **`build-19-carousel`**
+Sürüm: **`build-20-rails`**

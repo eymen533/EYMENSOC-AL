@@ -41,11 +41,16 @@ final class HUDModel: ObservableObject {
     /// Same order as Dash: 0 trip, 1 tires, 2 map, 3 media
     @Published var leftSlide = 0
     @Published var rightSlide = 2
+    /// Flash icon rails (~1s) like classic Dash select-rail
+    @Published var leftRailVisible = false
+    @Published var rightRailVisible = false
 
     private var timer: AnyCancellable?
     private var phase: Double = 0
     private var leftCool: Date = .distantPast
     private var rightCool: Date = .distantPast
+    private var leftRailTask: Task<Void, Never>?
+    private var rightRailTask: Task<Void, Never>?
 
     private let clockFmt: DateFormatter = {
         let f = DateFormatter()
@@ -112,16 +117,45 @@ final class HUDModel: ObservableObject {
         guard Date().timeIntervalSince(leftCool) > 0.28 else { return }
         leftCool = Date()
         leftSlide = ((leftSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
+        flashLeftRail()
     }
 
     func nudgeRight(_ delta: Int) {
         guard Date().timeIntervalSince(rightCool) > 0.28 else { return }
         rightCool = Date()
         rightSlide = ((rightSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
+        flashRightRail()
     }
 
-    func setLeft(_ i: Int) { leftSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount }
-    func setRight(_ i: Int) { rightSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount }
+    func setLeft(_ i: Int) {
+        leftSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount
+        flashLeftRail()
+    }
+
+    func setRight(_ i: Int) {
+        rightSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount
+        flashRightRail()
+    }
+
+    private func flashLeftRail() {
+        leftRailVisible = true
+        leftRailTask?.cancel()
+        leftRailTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_050_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.28)) { leftRailVisible = false }
+        }
+    }
+
+    private func flashRightRail() {
+        rightRailVisible = true
+        rightRailTask?.cancel()
+        rightRailTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_050_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.28)) { rightRailVisible = false }
+        }
+    }
 
     private func refreshClock() {
         let now = Date()

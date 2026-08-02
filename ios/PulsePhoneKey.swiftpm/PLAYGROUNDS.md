@@ -1,5 +1,5 @@
-# build-19-carousel
+# build-20-rails
 
-Gündüz HUD + yan panellerde Seyahat · Lastik · Harita · Medya kaydırma.
+Model Y lastik görseli · ortalanmış medya · flash ikon rayı.
 
-Zip: `/downloads/PulsePhoneKey-playground-build19.zip`
+Zip: `/downloads/PulsePhoneKey-playground-build20.zip`
