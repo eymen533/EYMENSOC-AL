@@ -1,7 +1,6 @@
-build-21-stable — COKME DUZELTMESI
+build-22-nocrash
 
-https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build21.zip
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build22.zip
 
-1) Eski PulsePhoneKey projesini Playgrounds'tan SIL
-2) Bu zip'i ac → Run ▶
-3) Surum: build-21-stable
+ESKI PROJEYI SIL, sonra bu zip'i ac.
+Run ▶ → build-22-nocrash

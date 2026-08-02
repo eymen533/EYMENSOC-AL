@@ -1,7 +1,5 @@
-# build-21-stable (çökme düzeltmesi)
+# build-22-nocrash
 
-Eski projeyi sil → bu zip’i aç → Run ▶ → **`build-21-stable`**
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build22.zip
 
-https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build21.zip
-
-Detay: [`CRASH_FIX.md`](CRASH_FIX.md)
+**Eski projeyi sil** → zip aç → Run ▶ → `build-22-nocrash`

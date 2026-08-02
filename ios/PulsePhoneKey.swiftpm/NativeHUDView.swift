@@ -1,8 +1,6 @@
 import SwiftUI
-import MapKit
-import UIKit
 
-/// Day HUD + carousels + Model Y tires + flashing icon rails.
+/// Stable day HUD — no MapKit, no Bundle resources, no giant base64 (Playgrounds crash fixes).
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     var onBack: () -> Void
@@ -17,14 +15,6 @@ struct NativeHUDView: View {
             let wide = geo.size.width >= geo.size.height * 0.95
             ZStack {
                 bg.ignoresSafeArea()
-                RadialGradient(
-                    colors: [Color.white.opacity(0.65), .clear],
-                    center: .center,
-                    startRadius: 20,
-                    endRadius: max(geo.size.width, geo.size.height) * 0.5
-                )
-                .ignoresSafeArea()
-
                 VStack(spacing: 0) {
                     topBar
                     Group {
@@ -33,22 +23,19 @@ struct NativeHUDView: View {
                     .frame(maxHeight: .infinity)
                 }
             }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
         .preferredColorScheme(.light)
         .statusBarHidden(true)
-        .persistentSystemOverlays(.hidden)
         .onAppear {
             model.night = false
             model.start()
-            model.beginAfterPair()
         }
         .onDisappear { model.stop() }
     }
 
-    // MARK: Top
-
     private var topBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 13, weight: .semibold))
@@ -60,19 +47,17 @@ struct NativeHUDView: View {
             }
             .foregroundStyle(ink.opacity(0.85))
 
-            Text(model.clock.isEmpty ? "—" : model.clock)
+            Text(model.clock.isEmpty ? "--:--" : model.clock)
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(ink)
 
-            HStack(spacing: 5) {
-                Text("🕌").font(.system(size: 12))
-                Text(model.nextPrayer).font(.system(size: 12, weight: .medium))
-            }
-            .foregroundStyle(ink.opacity(0.85))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(Color.white.opacity(0.55)))
+            Text("🕌 \(model.nextPrayer)")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(ink.opacity(0.85))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(Color.white.opacity(0.55)))
 
             Text("\(model.outdoorC)°C")
                 .font(.system(size: 13, weight: .semibold))
@@ -82,105 +67,63 @@ struct NativeHUDView: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(muted)
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 4)
 
             Button { model.toggleDrive() } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                    Text("HUD")
-                }
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(ink.opacity(0.7))
+                Text("HUD")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ink.opacity(0.7))
             }
             .buttonStyle(.plain)
 
-            HStack(spacing: 4) {
-                Image(systemName: "battery.50")
-                Text("\(Int(model.battery))%")
-            }
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(ink.opacity(0.75))
-
-            Image(systemName: "gearshape")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(ink.opacity(0.55))
+            Text("\(Int(model.battery))%")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(ink.opacity(0.75))
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
         .padding(.top, 8)
         .padding(.bottom, 6)
     }
 
-    // MARK: Triad
-
     private var triad: some View {
         HStack(spacing: 0) {
-            side(
-                index: model.leftSlide,
-                railVisible: model.leftRailVisible,
-                dotsTrailing: true,
-                onNudge: { model.nudgeLeft($0) },
-                onDot: { model.setLeft($0) }
-            )
-            .frame(maxWidth: .infinity)
-            .mask(sideFade(leading: true))
-
-            centerPanel
+            side(index: model.leftSlide, rail: model.leftRailVisible, trailingDots: true,
+                 onNudge: { model.nudgeLeft($0) }, onDot: { model.setLeft($0) })
                 .frame(maxWidth: .infinity)
-                .zIndex(2)
-
-            side(
-                index: model.rightSlide,
-                railVisible: model.rightRailVisible,
-                dotsTrailing: false,
-                onNudge: { model.nudgeRight($0) },
-                onDot: { model.setRight($0) }
-            )
-            .frame(maxWidth: .infinity)
-            .mask(sideFade(leading: false))
+            centerPanel.frame(maxWidth: .infinity).zIndex(2)
+            side(index: model.rightSlide, rail: model.rightRailVisible, trailingDots: false,
+                 onNudge: { model.nudgeRight($0) }, onDot: { model.setRight($0) })
+                .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 6)
-        .padding(.bottom, 10)
+        .padding(.bottom, 8)
     }
 
     private var portraitStack: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             centerPanel.frame(maxHeight: .infinity)
             HStack(spacing: 8) {
-                side(
-                    index: model.leftSlide,
-                    railVisible: model.leftRailVisible,
-                    dotsTrailing: true,
-                    onNudge: { model.nudgeLeft($0) },
-                    onDot: { model.setLeft($0) }
-                )
-                .frame(maxWidth: .infinity)
-
-                side(
-                    index: model.rightSlide,
-                    railVisible: model.rightRailVisible,
-                    dotsTrailing: false,
-                    onNudge: { model.nudgeRight($0) },
-                    onDot: { model.setRight($0) }
-                )
-                .frame(maxWidth: .infinity)
+                side(index: model.leftSlide, rail: model.leftRailVisible, trailingDots: true,
+                     onNudge: { model.nudgeLeft($0) }, onDot: { model.setLeft($0) })
+                side(index: model.rightSlide, rail: model.rightRailVisible, trailingDots: false,
+                     onNudge: { model.nudgeRight($0) }, onDot: { model.setRight($0) })
             }
-            .frame(height: 260)
+            .frame(height: 240)
         }
-        .padding(.horizontal, 10)
-        .padding(.bottom, 8)
+        .padding(8)
     }
 
     private func side(
         index: Int,
-        railVisible: Bool,
-        dotsTrailing: Bool,
+        rail: Bool,
+        trailingDots: Bool,
         onNudge: @escaping (Int) -> Void,
         onDot: @escaping (Int) -> Void
     ) -> some View {
         SideCarousel(
             index: index,
-            railVisible: railVisible,
-            dotsTrailing: dotsTrailing,
+            railVisible: rail,
+            dotsTrailing: trailingDots,
             ink: ink,
             muted: muted,
             onNudge: onNudge,
@@ -188,16 +131,6 @@ struct NativeHUDView: View {
         ) {
             slideContent(index)
         }
-    }
-
-    private func sideFade(leading: Bool) -> some View {
-        LinearGradient(
-            colors: leading
-                ? [.white, .white, .white.opacity(0.7), .clear]
-                : [.clear, .white.opacity(0.7), .white, .white],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
     }
 
     @ViewBuilder
@@ -210,10 +143,8 @@ struct NativeHUDView: View {
         }
     }
 
-    // MARK: Slides
-
     private var tripBlock: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             tripRow("Destination", model.destination)
             tripRow("Arrival Time", model.eta)
             tripRow("Energy at Arrival", model.energyAtArrival)
@@ -227,105 +158,114 @@ struct NativeHUDView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label.uppercased())
                 .font(.system(size: 10, weight: .semibold))
-                .tracking(1)
                 .foregroundStyle(muted)
             Text(value)
-                .font(.system(size: 22, weight: .semibold, design: .rounded))
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .foregroundStyle(ink)
         }
     }
 
-    /// Photoreal Model Y + corner PSI (classic Dash tires slide).
     private var tiresBlock: some View {
         GeometryReader { geo in
-            let w = min(geo.size.width * 0.92, 300.0)
-            let h = min(geo.size.height * 0.9, 320.0)
+            let w = min(geo.size.width * 0.92, 300)
+            let h = min(geo.size.height * 0.9, 320)
             ZStack {
-                ModelYPhoto()
-                    .frame(width: w * 0.46, height: h * 0.72)
-                    .shadow(color: .black.opacity(0.22), radius: 12, y: 6)
+                ModelYTopView(stroke: ink.opacity(0.75), fill: ink.opacity(0.06))
+                    .frame(width: w * 0.42, height: h * 0.75)
+                    .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
 
-                psiTag("\(model.psiFL)", unit: true)
-                    .position(x: w * 0.12, y: h * 0.28)
-                psiTag("\(model.psiFR)", unit: true)
-                    .position(x: w * 0.88, y: h * 0.28)
-                psiTag("\(model.psiRL)", unit: true)
-                    .position(x: w * 0.12, y: h * 0.72)
-                psiTag("\(model.psiRR)", unit: true)
-                    .position(x: w * 0.88, y: h * 0.72)
+                psiText("\(model.psiFL)").position(x: w * 0.14, y: h * 0.28)
+                psiText("\(model.psiFR)").position(x: w * 0.86, y: h * 0.28)
+                psiText("\(model.psiRL)").position(x: w * 0.14, y: h * 0.72)
+                psiText("\(model.psiRR)").position(x: w * 0.86, y: h * 0.72)
             }
             .frame(width: w, height: h)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    private func psiTag(_ value: String, unit: Bool) -> some View {
+    private func psiText(_ v: String) -> some View {
         HStack(spacing: 2) {
-            Text(value)
-                .font(.system(size: 16, weight: .medium, design: .rounded))
-                .monospacedDigit()
-            if unit {
-                Text("psi")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundStyle(muted)
-            }
+            Text(v).font(.system(size: 16, weight: .medium, design: .rounded)).monospacedDigit()
+            Text("psi").font(.system(size: 11)).foregroundStyle(muted)
         }
         .foregroundStyle(ink.opacity(0.85))
     }
 
+    /// Drawn map panel — MapKit removed (Playgrounds crash source).
     private var mapBlock: some View {
         ZStack(alignment: .bottomTrailing) {
-            // Lightweight Map — fixed region, no user location (avoids Playgrounds crashes)
-            Map(initialPosition: .region(
-                MKCoordinateRegion(
-                    center: CLLocationCoordinate2D(latitude: 41.0215, longitude: 29.0210),
-                    span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.90, green: 0.93, blue: 0.88),
+                            Color(red: 0.82, green: 0.88, blue: 0.80),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 )
-            )) {
-                Marker("", coordinate: CLLocationCoordinate2D(latitude: 41.0215, longitude: 29.0210))
-                    .tint(.blue)
-            }
-            .mapStyle(.standard)
-            .disabled(true)
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
-            .colorScheme(.light)
+                .overlay {
+                    Canvas { ctx, size in
+                        var path = Path()
+                        let step: CGFloat = 28
+                        var x: CGFloat = 0
+                        while x < size.width {
+                            path.move(to: CGPoint(x: x, y: 0))
+                            path.addLine(to: CGPoint(x: x, y: size.height))
+                            x += step
+                        }
+                        var y: CGFloat = 0
+                        while y < size.height {
+                            path.move(to: CGPoint(x: 0, y: y))
+                            path.addLine(to: CGPoint(x: size.width, y: y))
+                            y += step
+                        }
+                        ctx.stroke(path, with: .color(.white.opacity(0.55)), lineWidth: 1.2)
+                        var route = Path()
+                        route.move(to: CGPoint(x: size.width * 0.2, y: size.height * 0.8))
+                        route.addQuadCurve(
+                            to: CGPoint(x: size.width * 0.7, y: size.height * 0.35),
+                            control: CGPoint(x: size.width * 0.55, y: size.height * 0.75)
+                        )
+                        ctx.stroke(route, with: .color(.red.opacity(0.75)), lineWidth: 3)
+                        let pin = Path(ellipseIn: CGRect(
+                            x: size.width * 0.68 - 7,
+                            y: size.height * 0.36 - 7,
+                            width: 14,
+                            height: 14
+                        ))
+                        ctx.fill(pin, with: .color(.blue))
+                    }
+                }
 
             Text("N")
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(ink.opacity(0.7))
                 .padding(6)
-                .background(Circle().fill(Color.white.opacity(0.85)))
+                .background(Circle().fill(Color.white.opacity(0.9)))
                 .padding(8)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: .black.opacity(0.1), radius: 8, y: 3)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(10)
     }
 
-    /// Centered media (was too left-aligned).
     private var mediaBlock: some View {
         VStack(spacing: 12) {
             Text(model.mediaService)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(muted)
 
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.22, green: 0.24, blue: 0.28),
-                            Color(red: 0.12, green: 0.13, blue: 0.15),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(red: 0.18, green: 0.19, blue: 0.22))
                 .aspectRatio(1, contentMode: .fit)
-                .frame(maxWidth: 168)
-                .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
+                .frame(maxWidth: 160)
                 .overlay {
                     Image(systemName: "music.note")
-                        .font(.system(size: 34, weight: .light))
+                        .font(.system(size: 32, weight: .light))
                         .foregroundStyle(.white.opacity(0.35))
                 }
 
@@ -347,7 +287,6 @@ struct NativeHUDView: View {
             }
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(control)
-            .padding(.top, 2)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .multilineTextAlignment(.center)
@@ -362,34 +301,82 @@ struct NativeHUDView: View {
                         .foregroundStyle(model.gear == g ? ink : ink.opacity(0.28))
                 }
             }
-            DaySpeedDial(speed: model.speed)
-                .frame(maxWidth: 280, maxHeight: 280)
+            ZStack {
+                Circle()
+                    .fill(Color.white)
+                    .shadow(color: .black.opacity(0.14), radius: 20, y: 8)
+                VStack(spacing: 2) {
+                    Text("\(Int(model.speed.rounded()))")
+                        .font(.system(size: 92, weight: .bold, design: .rounded))
+                        .foregroundStyle(ink)
+                        .monospacedDigit()
+                    Text("km/h")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(muted)
+                }
+            }
+            .aspectRatio(1, contentMode: .fit)
+            .frame(maxWidth: 280, maxHeight: 280)
+            .padding(12)
         }
-        .padding(.vertical, 8)
     }
 }
 
-// MARK: - Model Y photo from Resources/
+// MARK: - Top-down Model Y (vector — no image assets)
 
-private struct ModelYPhoto: View {
+struct ModelYTopView: View {
+    var stroke: Color
+    var fill: Color
+
     var body: some View {
-        Group {
-            if let ui = ModelYImageData.image {
-                Image(uiImage: ui)
-                    .resizable()
-                    .scaledToFit()
-            } else {
-                Image(systemName: "car.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle(Color.black.opacity(0.35))
-                    .padding(20)
+        Canvas { ctx, size in
+            let sx = size.width / 200
+            let sy = size.height / 420
+            func P(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * sx, y: y * sy) }
+
+            var body = Path()
+            body.move(to: P(72, 34))
+            body.addCurve(to: P(100, 10), control1: P(72, 18), control2: P(84, 10))
+            body.addCurve(to: P(128, 34), control1: P(116, 10), control2: P(128, 18))
+            body.addLine(to: P(142, 72))
+            body.addLine(to: P(152, 118))
+            body.addLine(to: P(152, 268))
+            body.addLine(to: P(142, 328))
+            body.addLine(to: P(128, 386))
+            body.addCurve(to: P(100, 410), control1: P(128, 402), control2: P(116, 410))
+            body.addCurve(to: P(72, 386), control1: P(84, 410), control2: P(72, 402))
+            body.addLine(to: P(58, 328))
+            body.addLine(to: P(48, 268))
+            body.addLine(to: P(48, 118))
+            body.addLine(to: P(58, 72))
+            body.closeSubpath()
+
+            ctx.fill(body, with: .color(fill))
+            ctx.stroke(body, with: .color(stroke), lineWidth: 1.8)
+
+            // glass
+            var glass = Path()
+            glass.move(to: P(70, 108)); glass.addLine(to: P(130, 108))
+            glass.addLine(to: P(138, 162)); glass.addLine(to: P(62, 162)); glass.closeSubpath()
+            ctx.stroke(glass, with: .color(stroke.opacity(0.85)), lineWidth: 1.4)
+
+            var roof = Path()
+            roof.move(to: P(72, 172)); roof.addLine(to: P(128, 172))
+            roof.addLine(to: P(130, 228)); roof.addLine(to: P(70, 228)); roof.closeSubpath()
+            ctx.stroke(roof, with: .color(stroke.opacity(0.7)), lineWidth: 1.2)
+
+            // wheels
+            let wheels: [(CGFloat, CGFloat)] = [(30, 104), (152, 104), (30, 272), (152, 272)]
+            for (x, y) in wheels {
+                let r = Path(roundedRect: CGRect(x: x * sx, y: y * sy, width: 18 * sx, height: 44 * sy), cornerRadius: 4 * sx)
+                ctx.stroke(r, with: .color(stroke), lineWidth: 1.6)
             }
         }
+        .aspectRatio(200 / 420, contentMode: .fit)
     }
 }
 
-// MARK: - Vertical carousel + flash icon rail
+// MARK: - Carousel + flash rail
 
 private struct SideCarousel<Content: View>: View {
     let index: Int
@@ -401,7 +388,6 @@ private struct SideCarousel<Content: View>: View {
     var onDot: (Int) -> Void
     @ViewBuilder var content: () -> Content
 
-    /// Safe SF Symbols (Playgrounds-friendly) — trip / tires / map / media
     private let icons = ["flag", "circle.grid.2x2", "map", "music.note"]
 
     var body: some View {
@@ -411,54 +397,43 @@ private struct SideCarousel<Content: View>: View {
                     .frame(width: geo.size.width, height: geo.size.height)
                     .clipped()
                     .id(index)
-                    .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.3), value: index)
+                    .animation(.easeInOut(duration: 0.25), value: index)
 
-                // Flash rail — appears ~1s then fades (classic Dash)
                 VStack(spacing: 12) {
                     ForEach(0..<HUDModel.slideCount, id: \.self) { i in
                         Button { onDot(i) } label: {
                             Image(systemName: icons[i])
                                 .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(i == index ? Color.white : Color.white.opacity(0.38))
+                                .foregroundStyle(i == index ? Color.white : Color.white.opacity(0.4))
                                 .frame(width: 22, height: 22)
-                                .scaleEffect(i == index ? 1.18 : 1)
                         }
                         .buttonStyle(.plain)
                     }
                 }
                 .padding(.vertical, 12)
                 .padding(.horizontal, 8)
-                .background(
-                    Capsule()
-                        .fill(Color(red: 0.08, green: 0.08, blue: 0.09).opacity(0.72))
-                        .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 1))
-                        .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
-                )
+                .background(Capsule().fill(Color.black.opacity(0.72)))
                 .opacity(railVisible ? 1 : 0)
                 .allowsHitTesting(railVisible)
-                .animation(.easeOut(duration: 0.28), value: railVisible)
+                .animation(.easeOut(duration: 0.25), value: railVisible)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: dotsTrailing ? .trailing : .leading)
                 .padding(dotsTrailing ? .trailing : .leading, 6)
 
-                // Persistent small dots (secondary)
                 VStack(spacing: 6) {
                     ForEach(0..<HUDModel.slideCount, id: \.self) { i in
                         Capsule()
-                            .fill(i == index ? ink.opacity(0.55) : ink.opacity(0.15))
+                            .fill(i == index ? ink.opacity(0.5) : ink.opacity(0.15))
                             .frame(width: 5, height: i == index ? 12 : 5)
                     }
                 }
-                .opacity(railVisible ? 0 : 0.9)
+                .opacity(railVisible ? 0 : 1)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: dotsTrailing ? .trailing : .leading)
                 .padding(dotsTrailing ? .trailing : .leading, 8)
-                .allowsHitTesting(false)
 
                 VStack {
                     Spacer()
-                    Text("↕ kaydır")
+                    Text("kaydir")
                         .font(.system(size: 10, weight: .semibold))
-                        .tracking(1.4)
                         .foregroundStyle(muted.opacity(0.65))
                         .padding(.bottom, 6)
                 }
@@ -468,43 +443,11 @@ private struct SideCarousel<Content: View>: View {
             .gesture(
                 DragGesture(minimumDistance: 24)
                     .onEnded { g in
-                        let dy = g.translation.height
-                        if dy < -36 { onNudge(1) }
-                        else if dy > 36 { onNudge(-1) }
+                        if g.translation.height < -36 { onNudge(1) }
+                        else if g.translation.height > 36 { onNudge(-1) }
                     }
             )
         }
-        .padding(dotsTrailing ? .leading : .trailing, 10)
-    }
-}
-
-struct DaySpeedDial: View {
-    let speed: Double
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.white, Color(red: 0.94, green: 0.95, blue: 0.97)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .shadow(color: .black.opacity(0.14), radius: 22, y: 10)
-
-            VStack(spacing: 2) {
-                Text("\(Int(speed.rounded()))")
-                    .font(.system(size: 96, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color(red: 0.07, green: 0.07, blue: 0.08))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                Text("km/h")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(Color.black.opacity(0.45))
-            }
-        }
-        .aspectRatio(1, contentMode: .fit)
-        .padding(12)
+        .padding(dotsTrailing ? .leading : .trailing, 8)
     }
 }

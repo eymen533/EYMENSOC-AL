@@ -1,16 +1,15 @@
-# Çökme düzeltmesi
+# build-22-nocrash
 
-## build-21
+Çökme kaynakları kaldırıldı:
+- MapKit yok
+- Bundle / Resources / büyük PNG yok
+- Model Y vektör çizim
 
-- `Bundle.module` / Resources kaldırıldı (Playgrounds’ta çökertiyordu)
-- Model Y görseli Swift içine gömüldü (`ModelYImageData.swift`)
-- Map sadeleştirildi · güvenli SF Symbols
+## Mutlaka
 
-## Kur
+1. Playgrounds’taki **tüm eski** PulsePhoneKey projelerini sil  
+2. build-22 zip’i indir/aç  
+3. Signing → Bluetooth Always → Run ▶  
+4. Ana ekranda **`build-22-nocrash`** yazmalı  
 
-1. Eski PulsePhoneKey projesini Playgrounds’tan **sil**
-2. Yeni zip: build-21
-3. Signing (Apple ID) → Bluetooth Always → Run ▶
-4. Sürüm: **`build-21-stable`**
-
-Hâlâ çökerse: yeni boş App → Bluetooth capability → `.swift` dosyalarını yapıştır (`MANUAL.md`).
+Hâlâ çökerse sorun büyük ihtimalle Signing / Bluetooth capability’dir (`MANUAL.md`).
