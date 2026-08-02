@@ -32,30 +32,57 @@ struct LeftPanelView: View {
     }
 
     private var vehicleDiagram: some View {
-        ZStack {
-            VehicleOutlineView()
-                .frame(height: 220)
-                .padding(.leading, 28)
+        GeometryReader { geo in
+            let carWidth = min(geo.size.width * 0.58, 170)
+            let carHeight = carWidth * 1.55
 
-            tireLabel(state.tirePressure.formatted(state.tirePressure.fl), alignment: .topLeading)
-                .offset(x: 18, y: 42)
-            tireLabel(state.tirePressure.formatted(state.tirePressure.fr), alignment: .topTrailing)
-                .offset(x: -8, y: 42)
-            tireLabel(state.tirePressure.formatted(state.tirePressure.rl), alignment: .bottomLeading)
-                .offset(x: 18, y: -38)
-            tireLabel(state.tirePressure.formatted(state.tirePressure.rr), alignment: .bottomTrailing)
-                .offset(x: -8, y: -38)
+            ZStack {
+                Image("TeslaModel3Top")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: carWidth, height: carHeight)
+                    .shadow(color: .white.opacity(0.08), radius: 18, y: 0)
+                    .accessibilityLabel("Tesla Model 3")
+
+                // FL / FR / RL / RR pressure callouts around the real top-down model.
+                tireBadge(
+                    state.tirePressure.formatted(state.tirePressure.fl),
+                    at: CGPoint(x: geo.size.width * 0.14, y: geo.size.height * 0.28)
+                )
+                tireBadge(
+                    state.tirePressure.formatted(state.tirePressure.fr),
+                    at: CGPoint(x: geo.size.width * 0.86, y: geo.size.height * 0.28)
+                )
+                tireBadge(
+                    state.tirePressure.formatted(state.tirePressure.rl),
+                    at: CGPoint(x: geo.size.width * 0.14, y: geo.size.height * 0.72)
+                )
+                tireBadge(
+                    state.tirePressure.formatted(state.tirePressure.rr),
+                    at: CGPoint(x: geo.size.width * 0.86, y: geo.size.height * 0.72)
+                )
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 20)
+        .frame(height: 240)
+        .padding(.leading, 28)
+        .padding(.top, 12)
     }
 
-    private func tireLabel(_ value: String, alignment: Alignment) -> some View {
+    private func tireBadge(_ value: String, at point: CGPoint) -> some View {
         Text("\(value) psi")
-            .font(.system(size: 12, weight: .medium, design: .rounded))
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
             .foregroundStyle(SOCTheme.textSecondary)
             .monospacedDigit()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.black.opacity(0.55))
+                    .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 1))
+            )
+            .position(point)
     }
 
     private var mediaPanel: some View {
@@ -228,59 +255,4 @@ struct LeftPanelView: View {
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
-}
-
-struct VehicleOutlineView: View {
-    var body: some View {
-        Canvas { context, size in
-            let w = size.width
-            let h = size.height
-            var path = Path()
-
-            // Simplified top-down sedan silhouette.
-            let insetX = w * 0.22
-            let top = h * 0.08
-            let bottom = h * 0.92
-
-            path.move(to: CGPoint(x: insetX + 18, y: top))
-            path.addQuadCurve(
-                to: CGPoint(x: w - insetX - 18, y: top),
-                control: CGPoint(x: w / 2, y: top - 8)
-            )
-            path.addLine(to: CGPoint(x: w - insetX, y: h * 0.22))
-            path.addLine(to: CGPoint(x: w - insetX + 4, y: h * 0.78))
-            path.addLine(to: CGPoint(x: w - insetX - 18, y: bottom))
-            path.addQuadCurve(
-                to: CGPoint(x: insetX + 18, y: bottom),
-                control: CGPoint(x: w / 2, y: bottom + 8)
-            )
-            path.addLine(to: CGPoint(x: insetX - 4, y: h * 0.78))
-            path.addLine(to: CGPoint(x: insetX, y: h * 0.22))
-            path.closeSubpath()
-
-            // Cabin
-            let cabin = Path(roundedRect: CGRect(
-                x: insetX + 16,
-                y: h * 0.28,
-                width: w - 2 * insetX - 32,
-                height: h * 0.34
-            ), cornerRadius: 10)
-
-            context.stroke(path, with: .color(.white.opacity(0.55)), lineWidth: 1.6)
-            context.stroke(cabin, with: .color(.white.opacity(0.28)), lineWidth: 1)
-
-            // Wheels
-            let wheelW: CGFloat = 10
-            let wheelH: CGFloat = 22
-            let wheelRects = [
-                CGRect(x: insetX - 8, y: h * 0.20, width: wheelW, height: wheelH),
-                CGRect(x: w - insetX - 2, y: h * 0.20, width: wheelW, height: wheelH),
-                CGRect(x: insetX - 8, y: h * 0.68, width: wheelW, height: wheelH),
-                CGRect(x: w - insetX - 2, y: h * 0.68, width: wheelW, height: wheelH)
-            ]
-            for rect in wheelRects {
-                context.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(.white.opacity(0.35)))
-            }
-        }
-    }
 }
