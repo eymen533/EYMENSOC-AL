@@ -1,20 +1,16 @@
-# build-34-ble-live
+# build-35-crashfix
 
-Gerçek araç telemetrisi **BLE** üzerinden (Phone Key oturumu + AES-GCM).
+Çökme düzeltmesi. BLE telemetri aynı; MapKit/AsyncImage yok.
 
 ## İndir
 
-https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build34.zip
+https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build35.zip
 
-jsDelivr: https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build34.zip
+CDN: https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build35.zip
 
 ## Kurulum
 
 1. Eski PulsePhoneKey’i SIL
-2. Zip → Dosyalar → `.swiftpm` → Playgrounds
-3. Signing + Bluetooth Always → Run ▶
-4. Ana ekranda `build-34-ble-live` gör
-5. Pair Vehicle → 🔑 Tesla → Key Card konsola → Cluster HUD
-6. Alt barda kaynak **BLE** olmalı (hız/vites/lastik gerçek)
-
-PIN: `428462` · VIN: `XP7YGCEK0PB159959`
+2. Zip → Playgrounds → Run ▶
+3. Ekranda `build-35-crashfix` gör
+4. Pair → Key Card → Cluster

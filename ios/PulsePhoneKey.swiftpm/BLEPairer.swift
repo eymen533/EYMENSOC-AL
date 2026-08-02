@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Swift Playgrounds.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "build-34-ble-live"
+    static let buildId = "build-35-crashfix"
 
     enum Step: String {
         case idle = "Hazir"
@@ -33,7 +33,13 @@ final class BLEPairer: NSObject, ObservableObject {
     @Published var readyForDashboard = false
     @Published var linkUp = false
     @Published var linkLabel = "BLE kapali"
-    @Published var telemetry = BLETelemetry()
+    /// Flat published fields (nested ObservableObject crashed Playgrounds).
+    @Published var bleLiveOK = false
+    @Published var bleSnapRev = 0
+    @Published var bleStatus = "BLE telemetri kapali"
+    @Published private(set) var bleSnapshot = TeslaBLESession.Snapshot()
+
+    let telemetry = BLETelemetry()
 
     private let serviceUUID = CBUUID(string: "00000211-B2D1-43F0-9B88-960CEBF8B91E")
     private let writeUUID = CBUUID(string: "00000212-B2D1-43F0-9B88-960CEBF8B91E")
@@ -96,6 +102,9 @@ final class BLEPairer: NSObject, ObservableObject {
             self.peripheral = nil
             self.writeChar = nil
             self.telemetry.detach()
+            self.bleLiveOK = false
+            self.bleStatus = "BLE telemetri kapali"
+            self.bleSnapRev = 0
             self.logLine("\(Self.buildId) VIN \(vin)")
             self.logLine("hedef \(VCSECPayload.bleNames(vin: vin).joined(separator: ", "))")
             self.logLine("payload \(self.payload?.count ?? 0)b")
@@ -214,9 +223,34 @@ final class BLEPairer: NSObject, ObservableObject {
     private func startTelemetryIfPossible() {
         guard let peripheral, let writeChar, let key = privateKey, !vin.isEmpty else { return }
         guard peripheral.state == .connected else { return }
-        logLine("telemetry attach")
-        telemetry.attach(vin: vin, privateKey: key, peripheral: peripheral, writeChar: writeChar)
-        linkLabel = "BLE telemetri…"
+        // Delay so pair UI / GATT settle — reduces Playgrounds launch races.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            guard let self else { return }
+            guard let p = self.peripheral, let wc = self.writeChar, p.state == .connected else { return }
+            self.logLine("telemetry attach")
+            self.telemetry.onUpdate = { [weak self] in
+                self?.syncTelemetryPublished()
+            }
+            self.telemetry.attach(vin: self.vin, privateKey: key, peripheral: p, writeChar: wc)
+            self.linkLabel = "BLE telemetri…"
+            self.syncTelemetryPublished()
+        }
+    }
+
+    private func syncTelemetryPublished() {
+        bleLiveOK = telemetry.liveOK
+        bleStatus = telemetry.status
+        bleSnapshot = telemetry.snapshot
+        bleSnapRev &+= 1
+        if telemetry.liveOK {
+            linkLabel = "BLE LIVE"
+            paired = true
+            step = .done
+            status = "Phone Key + BLE LIVE ✓"
+        } else if telemetry.phase == .waitingKey {
+            waitingForCard = true
+            status = "Arac kart bekliyor — KONSOLA Key Card"
+        }
     }
 
     private func fail(_ msg: String) {
@@ -389,9 +423,7 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         if pairWriteDone || resumeTelemetryOnly {
-            Task { @MainActor in
-                self.telemetry.didWrite(error: error)
-            }
+            telemetry.didWrite(error: error)
             return
         }
         writing = false
@@ -409,18 +441,8 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         logLine("RX \(hex.prefix(40))")
 
         if pairWriteDone || resumeTelemetryOnly || telemetry.phase != .idle {
-            Task { @MainActor in
-                self.telemetry.onNotify(data)
-                if self.telemetry.liveOK {
-                    self.linkLabel = "BLE LIVE"
-                    self.paired = true
-                    self.step = .done
-                    self.status = "Phone Key + BLE LIVE ✓"
-                } else if self.telemetry.phase == .waitingKey {
-                    self.waitingForCard = true
-                    self.status = "Arac kart bekliyor — KONSOLA Key Card"
-                }
-            }
+            telemetry.onNotify(data)
+            syncTelemetryPublished()
         }
 
         if hex.contains("0801") || hex.contains("2202") {

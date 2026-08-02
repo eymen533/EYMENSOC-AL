@@ -71,7 +71,7 @@ enum ProtoWire {
             case 5:
                 guard i + 4 <= data.count else { return out }
                 let slice = data.subdata(in: i..<(i + 4))
-                let v = slice.withUnsafeBytes { $0.load(as: UInt32.self) }.littleEndian
+                let v = u32LE(slice)
                 out.append(Field(number: number, wire: wire, bytes: slice, varint: 0, fixed32: v))
                 i += 4
             default:
@@ -96,14 +96,32 @@ enum ProtoWire {
         return nil
     }
 
+    /// Copy-based loads — never `load(as:)` on possibly unaligned Data (ARM crash).
     static func float32(_ data: Data) -> Float? {
         guard data.count >= 4 else { return nil }
-        return data.withUnsafeBytes { $0.load(as: Float.self) }
+        var bits: UInt32 = 0
+        _ = withUnsafeMutableBytes(of: &bits) { dest in
+            data.copyBytes(to: dest, from: 0..<4)
+        }
+        return Float(bitPattern: UInt32(littleEndian: bits))
     }
 
     static func double64(_ data: Data) -> Double? {
         guard data.count >= 8 else { return nil }
-        return data.withUnsafeBytes { $0.load(as: Double.self) }
+        var bits: UInt64 = 0
+        _ = withUnsafeMutableBytes(of: &bits) { dest in
+            data.copyBytes(to: dest, from: 0..<8)
+        }
+        return Double(bitPattern: UInt64(littleEndian: bits))
+    }
+
+    private static func u32LE(_ data: Data) -> UInt32 {
+        guard data.count >= 4 else { return 0 }
+        var bits: UInt32 = 0
+        _ = withUnsafeMutableBytes(of: &bits) { dest in
+            data.copyBytes(to: dest, from: 0..<4)
+        }
+        return UInt32(littleEndian: bits)
     }
 }
 

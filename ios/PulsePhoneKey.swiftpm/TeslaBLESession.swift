@@ -1,6 +1,5 @@
 import Foundation
 import CryptoKit
-import Security
 
 /// Real Tesla vehicle-command BLE session (ECDH → AES-GCM personalized).
 /// Protocol: https://github.com/teslamotors/vehicle-command/blob/main/pkg/protocol/protocol.md
@@ -100,9 +99,7 @@ final class TeslaBLESession {
         self.vin = vin.uppercased()
         self.privateKey = privateKey
         self.publicKey = KeyStore.publicKeyUncompressed(privateKey)
-        var addr = Data(count: 16)
-        _ = addr.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, 16, $0.baseAddress!) }
-        self.routingAddress = addr
+        self.routingAddress = Self.randomBytes(16)
     }
 
     // MARK: - Handshake
@@ -620,10 +617,17 @@ final class TeslaBLESession {
 
     enum SessionError: Error { case notReady }
 
-    private func randomBytes(_ n: Int) -> Data {
-        var d = Data(count: n)
-        _ = d.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, n, $0.baseAddress!) }
-        return d
+    private func randomBytes(_ n: Int) -> Data { Self.randomBytes(n) }
+
+    /// Avoid SecRandomCopyBytes (extra Security linkage) — UUID entropy is enough here.
+    private static func randomBytes(_ n: Int) -> Data {
+        var out = Data()
+        out.reserveCapacity(n)
+        while out.count < n {
+            var u = UUID().uuid
+            withUnsafeBytes(of: &u) { out.append(contentsOf: $0) }
+        }
+        return Data(out.prefix(n))
     }
 
     private func be32(_ v: UInt32) -> Data {
@@ -646,7 +650,8 @@ private extension Data {
         while s.count >= 2 {
             let b = s.prefix(2)
             s.removeFirst(2)
-            d.append(UInt8(b, radix: 16)!)
+            if let v = UInt8(b, radix: 16) { d.append(v) }
+            else { break }
         }
         self = d
     }

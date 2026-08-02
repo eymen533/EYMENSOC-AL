@@ -2,9 +2,9 @@ import Foundation
 import CoreBluetooth
 import CryptoKit
 
-/// Polls real vehicle telemetry over an already-open Tesla BLE GATT link.
-@MainActor
-final class BLETelemetry: ObservableObject {
+/// Polls vehicle telemetry on an open Tesla BLE GATT link.
+/// No @MainActor — Playgrounds-safe; caller keeps work on main CB queue.
+final class BLETelemetry {
     enum Phase: String {
         case idle = "idle"
         case handshake = "handshake"
@@ -13,10 +13,13 @@ final class BLETelemetry: ObservableObject {
         case error = "hata"
     }
 
-    @Published var phase: Phase = .idle
-    @Published var status = "BLE telemetri kapali"
-    @Published var snapshot = TeslaBLESession.Snapshot()
-    @Published var liveOK = false
+    private(set) var phase: Phase = .idle
+    private(set) var status = "BLE telemetri kapali"
+    private(set) var snapshot = TeslaBLESession.Snapshot()
+    private(set) var liveOK = false
+
+    /// Fired on main when snapshot / phase changes.
+    var onUpdate: (() -> Void)?
 
     private var session: TeslaBLESession?
     private var vin = ""
@@ -29,7 +32,6 @@ final class BLETelemetry: ObservableObject {
     private var awaiting = false
     private var pollIndex = 0
     private var handshakeTries = 0
-    private var lastRX = Date.distantPast
 
     private let pollActions: [() -> Data] = [
         TeslaBLESession.actionGetDrive,
@@ -46,6 +48,7 @@ final class BLETelemetry: ObservableObject {
         peripheral: CBPeripheral,
         writeChar: CBCharacteristic
     ) {
+        detach()
         self.vin = vin.uppercased()
         self.peripheral = peripheral
         self.writeChar = writeChar
@@ -58,6 +61,7 @@ final class BLETelemetry: ObservableObject {
         liveOK = false
         phase = .handshake
         status = "BLE handshake…"
+        notify()
         startPolling()
         sendHandshake()
     }
@@ -68,33 +72,33 @@ final class BLETelemetry: ObservableObject {
         session = nil
         peripheral = nil
         writeChar = nil
+        writeQueue.removeAll()
+        writing = false
+        awaiting = false
         liveOK = false
         phase = .idle
         status = "BLE telemetri kapali"
     }
 
     func onNotify(_ data: Data) {
-        lastRX = Date()
+        guard session != nil else { return }
         for frame in rxBuffer.append(data) {
             guard let session else { continue }
             let ok = session.handleIncoming(frame)
             status = session.statusText
             if session.infotainmentReady {
-                if phase != .live {
-                    phase = .live
-                    liveOK = true
-                    status = "BLE LIVE"
-                }
+                phase = .live
+                liveOK = true
+                status = "BLE LIVE"
                 snapshot = session.snapshot
             } else if session.statusText.contains("whitelist") || session.statusText.contains("kart") {
                 phase = .waitingKey
                 liveOK = false
             } else if ok {
                 snapshot = session.snapshot
-                liveOK = true
-                phase = .live
             }
             awaiting = false
+            notify()
         }
     }
 
@@ -104,20 +108,14 @@ final class BLETelemetry: ObservableObject {
         enqueueCommand(domain: .infotainment, command: TeslaBLESession.actionSetVolume(v))
     }
 
-    func volumeDelta(_ step: Int) {
-        guard session?.infotainmentReady == true else { return }
-        let d = Int32(step >= 0 ? 1 : -1)
-        enqueueCommand(domain: .infotainment, command: TeslaBLESession.actionVolumeDelta(d))
-    }
-
     func mediaNext() { enqueueCommand(domain: .infotainment, command: TeslaBLESession.actionMediaNext()) }
     func mediaPrev() { enqueueCommand(domain: .infotainment, command: TeslaBLESession.actionMediaPrev()) }
     func mediaPlay() { enqueueCommand(domain: .infotainment, command: TeslaBLESession.actionMediaPlay()) }
 
     private func startPolling() {
         pollTimer?.invalidate()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.tick() }
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self] _ in
+            self?.tick()
         }
     }
 
@@ -128,9 +126,8 @@ final class BLETelemetry: ObservableObject {
 
         if !session.infotainmentReady {
             handshakeTries += 1
-            if handshakeTries % 4 == 0 {
-                // Try wake VCSEC then re-handshake infotainment
-                enqueueCommand(domain: .vcsec, command: TeslaBLESession.actionWake(), isPlainUnsigned: true)
+            if handshakeTries % 5 == 0 {
+                enqueueCommand(domain: .vcsec, command: TeslaBLESession.actionWake(), preferHandshakeFirst: true)
             }
             sendHandshake()
             return
@@ -145,27 +142,23 @@ final class BLETelemetry: ObservableObject {
         guard let session else { return }
         let (_, frame) = session.handshakeRequest(domain: .infotainment)
         status = "BLE handshake…"
-        phase = .handshake
+        if phase != .waitingKey { phase = .handshake }
+        notify()
         enqueueFrame(frame)
     }
 
-    /// VCSEC wake uses unsigned message bytes as protobuf_message_as_bytes but still needs AES once VCSEC session ready.
-    /// Bootstrap: first try encrypted if VCSEC session ready; else send a VCSEC handshake.
     private func enqueueCommand(
         domain: TeslaBLESession.Domain,
         command: Data,
-        isPlainUnsigned: Bool = false
+        preferHandshakeFirst: Bool = false
     ) {
         guard let session else { return }
-        if domain == .vcsec && !session.infotainmentReady {
-            // Prefer VCSEC handshake then wake
-            if isPlainUnsigned {
-                let (_, hs) = session.handshakeRequest(domain: .vcsec)
-                enqueueFrame(hs)
-            }
+        if preferHandshakeFirst {
+            let (_, hs) = session.handshakeRequest(domain: domain)
+            enqueueFrame(hs)
+            return
         }
         do {
-            // Ensure domain session: if encrypt fails, handshake that domain
             let frame = try session.encryptCommand(domain: domain, command: command)
             enqueueFrame(frame)
         } catch {
@@ -176,6 +169,7 @@ final class BLETelemetry: ObservableObject {
 
     private func enqueueFrame(_ frame: Data) {
         guard let peripheral, let writeChar else { return }
+        guard peripheral.state == .connected else { return }
         let mtu = max(20, peripheral.maximumWriteValueLength(for: .withResponse))
         var i = 0
         while i < frame.count {
@@ -203,8 +197,17 @@ final class BLETelemetry: ObservableObject {
             phase = .error
             writeQueue.removeAll()
             awaiting = false
+            notify()
             return
         }
         pumpWrite()
+    }
+
+    private func notify() {
+        if Thread.isMainThread {
+            onUpdate?()
+        } else {
+            DispatchQueue.main.async { [weak self] in self?.onUpdate?() }
+        }
     }
 }

@@ -1,7 +1,9 @@
-# build-34-ble-live
+# build-35-crashfix
 
-- Telemetri: Tesla BLE signed session (AES-GCM) → hız/vites/lastik/medya/GPS
-- Harita: OSM tile (MapKit/WebKit/CoreLocation yok)
-- Pair + Key Card sonrası HUD’da kaynak `BLE`
+Sadece çökme düzeltmesi (özellik eklenmedi):
+- AsyncImage / ağ haritası kaldırıldı
+- `@MainActor` nested telemetry kaldırıldı
+- Hizasız bellek `load(as:)` kaldırıldı
+- SecRandom / Security import kaldırıldı
 
-Eski proje SIL → build-34 → **build-34-ble-live**
+Eski proje SIL → build-35 → **build-35-crashfix**

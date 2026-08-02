@@ -1,2 +1,2 @@
-# build-34-ble-live
-Pair → Key Card → Cluster. Telemetri BLE AES-GCM.
+# build-35-crashfix
+Eski projeyi sil → zip → Run ▶ → `build-35-crashfix`

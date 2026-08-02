@@ -55,30 +55,28 @@ struct ContentView: View {
         .onChange(of: ble.readyForDashboard) { _, on in
             if on { hud.bleOK = true }
         }
-        .onReceive(ble.telemetry.$snapshot) { snap in
-            if ble.telemetry.liveOK {
-                hud.applyBLE(snap, linkOK: true)
+        .onChange(of: ble.bleSnapRev) { _, _ in
+            if ble.bleLiveOK {
+                hud.bleOK = true
+                hud.applyBLE(ble.bleSnapshot, linkOK: true)
             }
         }
-        .onReceive(ble.telemetry.$liveOK) { ok in
+        .onChange(of: ble.bleLiveOK) { _, ok in
             if ok {
                 hud.bleOK = true
-                hud.applyBLE(ble.telemetry.snapshot, linkOK: true)
+                hud.applyBLE(ble.bleSnapshot, linkOK: true)
             }
         }
         .onAppear {
             let tele = ble.telemetry
             hud.bleSetVolume = { level in
-                Task { @MainActor in
-                    // Map HUD 0…1 → car absolute; small nudges also send ±1 step.
-                    tele.setVolume(level)
-                }
+                DispatchQueue.main.async { tele.setVolume(level) }
             }
             hud.bleMediaPlay = {
-                Task { @MainActor in tele.mediaPlay() }
+                DispatchQueue.main.async { tele.mediaPlay() }
             }
             hud.bleMediaSkip = { delta in
-                Task { @MainActor in
+                DispatchQueue.main.async {
                     if delta >= 0 { tele.mediaNext() } else { tele.mediaPrev() }
                 }
             }
@@ -105,7 +103,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("build-34 · BLE hız/vites/lastik/medya/harita\nPair → Key Card → Cluster")
+                    Text("build-35 · çökme düzeltmesi\nPair → Key Card → Cluster")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -147,7 +145,7 @@ struct ContentView: View {
                         save()
                         openHUD()
                     } label: {
-                        Text(ble.telemetry.liveOK ? "Cluster HUD (BLE LIVE)" : "Cluster HUD")
+                        Text(ble.bleLiveOK ? "Cluster HUD (BLE LIVE)" : "Cluster HUD")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
@@ -192,7 +190,7 @@ struct ContentView: View {
                         .textInputAutocapitalization(.characters)
                 }
                 Section("BLE telemetri (asıl kaynak)") {
-                    Text(ble.telemetry.status)
+                    Text(ble.bleStatus)
                         .font(.footnote)
                     Text("Pair sonrası araçla imzalı BLE oturumu açılır: hız, vites, lastik, batarya, medya, GPS. Key Card konsolda olmalı.")
                         .font(.footnote)

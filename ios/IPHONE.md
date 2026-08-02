@@ -1,7 +1,3 @@
-# build-34-ble-live
+# build-35-crashfix
 
-Gerçek telemetri **araç BLE** üzerinden (Phone Key + AES-GCM session).
-
-Ayrıntı: [`PulsePhoneKey.swiftpm/IPHONE.md`](PulsePhoneKey.swiftpm/IPHONE.md)
-
-Zip: `releases/PulsePhoneKey-playground-build34.zip`
+Çökme düzeltmesi. Ayrıntı: [`PulsePhoneKey.swiftpm/IPHONE.md`](PulsePhoneKey.swiftpm/IPHONE.md)
