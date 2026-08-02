@@ -1,5 +1,5 @@
 # iPhone · PulsePhoneKey
 
-**`build-26-night`** — gece triad (medya|siyah hız|3D harita), ekran görüntüsü gibi
+**`build-27-tight`** — sıkı triad (harita küçültüldü, boşluk yok)
 
-Zip: `/downloads/PulsePhoneKey-playground-build26.zip`
+Zip: `/downloads/PulsePhoneKey-playground-build27.zip`
