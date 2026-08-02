@@ -1,13 +1,19 @@
 # iPhone / iPad
 
-## Gerçek BLE (Dashla gibi) → Xcode
+## Gerçek BLE + Google Maps → Xcode (`xcode-ble-2`)
 
-[`PulsePhoneKey/`](PulsePhoneKey/) · zip: `releases/PulsePhoneKey-xcode.zip`
+[`PulsePhoneKey/`](PulsePhoneKey/)
 
-Mac + Xcode → Run → telefonda `xcode-ble-1` → Pair → **BLE LIVE**
+```bash
+git clone -b cursor/ble-pair-fix-02d8 https://github.com/eymen533/EYMENSOC-AL.git
+cd EYMENSOC-AL && git pull
+open ios/PulsePhoneKey/PulsePhoneKey.xcodeproj
+```
 
-## Sadece Playgrounds (stabil, demo HUD)
+- iOS 16+
+- Settings → Google Maps API key (Maps JavaScript + Directions)
+- Pair → Cluster → haritada rota (hedef varken)
 
-[`PulsePhoneKey.swiftpm/`](PulsePhoneKey.swiftpm/) · `releases/PulsePhoneKey-playground-build44.zip`
+## Playgrounds (demo)
 
-Playgrounds’ta BLE AES çökertiyor — canlı hız için Xcode kullan.
+[`PulsePhoneKey.swiftpm/`](PulsePhoneKey.swiftpm/) — stabil demo; gerçek BLE değil.
