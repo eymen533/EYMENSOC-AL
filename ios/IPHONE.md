@@ -1,3 +1,3 @@
-# build-35-crashfix
+# build-36-stable
 
-Çökme düzeltmesi. Ayrıntı: [`PulsePhoneKey.swiftpm/IPHONE.md`](PulsePhoneKey.swiftpm/IPHONE.md)
+Stabil Pair + HUD. [`PulsePhoneKey.swiftpm/IPHONE.md`](PulsePhoneKey.swiftpm/IPHONE.md)

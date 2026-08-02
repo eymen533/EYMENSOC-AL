@@ -1,2 +1,2 @@
-# build-35-crashfix
-Eski projeyi sil → zip → Run ▶ → `build-35-crashfix`
+# build-36-stable
+Eski projeyi SİL → zip → Run ▶ → `build-36-stable`

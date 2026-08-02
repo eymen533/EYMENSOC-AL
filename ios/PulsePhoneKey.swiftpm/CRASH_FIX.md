@@ -1,9 +1,13 @@
-# build-35-crashfix
+# build-36-stable
 
-Sadece çökme düzeltmesi (özellik eklenmedi):
-- AsyncImage / ağ haritası kaldırıldı
-- `@MainActor` nested telemetry kaldırıldı
-- Hizasız bellek `load(as:)` kaldırıldı
-- SecRandom / Security import kaldırıldı
+Bilinen stabil sürüme geri alındı (build-32 tabanı).
 
-Eski proje SIL → build-35 → **build-35-crashfix**
+**Kaldırıldı (çökme kaynakları):**
+- BLE AES-GCM telemetri / CryptoKit session
+- MapKit / AsyncImage / ağ haritası
+- Dash HTTP poll
+- statusBarHidden
+
+**Kaldı:** BLE Phone Key pair + triad HUD (yerel demo).
+
+Eski proje **SIL** → zip → Run ▶ → `build-36-stable`
