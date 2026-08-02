@@ -2,9 +2,12 @@ import Foundation
 import Combine
 import SwiftUI
 
-/// On-device cluster — matches day-mode Dash HUD (media | speed | map).
+/// On-device cluster — day HUD + classic 4-slide side carousels (trip/tires/map/media).
 @MainActor
 final class HUDModel: ObservableObject {
+    static let slideCount = 4
+    static let slideNames = ["Seyahat", "Lastik", "Harita", "Medya"]
+
     @Published var speed: Double = 0
     @Published var battery: Double = 50
     @Published var powerKW: Double = 0
@@ -14,7 +17,7 @@ final class HUDModel: ObservableObject {
     @Published var tripKm: Double = 0
     @Published var psiFL = 42
     @Published var psiFR = 42
-    @Published var psiRL = 42
+    @Published var psiRL = 41
     @Published var psiRR = 42
     @Published var outdoorC: Int = 28
     @Published var night = false
@@ -22,11 +25,11 @@ final class HUDModel: ObservableObject {
     @Published var vinTail: String = "159959"
     @Published var bleOK = false
     @Published var driving = false
-    @Published var destination = "—"
+    @Published var destination = "Sabiha Gökçen"
     @Published var eta = "—"
-    @Published var energyAtArrival = "—"
-    @Published var tripDist = "—"
-    @Published var place = "—"
+    @Published var energyAtArrival = "66%"
+    @Published var tripDist = "13.3 km"
+    @Published var place = "İstanbul"
     @Published var mediaService = "Apple Music"
     @Published var mediaTitle = "Holocene"
     @Published var mediaArtist = "Bon Iver"
@@ -35,13 +38,14 @@ final class HUDModel: ObservableObject {
     @Published var dayName = ""
     @Published var dateLine = ""
     @Published var nextPrayer = "Öğle 13:10"
-    /// 0 media, 1 trip, 2 tires
+    /// Same order as Dash: 0 trip, 1 tires, 2 map, 3 media
     @Published var leftSlide = 0
-    /// 0 map
-    @Published var rightSlide = 0
+    @Published var rightSlide = 2
 
     private var timer: AnyCancellable?
     private var phase: Double = 0
+    private var leftCool: Date = .distantPast
+    private var rightCool: Date = .distantPast
 
     private let clockFmt: DateFormatter = {
         let f = DateFormatter()
@@ -69,10 +73,9 @@ final class HUDModel: ObservableObject {
         bleOK = paired
         night = false
         leftSlide = 0
+        rightSlide = 2
         if paired {
-            destination = "Sabiha Gökçen"
             energyAtArrival = "\(Int(battery))%"
-            place = "İstanbul"
         }
         refreshClock()
         start()
@@ -100,12 +103,25 @@ final class HUDModel: ObservableObject {
         }
     }
 
-    func beginAfterPair() {
-        // Stay in Park like the reference screenshot until user drives.
+    func beginAfterPair() {}
+
+    func togglePlay() { mediaPlaying.toggle() }
+
+    /// delta +1 = swipe up (next), -1 = swipe down (prev)
+    func nudgeLeft(_ delta: Int) {
+        guard Date().timeIntervalSince(leftCool) > 0.28 else { return }
+        leftCool = Date()
+        leftSlide = ((leftSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
     }
 
-    func cycleLeft() { leftSlide = (leftSlide + 1) % 3 }
-    func togglePlay() { mediaPlaying.toggle() }
+    func nudgeRight(_ delta: Int) {
+        guard Date().timeIntervalSince(rightCool) > 0.28 else { return }
+        rightCool = Date()
+        rightSlide = ((rightSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
+    }
+
+    func setLeft(_ i: Int) { leftSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount }
+    func setRight(_ i: Int) { rightSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount }
 
     private func refreshClock() {
         let now = Date()
@@ -126,7 +142,7 @@ final class HUDModel: ObservableObject {
             let dKm = speed / 3600.0 / 30.0
             tripKm += dKm
             odometer += dKm
-            tripDist = String(format: "%.1f km", tripKm)
+            tripDist = String(format: "%.1f km", max(0, 13.3 - tripKm))
             let remainMin = max(1, Int(max(0, 18 - tripKm * 1.4)))
             eta = clockFmt.string(from: Date().addingTimeInterval(TimeInterval(remainMin * 60)))
             energyAtArrival = "\(max(5, Int(battery) - Int(tripKm / 3)))%"
@@ -137,6 +153,13 @@ final class HUDModel: ObservableObject {
         } else {
             speed += (0 - speed) * 0.08
             powerKW += (0 - powerKW) * 0.1
+        }
+
+        if Int(phase * 10) % 90 == 0 {
+            psiFL = 41 + Int.random(in: 0...2)
+            psiFR = 41 + Int.random(in: 0...2)
+            psiRL = 41 + Int.random(in: 0...2)
+            psiRR = 41 + Int.random(in: 0...2)
         }
     }
 }

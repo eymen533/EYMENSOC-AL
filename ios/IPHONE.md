@@ -1,7 +1,3 @@
-# iPhone HUD
+Direkt: https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build19.zip  
 
-Referans: gündüz medya | hız | harita.
-
-Direkt: https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build18.zip  
-
-Sürüm: **`build-18-dayhud`**
+Sürüm: **`build-19-carousel`** — kayan menü: Trip / Lastik / Harita / Medya

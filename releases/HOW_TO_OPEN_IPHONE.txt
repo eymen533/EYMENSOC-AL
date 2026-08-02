@@ -1,7 +1,6 @@
-build-18-dayhud — gunduz HUD (medya | hiz | harita)
+build-19-carousel
 
-https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build18.zip
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build19.zip
 
-1) Zip ac
-2) PulsePhoneKey.swiftpm BASILI TUT → Playgrounds
-3) Run ▶ → build-18-dayhud
+Yan panellerde yukari/asagi kaydir: Seyahat · Lastik · Harita · Medya
+Surum: build-19-carousel

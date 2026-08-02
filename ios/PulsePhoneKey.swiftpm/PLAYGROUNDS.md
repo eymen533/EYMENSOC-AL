@@ -1,5 +1,5 @@
-# build-18-dayhud
+# build-19-carousel
 
-Gündüz triad HUD (medya | beyaz dial | harita). WebView yok.
+Gündüz HUD + yan panellerde Seyahat · Lastik · Harita · Medya kaydırma.
 
-Zip: `/downloads/PulsePhoneKey-playground-build18.zip` · [`IPHONE.md`](IPHONE.md)
+Zip: `/downloads/PulsePhoneKey-playground-build19.zip`

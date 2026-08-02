@@ -1,13 +1,13 @@
 import SwiftUI
 import MapKit
 
-/// Day-mode Dash HUD reference: media | white speed dial | map — native, no WebView.
+/// Day HUD + classic vertical carousels on both sides (trip · tires · map · media).
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     var onBack: () -> Void
 
-    private let bg = Color(red: 0.875, green: 0.890, blue: 0.910) // #dfe3e8
-    private let ink = Color(red: 0.110, green: 0.110, blue: 0.118) // #1c1c1e
+    private let bg = Color(red: 0.875, green: 0.890, blue: 0.910)
+    private let ink = Color(red: 0.110, green: 0.110, blue: 0.118)
     private let muted = Color(red: 0.110, green: 0.110, blue: 0.118).opacity(0.48)
     private let control = Color(red: 0.45, green: 0.55, blue: 0.68)
 
@@ -38,14 +38,13 @@ struct NativeHUDView: View {
         .persistentSystemOverlays(.hidden)
         .onAppear {
             model.night = false
-            model.leftSlide = 0
             model.start()
             model.beginAfterPair()
         }
         .onDisappear { model.stop() }
     }
 
-    // MARK: Top bar (reference)
+    // MARK: Top
 
     private var topBar: some View {
         HStack(spacing: 12) {
@@ -55,10 +54,8 @@ struct NativeHUDView: View {
                     .foregroundStyle(control)
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text(model.dayName)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(model.dateLine)
-                    .font(.system(size: 11, weight: .medium))
+                Text(model.dayName).font(.system(size: 12, weight: .semibold))
+                Text(model.dateLine).font(.system(size: 11, weight: .medium))
             }
             .foregroundStyle(ink.opacity(0.85))
 
@@ -68,10 +65,8 @@ struct NativeHUDView: View {
                 .foregroundStyle(ink)
 
             HStack(spacing: 5) {
-                Text("🕌")
-                    .font(.system(size: 12))
-                Text(model.nextPrayer)
-                    .font(.system(size: 12, weight: .medium))
+                Text("🕌").font(.system(size: 12))
+                Text(model.nextPrayer).font(.system(size: 12, weight: .medium))
             }
             .foregroundStyle(ink.opacity(0.85))
             .padding(.horizontal, 8)
@@ -118,15 +113,35 @@ struct NativeHUDView: View {
 
     private var triad: some View {
         HStack(spacing: 0) {
-            leftPanel
-                .frame(maxWidth: .infinity)
-                .mask(sideFade(leading: true))
+            SideCarousel(
+                index: model.leftSlide,
+                dotsTrailing: true,
+                ink: ink,
+                muted: muted,
+                onNudge: { model.nudgeLeft($0) },
+                onDot: { model.setLeft($0) }
+            ) {
+                slideContent(model.leftSlide)
+            }
+            .frame(maxWidth: .infinity)
+            .mask(sideFade(leading: true))
+
             centerPanel
                 .frame(maxWidth: .infinity)
                 .zIndex(2)
-            rightPanel
-                .frame(maxWidth: .infinity)
-                .mask(sideFade(leading: false))
+
+            SideCarousel(
+                index: model.rightSlide,
+                dotsTrailing: false,
+                ink: ink,
+                muted: muted,
+                onNudge: { model.nudgeRight($0) },
+                onDot: { model.setRight($0) }
+            ) {
+                slideContent(model.rightSlide)
+            }
+            .frame(maxWidth: .infinity)
+            .mask(sideFade(leading: false))
         }
         .padding(.horizontal, 6)
         .padding(.bottom, 10)
@@ -135,11 +150,28 @@ struct NativeHUDView: View {
     private var portraitStack: some View {
         VStack(spacing: 10) {
             centerPanel.frame(maxHeight: .infinity)
-            HStack(spacing: 10) {
-                leftPanel.frame(maxWidth: .infinity)
-                rightPanel.frame(maxWidth: .infinity)
+            HStack(spacing: 8) {
+                SideCarousel(
+                    index: model.leftSlide,
+                    dotsTrailing: true,
+                    ink: ink,
+                    muted: muted,
+                    onNudge: { model.nudgeLeft($0) },
+                    onDot: { model.setLeft($0) }
+                ) { slideContent(model.leftSlide) }
+                .frame(maxWidth: .infinity)
+
+                SideCarousel(
+                    index: model.rightSlide,
+                    dotsTrailing: false,
+                    ink: ink,
+                    muted: muted,
+                    onNudge: { model.nudgeRight($0) },
+                    onDot: { model.setRight($0) }
+                ) { slideContent(model.rightSlide) }
+                .frame(maxWidth: .infinity)
             }
-            .frame(height: 220)
+            .frame(height: 240)
         }
         .padding(.horizontal, 10)
         .padding(.bottom, 8)
@@ -155,32 +187,94 @@ struct NativeHUDView: View {
         )
     }
 
-    // MARK: Left — Apple Music (default)
-
-    private var leftPanel: some View {
-        VStack {
-            Spacer(minLength: 0)
-            Group {
-                switch model.leftSlide {
-                case 1: tripBlock
-                case 2: tiresBlock
-                default: mediaBlock
-                }
-            }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 20).onEnded { g in
-                    if abs(g.translation.height) > 28 { model.cycleLeft() }
-                }
-            )
-            Spacer(minLength: 0)
-            dots(active: model.leftSlide, count: 3)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.trailing, 22)
-                .padding(.bottom, 6)
+    @ViewBuilder
+    private func slideContent(_ index: Int) -> some View {
+        switch index {
+        case 1: tiresBlock
+        case 2: mapBlock
+        case 3: mediaBlock
+        default: tripBlock
         }
-        .padding(.leading, 20)
-        .padding(.trailing, 8)
+    }
+
+    // MARK: Slides
+
+    private var tripBlock: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            tripRow("Destination", model.destination)
+            tripRow("Arrival Time", model.eta)
+            tripRow("Energy at Arrival", model.energyAtArrival)
+            tripRow("Distance", model.tripDist)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(.horizontal, 8)
+    }
+
+    private func tripRow(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label.uppercased())
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(1)
+                .foregroundStyle(muted)
+            Text(value)
+                .font(.system(size: 22, weight: .semibold, design: .rounded))
+                .foregroundStyle(ink)
+        }
+    }
+
+    private var tiresBlock: some View {
+        VStack(spacing: 18) {
+            Text("LASTİK")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(1.3)
+                .foregroundStyle(muted)
+            HStack(spacing: 20) {
+                psi("FL", model.psiFL)
+                psi("FR", model.psiFR)
+            }
+            HStack(spacing: 20) {
+                psi("RL", model.psiRL)
+                psi("RR", model.psiRR)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func psi(_ c: String, _ v: Int) -> some View {
+        VStack(spacing: 2) {
+            Text(c).font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
+            Text("\(v)")
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .foregroundStyle(ink)
+                .monospacedDigit()
+            Text("psi").font(.system(size: 11)).foregroundStyle(muted)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var mapBlock: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Map(initialPosition: .region(
+                MKCoordinateRegion(
+                    center: CLLocationCoordinate2D(latitude: 41.0215, longitude: 29.0210),
+                    span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
+                )
+            ))
+            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .including([.publicTransport]), showsTraffic: false))
+            .disabled(true)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+            .colorScheme(.light)
+
+            Text("N")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(ink.opacity(0.7))
+                .padding(6)
+                .background(Circle().fill(Color.white.opacity(0.85)))
+                .padding(8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(6)
     }
 
     private var mediaBlock: some View {
@@ -201,11 +295,11 @@ struct NativeHUDView: View {
                     )
                 )
                 .aspectRatio(1, contentMode: .fit)
-                .frame(maxWidth: 200)
+                .frame(maxWidth: 180)
                 .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
                 .overlay {
                     Image(systemName: "music.note")
-                        .font(.system(size: 36, weight: .light))
+                        .font(.system(size: 34, weight: .light))
                         .foregroundStyle(.white.opacity(0.35))
                 }
 
@@ -217,73 +311,23 @@ struct NativeHUDView: View {
                 .foregroundStyle(muted)
 
             HStack(spacing: 28) {
-                Button { } label: {
-                    Image(systemName: "backward.fill")
-                }
+                Image(systemName: "backward.fill")
                 Button { model.togglePlay() } label: {
                     Image(systemName: model.mediaPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 22))
                 }
-                Button { } label: {
-                    Image(systemName: "forward.fill")
-                }
+                .buttonStyle(.plain)
+                Image(systemName: "forward.fill")
             }
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(control)
-            .buttonStyle(.plain)
-            .padding(.top, 4)
+            .padding(.top, 2)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
     }
 
-    private var tripBlock: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            tripRow("Destination", model.destination)
-            tripRow("Arrival Time", model.eta)
-            tripRow("Energy at Arrival", model.energyAtArrival)
-            tripRow("Distance", model.tripDist)
-        }
-    }
-
-    private func tripRow(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label.uppercased())
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(1)
-                .foregroundStyle(muted)
-            Text(value)
-                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .foregroundStyle(ink)
-        }
-    }
-
-    private var tiresBlock: some View {
-        VStack(spacing: 14) {
-            Text("LASTİK")
-                .font(.system(size: 10, weight: .bold))
-                .tracking(1.2)
-                .foregroundStyle(muted)
-            HStack {
-                psi("FL", model.psiFL)
-                psi("FR", model.psiFR)
-            }
-            HStack {
-                psi("RL", model.psiRL)
-                psi("RR", model.psiRR)
-            }
-        }
-    }
-
-    private func psi(_ c: String, _ v: Int) -> some View {
-        VStack(spacing: 2) {
-            Text(c).font(.system(size: 10, weight: .semibold)).foregroundStyle(muted)
-            Text("\(v)").font(.system(size: 26, weight: .bold, design: .rounded)).foregroundStyle(ink)
-            Text("psi").font(.system(size: 10)).foregroundStyle(muted)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    // MARK: Center — white speed dial
+    // MARK: Center
 
     private var centerPanel: some View {
         VStack(spacing: 14) {
@@ -294,54 +338,72 @@ struct NativeHUDView: View {
                         .foregroundStyle(model.gear == g ? ink : ink.opacity(0.28))
                 }
             }
-
             DaySpeedDial(speed: model.speed)
                 .frame(maxWidth: 280, maxHeight: 280)
         }
         .padding(.vertical, 8)
     }
+}
 
-    // MARK: Right — map
+// MARK: - Vertical carousel (Dash-style)
 
-    private var rightPanel: some View {
-        VStack {
-            Spacer(minLength: 0)
-            ZStack(alignment: .bottomTrailing) {
-                Map(initialPosition: .region(
-                    MKCoordinateRegion(
-                        center: CLLocationCoordinate2D(latitude: 41.0215, longitude: 29.0210),
-                        span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
-                    )
-                ))
-                .mapStyle(.standard(elevation: .flat, pointsOfInterest: .including([.publicTransport]), showsTraffic: false))
-                .disabled(true)
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
-                .colorScheme(.light)
+private struct SideCarousel<Content: View>: View {
+    let index: Int
+    let dotsTrailing: Bool
+    let ink: Color
+    let muted: Color
+    var onNudge: (Int) -> Void
+    var onDot: (Int) -> Void
+    @ViewBuilder var content: () -> Content
 
-                Text("N")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(ink.opacity(0.7))
-                    .padding(6)
-                    .background(Circle().fill(Color.white.opacity(0.85)))
-                    .padding(8)
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: dotsTrailing ? .trailing : .leading) {
+                content()
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+                    .id(index)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .offset(y: 18)),
+                        removal: .opacity.combined(with: .offset(y: -18))
+                    ))
+                    .animation(.easeInOut(duration: 0.35), value: index)
+
+                VStack(spacing: 0) {
+                    Spacer()
+                    Text("↕ kaydır")
+                        .font(.system(size: 10, weight: .semibold))
+                        .tracking(1.4)
+                        .foregroundStyle(muted.opacity(0.7))
+                        .padding(.bottom, 8)
+                }
+                .allowsHitTesting(false)
+
+                VStack(spacing: 7) {
+                    ForEach(0..<HUDModel.slideCount, id: \.self) { i in
+                        Button {
+                            onDot(i)
+                        } label: {
+                            Capsule()
+                                .fill(i == index ? ink : ink.opacity(0.22))
+                                .frame(width: 6, height: i == index ? 16 : 6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(dotsTrailing ? .trailing : .leading, 10)
             }
-            .frame(maxWidth: .infinity)
-            .frame(minHeight: 260, maxHeight: 340)
-            .padding(.leading, 8)
-            .padding(.trailing, 14)
-            Spacer(minLength: 0)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 24)
+                    .onEnded { g in
+                        let dy = g.translation.height
+                        if dy < -36 { onNudge(1) }      // swipe up → next
+                        else if dy > 36 { onNudge(-1) } // swipe down → prev
+                    }
+            )
         }
-    }
-
-    private func dots(active: Int, count: Int) -> some View {
-        VStack(spacing: 6) {
-            ForEach(0..<count, id: \.self) { i in
-                Capsule()
-                    .fill(i == active ? ink : ink.opacity(0.22))
-                    .frame(width: 6, height: i == active ? 14 : 6)
-            }
-        }
+        .padding(dotsTrailing ? .leading : .trailing, 12)
     }
 }
 
@@ -359,7 +421,6 @@ struct DaySpeedDial: View {
                     )
                 )
                 .shadow(color: .black.opacity(0.14), radius: 22, y: 10)
-                .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
 
             Circle()
                 .stroke(Color.black.opacity(0.04), lineWidth: 1)
@@ -373,7 +434,7 @@ struct DaySpeedDial: View {
                     .contentTransition(.numericText())
                 Text("km/h")
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(Color(red: 0.11, green: 0.11, blue: 0.12).opacity(0.45))
+                    .foregroundStyle(Color.black.opacity(0.45))
             }
         }
         .aspectRatio(1, contentMode: .fit)
