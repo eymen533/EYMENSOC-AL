@@ -89,11 +89,10 @@ struct NativeHUDView: View {
                 model.toggleDrive()
             }
             .font(.caption.weight(.bold))
-            .foregroundStyle(model.liveLocked ? muted : (model.driving ? Color.orange : accent))
+            .foregroundStyle(model.driving ? Color.orange : accent)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Capsule().stroke((model.liveLocked ? muted : (model.driving ? Color.orange : accent)).opacity(0.5), lineWidth: 1))
-            .disabled(model.liveLocked)
+            .background(Capsule().stroke(model.driving ? Color.orange.opacity(0.5) : accent.opacity(0.5), lineWidth: 1))
             Text("\(Int(model.battery))%")
                 .font(.caption.monospacedDigit().weight(.semibold))
                 .foregroundStyle(ink)
@@ -112,9 +111,9 @@ struct NativeHUDView: View {
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(accent)
             Spacer()
-            Text(model.telemetrySource)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(model.isLive ? accent : (model.feedOK ? Color.orange : dim))
+            Text(model.telemetrySource.uppercased())
+                .font(.caption2)
+                .foregroundStyle(dim)
             Text(String(format: "ODO %.0f", model.odometer))
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(muted)
@@ -179,31 +178,21 @@ struct NativeHUDView: View {
     private var simplePanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("SADE")
-            Text(model.isLive ? "CANLI TESLA" : (model.feedOK ? "Dash verisi" : (model.bleOK ? "Key bağlı" : "Pair / Live")))
+            Text(model.bleOK ? "Araca bağlı" : "Pair gerekli")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(ink)
-            if !model.vehicleName.isEmpty {
-                Text(model.vehicleName)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(accent)
-            }
             Text("VIN …\(model.vinTail)")
                 .font(.footnote.monospaced())
                 .foregroundStyle(muted)
             Text(linkLabel)
                 .font(.caption)
                 .foregroundStyle(model.bleOK ? accent : muted)
-            if !model.feedError.isEmpty {
-                Text(model.feedError)
-                    .font(.caption2)
-                    .foregroundStyle(Color.orange)
-            }
             Spacer(minLength: 0)
             HStack(spacing: 16) {
                 metric("Hız", "\(Int(abs(model.speed).rounded()))", "km/h")
                 metric("Güç", String(format: "%.0f", model.powerKW), "kW")
             }
-            Text(model.liveLocked ? "Vites/hız arabadan gelir" : "Kaydır ↑↓ · ikonlarla panel")
+            Text("Kaydır ↑↓ veya sağdaki ikonlara dokun")
                 .font(.caption2)
                 .foregroundStyle(dim)
         }
@@ -252,15 +241,9 @@ struct NativeHUDView: View {
             HStack {
                 sectionTitle("LASTİK")
                 Spacer()
-                if model.liveLocked {
-                    Text(model.isLive ? "CANLI" : "DASH")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(accent)
-                } else {
-                    Button("Sıfırla") { model.resetTires() }
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(accent)
-                }
+                Button("Sıfırla") { model.resetTires() }
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(accent)
             }
             Text("MODEL Y")
                 .font(.caption.weight(.bold))
@@ -291,21 +274,19 @@ struct NativeHUDView: View {
                 .font(.title2.monospacedDigit().weight(.bold))
                 .foregroundStyle(psi < 35 || psi > 46 ? Color.orange : ink)
             Text("psi").font(.caption2).foregroundStyle(dim)
-            if !model.liveLocked {
-                HStack(spacing: 10) {
-                    Button { adjust(-1) } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(muted)
-                    }
-                    .buttonStyle(.plain)
-                    Button { adjust(1) } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(accent)
-                    }
-                    .buttonStyle(.plain)
+            HStack(spacing: 10) {
+                Button { adjust(-1) } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(muted)
                 }
+                .buttonStyle(.plain)
+                Button { adjust(1) } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(accent)
+                }
+                .buttonStyle(.plain)
             }
         }
         .frame(minWidth: 88)
@@ -425,7 +406,6 @@ struct NativeHUDView: View {
                             .frame(width: 28, height: 28)
                     }
                     .buttonStyle(.plain)
-                    .disabled(model.liveLocked)
                 }
             }
             ZStack {
@@ -463,24 +443,35 @@ struct NativeHUDView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Map panel (no MapKit — GPS + heading)
+    // MARK: - Map panel (static shapes)
 
     private var mapPanel: some View {
         ZStack(alignment: .bottomTrailing) {
-            VehicleMapView(lat: model.latitude, lon: model.longitude, heading: model.mapHeading)
+            Color(red: 0.86, green: 0.85, blue: 0.82)
+            // Fixed grid — no animated offsets (prevents “kayma”)
+            VStack(spacing: 18) {
+                ForEach(0..<5, id: \.self) { row in
+                    HStack(spacing: 14) {
+                        ForEach(0..<3, id: \.self) { col in
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color(white: 0.70 - Double((row + col) % 3) * 0.04))
+                                .frame(width: 36 + CGFloat(col) * 10, height: 22 + CGFloat(row % 2) * 8)
+                        }
+                    }
+                }
+            }
+            .rotationEffect(.degrees(-6))
+            .opacity(0.9)
+            Image(systemName: "location.north.fill")
+                .font(.title)
+                .foregroundStyle(Color.red)
+                .shadow(radius: 2)
             VStack(alignment: .trailing, spacing: 6) {
-                Text(model.telemetrySource == "BLE" ? "GPS · BLE" : (model.isLive ? "GPS · LIVE" : "GPS"))
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.black.opacity(0.75))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.white.opacity(0.92)))
-                Text(model.gear)
+                Text("N")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.black.opacity(0.8))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.white.opacity(0.9)))
+                    .foregroundStyle(.black.opacity(0.75))
+                    .padding(8)
+                    .background(Circle().fill(Color.white.opacity(0.92)))
                 Text(model.tripDist)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.black.opacity(0.7))
@@ -489,12 +480,10 @@ struct NativeHUDView: View {
                     .background(Capsule().fill(Color.white.opacity(0.9)))
             }
             .padding(10)
-            .allowsHitTesting(false)
         }
         .overlay(alignment: .leading) {
             LinearGradient(colors: [Color.black.opacity(0.8), .clear], startPoint: .leading, endPoint: .trailing)
                 .frame(width: 36)
-                .allowsHitTesting(false)
         }
         .clipped()
     }

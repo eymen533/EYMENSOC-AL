@@ -1,13 +1,12 @@
-# build-42-ble
+# build-43-stable
 
-Dashla gibi: Pair sonrası **araç BLE** ile hız/vites/lastik/medya/GPS (imzalı oturum).
-Dash Owner API yedek. MapKit yok.
+Playgrounds'ta Dashla-tarzı BLE AES **çökertiyor** — o yüzden kapalı.
+Bu sürüm: Pair + HUD + Dash Owner API (açılır).
 
-https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build42.zip
+https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build43.zip
 
-1. Eski PulsePhoneKey’i **sil**
-2. Zip → Run ▶ → ekranda `build-42-ble`
-3. Pair Vehicle → Key Card konsola → Cluster
-4. HUD’da **BLE** / **CANLI TESLA** = gerçek araç
+1. Eski app’i **sil**
+2. Run ▶ → `build-43-stable`
+3. Settings → Dash URL + PIN + Tesla token → HUD’da **LIVE**
 
-Not: Swift Playgrounds bazen ağır BLE AES ile açılışta çöker. Olursa yaz — App Store tarzı (Xcode) pakete geçeriz. Dashla da tam native App Store uygulaması.
+Gerçek BLE (Dashla gibi) için sonraki adım: **Xcode/native app** (Playgrounds değil).
