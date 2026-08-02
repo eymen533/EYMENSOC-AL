@@ -345,7 +345,7 @@ final class HUDModel: ObservableObject {
             }
             // Real BLE session wins over Dash / Owner API.
             if useBLE { return true }
-            let src = ((obj["source"] as? String) ?? "demo").lower()
+            let src = ((obj["source"] as? String) ?? "demo").lowercased()
             // Ignore server simulator / fake dash when we expect real car data.
             guard src == "live" else { return false }
             useVehicleFeed = true
