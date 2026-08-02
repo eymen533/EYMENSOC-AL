@@ -1,0 +1,28 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+# Do not ignore SOC.swiftpm/Packages (vendored offline deps for Playgrounds)
+**/Packages/**/.build/
+**/Packages/**/.swiftpm/
+
+# macOS
+.DS_Store
+
+# Misc
+*.swp
+*~
+.idea/

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>SOC — Dashboard Preview</title>
+  <style>
+    :root {
+      --bg: #000;
+      --muted: #9a9a9a;
+      --soft: #6c6c6c;
+      --accent: #5a73ff;
+      --green: #40d166;
+      --warn: #f0c738;
+      --red: #f23838;
+      --surface: #17171a;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #0b0b0f;
+      color: #fff;
+      font-family: "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    }
+    body {
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(900px 420px at 50% -10%, rgba(70, 90, 180, 0.28), transparent 60%),
+        #09090c;
+    }
+    .wrap { width: min(1100px, 100%); }
+    h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); margin-bottom: 18px; font-size: 14px; }
+    .phone {
+      aspect-ratio: 19.5 / 9;
+      width: 100%;
+      border-radius: 28px;
+      background: #000;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+      overflow: hidden;
+      position: relative;
+    }
+    .dash {
+      display: grid;
+      grid-template-columns: 0.95fr 0.85fr 1.2fr;
+      height: 100%;
+      position: relative;
+    }
+    .topbar {
+      position: absolute;
+      inset: 10px 14px auto 14px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #ddd;
+      pointer-events: none;
+    }
+    .topbar .muted { color: var(--muted); }
+    .spacer { flex: 1; }
+    .pill {
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 4px 8px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .dot.g { background: var(--green); }
+    .dot.y { background: var(--warn); opacity: 0.45; }
+    .btn {
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      color: #fff;
+    }
+    .left, .center, .right {
+      position: relative;
+      min-width: 0;
+      height: 100%;
+    }
+    .left {
+      padding: 48px 10px 18px 48px;
+      display: flex;
+      flex-direction: column;
+    }
+    .rail {
+      position: absolute;
+      left: 8px;
+      top: 42%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .rail span {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: var(--soft);
+      font-size: 14px;
+    }
+    .rail span.active {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+    }
+    .car {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+    .car img {
+      width: min(170px, 62%);
+      height: auto;
+      filter: drop-shadow(0 0 18px rgba(255,255,255,0.08));
+      user-select: none;
+    }
+    .tire {
+      position: absolute;
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-weight: 600;
+    }
+    .tire.fl { left: 4%; top: 24%; }
+    .tire.fr { right: 4%; top: 24%; }
+    .tire.rl { left: 4%; bottom: 30%; }
+    .tire.rr { right: 4%; bottom: 30%; }
+    .battery {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .battery .ico { color: var(--green); }
+    .center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding-top: 20px;
+    }
+    .gauge {
+      width: min(250px, 78%);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, #1a1a1a 0%, #000 70%);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 20px 50px rgba(0,0,0,0.4);
+      animation: breathe 3.2s ease-in-out infinite;
+    }
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+    .gears {
+      display: flex;
+      gap: 16px;
+      color: var(--soft);
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+    .gears b { color: #fff; }
+    .speed {
+      font-size: clamp(56px, 9vw, 88px);
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+    .unit { color: var(--muted); font-size: 15px; margin-top: 4px; }
+    .place {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .right { overflow: hidden; background: #111; }
+    .map-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      filter: saturate(0.85) brightness(0.85) contrast(1.05);
+    }
+    .map-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 18%, transparent 75%, rgba(0,0,0,0.45));
+      pointer-events: none;
+    }
+    .compass {
+      position: absolute;
+      right: 14px;
+      bottom: 42px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.2);
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      z-index: 2;
+    }
+    .compass b { color: var(--red); display: block; text-align: center; }
+    .odo {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+      z-index: 2;
+    }
+    .home {
+      position: absolute;
+      left: 50%;
+      bottom: 6px;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.55);
+      z-index: 6;
+    }
+    .links {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .links a {
+      color: #c9d2ff;
+      background: rgba(90,115,255,0.12);
+      border: 1px solid rgba(90,115,255,0.35);
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+    .note {
+      margin-top: 12px;
+      color: var(--soft);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    @media (max-width: 720px) {
+      .dash { grid-template-columns: 1fr; }
+      .right { min-height: 260px; }
+      .phone { aspect-ratio: auto; height: auto; }
+      .left { min-height: 280px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>SOC Dashboard Preview</h1>
+    <p class="sub">Gerçek Model 3 üstten görünüm + Google Maps / Apple Maps (uygulamada MapKit)</p>
+
+    <div class="phone">
+      <div class="topbar">
+        <strong>18:59</strong>
+        <span class="muted">29°C</span>
+        <span>🚗</span>
+        <span class="muted">↻</span>
+        <span class="muted">+</span>
+        <span class="spacer"></span>
+        <span class="pill"><span class="dot g"></span><span class="dot y"></span></span>
+        <span class="btn">Reconnect</span>
+        <span class="muted">🔋 50</span>
+        <span class="muted">⚙</span>
+      </div>
+
+      <div class="dash">
+        <section class="left">
+          <div class="rail">
+            <span>□</span>
+            <span>⎈</span>
+            <span class="active">➤</span>
+            <span>🗺</span>
+            <span>♪</span>
+          </div>
+          <div class="car">
+            <span class="tire fl">43 psi</span>
+            <span class="tire fr">42 psi</span>
+            <img src="https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/tesla-ble-companion-4163/docs/tesla-model3-topdown.png" alt="Tesla Model 3 top-down" />
+            <span class="tire rl">43 psi</span>
+            <span class="tire rr">42 psi</span>
+          </div>
+          <div class="battery"><span class="ico">🔋</span> 69% / 331km</div>
+        </section>
+
+        <section class="center">
+          <div class="gauge">
+            <div class="gears"><b>P</b><span>R</span><span>N</span><span>D</span></div>
+            <div class="speed">0</div>
+            <div class="unit">km/h</div>
+          </div>
+          <div class="place">📍 Ertürk Sk. No:29</div>
+        </section>
+
+        <section class="right">
+          <!-- Browser preview uses OpenStreetMap (reliable embed). iOS app uses Apple MapKit. -->
+          <iframe
+            class="map-frame"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            allowfullscreen
+            src="https://www.openstreetmap.org/export/embed.html?bbox=28.9684%2C41.0002%2C28.9884%2C41.0162&amp;layer=mapnik&amp;marker=41.0082%2C28.9784">
+          </iframe>
+          <div class="map-overlay"></div>
+          <div class="compass"><div><b>N</b>▲</div></div>
+          <div class="odo">ODO 74832km</div>
+        </section>
+      </div>
+      <div class="home"></div>
+    </div>
+
+    <p class="note">
+      Bu sayfa tarayıcı önizlemesidir (harita: OpenStreetMap). iPad/iPhone uygulamasında sağ panel
+      <strong>Apple Maps (MapKit)</strong> ile gerçek konumunu takip eder.
+    </p>
+
+    <div class="links">
+      <a href="https://github.com/eymen533/EYMENSOC-AL/raw/cursor/tesla-ble-companion-4163/dist/SOC-iPad.swiftpm.zip">iPad SOC.zip indir</a>
+      <a href="https://github.com/eymen533/EYMENSOC-AL/blob/cursor/tesla-ble-companion-4163/docs/tesla-model3-topdown.png">Model 3 görseli</a>
+      <a href="https://github.com/eymen533/EYMENSOC-AL/pull/8">Pull Request #8</a>
+    </div>
+  </div>
+</body>
+</html>

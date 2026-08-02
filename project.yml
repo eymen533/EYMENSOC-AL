@@ -1,0 +1,61 @@
+name: SOC
+options:
+  bundleIdPrefix: com.eymenisin
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: tr
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    TARGETED_DEVICE_FAMILY: "1"
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 1.0.0
+packages:
+  TeslaBLEKeyKit:
+    url: https://github.com/misakatao/TeslaBLEKeyKit.git
+    from: 0.1.0
+targets:
+  SOC:
+    type: application
+    platform: iOS
+    sources:
+      - path: SOC
+        excludes:
+          - Resources/Info.plist
+    resources:
+      - path: SOC/Resources/Assets.xcassets
+    info:
+      path: SOC/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: SOC
+        UILaunchScreen:
+          UIColorName: black
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        UIBackgroundModes:
+          - bluetooth-central
+          - location
+        LSApplicationQueriesSchemes:
+          - tesla
+        NSBluetoothAlwaysUsageDescription: SOC, aracınızla Bluetooth üzerinden yerel olarak iletişim kurmak için Bluetooth kullanır.
+        NSBluetoothPeripheralUsageDescription: SOC, aracınızla Bluetooth üzerinden yerel olarak iletişim kurmak için Bluetooth kullanır.
+        NSLocationWhenInUseUsageDescription: SOC, harita ve navigasyon görünümü için konumunuzu kullanır.
+        NSLocationAlwaysAndWhenInUseUsageDescription: SOC, sürüş sırasında harita görünümünü güncellemek için konumunuzu kullanır.
+    dependencies:
+      - package: TeslaBLEKeyKit
+        product: TeslaBLEKeyKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.eymenisin.soc
+        PRODUCT_NAME: SOC
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPAD: NO

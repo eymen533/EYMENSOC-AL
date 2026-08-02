@@ -1,0 +1,418 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		609841FA3AA04BDEB20661E2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDB4187150E2434FADEB1213 /* AppModel.swift */; };
+		2493B70AE79540F7A296F8B9 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006A139A094C4DBEAB3F4056 /* RootView.swift */; };
+		2865A516AA344F38B1AFBE91 /* SOCApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4722B7EF25924B22BBBEC6D7 /* SOCApp.swift */; };
+		0EE8640A47054947B65338BD /* AppleMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88D53A3378BC42D896DD5FE8 /* AppleMapView.swift */; };
+		542CA1E6571A4A4E9411FDE4 /* CenterGaugeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA5B8246A9C44A5B971C25E2 /* CenterGaugeView.swift */; };
+		15EAA7B2D6994532B3F02A8A /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37F7E2FF4C34682B8B599B1 /* DashboardView.swift */; };
+		3E607DF2A3944E8C90F083A2 /* LeftPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67CF890F755440299AC80CFB /* LeftPanelView.swift */; };
+		F189D0205DB8435C8377D998 /* RightMapPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3210DA3D04D94D639BDDB4C5 /* RightMapPanelView.swift */; };
+		C0C2EF3E342845F8823C3582 /* BeforeYouStartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B0F2F852DB4534A739AB3F /* BeforeYouStartView.swift */; };
+		4AB0C38E5A4E4069A97F14E0 /* KeyCardVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2416844C61B42178BEB2D56 /* KeyCardVerificationView.swift */; };
+		5947DC2B374D4A9D98D9C5CA /* PairVehicleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F27BA9AA03E4B38829F9AB3 /* PairVehicleView.swift */; };
+		C59DBFB48C7C4F3A9A77B16B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51F2EF764ED4B7E93AB756C /* SettingsView.swift */; };
+		D117005DC06A4818A4F6DFD2 /* VehicleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3890EAF0095740548EF0AA3E /* VehicleState.swift */; };
+		3CA4D2ADD17348068AEACF50 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A6C79C7D6C439B947EF97E /* LocationService.swift */; };
+		60CAC4925E6E48158469C253 /* NowPlayingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC91C05AC8548C0B7A1738E /* NowPlayingService.swift */; };
+		D937B226A45442F29F4B45A0 /* TeslaBLEService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC86E720771B4F7FA513ADAE /* TeslaBLEService.swift */; };
+		42DE542030E0451688826B33 /* VehicleStateMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9890BBBC61D24E158CE8DCA6 /* VehicleStateMapper.swift */; };
+		410041DA3E294CE885141A94 /* VehicleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BF8FD4128134CB1B50EFA2C /* VehicleStore.swift */; };
+		DB4477C1912C4B56B6F4E3CF /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B60D49297B24696BB4B2B95 /* Formatters.swift */; };
+		D53739A0A1D54B1380E26628 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7D144DAC07A476EB68FC02B /* Theme.swift */; };
+		4B12250A005244F6A22C0510 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8D0F56398AD1460B9113CEC4 /* Assets.xcassets */; };
+		A15C81A24EAF4F09A93081BF /* TeslaBLEKeyKit in Frameworks */ = {isa = PBXBuildFile; productRef = E7115A2611BE4197A8F71B4F /* TeslaBLEKeyKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1E4FA3B5256C43D49E650855 /* SOC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SOC.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EDB4187150E2434FADEB1213 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		006A139A094C4DBEAB3F4056 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		4722B7EF25924B22BBBEC6D7 /* SOCApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SOCApp.swift; sourceTree = "<group>"; };
+		88D53A3378BC42D896DD5FE8 /* AppleMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMapView.swift; sourceTree = "<group>"; };
+		FA5B8246A9C44A5B971C25E2 /* CenterGaugeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CenterGaugeView.swift; sourceTree = "<group>"; };
+		C37F7E2FF4C34682B8B599B1 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		67CF890F755440299AC80CFB /* LeftPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeftPanelView.swift; sourceTree = "<group>"; };
+		3210DA3D04D94D639BDDB4C5 /* RightMapPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightMapPanelView.swift; sourceTree = "<group>"; };
+		D0B0F2F852DB4534A739AB3F /* BeforeYouStartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeforeYouStartView.swift; sourceTree = "<group>"; };
+		B2416844C61B42178BEB2D56 /* KeyCardVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCardVerificationView.swift; sourceTree = "<group>"; };
+		8F27BA9AA03E4B38829F9AB3 /* PairVehicleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairVehicleView.swift; sourceTree = "<group>"; };
+		B51F2EF764ED4B7E93AB756C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		3890EAF0095740548EF0AA3E /* VehicleState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleState.swift; sourceTree = "<group>"; };
+		37A6C79C7D6C439B947EF97E /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		4DC91C05AC8548C0B7A1738E /* NowPlayingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingService.swift; sourceTree = "<group>"; };
+		BC86E720771B4F7FA513ADAE /* TeslaBLEService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeslaBLEService.swift; sourceTree = "<group>"; };
+		9890BBBC61D24E158CE8DCA6 /* VehicleStateMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleStateMapper.swift; sourceTree = "<group>"; };
+		4BF8FD4128134CB1B50EFA2C /* VehicleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleStore.swift; sourceTree = "<group>"; };
+		7B60D49297B24696BB4B2B95 /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
+		D7D144DAC07A476EB68FC02B /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		8D0F56398AD1460B9113CEC4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
+		EFD04E532CFE40C89BB8715B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Resources/Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		2CA20B239ABB47C283733DE6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A15C81A24EAF4F09A93081BF /* TeslaBLEKeyKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		181712DE450B49CFBC781653 = {
+			isa = PBXGroup;
+			children = (
+				EC821E087B57491F81338912 /* SOC */,
+				FFF69729C66F40F8B32B585F /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FFF69729C66F40F8B32B585F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1E4FA3B5256C43D49E650855 /* SOC.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		EC821E087B57491F81338912 /* SOC */ = {
+			isa = PBXGroup;
+			children = (
+				4135C0119D984361B3B61F6F /* App */,
+				09F9355C69C1410095753DBC /* Features */,
+				3B0710BC9C604189B99CD111 /* Models */,
+				0FF8DC465A9A40E18AD3652F /* Resources */,
+				B7858052C2824A5A94E4DBE7 /* Services */,
+				7BC26F15CDD64112BA378FEB /* Utilities */,
+				8D0F56398AD1460B9113CEC4 /* Assets.xcassets */,
+				EFD04E532CFE40C89BB8715B /* Info.plist */,
+			);
+			path = SOC;
+			sourceTree = "<group>";
+		};
+		4135C0119D984361B3B61F6F /* App */ = {
+			isa = PBXGroup;
+			children = (
+				EDB4187150E2434FADEB1213 /* AppModel.swift */,
+				006A139A094C4DBEAB3F4056 /* RootView.swift */,
+				4722B7EF25924B22BBBEC6D7 /* SOCApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		09F9355C69C1410095753DBC /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A23945EC349F4F33A618A401 /* Dashboard */,
+				4D997E53DA9F42C284A77C95 /* Pairing */,
+				4A0DE12323EE41348277798B /* Settings */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		A23945EC349F4F33A618A401 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				88D53A3378BC42D896DD5FE8 /* AppleMapView.swift */,
+				FA5B8246A9C44A5B971C25E2 /* CenterGaugeView.swift */,
+				C37F7E2FF4C34682B8B599B1 /* DashboardView.swift */,
+				67CF890F755440299AC80CFB /* LeftPanelView.swift */,
+				3210DA3D04D94D639BDDB4C5 /* RightMapPanelView.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		4D997E53DA9F42C284A77C95 /* Pairing */ = {
+			isa = PBXGroup;
+			children = (
+				D0B0F2F852DB4534A739AB3F /* BeforeYouStartView.swift */,
+				B2416844C61B42178BEB2D56 /* KeyCardVerificationView.swift */,
+				8F27BA9AA03E4B38829F9AB3 /* PairVehicleView.swift */,
+			);
+			path = Pairing;
+			sourceTree = "<group>";
+		};
+		4A0DE12323EE41348277798B /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B51F2EF764ED4B7E93AB756C /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		3B0710BC9C604189B99CD111 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				3890EAF0095740548EF0AA3E /* VehicleState.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		0FF8DC465A9A40E18AD3652F /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B7858052C2824A5A94E4DBE7 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				37A6C79C7D6C439B947EF97E /* LocationService.swift */,
+				4DC91C05AC8548C0B7A1738E /* NowPlayingService.swift */,
+				BC86E720771B4F7FA513ADAE /* TeslaBLEService.swift */,
+				9890BBBC61D24E158CE8DCA6 /* VehicleStateMapper.swift */,
+				4BF8FD4128134CB1B50EFA2C /* VehicleStore.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		7BC26F15CDD64112BA378FEB /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				7B60D49297B24696BB4B2B95 /* Formatters.swift */,
+				D7D144DAC07A476EB68FC02B /* Theme.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D917A6D8B92F4372969D1639 /* SOC */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 989C7D98785145C7AAEAB939 /* Build configuration list for PBXNativeTarget "SOC" */;
+			buildPhases = (
+				45F8A2D8FB8E4D51BCA84737 /* Sources */,
+				2CA20B239ABB47C283733DE6 /* Frameworks */,
+				4BBB31EA1C694A4DA2317891 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SOC;
+			packageProductDependencies = (
+				E7115A2611BE4197A8F71B4F /* TeslaBLEKeyKit */,
+			);
+			productName = SOC;
+			productReference = 1E4FA3B5256C43D49E650855 /* SOC.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		702DDCD1856342678252A104 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = 0D26E10177A04E88B233C3BB /* Build configuration list for PBXProject "SOC" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = tr;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				tr,
+				Base,
+			);
+			mainGroup = 181712DE450B49CFBC781653;
+			productRefGroup = FFF69729C66F40F8B32B585F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			packageReferences = (
+				651CD4613A4143F597CE109E /* XCRemoteSwiftPackageReference "TeslaBLEKeyKit" */,
+			);
+			targets = (
+				D917A6D8B92F4372969D1639 /* SOC */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		4BBB31EA1C694A4DA2317891 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4B12250A005244F6A22C0510 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		45F8A2D8FB8E4D51BCA84737 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				609841FA3AA04BDEB20661E2 /* AppModel.swift in Sources */,
+				2493B70AE79540F7A296F8B9 /* RootView.swift in Sources */,
+				2865A516AA344F38B1AFBE91 /* SOCApp.swift in Sources */,
+				0EE8640A47054947B65338BD /* AppleMapView.swift in Sources */,
+				542CA1E6571A4A4E9411FDE4 /* CenterGaugeView.swift in Sources */,
+				15EAA7B2D6994532B3F02A8A /* DashboardView.swift in Sources */,
+				3E607DF2A3944E8C90F083A2 /* LeftPanelView.swift in Sources */,
+				F189D0205DB8435C8377D998 /* RightMapPanelView.swift in Sources */,
+				C0C2EF3E342845F8823C3582 /* BeforeYouStartView.swift in Sources */,
+				4AB0C38E5A4E4069A97F14E0 /* KeyCardVerificationView.swift in Sources */,
+				5947DC2B374D4A9D98D9C5CA /* PairVehicleView.swift in Sources */,
+				C59DBFB48C7C4F3A9A77B16B /* SettingsView.swift in Sources */,
+				D117005DC06A4818A4F6DFD2 /* VehicleState.swift in Sources */,
+				3CA4D2ADD17348068AEACF50 /* LocationService.swift in Sources */,
+				60CAC4925E6E48158469C253 /* NowPlayingService.swift in Sources */,
+				D937B226A45442F29F4B45A0 /* TeslaBLEService.swift in Sources */,
+				42DE542030E0451688826B33 /* VehicleStateMapper.swift in Sources */,
+				410041DA3E294CE885141A94 /* VehicleStore.swift in Sources */,
+				DB4477C1912C4B56B6F4E3CF /* Formatters.swift in Sources */,
+				D53739A0A1D54B1380E26628 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5E57709789EA4D9EBE4E1F62 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+		20EA0C9AB70142478EDC8820 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				VALIDATE_PRODUCT = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+			};
+			name = Release;
+		};
+		31DD48F9D6234FDDA39033B9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SOC/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SOC;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eymenisin.soc;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		97FA6CA5EFCE454FB15A7082 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SOC/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SOC;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eymenisin.soc;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0D26E10177A04E88B233C3BB /* Build configuration list for PBXProject "SOC" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E57709789EA4D9EBE4E1F62 /* Debug */,
+				20EA0C9AB70142478EDC8820 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		989C7D98785145C7AAEAB939 /* Build configuration list for PBXNativeTarget "SOC" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				31DD48F9D6234FDDA39033B9 /* Debug */,
+				97FA6CA5EFCE454FB15A7082 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		651CD4613A4143F597CE109E /* XCRemoteSwiftPackageReference "TeslaBLEKeyKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/misakatao/TeslaBLEKeyKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E7115A2611BE4197A8F71B4F /* TeslaBLEKeyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 651CD4613A4143F597CE109E /* XCRemoteSwiftPackageReference "TeslaBLEKeyKit" */;
+			productName = TeslaBLEKeyKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 702DDCD1856342678252A104 /* Project object */;
+}
