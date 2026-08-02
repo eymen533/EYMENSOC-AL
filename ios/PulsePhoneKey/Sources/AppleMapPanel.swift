@@ -2,6 +2,7 @@ import SwiftUI
 import MapKit
 
 /// Apple Maps — car GPS + BLE destination. No Google/API key.
+/// Uses MKMapView for iOS 16+ (no MapCameraPosition / iOS 17-only APIs).
 struct AppleMapPanel: View {
     var lat: Double
     var lon: Double
@@ -10,7 +11,6 @@ struct AppleMapPanel: View {
     var autoZoom: Bool
     var theme: HUDSettings.MapTheme
 
-    @State private var position: MapCameraPosition = .automatic
     @State private var routeCoords: [CLLocationCoordinate2D] = []
     @State private var lastRouteKey = ""
 
@@ -21,7 +21,13 @@ struct AppleMapPanel: View {
 
     var body: some View {
         ZStack {
-            mapContent
+            AppleMapLegacyRepresentable(
+                center: coord,
+                heading: heading,
+                route: routeCoords,
+                autoZoom: autoZoom,
+                dark: theme == .dark
+            )
             if !hasGPS {
                 Text("GPS bekleniyor")
                     .font(.caption)
@@ -30,53 +36,10 @@ struct AppleMapPanel: View {
                     .background(Capsule().fill(.white.opacity(0.85)))
             }
         }
-        .onAppear { syncCamera(); fetchRouteIfNeeded() }
-        .onChangeCompat(of: lat) { _ in syncCamera(); fetchRouteIfNeeded() }
-        .onChangeCompat(of: lon) { _ in syncCamera(); fetchRouteIfNeeded() }
-        .onChangeCompat(of: heading) { _ in syncCamera() }
+        .onAppear { fetchRouteIfNeeded() }
+        .onChangeCompat(of: lat) { _ in fetchRouteIfNeeded() }
+        .onChangeCompat(of: lon) { _ in fetchRouteIfNeeded() }
         .onChangeCompat(of: destination) { _ in fetchRouteIfNeeded() }
-    }
-
-    @ViewBuilder
-    private var mapContent: some View {
-        if #available(iOS 17.0, *) {
-            Map(position: $position) {
-                Annotation("", coordinate: coord) {
-                    Image(systemName: "location.north.fill")
-                        .font(.title2)
-                        .foregroundStyle(.red)
-                        .rotationEffect(.degrees(heading))
-                        .shadow(radius: 2)
-                }
-                if routeCoords.count > 1 {
-                    MapPolyline(coordinates: routeCoords)
-                        .stroke(Color(red: 0.1, green: 0.45, blue: 0.95), lineWidth: 5)
-                }
-            }
-            .mapStyle(mapStyle)
-            .disabled(true)
-        } else {
-            AppleMapLegacyRepresentable(
-                center: coord,
-                heading: heading,
-                route: routeCoords,
-                dark: theme == .dark || (theme == .auto && true)
-            )
-        }
-    }
-
-    @available(iOS 17.0, *)
-    private var mapStyle: MapStyle {
-        .standard(elevation: .realistic, pointsOfInterest: .excludingAll)
-    }
-
-    private func syncCamera() {
-        guard autoZoom else { return }
-        if #available(iOS 17.0, *) {
-            position = .camera(
-                MapCamera(centerCoordinate: coord, distance: 450, heading: heading, pitch: 55)
-            )
-        }
     }
 
     private func fetchRouteIfNeeded() {
@@ -103,7 +66,10 @@ struct AppleMapPanel: View {
             MKDirections(request: dreq).calculate { result, _ in
                 DispatchQueue.main.async {
                     if let poly = result?.routes.first?.polyline {
-                        var coords = [CLLocationCoordinate2D](repeating: .init(), count: poly.pointCount)
+                        var coords = Array(
+                            repeating: CLLocationCoordinate2D(),
+                            count: poly.pointCount
+                        )
                         poly.getCoordinates(&coords, range: NSRange(location: 0, length: poly.pointCount))
                         self.routeCoords = coords
                     }
@@ -113,11 +79,12 @@ struct AppleMapPanel: View {
     }
 }
 
-/// iOS 16 MapKit fallback (MKMapView).
+/// MKMapView wrapper — works on iOS 16+.
 struct AppleMapLegacyRepresentable: UIViewRepresentable {
     var center: CLLocationCoordinate2D
     var heading: Double
     var route: [CLLocationCoordinate2D]
+    var autoZoom: Bool
     var dark: Bool
 
     func makeUIView(context: Context) -> MKMapView {
@@ -126,20 +93,36 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.showsCompass = false
         map.showsTraffic = false
         map.delegate = context.coordinator
-        if dark {
-            map.overrideUserInterfaceStyle = .dark
-        }
+        map.overrideUserInterfaceStyle = dark ? .dark : .unspecified
         return map
     }
 
     func updateUIView(_ map: MKMapView, context: Context) {
-        let cam = MKMapCamera(lookingAtCenter: center, fromDistance: 450, pitch: 55, heading: heading)
-        map.setCamera(cam, animated: false)
+        map.overrideUserInterfaceStyle = dark ? .dark : .unspecified
+        if autoZoom {
+            let cam = MKMapCamera(
+                lookingAtCenter: center,
+                fromDistance: 450,
+                pitch: 55,
+                heading: heading
+            )
+            map.setCamera(cam, animated: false)
+        } else {
+            let region = MKCoordinateRegion(
+                center: center,
+                latitudinalMeters: 600,
+                longitudinalMeters: 600
+            )
+            map.setRegion(region, animated: false)
+        }
+
         map.removeOverlays(map.overlays)
         map.removeAnnotations(map.annotations)
+
         let ann = MKPointAnnotation()
         ann.coordinate = center
         map.addAnnotation(ann)
+
         if route.count > 1 {
             let poly = MKPolyline(coordinates: route, count: route.count)
             map.addOverlay(poly)
@@ -157,6 +140,19 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
                 return r
             }
             return MKOverlayRenderer(overlay: overlay)
+        }
+
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            if annotation is MKUserLocation { return nil }
+            let id = "pulse.car"
+            let view = mapView.dequeueReusableAnnotationView(withIdentifier: id)
+                ?? MKAnnotationView(annotation: annotation, reuseIdentifier: id)
+            view.annotation = annotation
+            let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .bold)
+            view.image = UIImage(systemName: "location.north.fill", withConfiguration: cfg)?
+                .withTintColor(.systemRed, renderingMode: .alwaysOriginal)
+            view.centerOffset = CGPoint(x: 0, y: 0)
+            return view
         }
     }
 }
