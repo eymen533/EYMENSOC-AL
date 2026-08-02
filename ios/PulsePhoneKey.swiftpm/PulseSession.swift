@@ -16,6 +16,24 @@ enum PulseSession {
         return s
     }
 
+    /// Lightweight unlock check used by Settings → Test.
+    static func ping(server: String, pin: String) async throws {
+        let base = normalizeServer(server)
+        guard let baseURL = URL(string: base) else { throw SessError.badURL }
+        let jar = HTTPCookieStorage.shared
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.httpCookieStorage = jar
+        cfg.httpCookieAcceptPolicy = .always
+        let session = URLSession(configuration: cfg)
+        _ = try await postJSON(
+            session: session,
+            url: baseURL.appendingPathComponent("api/auth/unlock"),
+            body: ["pin": pin],
+            cookieJar: jar,
+            base: baseURL
+        )
+    }
+
     /// Unlock + mark HUD pair session on the server. Returns cookies for WKWebView.
     static func prepareHUD(config: Config) async throws -> [HTTPCookie] {
         let base = normalizeServer(config.server)
@@ -28,41 +46,47 @@ enum PulseSession {
         cfg.httpCookieStorage = jar
         cfg.httpCookieAcceptPolicy = .always
         let session = URLSession(configuration: cfg)
-        // 1) PIN unlock
-        _ = try await postJSON(
-            session: session,
-            url: baseURL.appendingPathComponent("api/auth/unlock"),
-            body: ["pin": config.pin],
-            cookieJar: jar,
-            base: baseURL
-        )
-        // 2) Mirror Android: vin → card → pair so Dash leaves "demo" and shows live HUD
-        let vin = config.vin.uppercased()
-        _ = try? await postJSON(
-            session: session,
-            url: baseURL.appendingPathComponent("api/ble/vin"),
-            body: ["vin": vin],
-            cookieJar: jar,
-            base: baseURL
-        )
-        _ = try? await postJSON(
-            session: session,
-            url: baseURL.appendingPathComponent("api/ble/card"),
-            body: [:],
-            cookieJar: jar,
-            base: baseURL
-        )
-        _ = try? await postJSON(
-            session: session,
-            url: baseURL.appendingPathComponent("api/ble/pair"),
-            body: [
-                "vin": vin,
-                "card_tapped": true,
-                "source": "ios",
-            ],
-            cookieJar: jar,
-            base: baseURL
-        )
+        do {
+            // 1) PIN unlock
+            _ = try await postJSON(
+                session: session,
+                url: baseURL.appendingPathComponent("api/auth/unlock"),
+                body: ["pin": config.pin],
+                cookieJar: jar,
+                base: baseURL
+            )
+            // 2) Mirror Android: vin → card → pair so Dash leaves "demo" and shows live HUD
+            let vin = config.vin.uppercased()
+            _ = try? await postJSON(
+                session: session,
+                url: baseURL.appendingPathComponent("api/ble/vin"),
+                body: ["vin": vin],
+                cookieJar: jar,
+                base: baseURL
+            )
+            _ = try? await postJSON(
+                session: session,
+                url: baseURL.appendingPathComponent("api/ble/card"),
+                body: [:],
+                cookieJar: jar,
+                base: baseURL
+            )
+            _ = try? await postJSON(
+                session: session,
+                url: baseURL.appendingPathComponent("api/ble/pair"),
+                body: [
+                    "vin": vin,
+                    "card_tapped": true,
+                    "source": "ios",
+                ],
+                cookieJar: jar,
+                base: baseURL
+            )
+        } catch let err as SessError {
+            throw err
+        } catch {
+            throw SessError.unreachable(base)
+        }
 
         return jar.cookies(for: baseURL) ?? []
     }
@@ -85,7 +109,13 @@ enum PulseSession {
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         req.timeoutInterval = 25
 
-        let (data, resp) = try await session.data(for: req)
+        let data: Data
+        let resp: URLResponse
+        do {
+            (data, resp) = try await session.data(for: req)
+        } catch {
+            throw SessError.unreachable(base.absoluteString)
+        }
         if let http = resp as? HTTPURLResponse {
             let headers = http.allHeaderFields.reduce(into: [String: String]()) { acc, kv in
                 if let k = kv.key as? String { acc[k] = "\(kv.value)" }
@@ -94,6 +124,9 @@ enum PulseSession {
             newCookies.forEach { cookieJar.setCookie($0) }
             guard (200...299).contains(http.statusCode) else {
                 let err = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
+                if http.statusCode == 401 || http.statusCode == 403 {
+                    throw SessError.badPin
+                }
                 throw SessError.http(http.statusCode, err ?? String(data: data, encoding: .utf8) ?? "")
             }
         }
@@ -102,11 +135,17 @@ enum PulseSession {
     }
 
     enum SessError: LocalizedError {
-        case badURL, http(Int, String)
+        case badURL, badPin, unreachable(String), http(Int, String)
         var errorDescription: String? {
             switch self {
-            case .badURL: return "Server URL hatali"
-            case .http(let c, let m): return "Sunucu \(c): \(m)"
+            case .badURL:
+                return "Server URL hatali — Settings’ten https://… adresini kontrol et"
+            case .badPin:
+                return "PIN reddedildi — Settings’teki PIN’i kontrol et"
+            case .unreachable(let url):
+                return "Baglanti hatasi: sunucuya ulasilamiyor (\(url)). Tunnel dustuyse Settings → Varsayilan sunucuya don veya yeni URL yapistir."
+            case .http(let c, let m):
+                return "Sunucu \(c): \(m)"
             }
         }
     }

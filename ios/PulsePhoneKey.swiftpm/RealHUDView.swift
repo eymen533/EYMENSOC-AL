@@ -31,8 +31,16 @@ struct RealHUDView: View {
                             .foregroundStyle(.red)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
+                        Text("BLE Pair telefonda lokaldir. HUD icin Dash sunucu URL’si ayakta olmali.")
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.55))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
                         Button("Tekrar dene") { Task { await boot() } }
                             .buttonStyle(.borderedProminent)
+                        Button("Geri · Settings’ten URL guncelle", action: onBack)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.8))
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

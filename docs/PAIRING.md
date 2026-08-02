@@ -59,9 +59,9 @@ This sends the same VCSEC `SIGNATURE_TYPE_PRESENT_KEY` envelope as
    `/phone-key` detects iOS and shows: open Tesla → **Security → Set Up Phone Key** → Key Card on **console** → Pair.  
    Deep link attempts: `tesla://`, `tesla://security`.
 
-2. **iPad Swift Playgrounds (no Mac)** — `ios/PulsePhoneKey.swiftpm/`  
-   Open in **Swift Playgrounds** on iPad → Sign with Apple ID → Run.  
-   Zip: `/downloads/PulsePhoneKey-playground.zip` · steps: `ios/PulsePhoneKey.swiftpm/PLAYGROUNDS.md`
+2. **iPhone / iPad native app via Swift Playgrounds (no Mac)** — `ios/PulsePhoneKey.swiftpm/`  
+   App Store → Swift Playgrounds → open zip → Sign → **Run ▶** (installs to Home Screen; not Safari).  
+   Zip: `/downloads/PulsePhoneKey-playground-build14.zip` · steps: `ios/PulsePhoneKey.swiftpm/IPHONE.md`
 
 3. **Native companion (Mac + Xcode)** — `ios/PulsePhoneKey/`  
    Same CoreBluetooth payload; optional if you prefer Xcode.  

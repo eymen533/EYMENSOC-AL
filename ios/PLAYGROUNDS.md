@@ -1,15 +1,14 @@
-# Swift Playgrounds (iPad) — Mac’sız gerçek Pair
+# Swift Playgrounds (iPhone / iPad) — Mac’sız gerçek uygulama
 
-İstediğin yol buydu: **iPad’deki Swift Playgrounds**.
-
-Açılacak proje:
+Safari değil: **iPhone’da Swift Playgrounds → Run ▶** ile Ana Ekran’a yerel uygulama kurulur (CoreBluetooth Pair).
 
 ```
 ios/PulsePhoneKey.swiftpm/
 ```
 
-Adım adım (Türkçe): [`PulsePhoneKey.swiftpm/PLAYGROUNDS.md`](PulsePhoneKey.swiftpm/PLAYGROUNDS.md)
+- iPhone adımları: [`PulsePhoneKey.swiftpm/IPHONE.md`](PulsePhoneKey.swiftpm/IPHONE.md)
+- Kısa özet: [`PulsePhoneKey.swiftpm/PLAYGROUNDS.md`](PulsePhoneKey.swiftpm/PLAYGROUNDS.md)
 
-Zip indirme (sunucuda PIN sonrası): `/downloads/PulsePhoneKey-playground.zip`
+Zip (PIN sonrası): `/downloads/PulsePhoneKey-playground-build14.zip`
 
-Xcode yolu hâlâ duruyor: [`PulsePhoneKey/`](PulsePhoneKey/) — ama Playgrounds için şart değil.
+Xcode yolu: [`PulsePhoneKey/`](PulsePhoneKey/) — Mac varsa.
