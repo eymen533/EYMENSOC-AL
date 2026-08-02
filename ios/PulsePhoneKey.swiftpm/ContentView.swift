@@ -96,8 +96,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("build-42 · BLE live · Dash yedek
-Pair → Key Card → Cluster → BLE LIVE")
+                    Text("build-42 · BLE live · Dash yedek\nPair → Key Card → Cluster → BLE LIVE")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
