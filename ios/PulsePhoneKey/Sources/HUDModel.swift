@@ -51,6 +51,7 @@ final class HUDModel: ObservableObject {
     @Published var feedError = ""
     @Published var mapPulse: Double = 0
     @Published var charging = false
+    @Published var googleMapsKey: String = ""
 
     private var timer: AnyCancellable?
     private var pollTask: Task<Void, Never>?
@@ -108,8 +109,15 @@ final class HUDModel: ObservableObject {
         mediaTitle = "—"; mediaArtist = "—"; mediaService = "—"
         mediaPlaying = false
         latitude = 0; longitude = 0
+        googleMapsKey = (UserDefaults.standard.string(forKey: "pulse_google_maps_key") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         refreshClock()
         start()
+    }
+
+    func reloadMapsKey() {
+        googleMapsKey = (UserDefaults.standard.string(forKey: "pulse_google_maps_key") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Apply real signed BLE `getVehicleData` snapshot (highest priority).

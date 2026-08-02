@@ -10,6 +10,7 @@ struct ContentView: View {
     @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
     @State private var teslaToken = UserDefaults.standard.string(forKey: "pulse_tesla_token") ?? ""
     @State private var teslaVehicleId = UserDefaults.standard.string(forKey: "pulse_tesla_vid") ?? ""
+    @State private var googleMapsKey = UserDefaults.standard.string(forKey: "pulse_google_maps_key") ?? ""
     @State private var liveStatus = ""
     @State private var liveBusy = false
     @State private var showPairFlow = false
@@ -46,22 +47,22 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             settingsSheet
         }
-        .onChange(of: ble.paired) { _, on in
+        .onChangeCompat(of: ble.paired) { on in
             if on { hud.bleOK = true }
         }
-        .onChange(of: ble.linkUp) { _, on in
+        .onChangeCompat(of: ble.linkUp) { on in
             if on { hud.bleOK = true }
         }
-        .onChange(of: ble.readyForDashboard) { _, on in
+        .onChangeCompat(of: ble.readyForDashboard) { on in
             if on { hud.bleOK = true }
         }
-        .onChange(of: ble.bleSnapRev) { _, _ in
+        .onChangeCompat(of: ble.bleSnapRev) { _ in
             if ble.bleLiveOK {
                 hud.bleOK = true
                 hud.applyBLE(ble.bleSnapshot, linkOK: true)
             }
         }
-        .onChange(of: ble.bleLiveOK) { _, ok in
+        .onChangeCompat(of: ble.bleLiveOK) { ok in
             if ok {
                 hud.bleOK = true
                 hud.applyBLE(ble.bleSnapshot, linkOK: true)
@@ -96,7 +97,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-1 · native BLE LIVE\nPair → Key Card → Cluster")
+                    Text("xcode-ble-2 · Google Maps + rota\nPair → Key Card → Cluster")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -189,6 +190,14 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                Section("Google Maps") {
+                    SecureField("Maps API key", text: $googleMapsKey)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    Text("Google Cloud → Maps JavaScript API + Directions API. Rota hedefi gelince haritada çizilir.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 Section("Dash (yedek)") {
                     TextField("Dash URL", text: $dashURL)
                         .textInputAutocapitalization(.never)
@@ -223,7 +232,7 @@ struct ContentView: View {
                     }
                 }
                 Section("Not") {
-                    Text("Asıl veri: araç BLE (AES-GCM). Sahte demo YOK. D/hız/lastik/medya arabadan. Harita paneli MapKit’siz (GPS + yön).")
+                    Text("Asıl veri: araç BLE. Harita: Google Maps — hedef gelince rota çizilir. iOS 16+.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -252,6 +261,11 @@ struct ContentView: View {
         UserDefaults.standard.set(pin.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pulse_pin")
         UserDefaults.standard.set(teslaToken, forKey: "pulse_tesla_token")
         UserDefaults.standard.set(teslaVehicleId, forKey: "pulse_tesla_vid")
+        UserDefaults.standard.set(
+            googleMapsKey.trimmingCharacters(in: .whitespacesAndNewlines),
+            forKey: "pulse_google_maps_key"
+        )
+        hud.reloadMapsKey()
     }
 
     private func enableLive() async {

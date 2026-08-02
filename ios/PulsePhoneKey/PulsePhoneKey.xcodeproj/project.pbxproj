@@ -10,7 +10,9 @@
 		45FE96654702679006C1AE13 /* BLEPairer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B224B5D7F028C007B2CE105 /* BLEPairer.swift */; };
 		89A119D7DE94DE63D12195FC /* BLETelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92DC0FFEC3C3AF5FFC8DC0E /* BLETelemetry.swift */; };
 		B5A8198B1802A0584C988D2B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45CCADE0F29CAC283C0B30C7 /* ContentView.swift */; };
+		5726B13F59C8AD6856BD9D28 /* GoogleMapPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72D536D6DB03B88EACB7ED30 /* GoogleMapPanel.swift */; };
 		DD52675FAB4A884904983D36 /* HUDModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA724BD6F2F2EE5B2B67D6D6 /* HUDModel.swift */; };
+		5142B3DFC28AEBBF84B609AB /* IOSCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746721CC4E9630CD239C934C /* IOSCompat.swift */; };
 		864FF32F140F9314886485B3 /* KeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E87A51594EF374B79713CBEB /* KeyStore.swift */; };
 		9CE42C305FA03B70C93208B6 /* NativeHUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BD7E7B769034A40079F1221 /* NativeHUDView.swift */; };
 		1BD7F6943521CBA960353746 /* PairingFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 134713257B7CDEDADBE47632 /* PairingFlowView.swift */; };
@@ -19,7 +21,6 @@
 		83EC530FDB294E243DA7E36D /* TeslaBLESession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 924E820613487F12D263B3A8 /* TeslaBLESession.swift */; };
 		8F7E853ADDB27F4184875681 /* VCSECPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */; };
 		DB4946C6B7F703E2B685FA39 /* VehicleLiveSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */; };
-		8054963B346D748C9183661A /* VehicleMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 183A0B4B8C216CD67D59E426 /* VehicleMapView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,7 +29,9 @@
 		5B224B5D7F028C007B2CE105 /* BLEPairer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEPairer.swift; sourceTree = "<group>"; };
 		E92DC0FFEC3C3AF5FFC8DC0E /* BLETelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLETelemetry.swift; sourceTree = "<group>"; };
 		45CCADE0F29CAC283C0B30C7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		72D536D6DB03B88EACB7ED30 /* GoogleMapPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleMapPanel.swift; sourceTree = "<group>"; };
 		FA724BD6F2F2EE5B2B67D6D6 /* HUDModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDModel.swift; sourceTree = "<group>"; };
+		746721CC4E9630CD239C934C /* IOSCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSCompat.swift; sourceTree = "<group>"; };
 		E87A51594EF374B79713CBEB /* KeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyStore.swift; sourceTree = "<group>"; };
 		3BD7E7B769034A40079F1221 /* NativeHUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeHUDView.swift; sourceTree = "<group>"; };
 		134713257B7CDEDADBE47632 /* PairingFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingFlowView.swift; sourceTree = "<group>"; };
@@ -37,7 +40,6 @@
 		924E820613487F12D263B3A8 /* TeslaBLESession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeslaBLESession.swift; sourceTree = "<group>"; };
 		6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VCSECPayload.swift; sourceTree = "<group>"; };
 		720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLiveSnapshot.swift; sourceTree = "<group>"; };
-		183A0B4B8C216CD67D59E426 /* VehicleMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleMapView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,7 +84,9 @@
 				5B224B5D7F028C007B2CE105 /* BLEPairer.swift */,
 				E92DC0FFEC3C3AF5FFC8DC0E /* BLETelemetry.swift */,
 				45CCADE0F29CAC283C0B30C7 /* ContentView.swift */,
+				72D536D6DB03B88EACB7ED30 /* GoogleMapPanel.swift */,
 				FA724BD6F2F2EE5B2B67D6D6 /* HUDModel.swift */,
+				746721CC4E9630CD239C934C /* IOSCompat.swift */,
 				E87A51594EF374B79713CBEB /* KeyStore.swift */,
 				3BD7E7B769034A40079F1221 /* NativeHUDView.swift */,
 				134713257B7CDEDADBE47632 /* PairingFlowView.swift */,
@@ -91,7 +95,6 @@
 				924E820613487F12D263B3A8 /* TeslaBLESession.swift */,
 				6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */,
 				720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */,
-				183A0B4B8C216CD67D59E426 /* VehicleMapView.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -168,7 +171,9 @@
 				45FE96654702679006C1AE13 /* BLEPairer.swift in Sources */,
 				89A119D7DE94DE63D12195FC /* BLETelemetry.swift in Sources */,
 				B5A8198B1802A0584C988D2B /* ContentView.swift in Sources */,
+				5726B13F59C8AD6856BD9D28 /* GoogleMapPanel.swift in Sources */,
 				DD52675FAB4A884904983D36 /* HUDModel.swift in Sources */,
+				5142B3DFC28AEBBF84B609AB /* IOSCompat.swift in Sources */,
 				864FF32F140F9314886485B3 /* KeyStore.swift in Sources */,
 				9CE42C305FA03B70C93208B6 /* NativeHUDView.swift in Sources */,
 				1BD7F6943521CBA960353746 /* PairingFlowView.swift in Sources */,
@@ -177,7 +182,6 @@
 				83EC530FDB294E243DA7E36D /* TeslaBLESession.swift in Sources */,
 				8F7E853ADDB27F4184875681 /* VCSECPayload.swift in Sources */,
 				DB4946C6B7F703E2B685FA39 /* VehicleLiveSnapshot.swift in Sources */,
-				8054963B346D748C9183661A /* VehicleMapView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -197,7 +201,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
 			};
@@ -212,7 +216,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				SWIFT_COMPILATION_MODE = wholemodule;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
 			};
@@ -222,16 +226,17 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.teslapulse.phonekey;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -246,16 +251,17 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.teslapulse.phonekey;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

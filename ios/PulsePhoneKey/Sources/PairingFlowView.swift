@@ -25,7 +25,7 @@ struct PairingFlowView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onChange(of: ble.step) { _, step in
+        .onChangeCompat(of: ble.step) { step in
             switch step {
             case .waitingCard: page = .placeCard
             case .done:
@@ -35,13 +35,13 @@ struct PairingFlowView: View {
             default: break
             }
         }
-        .onChange(of: ble.waitingForCard) { _, on in
+        .onChangeCompat(of: ble.waitingForCard) { on in
             if on { page = .placeCard }
         }
-        .onChange(of: ble.paired) { _, on in
+        .onChangeCompat(of: ble.paired) { on in
             if on { page = .done }
         }
-        .onChange(of: ble.readyForDashboard) { _, on in
+        .onChangeCompat(of: ble.readyForDashboard) { on in
             if on, ble.step == .waitingCard || ble.step == .done {
                 // Keep user on placeCard until they confirm, unless fully paired
                 if ble.paired { page = .done }
