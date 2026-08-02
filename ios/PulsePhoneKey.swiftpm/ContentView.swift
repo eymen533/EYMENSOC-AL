@@ -1,21 +1,13 @@
 import SwiftUI
 
-/// App shell: top bar Pair Vehicle + real Dash HUD.
+/// Tek uygulama: BLE Pair + native cluster. WebView / uzak Dash yok.
 struct ContentView: View {
-    /// Live Dash tunnel (quick tunnels rotate — update Settings if HUD fails).
-    static let defaultServer = "https://leadership-disabled-buyers-spaces.trycloudflare.com"
-    private static let staleServerMarkers = [
-        "beach-mobiles-writers-developments.trycloudflare.com",
-    ]
-
     @StateObject private var ble = BLEPairer()
+    @StateObject private var hud = HUDModel()
     @State private var vin = UserDefaults.standard.string(forKey: "pulse_vin") ?? "XP7YGCEK0PB159959"
-    @State private var server = ContentView.migratedServer()
-    @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
     @State private var showPairFlow = false
     @State private var screen: Screen = .home
     @State private var showSettings = false
-    @State private var serverTest: String?
 
     enum Screen { case home, hud }
 
@@ -23,12 +15,7 @@ struct ContentView: View {
         Group {
             switch screen {
             case .hud:
-                RealHUDView(
-                    server: server,
-                    pin: pin,
-                    vin: vinNorm,
-                    onBack: { screen = .home }
-                )
+                NativeHUDView(model: hud, onBack: { screen = .home })
             case .home:
                 home
             }
@@ -41,7 +28,7 @@ struct ContentView: View {
                 onFinished: {
                     showPairFlow = false
                     save()
-                    screen = .hud
+                    openHUD()
                 }
             )
         }
@@ -49,9 +36,7 @@ struct ContentView: View {
             settingsSheet
         }
         .onChange(of: ble.paired) { _, on in
-            if on {
-                // Stay in flow until user taps Open HUD
-            }
+            if on { hud.bleOK = true }
         }
     }
 
@@ -65,19 +50,20 @@ struct ContentView: View {
                 )
                 .ignoresSafeArea()
 
-                VStack(spacing: 24) {
+                VStack(spacing: 22) {
                     Spacer()
                     Text("PULSE")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                    Text("iPhone uygulaması · BLE Phone Key + Cluster")
+                    Text("Tek uygulama · BLE Pair + Cluster")
                         .foregroundStyle(.white.opacity(0.55))
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("Safari degil — Ana Ekran uygulamasi")
+                    Text("WebView yok · sunucu yok · her sey telefonda")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
+                        .multilineTextAlignment(.center)
 
                     if ble.paired || ble.waitingForCard || ble.readyForDashboard {
                         Label("Key session ready", systemImage: "checkmark.seal.fill")
@@ -99,8 +85,8 @@ struct ContentView: View {
                                 Capsule().fill(
                                     LinearGradient(
                                         colors: [
-                                            Color(red: 0.45, green: 0.35, blue: 0.95),
-                                            Color(red: 0.25, green: 0.45, blue: 0.98),
+                                            Color(red: 0.2, green: 0.75, blue: 0.65),
+                                            Color(red: 0.15, green: 0.45, blue: 0.9),
                                         ],
                                         startPoint: .leading,
                                         endPoint: .trailing
@@ -111,9 +97,9 @@ struct ContentView: View {
 
                     Button {
                         save()
-                        screen = .hud
+                        openHUD()
                     } label: {
-                        Text("Open Cluster HUD")
+                        Text("Cluster HUD (uygulama ici)")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
@@ -121,7 +107,7 @@ struct ContentView: View {
                             .background(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
                     }
 
-                    Spacer().frame(height: 40)
+                    Spacer().frame(height: 36)
                 }
                 .padding(.horizontal, 28)
             }
@@ -139,9 +125,7 @@ struct ContentView: View {
                         } label: {
                             Label("Pair", systemImage: "plus.viewfinder")
                         }
-                        Button {
-                            showSettings = true
-                        } label: {
+                        Button { showSettings = true } label: {
                             Image(systemName: "gearshape")
                         }
                     }
@@ -155,37 +139,14 @@ struct ContentView: View {
     private var settingsSheet: some View {
         NavigationStack {
             Form {
-                Section {
-                    TextField("https://…", text: $server)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Button("Sunucu baglantisini test et") {
-                        Task { await testServer() }
-                    }
-                    if let serverTest {
-                        Text(serverTest)
-                            .font(.footnote)
-                            .foregroundStyle(serverTest.contains("OK") ? .green : .red)
-                    }
-                } header: {
-                    Text("Dash server")
-                } footer: {
-                    Text("Baglanti hatasi aliyorsan URL eski demektir. Varsayilani kullan veya guncel tunnel adresini yapistir.")
-                }
-                Section("PIN") {
-                    TextField("PIN", text: $pin)
-                        .keyboardType(.numberPad)
-                }
                 Section("VIN") {
                     TextField("VIN", text: $vin)
                         .textInputAutocapitalization(.characters)
                 }
                 Section {
-                    Button("Varsayilan sunucuya don") {
-                        server = Self.defaultServer
-                        serverTest = nil
-                        save()
-                    }
+                    Text("Pair Bluetooth ile bu cihazda yapilir. Cluster da ayni uygulamada acilir — Safari / WebView kullanilmaz.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("Settings")
@@ -206,30 +167,10 @@ struct ContentView: View {
 
     private func save() {
         UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
-        UserDefaults.standard.set(PulseSession.normalizeServer(server), forKey: "pulse_server")
-        UserDefaults.standard.set(pin, forKey: "pulse_pin")
-        server = PulseSession.normalizeServer(server)
     }
 
-    /// Replace dead quick-tunnel URLs so old installs stop showing baglanti hatasi.
-    private static func migratedServer() -> String {
-        let raw = UserDefaults.standard.string(forKey: "pulse_server") ?? defaultServer
-        let normalized = PulseSession.normalizeServer(raw)
-        for marker in staleServerMarkers where normalized.contains(marker) {
-            UserDefaults.standard.set(defaultServer, forKey: "pulse_server")
-            return defaultServer
-        }
-        return normalized.isEmpty ? defaultServer : normalized
-    }
-
-    private func testServer() async {
-        serverTest = "Test ediliyor…"
-        save()
-        do {
-            _ = try await PulseSession.ping(server: server, pin: pin)
-            serverTest = "OK — sunucu ulasilabilir"
-        } catch {
-            serverTest = error.localizedDescription
-        }
+    private func openHUD() {
+        hud.configure(vin: vinNorm, paired: ble.paired || ble.readyForDashboard || ble.waitingForCard)
+        screen = .hud
     }
 }

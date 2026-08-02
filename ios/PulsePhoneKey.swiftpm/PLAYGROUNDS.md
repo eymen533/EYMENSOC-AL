@@ -1,19 +1,9 @@
-# iPhone / iPad — Swift Playgrounds
+# Swift Playgrounds — tek native uygulama
 
-Safari değil: **Run ▶** → Ana Ekran yerel uygulama (CoreBluetooth).
+WebView yok. Pair + Cluster telefonda/tablette.
 
-Adımlar: [`IPHONE.md`](IPHONE.md) · Çökme: [`CRASH_FIX.md`](CRASH_FIX.md)
+1. Zip → `PulsePhoneKey.swiftpm` → Paylaş → Playgrounds  
+2. Signing → Run ▶  
+3. Sürüm: **`build-16-native`**
 
-## Kur (kısa)
-
-1. Zip → Dosyalar’da aç  
-2. `PulsePhoneKey.swiftpm` → **Paylaş → Playgrounds’ta Aç**  
-3. Signing → Run ▶  
-4. Sürüm: **`build-14-iphone`**
-
-## Pair
-
-1. Arabayı uyandır  
-2. Pair Vehicle → `🔑 Tesla …`  
-3. Key Card → **konsol** → Confirm  
-4. Open Cluster HUD
+Detay: [`IPHONE.md`](IPHONE.md)

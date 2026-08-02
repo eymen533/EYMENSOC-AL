@@ -1,10 +1,8 @@
-# iPhone’da Pulse — uygulama olarak
+# iPhone — tek uygulama
 
-Web Safari’de Bluetooth yok. iPhone çıktısı: **Swift Playgrounds** paketi.
+Pair + cluster **aynı native app** içinde. WebView / Dash sunucusu yok.
 
 → [`PulsePhoneKey.swiftpm/IPHONE.md`](PulsePhoneKey.swiftpm/IPHONE.md)
 
-Zip: `/downloads/PulsePhoneKey-playground-build14.zip`  
-Açılmazsa: `/downloads/PulsePhoneKey-swift-files.zip`
-
-Sürüm: **`build-14-iphone`** · HUD: klasik triad (diyagonal yok)
+Zip: `/downloads/PulsePhoneKey-playground-build16.zip`  
+Sürüm: **`build-16-native`**

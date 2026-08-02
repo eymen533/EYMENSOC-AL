@@ -1,9 +1,10 @@
-PulsePhoneKey — iPhone (Swift Playgrounds)
+PulsePhoneKey build-16-native — TEK UYGULAMA (WebView yok)
 
-1) Bu zip’i ac (Dosyalar).
-2) PulsePhoneKey.swiftpm klasorune BASILI TUT.
-3) Paylas → Swift Playgrounds’ta Ac.
+1) Zip'i Dosyalar'da ac
+2) PulsePhoneKey.swiftpm'ye BASILI TUT
+3) Paylas → Swift Playgrounds'ta Ac
 4) Signing (Apple ID) → Run ▶
-5) Ana ekranda surum: build-14-iphone
+5) Surum: build-16-native
+6) Pair Vehicle → Key Card konsola → Cluster'i ac
 
-Zip acilmazsa: PulsePhoneKey-swift-files.zip kullan (MANUAL.md).
+Pair + hiz/batarya/lastik ayni uygulamada. Internet / web sunucu gerekmez.

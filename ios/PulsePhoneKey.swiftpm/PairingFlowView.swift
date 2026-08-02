@@ -265,7 +265,7 @@ struct PairingFlowView: View {
                     .padding(.top, 8)
             }
             Spacer()
-            bottomCTA("Open HUD") {
+            bottomCTA("Cluster'i ac (uygulama ici)") {
                 onFinished()
             }
         }
@@ -287,7 +287,7 @@ struct PairingFlowView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
             Spacer()
-            bottomCTA("Open HUD") { onFinished() }
+            bottomCTA("Cluster'i ac (uygulama ici)") { onFinished() }
         }
     }
 
