@@ -5,6 +5,9 @@ struct ContentView: View {
     @StateObject private var ble = BLEPairer()
     @StateObject private var hud = HUDModel()
     @State private var vin = UserDefaults.standard.string(forKey: "pulse_vin") ?? "XP7YGCEK0PB159959"
+    @State private var dashURL = UserDefaults.standard.string(forKey: "pulse_dash_url")
+        ?? "https://authorization-card-wonder-chuck.trycloudflare.com"
+    @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
     @State private var showPairFlow = false
     @State private var screen: Screen = .home
     @State private var showSettings = false
@@ -60,7 +63,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("Gece triad · medya/seyahat/lastik | siyah hiz | 3D harita")
+                    Text("Canli harita (GPS) · Pair = telefon anahtari\nHiz/batarya icin Dash URL + PIN (Settings)")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -143,8 +146,19 @@ struct ContentView: View {
                     TextField("VIN", text: $vin)
                         .textInputAutocapitalization(.characters)
                 }
-                Section {
-                    Text("Pair Bluetooth ile bu cihazda yapilir. Cluster da ayni uygulamada acilir — Safari / WebView kullanilmaz.")
+                Section("Dash (canli telemetri)") {
+                    TextField("Dash URL", text: $dashURL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                    SecureField("PIN", text: $pin)
+                        .keyboardType(.numberPad)
+                    Text("Bos birakirsan harita telefon GPS kullanir. URL + PIN ile hiz/batarya/arac konumu Dash’ten gelir.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Arabaya baglaninca") {
+                    Text("BLE Pair = Tesla Phone Key (kilit/surus anahtari). Arabanin canli hiz/GPS’i BLE’den gelmez; Tesla API + Dash acikken Settings’teki URL ile HUD’a akar.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -167,6 +181,10 @@ struct ContentView: View {
 
     private func save() {
         UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
+        let url = dashURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        UserDefaults.standard.set(url, forKey: "pulse_dash_url")
+        UserDefaults.standard.set(pin.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pulse_pin")
     }
 
     private func openHUD() {

@@ -63,11 +63,24 @@ struct NativeHUDView: View {
                     )
                     .zIndex(2)
 
-                // RIGHT map ~1/3 (not full-bleed)
+                // RIGHT real map ~1/3
                 ZStack(alignment: .bottomTrailing) {
-                    IsoMapView(heading: model.driving ? 12 : -6)
-                    compass
-                        .padding(10)
+                    LiveMapView(
+                        lat: model.mapLat,
+                        lon: model.mapLon,
+                        heading: model.mapHeading,
+                        follow: model.followMap
+                    )
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Text(model.mapSource)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Color.black.opacity(0.55))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Color.white.opacity(0.85)))
+                        compass
+                    }
+                    .padding(10)
                 }
                 .frame(width: sideW)
                 .frame(maxHeight: .infinity)
@@ -76,7 +89,7 @@ struct NativeHUDView: View {
                     LinearGradient(
                         colors: [.clear, .black, .black],
                         startPoint: .leading,
-                        endPoint: UnitPoint(x: 0.18, y: 0.5)
+                        endPoint: UnitPoint(x: 0.14, y: 0.5)
                     )
                 )
             }
@@ -95,9 +108,14 @@ struct NativeHUDView: View {
             HStack(spacing: 0) {
                 leftColumn
                     .frame(maxWidth: .infinity)
-                IsoMapView(heading: -6)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
+                LiveMapView(
+                    lat: model.mapLat,
+                    lon: model.mapLon,
+                    heading: model.mapHeading,
+                    follow: model.followMap
+                )
+                .frame(maxWidth: .infinity)
+                .clipped()
             }
             .frame(maxHeight: .infinity)
             bottomBar
@@ -131,10 +149,16 @@ struct NativeHUDView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(muted)
 
-            Spacer()
+            Text(model.telemetrySource)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(muted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            Spacer(minLength: 4)
 
             Button { model.toggleDrive() } label: {
-                Label(model.driving ? "Suruyor" : "Reconnect", systemImage: "arrow.clockwise")
+                Label(model.driving ? "Suruyor" : "Demo Sur", systemImage: "arrow.clockwise")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(ink.opacity(0.85))
                     .padding(.horizontal, 10)
@@ -433,128 +457,6 @@ struct NativeHUDView: View {
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(Color.black.opacity(0.75))
         }
-    }
-}
-
-// MARK: - Isometric soft map (animated, no MapKit)
-
-private struct IsoMapView: View {
-    var heading: Double
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 18.0, paused: false)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            let drift = CGFloat(t.truncatingRemainder(dividingBy: 16) / 16)
-            let pulse = 0.9 + 0.1 * sin(t * 2.2)
-
-            Canvas { ctx, size in
-                // Ground
-                ctx.fill(
-                    Path(CGRect(origin: .zero, size: size)),
-                    with: .color(Color(red: 0.90, green: 0.89, blue: 0.86))
-                )
-
-                // Subtle parallax grid (streets)
-                let ox = drift * 36
-                let oy = drift * 18
-                var streets = Path()
-                for i in -2..<14 {
-                    let x = CGFloat(i) * 48 - ox
-                    streets.move(to: CGPoint(x: x, y: 0))
-                    streets.addLine(to: CGPoint(x: x + size.height * 0.55, y: size.height))
-                }
-                for j in -2..<12 {
-                    let y = CGFloat(j) * 42 - oy
-                    streets.move(to: CGPoint(x: 0, y: y))
-                    streets.addLine(to: CGPoint(x: size.width, y: y + 10))
-                }
-                ctx.stroke(streets, with: .color(Color.white.opacity(0.85)), lineWidth: 10)
-                ctx.stroke(streets, with: .color(Color(red: 0.82, green: 0.81, blue: 0.78)), lineWidth: 1)
-
-                // Isometric building blocks
-                let blocks: [(CGFloat, CGFloat, CGFloat, CGFloat, CGFloat)] = [
-                    (0.18, 0.22, 0.12, 0.10, 0.14),
-                    (0.42, 0.18, 0.16, 0.12, 0.20),
-                    (0.68, 0.28, 0.14, 0.11, 0.16),
-                    (0.22, 0.48, 0.13, 0.10, 0.18),
-                    (0.52, 0.52, 0.18, 0.14, 0.22),
-                    (0.78, 0.55, 0.12, 0.10, 0.15),
-                    (0.35, 0.72, 0.15, 0.11, 0.17),
-                    (0.62, 0.78, 0.14, 0.10, 0.19),
-                ]
-                for b in blocks {
-                    let cx = size.width * b.0 + sin(t * 0.3 + b.0) * 2
-                    let cy = size.height * b.1 - drift * 10
-                    drawBuilding(ctx: ctx, x: cx, y: cy, w: size.width * b.2, d: size.width * b.3, h: size.height * b.4)
-                }
-
-                // Red nav chevron (near bottom-center of map)
-                let ax = size.width * (0.40 + CGFloat(heading) * 0.001)
-                let ay = size.height * 0.72
-                var arrow = Path()
-                arrow.move(to: CGPoint(x: ax, y: ay - 16 * pulse))
-                arrow.addLine(to: CGPoint(x: ax + 12, y: ay + 10))
-                arrow.addLine(to: CGPoint(x: ax, y: ay + 4))
-                arrow.addLine(to: CGPoint(x: ax - 12, y: ay + 10))
-                arrow.closeSubpath()
-                ctx.fill(arrow, with: .color(Color(red: 0.92, green: 0.18, blue: 0.18)))
-                ctx.stroke(arrow, with: .color(.white.opacity(0.9)), lineWidth: 1.2)
-
-                // Thin left blend into dial
-                ctx.fill(
-                    Path(CGRect(x: 0, y: 0, width: size.width * 0.12, height: size.height)),
-                    with: .linearGradient(
-                        Gradient(colors: [Color.black.opacity(0.35), .clear]),
-                        startPoint: .zero,
-                        endPoint: CGPoint(x: size.width * 0.12, y: 0)
-                    )
-                )
-            }
-            .overlay {
-                GeometryReader { g in
-                    let labels = ["ZEYNEP SK.", "ITIR 1. SK.", "MEVLANA SK."]
-                    ForEach(Array(labels.enumerated()), id: \.offset) { i, name in
-                        Text(name)
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(Color.black.opacity(0.30))
-                            .position(
-                                x: g.size.width * (0.28 + CGFloat(i) * 0.22),
-                                y: g.size.height * (0.28 + CGFloat(i) * 0.2)
-                            )
-                    }
-                }
-                .allowsHitTesting(false)
-            }
-        }
-    }
-
-    private func drawBuilding(ctx: GraphicsContext, x: CGFloat, y: CGFloat, w: CGFloat, d: CGFloat, h: CGFloat) {
-        // Simple isometric prism
-        let top = Path { p in
-            p.move(to: CGPoint(x: x, y: y - h))
-            p.addLine(to: CGPoint(x: x + w, y: y - h - d * 0.35))
-            p.addLine(to: CGPoint(x: x + w + d * 0.55, y: y - h + d * 0.15))
-            p.addLine(to: CGPoint(x: x + d * 0.55, y: y - h + d * 0.5))
-            p.closeSubpath()
-        }
-        let left = Path { p in
-            p.move(to: CGPoint(x: x, y: y - h))
-            p.addLine(to: CGPoint(x: x + d * 0.55, y: y - h + d * 0.5))
-            p.addLine(to: CGPoint(x: x + d * 0.55, y: y + d * 0.5))
-            p.addLine(to: CGPoint(x: x, y: y))
-            p.closeSubpath()
-        }
-        let right = Path { p in
-            p.move(to: CGPoint(x: x + d * 0.55, y: y - h + d * 0.5))
-            p.addLine(to: CGPoint(x: x + w + d * 0.55, y: y - h + d * 0.15))
-            p.addLine(to: CGPoint(x: x + w + d * 0.55, y: y + d * 0.15))
-            p.addLine(to: CGPoint(x: x + d * 0.55, y: y + d * 0.5))
-            p.closeSubpath()
-        }
-        ctx.fill(top, with: .color(Color(red: 0.78, green: 0.78, blue: 0.76)))
-        ctx.fill(left, with: .color(Color(red: 0.70, green: 0.70, blue: 0.68)))
-        ctx.fill(right, with: .color(Color(red: 0.62, green: 0.62, blue: 0.60)))
-        ctx.stroke(top, with: .color(Color.white.opacity(0.35)), lineWidth: 0.6)
     }
 }
 

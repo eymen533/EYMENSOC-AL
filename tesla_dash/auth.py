@@ -95,6 +95,9 @@ def register_auth(server: Flask) -> None:
         # iPhone Playgrounds zip — direct link, no PIN
         if path.startswith("/downloads/PulsePhoneKey-playground") or path == "/downloads/PulsePhoneKey-swift-files.zip":
             return None
+        # Native HUD may poll vehicle state with ?pin= (handler verifies)
+        if path == "/api/vehicle/state":
+            return None
         if is_unlocked():
             return None
         # Unauthenticated

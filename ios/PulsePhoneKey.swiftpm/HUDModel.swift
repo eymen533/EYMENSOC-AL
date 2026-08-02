@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import SwiftUI
 
-/// On-device cluster — night triad (left slides | black dial | 3D map).
+/// Night triad HUD — live map coords + optional Dash vehicle feed.
 @MainActor
 final class HUDModel: ObservableObject {
     static let slideCount = 4
@@ -38,18 +38,30 @@ final class HUDModel: ObservableObject {
     @Published var dayName = ""
     @Published var dateLine = ""
     @Published var nextPrayer = "Öğle 13:10"
-    /// Screenshot default: media left, map always right
     @Published var leftSlide = 3
     @Published var rightSlide = 2
     @Published var leftRailVisible = true
     @Published var rightRailVisible = false
 
+    /// Live map
+    @Published var mapLat: Double = 41.025
+    @Published var mapLon: Double = 29.02
+    @Published var mapHeading: Double = 0
+    @Published var mapSource = "Telefon GPS"
+    @Published var telemetrySource = "yerel demo"
+    @Published var followMap = true
+
+    let location = LocationProvider()
+
     private var timer: AnyCancellable?
+    private var locBag: AnyCancellable?
+    private var pollTask: Task<Void, Never>?
     private var phase: Double = 0
     private var leftCool: Date = .distantPast
     private var rightCool: Date = .distantPast
     private var leftRailTask: Task<Void, Never>?
     private var rightRailTask: Task<Void, Never>?
+    private var useVehicleFeed = false
 
     private let clockFmt: DateFormatter = {
         let f = DateFormatter()
@@ -89,20 +101,37 @@ final class HUDModel: ObservableObject {
     func start() {
         timer?.cancel()
         phase = 0
-        // ~15 Hz — smooth dial, light on Playgrounds
+        location.start()
+        locBag?.cancel()
+        locBag = location.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncPhoneGPS()
+            }
+        syncPhoneGPS()
+
         timer = Timer.publish(every: 1.0 / 15.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.tick() }
+
+        startVehiclePoll()
     }
 
     func stop() {
         timer?.cancel()
         timer = nil
+        locBag?.cancel()
+        locBag = nil
+        pollTask?.cancel()
+        pollTask = nil
         leftRailTask?.cancel()
         rightRailTask?.cancel()
+        location.stop()
     }
 
     func toggleDrive() {
+        // Local demo drive only when vehicle feed is off
+        guard !useVehicleFeed else { return }
         driving.toggle()
         gear = driving ? "D" : "P"
         if !driving {
@@ -139,6 +168,91 @@ final class HUDModel: ObservableObject {
         flashRightRail()
     }
 
+    private func syncPhoneGPS() {
+        // Prefer phone GPS for map unless Dash vehicle feed provides coords
+        if useVehicleFeed { return }
+        mapLat = location.lat
+        mapLon = location.lon
+        mapHeading = location.heading
+        mapSource = location.authorized ? "Telefon GPS" : location.statusText
+    }
+
+    private func startVehiclePoll() {
+        pollTask?.cancel()
+        let base = (UserDefaults.standard.string(forKey: "pulse_dash_url") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let pin = (UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !base.isEmpty, let root = URL(string: base) else {
+            useVehicleFeed = false
+            telemetrySource = "yerel demo · harita GPS"
+            return
+        }
+        pollTask = Task { @MainActor in
+            while !Task.isCancelled {
+                await self.pullVehicle(root: root, pin: pin)
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+            }
+        }
+    }
+
+    private func pullVehicle(root: URL, pin: String) async {
+        var url = root.appendingPathComponent("api/vehicle/state")
+        var comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        comps?.queryItems = [URLQueryItem(name: "pin", value: pin)]
+        guard let final = comps?.url else { return }
+        do {
+            let (data, resp) = try await URLSession.shared.data(from: final)
+            guard let http = resp as? HTTPURLResponse, http.statusCode == 200,
+                  let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  (obj["ok"] as? Bool) == true
+            else {
+                useVehicleFeed = false
+                telemetrySource = "Dash baglanti yok · GPS"
+                syncPhoneGPS()
+                return
+            }
+            useVehicleFeed = true
+            let src = (obj["source"] as? String) ?? "demo"
+            telemetrySource = src == "live" ? "Tesla API (canli)" : "Dash demo rota"
+            if let lat = Self.num(obj["latitude"]), let lon = Self.num(obj["longitude"]) {
+                mapLat = lat
+                mapLon = lon
+                mapSource = src == "live" ? "Arac GPS" : "Dash demo"
+            }
+            if let h = Self.num(obj["heading"]) { mapHeading = h }
+            if let sp = Self.num(obj["speed_kmh"]) {
+                speed = sp
+                driving = sp > 1.5
+            }
+            if let bat = Self.num(obj["battery_percent"]) { battery = bat }
+            if let rng = Self.num(obj["battery_range_km"]) { rangeKm = Int(rng) }
+            if let g = obj["gear"] as? String, !g.isEmpty { gear = g }
+            if let odo = Self.num(obj["odometer_km"]) { odometer = odo }
+            if let st = obj["street"] as? String, !st.isEmpty { place = st }
+            if let d = obj["destination"] as? String, !d.isEmpty, d != "--" { destination = d }
+            if let a = obj["arrival_time"] as? String, !a.isEmpty, a != "--" { eta = a }
+            if let e = obj["energy_at_arrival"] as? String, !e.isEmpty, e != "--" { energyAtArrival = e }
+            if let td = obj["trip_distance_km"] as? String, !td.isEmpty, td != "--" {
+                tripDist = td
+            } else if let td = Self.num(obj["trip_distance_km"]) {
+                tripDist = String(format: "%.1f km", td)
+            }
+            if let mt = obj["media_title"] as? String { mediaTitle = mt }
+            if let ma = obj["media_artist"] as? String { mediaArtist = ma }
+            if let ms = obj["media_service"] as? String { mediaService = ms }
+            if let t = Self.num(obj["tire_fl"]) { psiFL = Int(t) }
+            if let t = Self.num(obj["tire_fr"]) { psiFR = Int(t) }
+            if let t = Self.num(obj["tire_rl"]) { psiRL = Int(t) }
+            if let t = Self.num(obj["tire_rr"]) { psiRR = Int(t) }
+            if let temp = Self.num(obj["outside_temp_c"]) { outdoorC = Int(temp) }
+        } catch {
+            useVehicleFeed = false
+            telemetrySource = "Dash yok · GPS"
+            syncPhoneGPS()
+        }
+    }
+
     private func flashLeftRail() {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
             leftRailVisible = true
@@ -167,6 +281,14 @@ final class HUDModel: ObservableObject {
         }
     }
 
+    private static func num(_ any: Any?) -> Double? {
+        if let d = any as? Double { return d }
+        if let i = any as? Int { return Double(i) }
+        if let n = any as? NSNumber { return n.doubleValue }
+        if let s = any as? String { return Double(s) }
+        return nil
+    }
+
     private func refreshClock() {
         let now = Date()
         clock = clockFmt.string(from: now)
@@ -178,6 +300,9 @@ final class HUDModel: ObservableObject {
         let dt = 1.0 / 15.0
         phase += dt
         if Int(phase * 15) % 15 == 0 { refreshClock() }
+
+        // Local sine demo only when not fed by Dash
+        guard !useVehicleFeed else { return }
 
         if driving {
             let wave = (sin(phase * 0.35) + 1) * 0.5
