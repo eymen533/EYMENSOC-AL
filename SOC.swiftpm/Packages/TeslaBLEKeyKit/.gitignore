@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+build/
+
+# Swift Package Manager
+/.build
+/.swiftpm
+Package.resolved
+/Packages
+
+# CocoaPods
+Pods/
+Podfile.lock
+*.xcworkspace/xcuserdata
+
+# Credentials
+.netrc
+.vscode/
+.codex/
+.claude/
+.idea/

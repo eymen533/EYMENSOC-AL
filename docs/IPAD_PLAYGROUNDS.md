@@ -1,66 +1,59 @@
-# SOC’u iPad Swift Playgrounds’ta çalıştırma
+# SOC — iPad Swift Playgrounds (çalışan yol)
 
-Evet — ama mevcut `SOC.xcodeproj` doğrudan Playgrounds’ta açılmaz. Bunun için hazırladığımız **`SOC.swiftpm`** App Playground paketini kullan.
+Önceki talimatta uzak Swift package indirme yüzünden Playgrounds **sürekli dönüyordu**.  
+Artık tüm bağımlılıklar `SOC.swiftpm/Packages/` içinde **offline** — ağda takılmaz.
 
-## Gereksinimler
+## 1) Zip’i indir (tek dosya)
 
-- iPadOS 17+ (tercihen 18+)
-- App Store’dan **Swift Playgrounds** (güncel sürüm)
-- Apple ID (ücretsiz yeterli)
-- iPad’de Bluetooth + konum izni
+iPad Safari:
 
-## 1) Projeyi iPad’e al
+**https://github.com/eymen533/EYMENSOC-AL/raw/cursor/tesla-ble-companion-4163/dist/SOC-iPad.swiftpm.zip**
 
-**Kolay yol (GitHub → Files):**
+İndirince Files → **İndirilenler** içinde `SOC-iPad.swiftpm.zip` görünür.
 
-1. Safari’de aç:  
-   https://github.com/eymen533/EYMENSOC-AL/tree/cursor/tesla-ble-companion-4163
-2. **Code → Download ZIP**
-3. ZIP’i Files’ta aç / çıkar
-4. Klasörde `SOC.swiftpm` dosya/klasörünü bul  
-   (Finder/Files’ta tek dosya gibi görünebilir)
+## 2) Zip’i aç
 
-**Alternatif:** Mac’ten AirDrop ile `SOC.swiftpm` klasörünü iPad’e gönder.
+Files’ta zip’e dokun → **Uncompress / Aç**.  
+Çıkan klasör: **`SOC.swiftpm`**
 
-## 2) Swift Playgrounds’ta aç
+## 3) Swift Playgrounds ile aç
 
-1. **Swift Playgrounds** uygulamasını aç
-2. **Lokasyonlar / Locations** → Files içinden `SOC.swiftpm` seç  
-   veya dosyaya basılı tut → **Share / Paylaş** → **Swift Playgrounds**
-3. İlk açılışta Swift Package (`TeslaBLEKeyKit`) indirilir — Wi‑Fi açık olsun
-4. Sağ üstten **Run ▶️**
+1. App Store’dan **Swift Playgrounds** kurulu olsun  
+2. `SOC.swiftpm` klasörüne basılı tut → **Paylaş** → **Swift Playgrounds**  
+   veya Playgrounds → **Locations** → bu klasörü seç  
+3. Birkaç saniye indeksleme sürebilir (uzak paket indirmez)  
+4. **Run ▶️**
 
-## 3) İzinler
+## 4) İzinler
 
-İlk çalıştırmada:
+- Bluetooth → İzin Ver  
+- Konum → Uygulamayı Kullanırken  
+- iPad’i yatay çevir
 
-- **Bluetooth** → İzin Ver
-- **Konum** → Uygulamayı Kullanırken
+## 5) Arabada
 
-Playgrounds içinde gerekirse: sol menü **App Settings → Capabilities** altında Bluetooth / Location olduğundan emin ol (`Package.swift` içinde tanımlı).
+Park’ta VIN gir → key card’ı konsola dokundur → dashboard.
 
-## 4) iPad’de kullan
+---
 
-1. iPad’i **yatay** çevir (araç mount için ideal)
-2. Arabada **Park**’ta eşleştirme yap (VIN + key card)
-3. Dashboard açılır; BLE + Apple Maps çalışır
+## Dashboard önizleme (tarayıcı)
 
-Uygulama Playgrounds’tan “Install” / ana ekrana ekleme ile iPad’de ayrı app gibi de kalabilir (Playgrounds sürümüne göre **App Settings** veya Run sonrası kalıcı kurulum).
+`htmlpreview.github.io` bozuluyor / boş dönüyor — kullanma.
 
-## Sınırlar (Xcode’a göre)
+Çalışan CDN linki (push sonrası ~1 dk):
 
-| | Swift Playgrounds (iPad) | Xcode (Mac) |
-|---|---|---|
-| Bu iPad’de çalıştırma | Evet | Evet (simülatör/cihaz) |
-| iPhone’a doğrudan yükleme | Genelde hayır* | Evet |
-| App Store / TestFlight | Playgrounds’tan mümkün (Apple Developer) | Evet |
-| Debug / imzalama | Daha sınırlı | Tam |
+https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/tesla-ble-companion-4163/docs/preview.html
 
-\*iPhone’a almak için genelde Mac+Xcode veya TestFlight gerekir.
+Model 3 görseli:
 
-## Sorun çıkarsa
+https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/tesla-ble-companion-4163/docs/tesla-model3-topdown.png
 
-- **Package çözülmüyor:** Wi‑Fi + tekrar aç; Package dependency URL’si `TeslaBLEKeyKit`
-- **Bluetooth yok:** Capabilities’te Bluetooth Always
-- **Harita boş:** Konum izni + dışarıda / araçta dene
-- **Signing hatası:** Playgrounds’ta Apple ID ile giriş yap
+## Doğrulama (geliştirici)
+
+Mac/CI tarafında:
+
+```bash
+./scripts/verify_soc.sh
+```
+
+Bu script zip’i üretir, uzak URL olmadığını ve vendor paketlerini kontrol eder.

@@ -1,7 +1,8 @@
 // swift-tools-version: 5.9
 
-// Swift Playgrounds / Xcode App Playground manifest.
-// Open this folder (SOC.swiftpm) in Swift Playgrounds on iPad.
+// App Playground for Swift Playgrounds (iPad) and Xcode.
+// IMPORTANT: no remote package URLs — all deps are vendored under Packages/
+// so Playgrounds does not spin forever on network resolve.
 
 import PackageDescription
 import AppleProductTypes
@@ -41,7 +42,7 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/misakatao/TeslaBLEKeyKit.git", from: "0.1.0")
+        .package(path: "Packages/TeslaBLEKeyKit")
     ],
     targets: [
         .executableTarget(
@@ -50,9 +51,9 @@ let package = Package(
                 .product(name: "TeslaBLEKeyKit", package: "TeslaBLEKeyKit")
             ],
             path: ".",
-            exclude: ["Package.swift"],
-            resources: [
-                .process("Assets.xcassets")
+            exclude: [
+                "Package.swift",
+                "Packages"
             ]
         )
     ]

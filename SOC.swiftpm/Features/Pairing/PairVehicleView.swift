@@ -226,34 +226,29 @@ struct PairVehicleView: View {
     private func startPairing() async {
         guard isValid else { return }
         isScanning = true
-        statusMessage = nil
+        statusMessage = "Bluetooth taranıyor…"
         vinFocused = false
 
         await appModel.bleService.startPairingScan(vin: vin)
 
-        // Give BLE a moment; pairing request may already have completed inside the service.
-        if case .error(let message) = appModel.bleService.connectionStatus {
-            statusMessage = message
-            isScanning = false
-            return
-        }
-
-        // Proceed to key-card step once we found/contacted the vehicle or after timeout with VIN saved.
-        if appModel.bleService.discoveredName != nil
-            || appModel.bleService.connectionStatus == .connected
-            || appModel.bleService.connectionStatus == .connecting {
-            appModel.completePairing(vin: vin)
-        } else {
-            // Still allow continuing — vehicle may be nearby but quiet; key-card step retries.
-            try? await Task.sleep(nanoseconds: 8_000_000_000)
+        // Poll briefly for a discovery hit; never block the UI for long.
+        for _ in 0..<20 {
+            if appModel.bleService.discoveredName != nil
+                || appModel.bleService.connectionStatus == .connected
+                || appModel.bleService.connectionStatus == .connecting {
+                break
+            }
             if case .error(let message) = appModel.bleService.connectionStatus {
                 statusMessage = message
-                isScanning = false
-            } else {
-                appModel.completePairing(vin: vin)
+                // Still advance — key card step retries addKey near the car.
+                break
             }
+            try? await Task.sleep(nanoseconds: 250_000_000)
         }
+
         isScanning = false
+        // Always continue to key-card verification with VIN saved.
+        appModel.completePairing(vin: vin)
     }
 
     private func openTeslaApp() {

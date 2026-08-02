@@ -28,13 +28,15 @@ open SOC.xcodeproj
 
 ## iPad (Swift Playgrounds)
 
-Mac yoksa iPad’de **Swift Playgrounds** ile de çalıştırabilirsin.
+Uzak paket indirme yüzünden takılmayı önlemek için bağımlılıklar `SOC.swiftpm` içinde **vendor**’landı.
 
-1. Bu repodaki `SOC.swiftpm` paketini iPad’e indir (ZIP / AirDrop / Files).
-2. Swift Playgrounds ile aç → **Run ▶️**
+1. Zip indir: [dist/SOC-iPad.swiftpm.zip](dist/SOC-iPad.swiftpm.zip)
+2. Files’ta aç → `SOC.swiftpm` → Swift Playgrounds → **Run ▶️**
 3. Bluetooth + konum izni ver, iPad’i yatay kullan.
 
 Detay: [docs/IPAD_PLAYGROUNDS.md](docs/IPAD_PLAYGROUNDS.md)
+
+Göndermeden önce: `./scripts/verify_soc.sh`
 
 ## İlk eşleştirme
 

@@ -14,8 +14,10 @@ xcuserdata/
 # Swift Package Manager
 .build/
 .swiftpm/
-Packages/
 Package.resolved
+# Do not ignore SOC.swiftpm/Packages (vendored offline deps for Playgrounds)
+**/Packages/**/.build/
+**/Packages/**/.swiftpm/
 
 # macOS
 .DS_Store
