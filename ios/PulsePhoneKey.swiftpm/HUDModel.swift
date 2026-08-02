@@ -143,7 +143,7 @@ final class HUDModel: ObservableObject {
         leftRailTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_050_000_000)
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.28)) { leftRailVisible = false }
+            leftRailVisible = false
         }
     }
 
@@ -153,7 +153,7 @@ final class HUDModel: ObservableObject {
         rightRailTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_050_000_000)
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.28)) { rightRailVisible = false }
+            rightRailVisible = false
         }
     }
 

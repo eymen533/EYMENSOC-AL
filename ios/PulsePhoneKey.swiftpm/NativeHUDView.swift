@@ -275,13 +275,17 @@ struct NativeHUDView: View {
 
     private var mapBlock: some View {
         ZStack(alignment: .bottomTrailing) {
+            // Lightweight Map — fixed region, no user location (avoids Playgrounds crashes)
             Map(initialPosition: .region(
                 MKCoordinateRegion(
                     center: CLLocationCoordinate2D(latitude: 41.0215, longitude: 29.0210),
                     span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
                 )
-            ))
-            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .including([.publicTransport]), showsTraffic: false))
+            )) {
+                Marker("", coordinate: CLLocationCoordinate2D(latitude: 41.0215, longitude: 29.0210))
+                    .tint(.blue)
+            }
+            .mapStyle(.standard)
             .disabled(true)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
@@ -370,12 +374,11 @@ struct NativeHUDView: View {
 private struct ModelYPhoto: View {
     var body: some View {
         Group {
-            if let ui = Self.load() {
+            if let ui = ModelYImageData.image {
                 Image(uiImage: ui)
                     .resizable()
                     .scaledToFit()
             } else {
-                // Fallback silhouette if resource missing
                 Image(systemName: "car.fill")
                     .resizable()
                     .scaledToFit()
@@ -383,19 +386,6 @@ private struct ModelYPhoto: View {
                     .padding(20)
             }
         }
-    }
-
-    private static func load() -> UIImage? {
-        if let url = Bundle.module.url(forResource: "model-y-top", withExtension: "png"),
-           let img = UIImage(contentsOfFile: url.path) {
-            return img
-        }
-        // Playgrounds sometimes flattens Resources/
-        if let url = Bundle.main.url(forResource: "model-y-top", withExtension: "png"),
-           let img = UIImage(contentsOfFile: url.path) {
-            return img
-        }
-        return nil
     }
 }
 
@@ -411,8 +401,8 @@ private struct SideCarousel<Content: View>: View {
     var onDot: (Int) -> Void
     @ViewBuilder var content: () -> Content
 
-    /// Icons matching classic Dash select-rail (trip / tires / map / media)
-    private let icons = ["square.dashed", "circle.grid.cross", "map", "music.note"]
+    /// Safe SF Symbols (Playgrounds-friendly) — trip / tires / map / media
+    private let icons = ["flag", "circle.grid.2x2", "map", "music.note"]
 
     var body: some View {
         GeometryReader { geo in

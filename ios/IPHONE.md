@@ -1,3 +1,3 @@
-https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build20.zip  
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build21.zip  
 
-**`build-20-rails`**
+**`build-21-stable`** — çökme düzeltmesi (Bundle.module kaldırıldı)

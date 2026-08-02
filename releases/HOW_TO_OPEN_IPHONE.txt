@@ -1,5 +1,7 @@
-build-20-rails
+build-21-stable — COKME DUZELTMESI
 
-https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build20.zip
+https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build21.zip
 
-Lastik: Model Y fotosu · Medya ortali · Kaydirinca ikon rayi ~1sn
+1) Eski PulsePhoneKey projesini Playgrounds'tan SIL
+2) Bu zip'i ac → Run ▶
+3) Surum: build-21-stable
