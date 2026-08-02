@@ -464,13 +464,13 @@ struct NativeHUDView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Map panel (Apple MapKit — real streets)
+    // MARK: - Map panel (OSM tile — Playgrounds-safe)
 
     private var mapPanel: some View {
         ZStack(alignment: .bottomTrailing) {
             VehicleMapView(lat: model.latitude, lon: model.longitude, heading: model.mapHeading)
             VStack(alignment: .trailing, spacing: 6) {
-                Text(model.isLive ? "LIVE MAP" : (model.feedOK ? "MAP" : "…"))
+                Text(model.telemetrySource == "BLE" ? "BLE MAP" : (model.isLive ? "LIVE MAP" : (model.feedOK ? "MAP" : "…")))
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.black.opacity(0.75))
                     .padding(.horizontal, 8)

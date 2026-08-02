@@ -2,8 +2,8 @@ import Foundation
 import Combine
 import SwiftUI
 
-/// Night triad — live Tesla telemetry via Dash `/api/vehicle/state`.
-/// Local demo only when Dash unreachable. No CoreLocation / WebKit.
+/// Night triad — prefers real BLE vehicle-command telemetry; Dash/API fallback.
+/// Local demo only when neither BLE nor Dash is live. No CoreLocation / WebKit.
 @MainActor
 final class HUDModel: ObservableObject {
     static let slideCount = 5
@@ -57,7 +57,13 @@ final class HUDModel: ObservableObject {
     private var phase: Double = 0
     private var leftCool: Date = .distantPast
     private var useVehicleFeed = false
+    private var useBLE = false
     private var localDemo = false
+
+    /// Optional BLE media / volume actuators (wired from ContentView).
+    var bleSetVolume: ((Double) -> Void)?
+    var bleMediaPlay: (() -> Void)?
+    var bleMediaSkip: ((Int) -> Void)?
 
     private let tracks: [(String, String)] = [
         ("Kayıp Kalp", "BLOK3"),
@@ -74,7 +80,7 @@ final class HUDModel: ObservableObject {
         return f
     }()
 
-    var liveLocked: Bool { isLive || useVehicleFeed }
+    var liveLocked: Bool { isLive || useVehicleFeed || useBLE }
 
     func configure(vin raw: String, paired: Bool) {
         vin = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -85,11 +91,52 @@ final class HUDModel: ObservableObject {
         feedOK = false
         isLive = false
         useVehicleFeed = false
+        useBLE = false
         localDemo = false
         telemetrySource = "baglaniyor"
         feedError = ""
         refreshClock()
         start()
+    }
+
+    /// Apply real signed BLE `getVehicleData` snapshot (highest priority).
+    func applyBLE(_ s: TeslaBLESession.Snapshot, linkOK: Bool) {
+        guard linkOK else { return }
+        useBLE = true
+        feedOK = true
+        isLive = true
+        localDemo = false
+        useVehicleFeed = false
+        bleOK = true
+        telemetrySource = "BLE"
+        feedError = ""
+        speed = s.speedKmh
+        powerKW = s.powerKW
+        gear = s.gear
+        driving = abs(s.speedKmh) > 1.5 || s.gear == "D" || s.gear == "R"
+        if s.batteryPercent > 0 { battery = s.batteryPercent }
+        if s.rangeKm > 0 { rangeKm = s.rangeKm }
+        if s.odometerKm > 0 { odometer = s.odometerKm }
+        charging = s.charging
+        if s.psiFL > 0 { psiFL = s.psiFL }
+        if s.psiFR > 0 { psiFR = s.psiFR }
+        if s.psiRL > 0 { psiRL = s.psiRL }
+        if s.psiRR > 0 { psiRR = s.psiRR }
+        if s.outdoorC != 0 { outdoorC = s.outdoorC }
+        if abs(s.latitude) > 0.0001 { latitude = s.latitude }
+        if abs(s.longitude) > 0.0001 { longitude = s.longitude }
+        mapHeading = s.heading
+        if s.destination != "—" { destination = s.destination }
+        if s.eta != "—" { eta = s.eta }
+        if s.energyAtArrival != "—" { energyAtArrival = s.energyAtArrival }
+        if s.tripDist != "—" { tripDist = s.tripDist }
+        if s.place != "—" { place = s.place }
+        if s.mediaTitle != "—" { mediaTitle = s.mediaTitle }
+        if s.mediaArtist != "—" { mediaArtist = s.mediaArtist }
+        if s.mediaService != "—" { mediaService = s.mediaService }
+        mediaPlaying = s.mediaPlaying
+        mediaVolume = s.mediaVolume
+        mediaProgress = s.mediaProgress
     }
 
     func start() {
@@ -137,11 +184,20 @@ final class HUDModel: ObservableObject {
     func beginAfterPair() {}
 
     func togglePlay() {
+        if useBLE {
+            bleMediaPlay?()
+            mediaPlaying.toggle()
+            return
+        }
         guard !isLive else { return }
         mediaPlaying.toggle()
     }
 
     func skipTrack(_ delta: Int) {
+        if useBLE {
+            bleMediaSkip?(delta)
+            return
+        }
         guard !isLive else { return }
         trackIndex = ((trackIndex + delta) % tracks.count + tracks.count) % tracks.count
         mediaTitle = tracks[trackIndex].0
@@ -151,8 +207,13 @@ final class HUDModel: ObservableObject {
     }
 
     func nudgeVolume(_ delta: Double) {
-        guard !isLive else { return }
         mediaVolume = min(1, max(0, mediaVolume + delta))
+        if useBLE {
+            // Prefer step commands on car; also push absolute as fallback via closure.
+            bleSetVolume?(mediaVolume)
+            return
+        }
+        guard !isLive else { return }
     }
 
     func adjustTire(_ corner: String, delta: Int) {
@@ -288,9 +349,11 @@ final class HUDModel: ObservableObject {
             guard let http = resp as? HTTPURLResponse, http.statusCode == 200,
                   let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   (obj["ok"] as? Bool) == true else {
-                feedOK = false
+                if !useBLE { feedOK = false }
                 return false
             }
+            // Real BLE session wins over Dash / Owner API.
+            if useBLE { return true }
             useVehicleFeed = true
             feedOK = true
             feedError = ""
@@ -348,8 +411,8 @@ final class HUDModel: ObservableObject {
         phase += 0.2
         mapPulse = phase
         if Int(phase * 5) % 5 == 0 { refreshClock() }
-        // Never animate over live / dash feed
-        guard !useVehicleFeed else { return }
+        // Never animate over BLE / live / dash feed
+        guard !useBLE && !useVehicleFeed else { return }
         guard localDemo else { return }
         if mediaPlaying {
             mediaProgress = min(1, mediaProgress + 0.002)

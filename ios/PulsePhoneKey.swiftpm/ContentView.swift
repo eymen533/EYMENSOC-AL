@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Tek uygulama: BLE Pair + native cluster. Canlı telemetri Dash + Tesla Owner API.
+/// Tek uygulama: BLE Pair + gerçek BLE cluster telemetrisi (+ Dash yedek).
 struct ContentView: View {
     @StateObject private var ble = BLEPairer()
     @StateObject private var hud = HUDModel()
@@ -55,6 +55,34 @@ struct ContentView: View {
         .onChange(of: ble.readyForDashboard) { _, on in
             if on { hud.bleOK = true }
         }
+        .onReceive(ble.telemetry.$snapshot) { snap in
+            if ble.telemetry.liveOK {
+                hud.applyBLE(snap, linkOK: true)
+            }
+        }
+        .onReceive(ble.telemetry.$liveOK) { ok in
+            if ok {
+                hud.bleOK = true
+                hud.applyBLE(ble.telemetry.snapshot, linkOK: true)
+            }
+        }
+        .onAppear {
+            let tele = ble.telemetry
+            hud.bleSetVolume = { level in
+                Task { @MainActor in
+                    // Map HUD 0…1 → car absolute; small nudges also send ±1 step.
+                    tele.setVolume(level)
+                }
+            }
+            hud.bleMediaPlay = {
+                Task { @MainActor in tele.mediaPlay() }
+            }
+            hud.bleMediaSkip = { delta in
+                Task { @MainActor in
+                    if delta >= 0 { tele.mediaNext() } else { tele.mediaPrev() }
+                }
+            }
+        }
     }
 
     private var home: some View {
@@ -72,12 +100,12 @@ struct ContentView: View {
                     Text("PULSE")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                    Text("BLE Pair + canlı Cluster (Tesla API)")
+                    Text("BLE Pair + gerçek Cluster (araç BLE)")
                         .foregroundStyle(.white.opacity(0.55))
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("build-33 · LIVE hız/vites/lastik/harita\nSettings → Tesla token yapıştır")
+                    Text("build-34 · BLE hız/vites/lastik/medya/harita\nPair → Key Card → Cluster")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -119,7 +147,7 @@ struct ContentView: View {
                         save()
                         openHUD()
                     } label: {
-                        Text("Cluster HUD (canlı)")
+                        Text(ble.telemetry.liveOK ? "Cluster HUD (BLE LIVE)" : "Cluster HUD")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
@@ -163,18 +191,25 @@ struct ContentView: View {
                     TextField("VIN", text: $vin)
                         .textInputAutocapitalization(.characters)
                 }
-                Section("Dash (zorunlu · canlı veri)") {
+                Section("BLE telemetri (asıl kaynak)") {
+                    Text(ble.telemetry.status)
+                        .font(.footnote)
+                    Text("Pair sonrası araçla imzalı BLE oturumu açılır: hız, vites, lastik, batarya, medya, GPS. Key Card konsolda olmalı.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Dash (yedek)") {
                     TextField("Dash URL", text: $dashURL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
                     SecureField("PIN", text: $pin)
                         .keyboardType(.numberPad)
-                    Text("HUD her saniye /api/vehicle/state çeker. Tunnel URL güncel olsun.")
+                    Text("BLE yoksa yedek olarak /api/vehicle/state.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                Section("Tesla Owner API · gerçek hız/GPS") {
+                Section("Tesla Owner API (opsiyonel yedek)") {
                     SecureField("Access Token", text: $teslaToken)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -186,7 +221,7 @@ struct ContentView: View {
                         if liveBusy {
                             ProgressView()
                         } else {
-                            Text("Canlı telemetriyi aç")
+                            Text("Dash üzerinden API yedek aç")
                         }
                     }
                     .disabled(liveBusy || teslaToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -195,12 +230,9 @@ struct ContentView: View {
                             .font(.footnote)
                             .foregroundStyle(liveStatus.contains("✓") ? .green : .orange)
                     }
-                    Text("Token: Tesla hesabından Owner/Fleet access token. Kaydedilince Dash LIVE olur; HUD’da alt barda LIVE yazar. D vitesi ve hız arabadan gelir.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
                 Section("Not") {
-                    Text("BLE Pair = Phone Key. Canlı hız/vites/lastik/harita = Tesla API (Settings token). Harita Apple MapKit · araç konumu.")
+                    Text("Asıl canlı veri: BLE (vehicle-command AES-GCM). HUD aynı kalır. Harita OSM tile (MapKit yok — çökme azaltır).")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

@@ -1,72 +1,73 @@
 import SwiftUI
-import MapKit
-import UIKit
 
-/// Real Apple Maps imagery via MKMapSnapshotter (no interactive Map / no CoreLocation).
-/// Safer on Swift Playgrounds than MapKit `Map` view.
+/// Crash-safe map for Swift Playgrounds: OSM raster tile via AsyncImage.
+/// No MapKit / MKMapSnapshotter / CoreLocation / WebKit.
 struct VehicleMapView: View {
     var lat: Double
     var lon: Double
     var heading: Double
 
-    @State private var image: UIImage?
-    @State private var lastKey = ""
+    private let zoom = 15
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Color(red: 0.86, green: 0.85, blue: 0.82)
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.78, green: 0.82, blue: 0.78),
+                        Color(red: 0.88, green: 0.90, blue: 0.86),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
                 if abs(lat) < 0.0001 && abs(lon) < 0.0001 {
                     Text("Arac konumu bekleniyor")
                         .font(.caption)
                         .foregroundStyle(.black.opacity(0.45))
-                } else if let image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geo.size.width, height: geo.size.height)
-                        .clipped()
+                } else {
+                    tileStack
                     Image(systemName: "location.north.fill")
                         .font(.title)
                         .foregroundStyle(.red)
                         .rotationEffect(.degrees(heading))
                         .shadow(radius: 2)
-                } else {
-                    ProgressView()
+                    VStack {
+                        Spacer()
+                        Text(String(format: "%.4f, %.4f", lat, lon))
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.black.opacity(0.55))
+                            .padding(6)
+                    }
                 }
             }
-            .onAppear { refresh(size: geo.size) }
-            .onChange(of: lat) { _, _ in refresh(size: geo.size) }
-            .onChange(of: lon) { _, _ in refresh(size: geo.size) }
-            .onChange(of: geo.size) { _, new in refresh(size: new) }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
         .clipped()
     }
 
-    private func refresh(size: CGSize) {
-        guard abs(lat) > 0.0001 || abs(lon) > 0.0001 else { return }
-        let w = max(120, size.width)
-        let h = max(120, size.height)
-        // Quantize so we don't snapshot every tiny GPS jitter
-        let key = String(format: "%.4f,%.4f,%.0fx%.0f", lat, lon, w, h)
-        guard key != lastKey else { return }
-        lastKey = key
-
-        let opts = MKMapSnapshotter.Options()
-        opts.region = MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-            latitudinalMeters: 500,
-            longitudinalMeters: 500
-        )
-        opts.size = CGSize(width: w * 2, height: h * 2) // retina-ish
-        opts.mapType = .standard
-        opts.showsBuildings = true
-        opts.pointOfInterestFilter = .excludingAll
-
-        MKMapSnapshotter(options: opts).start { snap, _ in
-            DispatchQueue.main.async {
-                self.image = snap?.image
+    @ViewBuilder
+    private var tileStack: some View {
+        if let url = tileURL(lat: lat, lon: lon, z: zoom) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let img):
+                    img.resizable().scaledToFill()
+                case .failure:
+                    Color(red: 0.82, green: 0.85, blue: 0.80)
+                default:
+                    ProgressView()
+                }
             }
         }
+    }
+
+    private func tileURL(lat: Double, lon: Double, z: Int) -> URL? {
+        let n = pow(2.0, Double(z))
+        let x = Int(floor((lon + 180.0) / 360.0 * n))
+        let latRad = lat * .pi / 180.0
+        let y = Int(floor((1.0 - log(tan(latRad) + 1.0 / cos(latRad)) / .pi) / 2.0 * n))
+        // OpenStreetMap standard tile (Playgrounds ATS allows https)
+        return URL(string: "https://tile.openstreetmap.org/\(z)/\(x)/\(y).png")
     }
 }

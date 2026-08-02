@@ -1,1 +1,2 @@
-Zip: `/downloads/PulsePhoneKey-playground-build33.zip`
+# build-34-ble-live
+Pair → Key Card → Cluster. Telemetri BLE AES-GCM.

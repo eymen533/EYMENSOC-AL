@@ -1,6 +1,7 @@
-# build-33-live
+# build-34-ble-live
 
-Harita: MKMapSnapshotter (etkileşimli Map/WebKit yok).
-Telemetri: Dash /api/vehicle/state + Tesla Owner API live.
+- Telemetri: Tesla BLE signed session (AES-GCM) → hız/vites/lastik/medya/GPS
+- Harita: OSM tile (MapKit/WebKit/CoreLocation yok)
+- Pair + Key Card sonrası HUD’da kaynak `BLE`
 
-Eski proje SIL → build-33 → **build-33-live**
+Eski proje SIL → build-34 → **build-34-ble-live**

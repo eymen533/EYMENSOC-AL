@@ -1,16 +1,20 @@
-# build-33-live
+# build-34-ble-live
 
-Canlı Tesla telemetri + gerçek Apple harita (snapshot).
+Gerçek araç telemetrisi **BLE** üzerinden (Phone Key oturumu + AES-GCM).
 
-## Indir
-https://mon-holds-cloud-grateful.trycloudflare.com/iphone
+## İndir
 
-GitHub: https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build33.zip
+https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build34.zip
 
-## Canlı veri (zorunlu)
-1. Eski projeyi SIL → zip → Run ▶ → **build-33-live**
-2. Settings → Dash URL (tunnel) + PIN `428462`
-3. Settings → Tesla **Access Token** yapıştır → **Canlı telemetriyi aç**
-4. Cluster → alt barda **LIVE** · D/hız/lastik/harita arabadan
+jsDelivr: https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build34.zip
 
-Token yoksa HUD Dash demo’sunu gösterir (sahte değil sunucu simülasyonu) — gerçek için token şart.
+## Kurulum
+
+1. Eski PulsePhoneKey’i SIL
+2. Zip → Dosyalar → `.swiftpm` → Playgrounds
+3. Signing + Bluetooth Always → Run ▶
+4. Ana ekranda `build-34-ble-live` gör
+5. Pair Vehicle → 🔑 Tesla → Key Card konsola → Cluster HUD
+6. Alt barda kaynak **BLE** olmalı (hız/vites/lastik gerçek)
+
+PIN: `428462` · VIN: `XP7YGCEK0PB159959`
