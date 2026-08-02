@@ -204,7 +204,12 @@ struct VehicleMapView: View {
     var lon: Double
     var heading: Double
     var destination: String = ""
+    var destLat: Double = 0
+    var destLon: Double = 0
     var apiKey: String = "" // ignored — kept for call-site compatibility
+    @Binding var turnDistanceM: Int
+    @Binding var turnInstruction: String
+    @Binding var turnSymbol: String
     @ObservedObject private var settings = HUDSettings.shared
 
     var body: some View {
@@ -213,9 +218,14 @@ struct VehicleMapView: View {
             lon: lon,
             heading: heading,
             destination: destination,
+            destLat: destLat,
+            destLon: destLon,
             autoZoom: settings.autoZoom,
-            theme: settings.mapTheme
+            theme: settings.mapTheme,
+            turnDistanceM: $turnDistanceM,
+            turnInstruction: $turnInstruction,
+            turnSymbol: $turnSymbol
         )
-        .background(Color(red: 0.86, green: 0.85, blue: 0.82))
+        .background(Color.black)
     }
 }

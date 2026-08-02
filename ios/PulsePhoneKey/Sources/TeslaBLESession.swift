@@ -404,7 +404,8 @@ final class TeslaBLESession {
     static func actionGetDrive() -> Data { Data(hex: "12040a022200") }
     static func actionGetCharge() -> Data { Data(hex: "12040a021200") }
     static func actionGetTire() -> Data { Data(hex: "12040a027200") }
-    static func actionGetMedia() -> Data { Data(hex: "12040a027a00") }
+    /// GetMediaState (15) + GetMediaDetailState (16) — source string / album.
+    static func actionGetMedia() -> Data { Data(hex: "12070a057a00820100") }
     static func actionGetLocation() -> Data { Data(hex: "12040a023a00") }
     static func actionGetClimate() -> Data { Data(hex: "12040a021a00") }
     static func actionWake() -> Data { Data(hex: "101e") } // VCSEC UnsignedMessage RKE wake
@@ -447,6 +448,7 @@ final class TeslaBLESession {
             case 8: parseLocation(f.bytes)
             case 19: parseTires(f.bytes)
             case 20: parseMedia(f.bytes)
+            case 21: parseMediaDetail(f.bytes)
             default: break
             }
         }
@@ -494,6 +496,18 @@ final class TeslaBLESession {
                 if let e = ProtoWire.float32(f.bytes) {
                     snapshot.energyAtArrival = String(format: "%.0f%%", e)
                 }
+            case 12: // active_route_coordinates LatLong { lat=1, lon=2 }
+                for sf in ProtoWire.parseFields(f.bytes) {
+                    switch sf.number {
+                    case 1:
+                        if let fl = ProtoWire.float32(sf.bytes) { snapshot.destLatitude = Double(fl) }
+                        else if let d = ProtoWire.double64(sf.bytes) { snapshot.destLatitude = d }
+                    case 2:
+                        if let fl = ProtoWire.float32(sf.bytes) { snapshot.destLongitude = Double(fl) }
+                        else if let d = ProtoWire.double64(sf.bytes) { snapshot.destLongitude = d }
+                    default: break
+                    }
+                }
             default: break
             }
         }
@@ -540,21 +554,72 @@ final class TeslaBLESession {
         for f in ProtoWire.parseFields(data) {
             switch f.number {
             case 3:
-                snapshot.mediaArtist = String(data: f.bytes, encoding: .utf8) ?? "—"
+                if let s = String(data: f.bytes, encoding: .utf8), !s.isEmpty {
+                    snapshot.mediaArtist = s
+                }
             case 4:
-                snapshot.mediaTitle = String(data: f.bytes, encoding: .utf8) ?? "—"
+                if let s = String(data: f.bytes, encoding: .utf8), !s.isEmpty {
+                    snapshot.mediaTitle = s
+                }
             case 5:
                 if let v = ProtoWire.float32(f.bytes) { vol = v }
             case 7:
                 if let v = ProtoWire.float32(f.bytes), v > 0 { volMax = v }
-            case 8:
-                snapshot.mediaService = String(data: f.bytes, encoding: .utf8) ?? "—"
+            case 8: // MediaSourceType enum (varint)
+                let name = Self.mediaSourceName(f.varint)
+                if !name.isEmpty { snapshot.mediaService = name }
             case 9:
-                snapshot.mediaPlaying = (f.varint == 1)
+                // MediaPlaybackStatus: 0 unknown, 1 stopped, 2 playing, 3 paused
+                snapshot.mediaPlaying = (f.varint == 2)
             default: break
             }
         }
         if volMax > 0 { snapshot.mediaVolume = min(1, max(0, Double(vol / volMax))) }
+    }
+
+    private func parseMediaDetail(_ data: Data) {
+        for f in ProtoWire.parseFields(data) {
+            switch f.number {
+            case 2: // duration ms
+                break
+            case 3: // elapsed ms
+                if f.varint > 0 {
+                    // progress filled when duration known elsewhere; keep elapsed hint
+                }
+            case 4: // now_playing_source_string — e.g. "YouTube Music"
+                if let s = String(data: f.bytes, encoding: .utf8), !s.isEmpty {
+                    snapshot.mediaService = s
+                }
+            case 5:
+                if let s = String(data: f.bytes, encoding: .utf8), !s.isEmpty {
+                    snapshot.mediaAlbum = s
+                }
+            case 6:
+                if let s = String(data: f.bytes, encoding: .utf8), !s.isEmpty,
+                   snapshot.mediaTitle == "—" || snapshot.mediaTitle.isEmpty {
+                    snapshot.mediaTitle = s
+                }
+            default: break
+            }
+        }
+    }
+
+    private static func mediaSourceName(_ v: UInt64) -> String {
+        switch v {
+        case 1: return "AM"
+        case 2: return "FM"
+        case 3, 19: return "SiriusXM"
+        case 6: return "Files"
+        case 7: return "iPod"
+        case 8: return "Bluetooth"
+        case 9: return "AUX"
+        case 12: return "Spotify"
+        case 17: return "TuneIn"
+        case 20: return "Tidal"
+        case 21, 22: return "QQ Music"
+        case 26: return "NetEase"
+        default: return ""
+        }
     }
 
     private func parseLocation(_ data: Data) {

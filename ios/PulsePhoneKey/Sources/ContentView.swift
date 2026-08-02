@@ -27,7 +27,8 @@ struct ContentView: View {
                 NativeHUDView(
                     model: hud,
                     linkLabel: ble.linkLabel,
-                    onBack: { screen = .home }
+                    onBack: { screen = .home },
+                    onSettings: { showSettings = true }
                 )
             case .home:
                 home
@@ -98,7 +99,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-4 · Model Y · Apple Maps\nPerformans / Düşük bağlantı")
+                    Text("xcode-ble-5 · album art · rota · hızlı BLE")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)

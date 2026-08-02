@@ -18,12 +18,15 @@ struct VehicleLiveSnapshot {
     var longitude: Double = 0
     var heading: Double = 0
     var destination: String = "—"
+    var destLatitude: Double = 0
+    var destLongitude: Double = 0
     var eta: String = "—"
     var energyAtArrival: String = "—"
     var tripDist: String = "—"
     var place: String = "—"
     var mediaTitle: String = "—"
     var mediaArtist: String = "—"
+    var mediaAlbum: String = "—"
     var mediaService: String = "—"
     var mediaPlaying: Bool = false
     var mediaProgress: Double = 0

@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// Dashla-style night triad HUD — left slides / center dial / Apple Maps · araç GPS/rota.
+/// Dashla-style night triad HUD — left media / center dial / Apple Maps + turn guidance.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     @ObservedObject private var settings = HUDSettings.shared
+    @ObservedObject private var art = MediaArtworkStore.shared
     var linkLabel: String
     var onBack: () -> Void
+    var onSettings: (() -> Void)? = nil
 
     private let ink = Color.white
     private let muted = Color.white.opacity(0.55)
@@ -22,7 +24,7 @@ struct NativeHUDView: View {
                     if wide {
                         HStack(spacing: 0) {
                             leftColumn
-                                .frame(width: geo.size.width * 0.28)
+                                .frame(width: geo.size.width * 0.27)
                             rail
                                 .padding(.leading, 2)
                             centerDial
@@ -42,20 +44,29 @@ struct NativeHUDView: View {
                         }
                     }
                 }
-                .padding(.top, 40)
+                .padding(.top, 36)
                 .ignoresSafeArea(edges: .bottom)
 
                 topBar
-                    .frame(height: 40)
+                    .frame(height: 36)
             }
         }
         .preferredColorScheme(.dark)
         .statusBarHidden(true)
-        .onAppear { model.start() }
+        .onAppear {
+            model.start()
+            MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist)
+        }
         .onDisappear { model.stop() }
+        .onChangeCompat(of: model.mediaTitle) { _ in
+            MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist)
+        }
+        .onChangeCompat(of: model.mediaArtist) { _ in
+            MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist)
+        }
     }
 
-    // MARK: - Top bar (Dashla-like)
+    // MARK: - Top bar
 
     private var topBar: some View {
         HStack(spacing: 10) {
@@ -72,29 +83,37 @@ struct NativeHUDView: View {
                 .foregroundStyle(muted)
             Image(systemName: "car.fill")
                 .font(.caption)
-                .foregroundStyle(model.bleOK ? accent : dim)
+                .foregroundStyle(model.bleOK || model.isLive ? accent : dim)
             Spacer(minLength: 6)
-            if !model.feedError.isEmpty || (!model.isLive && model.bleOK) {
-                Label("Reconnect", systemImage: "arrow.clockwise")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(muted)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.white.opacity(0.08)))
+
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.7))
+                    .frame(width: 7, height: 7)
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Color.white.opacity(0.10)))
+
             HStack(spacing: 5) {
-                Image(systemName: "battery.100")
+                Image(systemName: phoneBattIcon)
                     .font(.caption2)
-                Text("\(max(0, Int(model.battery)))")
+                Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
                     .font(.caption.monospacedDigit().weight(.semibold))
             }
             .foregroundStyle(ink)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(Capsule().fill(Color.white.opacity(0.10)))
-            Image(systemName: "gearshape.fill")
-                .font(.caption)
-                .foregroundStyle(muted)
+
+            Button {
+                onSettings?()
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.caption)
+                    .foregroundStyle(muted)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
         .background(
@@ -104,6 +123,14 @@ struct NativeHUDView: View {
                 endPoint: .bottom
             )
         )
+    }
+
+    private var phoneBattIcon: String {
+        let p = model.phoneBattery > 0 ? model.phoneBattery : Int(model.battery)
+        if p >= 75 { return "battery.100" }
+        if p >= 45 { return "battery.75" }
+        if p >= 20 { return "battery.50" }
+        return "battery.25"
     }
 
     // MARK: - Rail
@@ -164,7 +191,7 @@ struct NativeHUDView: View {
 
     private var batteryChip: some View {
         HStack(spacing: 6) {
-            Image(systemName: "battery.100")
+            Image(systemName: model.charging ? "bolt.fill" : "battery.100")
                 .foregroundStyle(Color(red: 0.35, green: 0.85, blue: 0.45))
             Text(battText)
                 .font(.caption.monospacedDigit().weight(.semibold))
@@ -276,55 +303,63 @@ struct NativeHUDView: View {
     }
 
     private var mediaPanel: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(displayOrDash(model.mediaService))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(muted)
-            RoundedRectangle(cornerRadius: 10)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(red: 0.9, green: 0.35, blue: 0.2), Color(red: 0.45, green: 0.12, blue: 0.1)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 88, height: 88)
-                .overlay(Image(systemName: "music.note").font(.largeTitle).foregroundStyle(.white.opacity(0.4)))
+        VStack(alignment: .leading, spacing: 12) {
+            mediaServiceHeader
+            AlbumArtView(image: art.image, size: 128)
             Text(displayOrDash(model.mediaTitle))
-                .font(.headline)
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(ink)
-                .lineLimit(1)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
             Text(displayOrDash(model.mediaArtist))
                 .font(.subheadline)
                 .foregroundStyle(muted)
-            HStack(spacing: 20) {
-                Button { model.skipTrack(-1) } label: {
-                    Image(systemName: "backward.fill").foregroundStyle(ink)
-                }
-                .buttonStyle(.plain)
-                Button { model.togglePlay() } label: {
-                    Image(systemName: model.mediaPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 36))
-                        .foregroundStyle(ink)
-                }
-                .buttonStyle(.plain)
-                Button { model.skipTrack(1) } label: {
-                    Image(systemName: "forward.fill").foregroundStyle(ink)
-                }
-                .buttonStyle(.plain)
-            }
-            .frame(maxWidth: .infinity)
+                .lineLimit(1)
             Spacer(minLength: 0)
         }
     }
 
-    // MARK: - Center dial
+    private var mediaServiceHeader: some View {
+        HStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(serviceAccent)
+                    .frame(width: 22, height: 22)
+                Image(systemName: serviceIcon)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+            Text(displayOrDash(model.mediaService))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(ink)
+                .lineLimit(1)
+        }
+    }
+
+    private var serviceIcon: String {
+        let s = model.mediaService.lowercased()
+        if s.contains("youtube") { return "play.rectangle.fill" }
+        if s.contains("spotify") { return "music.note.list" }
+        if s.contains("tidal") { return "waveform" }
+        if s.contains("bluetooth") { return "wave.3.right" }
+        return "music.note"
+    }
+
+    private var serviceAccent: Color {
+        let s = model.mediaService.lowercased()
+        if s.contains("youtube") { return Color(red: 0.90, green: 0.18, blue: 0.18) }
+        if s.contains("spotify") { return Color(red: 0.18, green: 0.72, blue: 0.35) }
+        if s.contains("tidal") { return Color(red: 0.05, green: 0.05, blue: 0.08) }
+        return Color(red: 0.55, green: 0.35, blue: 0.95)
+    }
+
+    // MARK: - Center dial (gears inside ring — Dashla screenshot)
 
     private var centerDial: some View {
-        let dialSize: CGFloat = settings.speedStyle == .compact ? 168 : 210
-        let speedFont: CGFloat = settings.speedStyle == .compact ? 64 : 84
-        return VStack(spacing: 8) {
-            Spacer(minLength: 8)
+        let dialSize: CGFloat = settings.speedStyle == .compact ? 168 : 220
+        let speedFont: CGFloat = settings.speedStyle == .compact ? 64 : 88
+        return VStack(spacing: 6) {
+            Spacer(minLength: 4)
             if settings.liveLocation == .top, !isBlank(model.place) {
                 locationChip
             }
@@ -333,18 +368,13 @@ struct NativeHUDView: View {
                     .font(.caption.monospacedDigit().weight(.semibold))
                     .foregroundStyle(model.powerKW >= 0 ? accent : Color.orange)
             }
-            HStack(spacing: 18) {
-                ForEach(["P", "R", "N", "D"], id: \.self) { g in
-                    Text(g)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: ink, dim: dim))
-                        .frame(width: 26)
-                }
-            }
             ZStack {
                 Circle()
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1.5)
+                Circle()
                     .fill(Color.black)
-                    .shadow(color: .black.opacity(0.6), radius: 18, x: -10, y: 0)
+                    .padding(3)
+                    .shadow(color: .black.opacity(0.55), radius: 16, x: -8, y: 0)
                 if settings.powerStyle == .ring {
                     Circle()
                         .trim(from: 0, to: min(1, abs(model.powerKW) / 220))
@@ -355,12 +385,20 @@ struct NativeHUDView: View {
                                     : [accent, accent],
                                 center: .center
                             ),
-                            style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                            style: StrokeStyle(lineWidth: 4, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
-                        .padding(5)
+                        .padding(7)
                 }
                 VStack(spacing: 2) {
+                    HStack(spacing: 14) {
+                        ForEach(["P", "R", "N", "D"], id: \.self) { g in
+                            Text(g)
+                                .font(.footnote.weight(.bold))
+                                .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: ink, dim: dim))
+                        }
+                    }
+                    .padding(.bottom, 2)
                     Text("\(Int(abs(model.speed).rounded()))")
                         .font(.system(size: speedFont, weight: .bold, design: .rounded))
                         .monospacedDigit()
@@ -376,12 +414,12 @@ struct NativeHUDView: View {
             if settings.liveLocation == .bottom, !isBlank(model.place) {
                 locationChip
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             LinearGradient(
-                colors: [.black, .black, Color.black.opacity(0.15)],
+                colors: [.black, .black, Color.black.opacity(0.12)],
                 startPoint: .leading,
                 endPoint: .trailing
             )
@@ -389,7 +427,7 @@ struct NativeHUDView: View {
     }
 
     private var locationChip: some View {
-        Label(model.place, systemImage: "mappin.and.ellipse")
+        Label(model.place, systemImage: "mappin")
             .font(.caption)
             .foregroundStyle(muted)
             .lineLimit(1)
@@ -397,51 +435,112 @@ struct NativeHUDView: View {
             .padding(.horizontal, 8)
     }
 
-    // MARK: - Google Map
+    // MARK: - Map
 
     private var mapPanel: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .topLeading) {
             VehicleMapView(
                 lat: model.latitude,
                 lon: model.longitude,
                 heading: model.mapHeading,
                 destination: routeDestination,
-                apiKey: model.googleMapsKey
+                destLat: model.destLatitude,
+                destLon: model.destLongitude,
+                turnDistanceM: Binding(
+                    get: { model.turnDistanceM },
+                    set: { model.turnDistanceM = $0 }
+                ),
+                turnInstruction: Binding(
+                    get: { model.turnInstruction },
+                    set: { model.turnInstruction = $0 }
+                ),
+                turnSymbol: Binding(
+                    get: { model.turnSymbol },
+                    set: { model.turnSymbol = $0 }
+                )
             )
-            VStack(alignment: .trailing, spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.92))
-                        .frame(width: 36, height: 36)
-                    Text("N")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.black.opacity(0.75))
-                        .offset(y: -8)
-                    Image(systemName: "location.north.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.red)
-                        .rotationEffect(.degrees(model.mapHeading))
-                }
-                Text(odoText)
-                    .font(.caption2.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(.black.opacity(0.7))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.white.opacity(0.9)))
+
+            if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
+                turnBanner
+                    .padding(.leading, 52)
+                    .padding(.top, 10)
             }
-            .padding(12)
+
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.92))
+                                .frame(width: 36, height: 36)
+                            Text("N")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.black.opacity(0.75))
+                                .offset(y: -8)
+                            Image(systemName: "location.north.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.red)
+                                .rotationEffect(.degrees(model.mapHeading))
+                        }
+                        Text(odoText)
+                            .font(.caption2.monospacedDigit().weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Color.black.opacity(0.45)))
+                    }
+                    .padding(12)
+                }
+            }
             .allowsHitTesting(false)
-        }
-        .overlay(alignment: .leading) {
+
             LinearGradient(
                 colors: [Color.black.opacity(0.95), Color.black.opacity(0.35), .clear],
                 startPoint: .leading,
                 endPoint: .trailing
             )
             .frame(width: 48)
+            .frame(maxHeight: .infinity, alignment: .leading)
             .allowsHitTesting(false)
         }
         .clipped()
+    }
+
+    private var turnBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: model.turnSymbol.isEmpty ? "arrow.turn.up.right" : model.turnSymbol)
+                .font(.title2.weight(.bold))
+                .foregroundStyle(ink)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(turnDistanceText)
+                    .font(.title2.weight(.bold).monospacedDigit())
+                    .foregroundStyle(ink)
+                if !model.turnInstruction.isEmpty {
+                    Text(model.turnInstruction)
+                        .font(.caption)
+                        .foregroundStyle(muted)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.black.opacity(0.72))
+        )
+        .allowsHitTesting(false)
+    }
+
+    private var turnDistanceText: String {
+        let m = model.turnDistanceM
+        if m >= 1000 {
+            return String(format: "%.1f km", Double(m) / 1000.0)
+        }
+        return "\(m) m"
     }
 
     private var routeDestination: String {

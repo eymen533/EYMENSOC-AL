@@ -23,6 +23,7 @@
 		83EC530FDB294E243DA7E36D /* TeslaBLESession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 924E820613487F12D263B3A8 /* TeslaBLESession.swift */; };
 		8F7E853ADDB27F4184875681 /* VCSECPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */; };
 		DB4946C6B7F703E2B685FA39 /* VehicleLiveSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* MediaArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F506172839A4B5C6 /* MediaArtwork.swift */; };
 		95F893ABF8DE2704294E63B9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5417BC6652ACDD9848361A86 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -46,6 +47,7 @@
 		924E820613487F12D263B3A8 /* TeslaBLESession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeslaBLESession.swift; sourceTree = "<group>"; };
 		6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VCSECPayload.swift; sourceTree = "<group>"; };
 		720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLiveSnapshot.swift; sourceTree = "<group>"; };
+		B1C2D3E4F506172839A4B5C6 /* MediaArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaArtwork.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +99,7 @@
 				8CC397C63A53D8F45AB118C9 /* HUDSettings.swift */,
 				746721CC4E9630CD239C934C /* IOSCompat.swift */,
 				E87A51594EF374B79713CBEB /* KeyStore.swift */,
+				B1C2D3E4F506172839A4B5C6 /* MediaArtwork.swift */,
 				3BD7E7B769034A40079F1221 /* NativeHUDView.swift */,
 				134713257B7CDEDADBE47632 /* PairingFlowView.swift */,
 				79019F7208E9B2F76B6624DB /* ProtoWire.swift */,
@@ -194,6 +197,7 @@
 				83EC530FDB294E243DA7E36D /* TeslaBLESession.swift in Sources */,
 				8F7E853ADDB27F4184875681 /* VCSECPayload.swift in Sources */,
 				DB4946C6B7F703E2B685FA39 /* VehicleLiveSnapshot.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* MediaArtwork.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

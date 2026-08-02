@@ -12,9 +12,9 @@ final class HUDSettings: ObservableObject {
         case performance = "Performans"
         var id: String { rawValue }
         /// BLE poll interval seconds
-        var bleInterval: TimeInterval { self == .performance ? 0.45 : 1.6 }
+        var bleInterval: TimeInterval { self == .performance ? 0.22 : 0.9 }
         /// Dash HTTP poll nanoseconds
-        var dashNanos: UInt64 { self == .performance ? 500_000_000 : 2_500_000_000 }
+        var dashNanos: UInt64 { self == .performance ? 250_000_000 : 1_200_000_000 }
     }
 
     enum SpeedStyle: String, CaseIterable, Identifiable {
@@ -95,7 +95,7 @@ final class HUDSettings: ObservableObject {
         mapsProvider = .apple
         // Always Apple Maps — car GPS/route, no API key.
         autoZoom = d.object(forKey: "pulse_maps_auto_zoom") as? Bool ?? true
-        mapTheme = MapTheme(rawValue: d.string(forKey: "pulse_map_theme") ?? "") ?? .light
+        mapTheme = MapTheme(rawValue: d.string(forKey: "pulse_map_theme") ?? "") ?? .dark
         gearMulticolor = d.object(forKey: "pulse_gear_multicolor") as? Bool ?? true
     }
 

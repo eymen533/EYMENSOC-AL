@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import UIKit
 
 /// Night triad — prefers real BLE vehicle-command telemetry; Dash/API fallback.
 /// Local demo only when neither BLE nor Dash is live. No CoreLocation / WebKit.
@@ -28,6 +29,8 @@ final class HUDModel: ObservableObject {
     @Published var bleOK = false
     @Published var driving = false
     @Published var destination = "—"
+    @Published var destLatitude: Double = 0
+    @Published var destLongitude: Double = 0
     @Published var eta = "—"
     @Published var energyAtArrival = "—"
     @Published var tripDist = "—"
@@ -35,15 +38,19 @@ final class HUDModel: ObservableObject {
     @Published var mediaService = "—"
     @Published var mediaTitle = "—"
     @Published var mediaArtist = "—"
+    @Published var mediaAlbum = "—"
     @Published var mediaPlaying = false
     @Published var mediaProgress: Double = 0
     @Published var mediaVolume: Double = 0.5
     @Published var clock = ""
-    @Published var leftSlide = 0
+    @Published var leftSlide = 4
     @Published var leftRailVisible = true
     @Published var mapHeading: Double = 0
     @Published var latitude: Double = 0
     @Published var longitude: Double = 0
+    @Published var turnDistanceM: Int = 0
+    @Published var turnInstruction: String = ""
+    @Published var turnSymbol: String = "arrow.up"
     @Published var telemetrySource = "baglaniyor"
     @Published var feedOK = false
     @Published var isLive = false
@@ -52,6 +59,7 @@ final class HUDModel: ObservableObject {
     @Published var mapPulse: Double = 0
     @Published var charging = false
     @Published var googleMapsKey: String = ""
+    @Published var phoneBattery: Int = 0
 
     private var timer: AnyCancellable?
     private var pollTask: Task<Void, Never>?
@@ -88,7 +96,7 @@ final class HUDModel: ObservableObject {
         vinTail = String(vin.suffix(6))
         bleOK = paired
         night = true
-        leftSlide = 0
+        leftSlide = 4 // Medya — Dashla-like default
         feedOK = false
         isLive = false
         useVehicleFeed = false
@@ -104,13 +112,16 @@ final class HUDModel: ObservableObject {
         battery = 0
         rangeKm = 0
         psiFL = 0; psiFR = 0; psiRL = 0; psiRR = 0
-        destination = "—"; eta = "—"; energyAtArrival = "—"; tripDist = "—"
+        destination = "—"; destLatitude = 0; destLongitude = 0
+        eta = "—"; energyAtArrival = "—"; tripDist = "—"
         place = "—"
-        mediaTitle = "—"; mediaArtist = "—"; mediaService = "—"
+        mediaTitle = "—"; mediaArtist = "—"; mediaAlbum = "—"; mediaService = "—"
         mediaPlaying = false
         latitude = 0; longitude = 0
+        turnDistanceM = 0; turnInstruction = ""; turnSymbol = "arrow.up"
         googleMapsKey = (UserDefaults.standard.string(forKey: "pulse_google_maps_key") ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        UIDevice.current.isBatteryMonitoringEnabled = true
         refreshClock()
         start()
     }
@@ -148,17 +159,23 @@ final class HUDModel: ObservableObject {
         if abs(s.latitude) > 0.0001 { latitude = s.latitude }
         if abs(s.longitude) > 0.0001 { longitude = s.longitude }
         mapHeading = s.heading
-        destination = s.destination
+        if !s.destination.isEmpty { destination = s.destination }
+        if abs(s.destLatitude) > 0.0001 { destLatitude = s.destLatitude }
+        if abs(s.destLongitude) > 0.0001 { destLongitude = s.destLongitude }
         eta = s.eta
         energyAtArrival = s.energyAtArrival
         tripDist = s.tripDist
         place = s.place
         mediaTitle = s.mediaTitle
         mediaArtist = s.mediaArtist
-        mediaService = s.mediaService
+        mediaAlbum = s.mediaAlbum
+        if !s.mediaService.isEmpty, s.mediaService != "—" {
+            mediaService = s.mediaService
+        }
         mediaPlaying = s.mediaPlaying
         mediaVolume = s.mediaVolume
         mediaProgress = s.mediaProgress
+        MediaArtworkStore.shared.resolve(title: mediaTitle, artist: mediaArtist)
     }
 
     func start() {
@@ -332,7 +349,7 @@ final class HUDModel: ObservableObject {
                 _ = await pullVehicle(root: root, pin: pin)
                 // Never seed fake demo — wait for BLE LIVE or Owner API live.
                 let mode = UserDefaults.standard.string(forKey: "pulse_refresh_mode") ?? "Performans"
-                let nanos: UInt64 = (mode == "Düşük") ? 2_500_000_000 : 500_000_000
+                let nanos: UInt64 = (mode == "Düşük") ? 1_200_000_000 : 250_000_000
                 try? await Task.sleep(nanoseconds: nanos)
             }
         }
@@ -380,6 +397,8 @@ final class HUDModel: ObservableObject {
             if let odo = num(obj["odometer_km"]) { odometer = odo }
             if let st = obj["street"] as? String, !st.isEmpty, st != "--" { place = st }
             if let d = obj["destination"] as? String, !d.isEmpty, d != "--" { destination = d }
+            if let dlat = num(obj["destination_lat"]) { destLatitude = dlat }
+            if let dlon = num(obj["destination_lon"]) { destLongitude = dlon }
             if let a = obj["arrival_time"] as? String, !a.isEmpty, a != "--" { eta = a }
             if let e = obj["energy_at_arrival"] as? String, !e.isEmpty, e != "--" { energyAtArrival = e }
             if let td = obj["trip_distance_km"] as? String, !td.isEmpty, td != "--" { tripDist = td }
@@ -387,6 +406,7 @@ final class HUDModel: ObservableObject {
             if let ma = obj["media_artist"] as? String { mediaArtist = ma }
             if let ms = obj["media_service"] as? String { mediaService = ms }
             if let mp = num(obj["media_progress"]) { mediaProgress = mp }
+            MediaArtworkStore.shared.resolve(title: mediaTitle, artist: mediaArtist)
             if let t = num(obj["tire_fl"]) { psiFL = Int(t.rounded()) }
             if let t = num(obj["tire_fr"]) { psiFR = Int(t.rounded()) }
             if let t = num(obj["tire_rl"]) { psiRL = Int(t.rounded()) }
@@ -410,10 +430,18 @@ final class HUDModel: ObservableObject {
 
     private func refreshClock() { clock = clockFmt.string(from: Date()) }
 
+    private func refreshPhoneBattery() {
+        let lvl = UIDevice.current.batteryLevel
+        if lvl >= 0 { phoneBattery = Int((lvl * 100).rounded()) }
+    }
+
     private func tick() {
         phase += 0.2
         mapPulse = phase
-        if Int(phase * 5) % 5 == 0 { refreshClock() }
+        if Int(phase * 5) % 5 == 0 {
+            refreshClock()
+            refreshPhoneBattery()
+        }
         // Never animate over BLE / live / dash feed
         guard !useBLE && !useVehicleFeed else { return }
         guard localDemo else { return }

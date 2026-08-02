@@ -30,20 +30,24 @@ final class BLETelemetry {
     private var writeQueue: [Data] = []
     private var writing = false
     private var awaiting = false
+    private var awaitStarted = Date.distantPast
     private var pollIndex = 0
     private var handshakeTries = 0
-    /// Seconds between BLE polls. Performance ≈ 0.45, Low ≈ 1.6
-    var pollIntervalSeconds: TimeInterval = 0.45
+    /// Seconds between BLE polls. Performance ≈ 0.22, Low ≈ 0.9
+    var pollIntervalSeconds: TimeInterval = 0.22
 
-    /// Drive polled often so D/R/P and speed update quickly.
+    /// Drive + location dominate so speed/gear/route feel live.
     private let pollActions: [() -> Data] = [
         TeslaBLESession.actionGetDrive,
         TeslaBLESession.actionGetDrive,
+        TeslaBLESession.actionGetLocation,
+        TeslaBLESession.actionGetDrive,
+        TeslaBLESession.actionGetMedia,
+        TeslaBLESession.actionGetDrive,
         TeslaBLESession.actionGetCharge,
         TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetTire,
-        TeslaBLESession.actionGetMedia,
         TeslaBLESession.actionGetLocation,
+        TeslaBLESession.actionGetTire,
         TeslaBLESession.actionGetClimate,
     ]
 
@@ -90,6 +94,7 @@ final class BLETelemetry {
         for frame in rxBuffer.append(data) {
             guard let session else { continue }
             let ok = session.handleIncoming(frame)
+            _ = ok
             status = session.statusText
             if session.infotainmentReady {
                 phase = .live
@@ -120,19 +125,27 @@ final class BLETelemetry {
     func mediaPlay() { enqueueCommand(domain: .infotainment, command: TeslaBLESession.actionMediaPlay()) }
 
     func applyPollInterval(_ seconds: TimeInterval) {
-        pollIntervalSeconds = max(0.35, min(3.0, seconds))
+        pollIntervalSeconds = max(0.18, min(3.0, seconds))
         if pollTimer != nil { startPolling() }
     }
 
     private func startPolling() {
         pollTimer?.invalidate()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: pollIntervalSeconds, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: pollIntervalSeconds, repeats: true) { [weak self] _ in
             self?.tick()
         }
+        RunLoop.main.add(t, forMode: .common)
+        pollTimer = t
     }
 
     private func tick() {
         guard session != nil, peripheral?.state == .connected else { return }
+        // Don't stall forever if a notify never arrives.
+        if awaiting, Date().timeIntervalSince(awaitStarted) > 1.1 {
+            awaiting = false
+            writeQueue.removeAll()
+            writing = false
+        }
         if writing || awaiting { return }
         guard let session else { return }
 
@@ -190,6 +203,7 @@ final class BLETelemetry {
             i = j
         }
         awaiting = true
+        awaitStarted = Date()
         pumpWrite()
     }
 
