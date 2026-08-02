@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Tek uygulama: BLE Pair + native cluster. WebView / uzak Dash yok.
+/// Tek uygulama: BLE Pair + native cluster. Canlı telemetri Dash + Tesla Owner API.
 struct ContentView: View {
     @StateObject private var ble = BLEPairer()
     @StateObject private var hud = HUDModel()
@@ -8,6 +8,10 @@ struct ContentView: View {
     @State private var dashURL = UserDefaults.standard.string(forKey: "pulse_dash_url")
         ?? "https://mon-holds-cloud-grateful.trycloudflare.com"
     @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
+    @State private var teslaToken = UserDefaults.standard.string(forKey: "pulse_tesla_token") ?? ""
+    @State private var teslaVehicleId = UserDefaults.standard.string(forKey: "pulse_tesla_vid") ?? ""
+    @State private var liveStatus = ""
+    @State private var liveBusy = false
     @State private var showPairFlow = false
     @State private var screen: Screen = .home
     @State private var showSettings = false
@@ -68,12 +72,12 @@ struct ContentView: View {
                     Text("PULSE")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                    Text("Tek uygulama · BLE Pair + klasik Cluster")
+                    Text("BLE Pair + canlı Cluster (Tesla API)")
                         .foregroundStyle(.white.opacity(0.55))
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("build-32 · ortali hiz · lastik/rota/medya kullanilabilir\nSade · Lastik · Rota · Harita · Medya")
+                    Text("build-33 · LIVE hız/vites/lastik/harita\nSettings → Tesla token yapıştır")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -115,7 +119,7 @@ struct ContentView: View {
                         save()
                         openHUD()
                     } label: {
-                        Text("Cluster HUD (uygulama ici)")
+                        Text("Cluster HUD (canlı)")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
@@ -159,19 +163,44 @@ struct ContentView: View {
                     TextField("VIN", text: $vin)
                         .textInputAutocapitalization(.characters)
                 }
-                Section("Dash (canli telemetri)") {
+                Section("Dash (zorunlu · canlı veri)") {
                     TextField("Dash URL", text: $dashURL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
                     SecureField("PIN", text: $pin)
                         .keyboardType(.numberPad)
-                    Text("Bos birakirsan harita telefon GPS kullanir. URL + PIN ile hiz/batarya/arac konumu Dash’ten gelir.")
+                    Text("HUD her saniye /api/vehicle/state çeker. Tunnel URL güncel olsun.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                Section("Arabaya baglaninca") {
-                    Text("BLE Pair = Tesla Phone Key (kilit/surus anahtari). Arabanin canli hiz/GPS’i BLE’den gelmez; Tesla API + Dash acikken Settings’teki URL ile HUD’a akar.")
+                Section("Tesla Owner API · gerçek hız/GPS") {
+                    SecureField("Access Token", text: $teslaToken)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    TextField("Vehicle ID (bos = VIN’den bul)", text: $teslaVehicleId)
+                        .keyboardType(.numberPad)
+                    Button {
+                        Task { await enableLive() }
+                    } label: {
+                        if liveBusy {
+                            ProgressView()
+                        } else {
+                            Text("Canlı telemetriyi aç")
+                        }
+                    }
+                    .disabled(liveBusy || teslaToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if !liveStatus.isEmpty {
+                        Text(liveStatus)
+                            .font(.footnote)
+                            .foregroundStyle(liveStatus.contains("✓") ? .green : .orange)
+                    }
+                    Text("Token: Tesla hesabından Owner/Fleet access token. Kaydedilince Dash LIVE olur; HUD’da alt barda LIVE yazar. D vitesi ve hız arabadan gelir.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Not") {
+                    Text("BLE Pair = Phone Key. Canlı hız/vites/lastik/harita = Tesla API (Settings token). Harita Apple MapKit · araç konumu.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -198,6 +227,22 @@ struct ContentView: View {
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         UserDefaults.standard.set(url, forKey: "pulse_dash_url")
         UserDefaults.standard.set(pin.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pulse_pin")
+        UserDefaults.standard.set(teslaToken, forKey: "pulse_tesla_token")
+        UserDefaults.standard.set(teslaVehicleId, forKey: "pulse_tesla_vid")
+    }
+
+    private func enableLive() async {
+        save()
+        liveBusy = true
+        liveStatus = "Baglanıyor…"
+        let msg = await hud.enableLiveOnDash(
+            token: teslaToken.trimmingCharacters(in: .whitespacesAndNewlines),
+            vehicleId: teslaVehicleId.trimmingCharacters(in: .whitespacesAndNewlines),
+            pin: pin.trimmingCharacters(in: .whitespacesAndNewlines),
+            dashURL: dashURL
+        )
+        liveStatus = msg
+        liveBusy = false
     }
 
     private func openHUD() {

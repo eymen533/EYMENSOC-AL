@@ -99,7 +99,7 @@ def register_auth(server: Flask) -> None:
         ):
             return None
         # Native HUD may poll vehicle state with ?pin= (handler verifies)
-        if path == "/api/vehicle/state":
+        if path in {"/api/vehicle/state", "/api/tesla/status", "/api/tesla/enable"}:
             return None
         if is_unlocked():
             return None

@@ -1,7 +1,6 @@
-# build-32-hud
+# build-33-live
 
-Çökme yolları yok (Canvas/SoftMap/WebKit/MapKit yok).
+Harita: MKMapSnapshotter (etkileşimli Map/WebKit yok).
+Telemetri: Dash /api/vehicle/state + Tesla Owner API live.
 
-HUD: sabit triad, ortalı hız, lastik ±, rota, medya kontrolleri.
-
-Eski projeyi SIL → build-32 zip → Run ▶ → **build-32-hud**
+Eski proje SIL → build-33 → **build-33-live**

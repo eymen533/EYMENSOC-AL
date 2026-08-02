@@ -1,18 +1,16 @@
-# build-32-hud
+# build-33-live
 
-Ortalı hız kadranı · sabit (kaymayan) paneller · lastik ± / rota / medya play-skip-volume.
+Canlı Tesla telemetri + gerçek Apple harita (snapshot).
 
-## Indir (PIN yok)
+## Indir
 https://mon-holds-cloud-grateful.trycloudflare.com/iphone
 
-Dogrudan: https://mon-holds-cloud-grateful.trycloudflare.com/downloads/iphone.zip
+GitHub: https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build33.zip
 
-GitHub: https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build32.zip
+## Canlı veri (zorunlu)
+1. Eski projeyi SIL → zip → Run ▶ → **build-33-live**
+2. Settings → Dash URL (tunnel) + PIN `428462`
+3. Settings → Tesla **Access Token** yapıştır → **Canlı telemetriyi aç**
+4. Cluster → alt barda **LIVE** · D/hız/lastik/harita arabadan
 
-CDN: https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build32.zip
-
-1. Eski PulsePhoneKey'i SIL
-2. Zip → Playgrounds → Run ▶
-3. Ana ekranda **build-32-hud**
-4. Cluster → yatay → sol menü: Sade / Lastik / Rota / Harita / Medya
-5. Ortadaki P R N D ve SÜR ile hız; lastikte ±; medyada play/skip
+Token yoksa HUD Dash demo’sunu gösterir (sahte değil sunucu simülasyonu) — gerçek için token şart.
