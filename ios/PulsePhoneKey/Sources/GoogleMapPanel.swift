@@ -198,24 +198,39 @@ struct GoogleMapPanel: UIViewRepresentable {
     }
 }
 
-/// SwiftUI wrapper matching previous VehicleMapView call sites.
+/// Map panel switcher — Apple (default) or Google.
 struct VehicleMapView: View {
     var lat: Double
     var lon: Double
     var heading: Double
     var destination: String = ""
     var apiKey: String = ""
+    @ObservedObject private var settings = HUDSettings.shared
 
     var body: some View {
-        GoogleMapPanel(
-            lat: lat,
-            lon: lon,
-            heading: heading,
-            destination: destination,
-            apiKey: apiKey.isEmpty
-                ? (UserDefaults.standard.string(forKey: "pulse_google_maps_key") ?? "")
-                : apiKey
-        )
+        Group {
+            switch settings.mapsProvider {
+            case .apple:
+                AppleMapPanel(
+                    lat: lat,
+                    lon: lon,
+                    heading: heading,
+                    destination: destination,
+                    autoZoom: settings.autoZoom,
+                    theme: settings.mapTheme
+                )
+            case .google:
+                GoogleMapPanel(
+                    lat: lat,
+                    lon: lon,
+                    heading: heading,
+                    destination: destination,
+                    apiKey: apiKey.isEmpty
+                        ? (UserDefaults.standard.string(forKey: "pulse_google_maps_key") ?? "")
+                        : apiKey
+                )
+            }
+        }
         .background(Color(red: 0.86, green: 0.85, blue: 0.82))
     }
 }

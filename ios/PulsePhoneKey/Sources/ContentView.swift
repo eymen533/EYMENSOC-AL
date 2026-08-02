@@ -4,6 +4,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var ble = BLEPairer()
     @StateObject private var hud = HUDModel()
+    @ObservedObject private var hudSettings = HUDSettings.shared
     @State private var vin = UserDefaults.standard.string(forKey: "pulse_vin") ?? "XP7YGCEK0PB159959"
     @State private var dashURL = UserDefaults.standard.string(forKey: "pulse_dash_url")
         ?? "https://mon-holds-cloud-grateful.trycloudflare.com"
@@ -97,7 +98,8 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-2 · Google Maps + rota\nPair → Key Card → Cluster")
+                    Text("xcode-ble-3 · Model Y · Apple/Google
+Performans / Düşük bağlantı")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -190,13 +192,58 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                Section("Google Maps") {
-                    SecureField("Maps API key", text: $googleMapsKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Text("Google Cloud → Maps JavaScript API + Directions API. Rota hedefi gelince haritada çizilir.")
+                Section("Bağlantı hızı") {
+                    Picker("Refresh", selection: $hudSettings.refreshMode) {
+                        ForEach(HUDSettings.RefreshMode.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    Text(hudSettings.refreshMode == .performance
+                         ? "Performans: daha hızlı BLE/Dash verisi (telefon ısınabilir)."
+                         : "Düşük: daha az pil, daha seyrek güncelleme.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+                Section("Dashboard Style") {
+                    Picker("Speedometer", selection: $hudSettings.speedStyle) {
+                        ForEach(HUDSettings.SpeedStyle.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    Picker("Speed color", selection: $hudSettings.speedColor) {
+                        ForEach(HUDSettings.SpeedColor.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    Toggle("Gear multicolor (P/R/N/D)", isOn: $hudSettings.gearMulticolor)
+                    Picker("Motor power", selection: $hudSettings.powerStyle) {
+                        ForEach(HUDSettings.PowerStyle.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    Picker("Live location", selection: $hudSettings.liveLocation) {
+                        ForEach(HUDSettings.LiveLocation.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                Section("Maps") {
+                    Picker("Provider", selection: $hudSettings.mapsProvider) {
+                        ForEach(HUDSettings.MapsProvider.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    Toggle("Auto Zoom", isOn: $hudSettings.autoZoom)
+                    Picker("Theme", selection: $hudSettings.mapTheme) {
+                        ForEach(HUDSettings.MapTheme.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    if hudSettings.mapsProvider == .google {
+                        SecureField("Google Maps API key", text: $googleMapsKey)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        Text("Google Cloud → Maps JavaScript API + Directions API.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Apple Maps: hedef gelince rota çizilir. Ekstra key gerekmez.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Section("Dash (yedek)") {
                     TextField("Dash URL", text: $dashURL)
@@ -232,7 +279,7 @@ struct ContentView: View {
                     }
                 }
                 Section("Not") {
-                    Text("Asıl veri: araç BLE. Harita: Google Maps — hedef gelince rota çizilir. iOS 16+.")
+                    Text("Model Y lastik görseli · Apple/Google harita · Performans=hızlı veri. iOS 16+.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -242,6 +289,7 @@ struct ContentView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         save()
+                        ble.applyRefreshModeFromSettings()
                         showSettings = false
                     }
                 }

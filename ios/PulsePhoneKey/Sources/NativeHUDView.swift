@@ -3,6 +3,7 @@ import SwiftUI
 /// Dashla-style night triad HUD — left slides / center dial / Google Maps route.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
+    @ObservedObject private var settings = HUDSettings.shared
     var linkLabel: String
     var onBack: () -> Void
 
@@ -219,28 +220,32 @@ struct NativeHUDView: View {
 
     private var tiresPanel: some View {
         GeometryReader { geo in
-            let w = geo.size.width
             let h = geo.size.height
             ZStack {
-                // Top-down car silhouette
-                RoundedRectangle(cornerRadius: w * 0.18)
-                    .stroke(ink.opacity(0.35), lineWidth: 2)
-                    .frame(width: w * 0.38, height: min(h * 0.62, 180))
+                Image("ModelYTop")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: min(h * 0.78, 240))
+                    .opacity(0.92)
+                    .colorMultiply(Color.white)
+                    .accessibilityLabel("Tesla Model Y")
+
                 VStack {
                     HStack {
                         psiLabel(model.psiFL)
                         Spacer()
                         psiLabel(model.psiFR)
                     }
+                    .padding(.top, h * 0.16)
                     Spacer()
                     HStack {
                         psiLabel(model.psiRL)
                         Spacer()
                         psiLabel(model.psiRR)
                     }
+                    .padding(.bottom, h * 0.14)
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, h * 0.12)
+                .padding(.horizontal, 2)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -316,13 +321,23 @@ struct NativeHUDView: View {
     // MARK: - Center dial
 
     private var centerDial: some View {
-        VStack(spacing: 8) {
+        let dialSize: CGFloat = settings.speedStyle == .compact ? 168 : 210
+        let speedFont: CGFloat = settings.speedStyle == .compact ? 64 : 84
+        return VStack(spacing: 8) {
             Spacer(minLength: 8)
-            HStack(spacing: 20) {
+            if settings.liveLocation == .top, !isBlank(model.place) {
+                locationChip
+            }
+            if settings.powerStyle == .top {
+                Text(String(format: "%+.0f kW", model.powerKW))
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(model.powerKW >= 0 ? accent : Color.orange)
+            }
+            HStack(spacing: 18) {
                 ForEach(["P", "R", "N", "D"], id: \.self) { g in
                     Text(g)
                         .font(.title3.weight(.bold))
-                        .foregroundStyle(model.gear == g ? ink : dim)
+                        .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: ink, dim: dim))
                         .frame(width: 26)
                 }
             }
@@ -330,9 +345,24 @@ struct NativeHUDView: View {
                 Circle()
                     .fill(Color.black)
                     .shadow(color: .black.opacity(0.6), radius: 18, x: -10, y: 0)
+                if settings.powerStyle == .ring {
+                    Circle()
+                        .trim(from: 0, to: min(1, abs(model.powerKW) / 220))
+                        .stroke(
+                            AngularGradient(
+                                colors: settings.speedColor == .multicolor
+                                    ? [.cyan, .green, .yellow, .orange, .red]
+                                    : [accent, accent],
+                                center: .center
+                            ),
+                            style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .padding(5)
+                }
                 VStack(spacing: 2) {
                     Text("\(Int(abs(model.speed).rounded()))")
-                        .font(.system(size: 84, weight: .bold, design: .rounded))
+                        .font(.system(size: speedFont, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(ink)
                         .minimumScaleFactor(0.45)
@@ -342,14 +372,9 @@ struct NativeHUDView: View {
                         .foregroundStyle(muted)
                 }
             }
-            .frame(width: 210, height: 210)
-            if !isBlank(model.place) {
-                Label(model.place, systemImage: "mappin.and.ellipse")
-                    .font(.caption)
-                    .foregroundStyle(muted)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .padding(.horizontal, 8)
+            .frame(width: dialSize, height: dialSize)
+            if settings.liveLocation == .bottom, !isBlank(model.place) {
+                locationChip
             }
             Spacer(minLength: 8)
         }
@@ -361,6 +386,15 @@ struct NativeHUDView: View {
                 endPoint: .trailing
             )
         )
+    }
+
+    private var locationChip: some View {
+        Label(model.place, systemImage: "mappin.and.ellipse")
+            .font(.caption)
+            .foregroundStyle(muted)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.horizontal, 8)
     }
 
     // MARK: - Google Map

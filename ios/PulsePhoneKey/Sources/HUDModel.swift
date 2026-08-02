@@ -331,7 +331,9 @@ final class HUDModel: ObservableObject {
             while !Task.isCancelled {
                 _ = await pullVehicle(root: root, pin: pin)
                 // Never seed fake demo — wait for BLE LIVE or Owner API live.
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                let mode = UserDefaults.standard.string(forKey: "pulse_refresh_mode") ?? "Performans"
+                let nanos: UInt64 = (mode == "Düşük") ? 2_500_000_000 : 500_000_000
+                try? await Task.sleep(nanoseconds: nanos)
             }
         }
     }

@@ -1,0 +1,162 @@
+import SwiftUI
+import MapKit
+
+/// Apple Maps panel with optional route to destination text.
+struct AppleMapPanel: View {
+    var lat: Double
+    var lon: Double
+    var heading: Double
+    var destination: String
+    var autoZoom: Bool
+    var theme: HUDSettings.MapTheme
+
+    @State private var position: MapCameraPosition = .automatic
+    @State private var routeCoords: [CLLocationCoordinate2D] = []
+    @State private var lastRouteKey = ""
+
+    private var hasGPS: Bool { abs(lat) > 0.0001 || abs(lon) > 0.0001 }
+    private var coord: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: hasGPS ? lat : 41.0082, longitude: hasGPS ? lon : 28.9784)
+    }
+
+    var body: some View {
+        ZStack {
+            mapContent
+            if !hasGPS {
+                Text("GPS bekleniyor")
+                    .font(.caption)
+                    .foregroundStyle(.black.opacity(0.45))
+                    .padding(8)
+                    .background(Capsule().fill(.white.opacity(0.85)))
+            }
+        }
+        .onAppear { syncCamera(); fetchRouteIfNeeded() }
+        .onChangeCompat(of: lat) { _ in syncCamera(); fetchRouteIfNeeded() }
+        .onChangeCompat(of: lon) { _ in syncCamera(); fetchRouteIfNeeded() }
+        .onChangeCompat(of: heading) { _ in syncCamera() }
+        .onChangeCompat(of: destination) { _ in fetchRouteIfNeeded() }
+    }
+
+    @ViewBuilder
+    private var mapContent: some View {
+        if #available(iOS 17.0, *) {
+            Map(position: $position) {
+                Annotation("", coordinate: coord) {
+                    Image(systemName: "location.north.fill")
+                        .font(.title2)
+                        .foregroundStyle(.red)
+                        .rotationEffect(.degrees(heading))
+                        .shadow(radius: 2)
+                }
+                if routeCoords.count > 1 {
+                    MapPolyline(coordinates: routeCoords)
+                        .stroke(Color(red: 0.1, green: 0.45, blue: 0.95), lineWidth: 5)
+                }
+            }
+            .mapStyle(mapStyle)
+            .disabled(true)
+        } else {
+            AppleMapLegacyRepresentable(
+                center: coord,
+                heading: heading,
+                route: routeCoords,
+                dark: theme == .dark || (theme == .auto && true)
+            )
+        }
+    }
+
+    @available(iOS 17.0, *)
+    private var mapStyle: MapStyle {
+        .standard(elevation: .realistic, pointsOfInterest: .excludingAll)
+    }
+
+    private func syncCamera() {
+        guard autoZoom else { return }
+        if #available(iOS 17.0, *) {
+            position = .camera(
+                MapCamera(centerCoordinate: coord, distance: 450, heading: heading, pitch: 55)
+            )
+        }
+    }
+
+    private func fetchRouteIfNeeded() {
+        let dest = destination.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard hasGPS else { return }
+        guard !dest.isEmpty, dest != "—", dest != "-", dest != "--" else {
+            routeCoords = []
+            lastRouteKey = ""
+            return
+        }
+        let key = String(format: "%.4f,%.4f|%@", lat, lon, dest)
+        guard key != lastRouteKey else { return }
+        lastRouteKey = key
+
+        let req = MKLocalSearch.Request()
+        req.naturalLanguageQuery = dest
+        req.region = MKCoordinateRegion(center: coord, latitudinalMeters: 80_000, longitudinalMeters: 80_000)
+        MKLocalSearch(request: req).start { response, _ in
+            guard let end = response?.mapItems.first?.placemark.coordinate else { return }
+            let dreq = MKDirections.Request()
+            dreq.source = MKMapItem(placemark: MKPlacemark(coordinate: self.coord))
+            dreq.destination = MKMapItem(placemark: MKPlacemark(coordinate: end))
+            dreq.transportType = .automobile
+            MKDirections(request: dreq).calculate { result, _ in
+                DispatchQueue.main.async {
+                    if let poly = result?.routes.first?.polyline {
+                        var coords = [CLLocationCoordinate2D](repeating: .init(), count: poly.pointCount)
+                        poly.getCoordinates(&coords, range: NSRange(location: 0, length: poly.pointCount))
+                        self.routeCoords = coords
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// iOS 16 MapKit fallback (MKMapView).
+struct AppleMapLegacyRepresentable: UIViewRepresentable {
+    var center: CLLocationCoordinate2D
+    var heading: Double
+    var route: [CLLocationCoordinate2D]
+    var dark: Bool
+
+    func makeUIView(context: Context) -> MKMapView {
+        let map = MKMapView(frame: .zero)
+        map.isUserInteractionEnabled = false
+        map.showsCompass = false
+        map.showsTraffic = false
+        map.delegate = context.coordinator
+        if dark {
+            map.overrideUserInterfaceStyle = .dark
+        }
+        return map
+    }
+
+    func updateUIView(_ map: MKMapView, context: Context) {
+        let cam = MKMapCamera(lookingAtCenter: center, fromDistance: 450, pitch: 55, heading: heading)
+        map.setCamera(cam, animated: false)
+        map.removeOverlays(map.overlays)
+        map.removeAnnotations(map.annotations)
+        let ann = MKPointAnnotation()
+        ann.coordinate = center
+        map.addAnnotation(ann)
+        if route.count > 1 {
+            let poly = MKPolyline(coordinates: route, count: route.count)
+            map.addOverlay(poly)
+        }
+    }
+
+    func makeCoordinator() -> Coord { Coord() }
+
+    final class Coord: NSObject, MKMapViewDelegate {
+        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            if let p = overlay as? MKPolyline {
+                let r = MKPolylineRenderer(polyline: p)
+                r.strokeColor = UIColor(red: 0.1, green: 0.45, blue: 0.95, alpha: 1)
+                r.lineWidth = 5
+                return r
+            }
+            return MKOverlayRenderer(overlay: overlay)
+        }
+    }
+}

@@ -32,6 +32,8 @@ final class BLETelemetry {
     private var awaiting = false
     private var pollIndex = 0
     private var handshakeTries = 0
+    /// Seconds between BLE polls. Performance ≈ 0.45, Low ≈ 1.6
+    var pollIntervalSeconds: TimeInterval = 0.45
 
     /// Drive polled often so D/R/P and speed update quickly.
     private let pollActions: [() -> Data] = [
@@ -117,9 +119,14 @@ final class BLETelemetry {
     func mediaPrev() { enqueueCommand(domain: .infotainment, command: TeslaBLESession.actionMediaPrev()) }
     func mediaPlay() { enqueueCommand(domain: .infotainment, command: TeslaBLESession.actionMediaPlay()) }
 
+    func applyPollInterval(_ seconds: TimeInterval) {
+        pollIntervalSeconds = max(0.35, min(3.0, seconds))
+        if pollTimer != nil { startPolling() }
+    }
+
     private func startPolling() {
         pollTimer?.invalidate()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self] _ in
+        pollTimer = Timer.scheduledTimer(withTimeInterval: pollIntervalSeconds, repeats: true) { [weak self] _ in
             self?.tick()
         }
     }

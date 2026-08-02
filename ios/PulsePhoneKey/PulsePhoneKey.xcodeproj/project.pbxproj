@@ -7,11 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		052FE891B928AF4D455FA2F9 /* AppleMapPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8D614890E5BC59546692303 /* AppleMapPanel.swift */; };
 		45FE96654702679006C1AE13 /* BLEPairer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B224B5D7F028C007B2CE105 /* BLEPairer.swift */; };
 		89A119D7DE94DE63D12195FC /* BLETelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92DC0FFEC3C3AF5FFC8DC0E /* BLETelemetry.swift */; };
 		B5A8198B1802A0584C988D2B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45CCADE0F29CAC283C0B30C7 /* ContentView.swift */; };
 		5726B13F59C8AD6856BD9D28 /* GoogleMapPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72D536D6DB03B88EACB7ED30 /* GoogleMapPanel.swift */; };
 		DD52675FAB4A884904983D36 /* HUDModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA724BD6F2F2EE5B2B67D6D6 /* HUDModel.swift */; };
+		85A05262674F613802D99EC3 /* HUDSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CC397C63A53D8F45AB118C9 /* HUDSettings.swift */; };
 		5142B3DFC28AEBBF84B609AB /* IOSCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746721CC4E9630CD239C934C /* IOSCompat.swift */; };
 		864FF32F140F9314886485B3 /* KeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E87A51594EF374B79713CBEB /* KeyStore.swift */; };
 		9CE42C305FA03B70C93208B6 /* NativeHUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BD7E7B769034A40079F1221 /* NativeHUDView.swift */; };
@@ -21,16 +23,20 @@
 		83EC530FDB294E243DA7E36D /* TeslaBLESession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 924E820613487F12D263B3A8 /* TeslaBLESession.swift */; };
 		8F7E853ADDB27F4184875681 /* VCSECPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FFF6DEDB0420319B24A686A /* VCSECPayload.swift */; };
 		DB4946C6B7F703E2B685FA39 /* VehicleLiveSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 720C6993439A880F75E120DE /* VehicleLiveSnapshot.swift */; };
+		95F893ABF8DE2704294E63B9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5417BC6652ACDD9848361A86 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		73AD16181FDDB7427288C6BD /* PulsePhoneKey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PulsePhoneKey.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7D95B648EFA5C30BD8522A85 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5417BC6652ACDD9848361A86 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F8D614890E5BC59546692303 /* AppleMapPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMapPanel.swift; sourceTree = "<group>"; };
 		5B224B5D7F028C007B2CE105 /* BLEPairer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEPairer.swift; sourceTree = "<group>"; };
 		E92DC0FFEC3C3AF5FFC8DC0E /* BLETelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLETelemetry.swift; sourceTree = "<group>"; };
 		45CCADE0F29CAC283C0B30C7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		72D536D6DB03B88EACB7ED30 /* GoogleMapPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleMapPanel.swift; sourceTree = "<group>"; };
 		FA724BD6F2F2EE5B2B67D6D6 /* HUDModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDModel.swift; sourceTree = "<group>"; };
+		8CC397C63A53D8F45AB118C9 /* HUDSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDSettings.swift; sourceTree = "<group>"; };
 		746721CC4E9630CD239C934C /* IOSCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSCompat.swift; sourceTree = "<group>"; };
 		E87A51594EF374B79713CBEB /* KeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyStore.swift; sourceTree = "<group>"; };
 		3BD7E7B769034A40079F1221 /* NativeHUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeHUDView.swift; sourceTree = "<group>"; };
@@ -73,6 +79,7 @@
 			isa = PBXGroup;
 			children = (
 				E9AC4BD1540DF25F92F842D2 /* Sources */,
+				5417BC6652ACDD9848361A86 /* Assets.xcassets */,
 				7D95B648EFA5C30BD8522A85 /* Info.plist */,
 			);
 			path = .;
@@ -81,11 +88,13 @@
 		E9AC4BD1540DF25F92F842D2 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				F8D614890E5BC59546692303 /* AppleMapPanel.swift */,
 				5B224B5D7F028C007B2CE105 /* BLEPairer.swift */,
 				E92DC0FFEC3C3AF5FFC8DC0E /* BLETelemetry.swift */,
 				45CCADE0F29CAC283C0B30C7 /* ContentView.swift */,
 				72D536D6DB03B88EACB7ED30 /* GoogleMapPanel.swift */,
 				FA724BD6F2F2EE5B2B67D6D6 /* HUDModel.swift */,
+				8CC397C63A53D8F45AB118C9 /* HUDSettings.swift */,
 				746721CC4E9630CD239C934C /* IOSCompat.swift */,
 				E87A51594EF374B79713CBEB /* KeyStore.swift */,
 				3BD7E7B769034A40079F1221 /* NativeHUDView.swift */,
@@ -158,6 +167,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				95F893ABF8DE2704294E63B9 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -168,11 +178,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				052FE891B928AF4D455FA2F9 /* AppleMapPanel.swift in Sources */,
 				45FE96654702679006C1AE13 /* BLEPairer.swift in Sources */,
 				89A119D7DE94DE63D12195FC /* BLETelemetry.swift in Sources */,
 				B5A8198B1802A0584C988D2B /* ContentView.swift in Sources */,
 				5726B13F59C8AD6856BD9D28 /* GoogleMapPanel.swift in Sources */,
 				DD52675FAB4A884904983D36 /* HUDModel.swift in Sources */,
+				85A05262674F613802D99EC3 /* HUDSettings.swift in Sources */,
 				5142B3DFC28AEBBF84B609AB /* IOSCompat.swift in Sources */,
 				864FF32F140F9314886485B3 /* KeyStore.swift in Sources */,
 				9CE42C305FA03B70C93208B6 /* NativeHUDView.swift in Sources */,
@@ -225,8 +237,9 @@
 		37A72370ED58F3DA5611E01C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -236,7 +249,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1;
+				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.teslapulse.phonekey;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -250,8 +263,9 @@
 		44C732A3BAC66107F8E923F6 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -261,7 +275,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1;
+				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.teslapulse.phonekey;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
