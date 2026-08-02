@@ -3,7 +3,7 @@ import CoreBluetooth
 
 /// Simple, reliable Tesla VCSEC pairer for Swift Playgrounds.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "build-29-slides"
+    static let buildId = "build-30-nocrash"
 
     enum Step: String {
         case idle = "Hazir"

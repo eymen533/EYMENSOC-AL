@@ -1,9 +1,11 @@
-# build-26-night
+# build-30-nocrash
 
-Gece triad · çökmesiz:
+Kaldirilan cokme kaynaklari:
+- WKWebView / Leaflet harita
+- CoreLocation / location capability
+- MapKit / base64 foto
+- Agir spring transition
 
-- MapKit yok → Canvas IsoMap
-- UIImage/base64 yok → Model Y wireframe
-- Bundle resources yok
+Kalan: 5’li slider + Tesla lastik + Canvas SoftMap + BLE Pair
 
-Kurulum: eski projeyi sil → build-26 → Run ▶ → **`build-26-night`**
+Eski projeyi SIL → build-30 zip → Run ▶ → **build-30-nocrash**

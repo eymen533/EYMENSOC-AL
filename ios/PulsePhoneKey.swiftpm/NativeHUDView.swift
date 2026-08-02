@@ -35,12 +35,7 @@ struct NativeHUDView: View {
             // Full-bleed map on right half
             HStack(spacing: 0) {
                 bg.frame(width: size.width * 0.42)
-                LiveMapView(
-                    lat: model.mapLat,
-                    lon: model.mapLon,
-                    heading: model.mapHeading,
-                    follow: model.followMap
-                )
+                SoftMapView(heading: model.mapHeading, pulsePhase: model.mapPulse)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .ignoresSafeArea()
@@ -116,10 +111,7 @@ struct NativeHUDView: View {
                 centerDial(size: dial).frame(width: dial)
             }
             .frame(height: size.height * 0.42)
-            LiveMapView(
-                lat: model.mapLat, lon: model.mapLon,
-                heading: model.mapHeading, follow: model.followMap
-            )
+            SoftMapView(heading: model.mapHeading, pulsePhase: model.mapPulse)
             .frame(maxHeight: .infinity)
             .clipped()
             bottomBar
@@ -178,13 +170,8 @@ struct NativeHUDView: View {
         ZStack {
             slideContent(model.leftSlide)
                 .id(model.leftSlide)
-                .transition(
-                    .asymmetric(
-                        insertion: .opacity.combined(with: .move(edge: .bottom)),
-                        removal: .opacity.combined(with: .move(edge: .top))
-                    )
-                )
-                .animation(.spring(response: 0.4, dampingFraction: 0.88), value: model.leftSlide)
+                .transition(.opacity)
+                .animation(.easeInOut(duration: 0.2), value: model.leftSlide)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
@@ -318,17 +305,14 @@ struct NativeHUDView: View {
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(ink)
                 .lineLimit(2)
-            Text(String(format: "%.5f, %.5f", model.mapLat, model.mapLon))
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
+            Text(model.destination)
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(muted)
-            Text(model.mapSource)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color(red: 0.4, green: 0.85, blue: 0.55))
             Text(String(format: "Yon %.0f°", model.mapHeading))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(ink.opacity(0.85))
             Spacer()
-            Text("Sagda canli harita")
+            Text("Sagda SoftMap")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(muted.opacity(0.7))
         }

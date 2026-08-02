@@ -63,7 +63,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("5 ekran kaydir: Sade · Lastik · Rota · Harita · Medya\nCanli harita · Pair = anahtar")
+                    Text("build-30 · 5 ekran kaydir · SoftMap (cokmez)\nSade · Lastik · Rota · Harita · Medya")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)

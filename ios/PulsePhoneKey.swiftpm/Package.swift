@@ -17,8 +17,8 @@ let package = Package(
             targets: ["AppModule"],
             bundleIdentifier: "com.teslapulse.phonekey",
             teamIdentifier: "",
-            displayVersion: "2.9",
-            bundleVersion: "29",
+            displayVersion: "3.0",
+            bundleVersion: "30",
             appIcon: .placeholder(icon: .car),
             accentColor: .presetColor(.blue),
             supportedDeviceFamilies: [
@@ -34,9 +34,6 @@ let package = Package(
             capabilities: [
                 .bluetoothAlways(
                     purposeString: "Tesla Phone Key eslesmesi icin Bluetooth gerekir."
-                ),
-                .location(
-                    purposeString: "Canli harita icin konum gerekir."
                 )
             ],
             additionalInfoPlistContentFilePath: "Info.plist"

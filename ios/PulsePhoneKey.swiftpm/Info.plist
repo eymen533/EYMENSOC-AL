@@ -6,10 +6,6 @@
 	<string>Tesla Phone Key eslesmesi icin Bluetooth gerekir.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Tesla Phone Key eslesmesi icin Bluetooth gerekir.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Canli haritada konumunu gostermek icin konum gerekir.</string>
-	<key>NSLocationUsageDescription</key>
-	<string>Canli haritada konumunu gostermek icin konum gerekir.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Pulse Key</string>
 </dict>
