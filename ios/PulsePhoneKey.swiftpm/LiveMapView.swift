@@ -74,15 +74,17 @@ struct LiveMapView: UIViewRepresentable {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-      html,body,#m{margin:0;height:100%;width:100%;background:#e8e6e1;overflow:hidden}
+      html,body{margin:0;height:100%;width:100%;background:#e6e4df;overflow:hidden}
+      #wrap{position:absolute;inset:-18% -8% -8% -8%;perspective:720px}
+      #m{height:100%;width:100%;transform:rotateX(48deg) scale(1.55);transform-origin:50% 62%;background:#e6e4df}
       .leaflet-control-attribution{display:none!important}
     </style>
     </head>
     <body>
-    <div id="m"></div>
+    <div id="wrap"><div id="m"></div></div>
     <script>
       window.__pulseReady = false;
-      var map = L.map('m', { zoomControl:false, attributionControl:false, dragging:true }).setView([41.025,29.02], 16);
+      var map = L.map('m', { zoomControl:false, attributionControl:false, dragging:true }).setView([41.025,29.02], 17);
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         maxZoom: 19, subdomains: 'abcd'
       }).addTo(map);

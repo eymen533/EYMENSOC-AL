@@ -2,11 +2,19 @@ import Foundation
 import Combine
 import SwiftUI
 
-/// Night triad HUD — live map coords + optional Dash vehicle feed.
+/// Night triad HUD — 5 left slides (sade/lastik/rota/harita/medya) + live map.
 @MainActor
 final class HUDModel: ObservableObject {
-    static let slideCount = 4
-    static let slideNames = ["Seyahat", "Lastik", "Harita", "Medya"]
+    /// Matches screenshot rail order
+    static let slideCount = 5
+    static let slideNames = ["Sade", "Lastik", "Rota", "Harita", "Medya"]
+    static let slideIcons = [
+        "square.dashed",
+        "car.fill",
+        "location.north.line.fill",
+        "map",
+        "music.note",
+    ]
 
     @Published var speed: Double = 0
     @Published var battery: Double = 69
@@ -38,17 +46,17 @@ final class HUDModel: ObservableObject {
     @Published var dayName = ""
     @Published var dateLine = ""
     @Published var nextPrayer = "Öğle 13:10"
-    @Published var leftSlide = 3
-    @Published var rightSlide = 2
+    /// Default: media (screenshot) — swipe for others
+    @Published var leftSlide = 4
+    @Published var rightSlide = 3
     @Published var leftRailVisible = true
     @Published var rightRailVisible = false
 
-    /// Live map
     @Published var mapLat: Double = 41.025
     @Published var mapLon: Double = 29.02
     @Published var mapHeading: Double = 0
     @Published var mapSource = "Telefon GPS"
-    @Published var telemetrySource = "yerel demo"
+    @Published var telemetrySource = "yerel"
     @Published var followMap = true
 
     let location = LocationProvider()
@@ -69,18 +77,6 @@ final class HUDModel: ObservableObject {
         f.dateFormat = "HH:mm"
         return f
     }()
-    private let dayFmt: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "tr_TR")
-        f.dateFormat = "EEEE"
-        return f
-    }()
-    private let dateFmt: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "tr_TR")
-        f.dateFormat = "d MMM yyyy"
-        return f
-    }()
 
     func configure(vin raw: String, paired: Bool) {
         let v = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -88,12 +84,9 @@ final class HUDModel: ObservableObject {
         vinTail = String(v.suffix(6))
         bleOK = paired
         night = true
-        leftSlide = 3
-        rightSlide = 2
+        leftSlide = 4
         leftRailVisible = true
-        if paired {
-            energyAtArrival = "\(Int(battery))%"
-        }
+        if paired { energyAtArrival = "\(Int(battery))%" }
         refreshClock()
         start()
     }
@@ -105,57 +98,41 @@ final class HUDModel: ObservableObject {
         locBag?.cancel()
         locBag = location.objectWillChange
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.syncPhoneGPS()
-            }
+            .sink { [weak self] _ in self?.syncPhoneGPS() }
         syncPhoneGPS()
-
         timer = Timer.publish(every: 1.0 / 15.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.tick() }
-
         startVehiclePoll()
     }
 
     func stop() {
-        timer?.cancel()
-        timer = nil
-        locBag?.cancel()
-        locBag = nil
-        pollTask?.cancel()
-        pollTask = nil
-        leftRailTask?.cancel()
-        rightRailTask?.cancel()
+        timer?.cancel(); timer = nil
+        locBag?.cancel(); locBag = nil
+        pollTask?.cancel(); pollTask = nil
+        leftRailTask?.cancel(); rightRailTask?.cancel()
         location.stop()
     }
 
     func toggleDrive() {
-        // Local demo drive only when vehicle feed is off
         guard !useVehicleFeed else { return }
         driving.toggle()
         gear = driving ? "D" : "P"
-        if !driving {
-            speed = 0
-            powerKW = 0
-        }
+        if !driving { speed = 0; powerKW = 0 }
     }
 
     func beginAfterPair() {}
-
     func togglePlay() { mediaPlaying.toggle() }
 
     func nudgeLeft(_ delta: Int) {
-        guard Date().timeIntervalSince(leftCool) > 0.28 else { return }
+        guard Date().timeIntervalSince(leftCool) > 0.22 else { return }
         leftCool = Date()
         leftSlide = ((leftSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
         flashLeftRail()
     }
 
     func nudgeRight(_ delta: Int) {
-        guard Date().timeIntervalSince(rightCool) > 0.28 else { return }
-        rightCool = Date()
-        rightSlide = ((rightSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
-        flashRightRail()
+        nudgeLeft(delta) // single rail controls left slides
     }
 
     func setLeft(_ i: Int) {
@@ -163,13 +140,9 @@ final class HUDModel: ObservableObject {
         flashLeftRail()
     }
 
-    func setRight(_ i: Int) {
-        rightSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount
-        flashRightRail()
-    }
+    func setRight(_ i: Int) { setLeft(i) }
 
     private func syncPhoneGPS() {
-        // Prefer phone GPS for map unless Dash vehicle feed provides coords
         if useVehicleFeed { return }
         mapLat = location.lat
         mapLon = location.lon
@@ -185,7 +158,7 @@ final class HUDModel: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !base.isEmpty, let root = URL(string: base) else {
             useVehicleFeed = false
-            telemetrySource = "yerel demo · harita GPS"
+            telemetrySource = "GPS"
             return
         }
         pollTask = Task { @MainActor in
@@ -197,34 +170,28 @@ final class HUDModel: ObservableObject {
     }
 
     private func pullVehicle(root: URL, pin: String) async {
-        var url = root.appendingPathComponent("api/vehicle/state")
-        var comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        var comps = URLComponents(url: root.appendingPathComponent("api/vehicle/state"), resolvingAgainstBaseURL: false)
         comps?.queryItems = [URLQueryItem(name: "pin", value: pin)]
         guard let final = comps?.url else { return }
         do {
             let (data, resp) = try await URLSession.shared.data(from: final)
             guard let http = resp as? HTTPURLResponse, http.statusCode == 200,
                   let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  (obj["ok"] as? Bool) == true
-            else {
+                  (obj["ok"] as? Bool) == true else {
                 useVehicleFeed = false
-                telemetrySource = "Dash baglanti yok · GPS"
+                telemetrySource = "GPS"
                 syncPhoneGPS()
                 return
             }
             useVehicleFeed = true
             let src = (obj["source"] as? String) ?? "demo"
-            telemetrySource = src == "live" ? "Tesla API (canli)" : "Dash demo rota"
+            telemetrySource = src == "live" ? "Tesla live" : "Dash demo"
             if let lat = Self.num(obj["latitude"]), let lon = Self.num(obj["longitude"]) {
-                mapLat = lat
-                mapLon = lon
+                mapLat = lat; mapLon = lon
                 mapSource = src == "live" ? "Arac GPS" : "Dash demo"
             }
             if let h = Self.num(obj["heading"]) { mapHeading = h }
-            if let sp = Self.num(obj["speed_kmh"]) {
-                speed = sp
-                driving = sp > 1.5
-            }
+            if let sp = Self.num(obj["speed_kmh"]) { speed = sp; driving = sp > 1.5 }
             if let bat = Self.num(obj["battery_percent"]) { battery = bat }
             if let rng = Self.num(obj["battery_range_km"]) { rangeKm = Int(rng) }
             if let g = obj["gear"] as? String, !g.isEmpty { gear = g }
@@ -248,38 +215,23 @@ final class HUDModel: ObservableObject {
             if let temp = Self.num(obj["outside_temp_c"]) { outdoorC = Int(temp) }
         } catch {
             useVehicleFeed = false
-            telemetrySource = "Dash yok · GPS"
+            telemetrySource = "GPS"
             syncPhoneGPS()
         }
     }
 
     private func flashLeftRail() {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            leftRailVisible = true
-        }
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { leftRailVisible = true }
         leftRailTask?.cancel()
         leftRailTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_100_000_000)
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.35)) {
-                leftRailVisible = false
-            }
+            // Keep rail faintly visible like screenshots
+            withAnimation(.easeOut(duration: 0.3)) { leftRailVisible = true }
         }
     }
 
-    private func flashRightRail() {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            rightRailVisible = true
-        }
-        rightRailTask?.cancel()
-        rightRailTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_100_000_000)
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.35)) {
-                rightRailVisible = false
-            }
-        }
-    }
+    private func flashRightRail() { flashLeftRail() }
 
     private static func num(_ any: Any?) -> Double? {
         if let d = any as? Double { return d }
@@ -290,20 +242,14 @@ final class HUDModel: ObservableObject {
     }
 
     private func refreshClock() {
-        let now = Date()
-        clock = clockFmt.string(from: now)
-        dayName = dayFmt.string(from: now).capitalized
-        dateLine = dateFmt.string(from: now)
+        clock = clockFmt.string(from: Date())
     }
 
     private func tick() {
         let dt = 1.0 / 15.0
         phase += dt
         if Int(phase * 15) % 15 == 0 { refreshClock() }
-
-        // Local sine demo only when not fed by Dash
         guard !useVehicleFeed else { return }
-
         if driving {
             let wave = (sin(phase * 0.35) + 1) * 0.5
             let target = 40 + wave * 70
@@ -316,20 +262,9 @@ final class HUDModel: ObservableObject {
             let remainMin = max(1, Int(max(0, 18 - tripKm * 1.4)))
             eta = clockFmt.string(from: Date().addingTimeInterval(TimeInterval(remainMin * 60)))
             energyAtArrival = "\(max(5, Int(battery) - Int(tripKm / 3)))%"
-            if Int(phase * 5) % 20 == 0 {
-                battery = max(5, battery - 0.02)
-                rangeKm = Int(battery / 100 * 440)
-            }
         } else {
             speed += (0 - speed) * 0.12
             powerKW += (0 - powerKW) * 0.15
-        }
-
-        if Int(phase * 5) % 45 == 0 {
-            psiFL = 41 + Int.random(in: 0...2)
-            psiFR = 41 + Int.random(in: 0...2)
-            psiRL = 41 + Int.random(in: 0...2)
-            psiRR = 41 + Int.random(in: 0...2)
         }
     }
 }

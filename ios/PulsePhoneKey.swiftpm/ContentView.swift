@@ -63,7 +63,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("Canli harita (GPS) · Pair = telefon anahtari\nHiz/batarya icin Dash URL + PIN (Settings)")
+                    Text("5 ekran kaydir: Sade · Lastik · Rota · Harita · Medya\nCanli harita · Pair = anahtar")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)

@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Night triad HUD matching Tesla Pulse screenshots:
-/// dark left content | black speed dial | light 3D map.
-/// Crash-safe: no MapKit, no UIImage/base64, no Bundle resources.
+/// Screenshot night triad: left slides (5) | black dial | live map.
+/// Vertical swipe / icon rail switches: Sade · Lastik · Rota · Harita · Medya
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     var onBack: () -> Void
@@ -13,89 +12,97 @@ struct NativeHUDView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let wide = geo.size.width >= geo.size.height * 0.92
+            let wide = geo.size.width >= geo.size.height * 0.9
             ZStack {
                 bg.ignoresSafeArea()
-
-                if wide {
-                    landscape(geo.size)
-                } else {
-                    portrait(geo.size)
-                }
+                if wide { landscape(geo.size) } else { portrait(geo.size) }
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
         .preferredColorScheme(.dark)
-        .onAppear {
-            model.night = true
-            model.start()
-        }
+        .onAppear { model.night = true; model.start() }
         .onDisappear { model.stop() }
     }
 
-    // MARK: - Landscape (tight triad — no empty gap)
+    // MARK: Landscape — map bleeds from right under dial (screenshot style)
 
     private func landscape(_ size: CGSize) -> some View {
-        // Dial sized to center column; map stays in right third only
-        let dial = min(size.height * 0.52, size.width * 0.26, 240)
-        let sideW = (size.width - dial) / 2
+        let dial = min(size.height * 0.56, size.width * 0.28, 260)
+        let leftW = size.width * 0.30
+        let mapW = size.width - leftW - dial * 0.55
 
-        return VStack(spacing: 0) {
-            topBar
+        return ZStack {
+            // Full-bleed map on right half
             HStack(spacing: 0) {
-                // LEFT ~1/3
-                leftColumn
-                    .frame(width: sideW)
-                    .frame(maxHeight: .infinity)
-                    .background(bg)
-
-                // CENTER dial — no Spacer, no gap
-                centerDial(size: dial)
-                    .frame(width: dial)
-                    .frame(maxHeight: .infinity)
-                    .background(
-                        // Soft blend under dial into map
-                        LinearGradient(
-                            colors: [bg, bg.opacity(0.85), Color.clear],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .zIndex(2)
-
-                // RIGHT real map ~1/3
-                ZStack(alignment: .bottomTrailing) {
-                    LiveMapView(
-                        lat: model.mapLat,
-                        lon: model.mapLon,
-                        heading: model.mapHeading,
-                        follow: model.followMap
-                    )
-                    VStack(alignment: .trailing, spacing: 6) {
-                        Text(model.mapSource)
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(Color.black.opacity(0.55))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(Color.white.opacity(0.85)))
-                        compass
-                    }
-                    .padding(10)
-                }
-                .frame(width: sideW)
-                .frame(maxHeight: .infinity)
-                .clipped()
-                .mask(
-                    LinearGradient(
-                        colors: [.clear, .black, .black],
-                        startPoint: .leading,
-                        endPoint: UnitPoint(x: 0.14, y: 0.5)
-                    )
+                bg.frame(width: size.width * 0.42)
+                LiveMapView(
+                    lat: model.mapLat,
+                    lon: model.mapLon,
+                    heading: model.mapHeading,
+                    follow: model.followMap
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea()
 
-            bottomBar
+            // Dark veil left → dial
+            HStack(spacing: 0) {
+                LinearGradient(
+                    colors: [bg, bg, bg.opacity(0.75), .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: size.width * 0.58)
+                Spacer(minLength: 0)
+            }
+            .allowsHitTesting(false)
+
+            VStack(spacing: 0) {
+                topBar
+                HStack(alignment: .center, spacing: 0) {
+                    // Left slide content
+                    slideStack
+                        .frame(width: leftW)
+                        .frame(maxHeight: .infinity)
+                        .padding(.leading, 8)
+
+                    // Icon rail (always visible)
+                    rail
+                        .padding(.trailing, 4)
+
+                    // Center dial overlapping map
+                    VStack(spacing: 8) {
+                        centerDial(size: dial)
+                        HStack(spacing: 5) {
+                            Image(systemName: "mappin")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(model.place)
+                                .font(.system(size: 12, weight: .medium))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
+                        .foregroundStyle(ink.opacity(0.85))
+                    }
+                    .frame(width: dial + 8)
+                    .zIndex(3)
+
+                    Spacer(minLength: 0)
+                        .frame(width: max(0, mapW - dial * 0.45))
+                }
+                .frame(maxHeight: .infinity)
+
+                bottomBar
+            }
+
+            // Compass on map
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    compass.padding(.trailing, 16).padding(.bottom, 34)
+                }
+            }
+            .allowsHitTesting(false)
         }
     }
 
@@ -103,29 +110,26 @@ struct NativeHUDView: View {
         let dial = min(size.width * 0.42, 200)
         return VStack(spacing: 0) {
             topBar
-            centerDial(size: dial)
-                .padding(.vertical, 4)
-            HStack(spacing: 0) {
-                leftColumn
-                    .frame(maxWidth: .infinity)
-                LiveMapView(
-                    lat: model.mapLat,
-                    lon: model.mapLon,
-                    heading: model.mapHeading,
-                    follow: model.followMap
-                )
-                .frame(maxWidth: .infinity)
-                .clipped()
+            HStack(spacing: 6) {
+                slideStack.frame(maxWidth: .infinity)
+                rail
+                centerDial(size: dial).frame(width: dial)
             }
+            .frame(height: size.height * 0.42)
+            LiveMapView(
+                lat: model.mapLat, lon: model.mapLon,
+                heading: model.mapHeading, follow: model.followMap
+            )
             .frame(maxHeight: .infinity)
+            .clipped()
             bottomBar
         }
     }
 
-    // MARK: - Top
+    // MARK: Top
 
     private var topBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 13, weight: .semibold))
@@ -136,189 +140,200 @@ struct NativeHUDView: View {
                 .monospacedDigit()
                 .foregroundStyle(ink)
             Text("\(model.outdoorC)°C")
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(muted)
+            Image(systemName: "video.slash").font(.system(size: 12)).foregroundStyle(muted)
+            Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 12)).foregroundStyle(muted)
+            Image(systemName: "plus").font(.system(size: 13, weight: .semibold)).foregroundStyle(muted)
 
-            Image(systemName: "bell.slash")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(muted)
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(muted)
-            Image(systemName: "plus")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(muted)
+            Spacer()
 
             Text(model.telemetrySource)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(muted)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            Spacer(minLength: 4)
 
             Button { model.toggleDrive() } label: {
-                Label(model.driving ? "Suruyor" : "Demo Sur", systemImage: "arrow.clockwise")
-                    .font(.system(size: 12, weight: .semibold))
+                Label(model.driving ? "Suruyor" : "Reconnect", systemImage: "arrow.clockwise")
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(ink.opacity(0.85))
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 9)
                     .padding(.vertical, 5)
                     .background(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1))
             }
             .buttonStyle(.plain)
 
-            HStack(spacing: 4) {
-                Image(systemName: "battery.50")
-                Text("\(Int(model.battery))")
-                    .monospacedDigit()
-            }
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(ink.opacity(0.8))
-
-            Image(systemName: "gearshape")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(muted)
+            Text("\(Int(model.battery))")
+                .font(.system(size: 12, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(ink.opacity(0.8))
+            Image(systemName: "gearshape").font(.system(size: 13)).foregroundStyle(muted)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .frame(height: 36)
+        .frame(height: 34)
     }
 
-    // MARK: - Left column + rail
+    // MARK: Vertical slides
 
-    private var leftColumn: some View {
-        HStack(alignment: .center, spacing: 4) {
-            ZStack {
-                leftSlide
-                    .id(model.leftSlide)
-                    .transition(
-                        .asymmetric(
-                            insertion: .opacity.combined(with: .offset(y: 16)),
-                            removal: .opacity.combined(with: .offset(y: -12))
-                        )
+    private var slideStack: some View {
+        ZStack {
+            slideContent(model.leftSlide)
+                .id(model.leftSlide)
+                .transition(
+                    .asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .bottom)),
+                        removal: .opacity.combined(with: .move(edge: .top))
                     )
-                    .animation(.spring(response: 0.38, dampingFraction: 0.88), value: model.leftSlide)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .padding(.leading, 10)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 20)
-                    .onEnded { g in
-                        if g.translation.height < -30 { model.nudgeLeft(1) }
-                        else if g.translation.height > 30 { model.nudgeLeft(-1) }
-                    }
-            )
-
-            iconRail
-                .padding(.trailing, 2)
+                )
+                .animation(.spring(response: 0.4, dampingFraction: 0.88), value: model.leftSlide)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 18)
+                .onEnded { g in
+                    if g.translation.height < -28 || g.predictedEndTranslation.height < -70 {
+                        model.nudgeLeft(1)
+                    } else if g.translation.height > 28 || g.predictedEndTranslation.height > 70 {
+                        model.nudgeLeft(-1)
+                    }
+                }
+        )
     }
 
-    private var iconRail: some View {
-        // Avoid rare SF Symbols that may be missing in Playgrounds
-        let icons = ["flag", "circle.grid.2x2", "map", "music.note"]
-        return VStack(spacing: 12) {
+    private var rail: some View {
+        VStack(spacing: 14) {
             ForEach(0..<HUDModel.slideCount, id: \.self) { i in
                 Button { model.setLeft(i) } label: {
-                    Image(systemName: icons[i])
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(i == model.leftSlide ? Color.white : Color.white.opacity(0.32))
-                        .frame(width: 20, height: 20)
-                        .scaleEffect(i == model.leftSlide ? 1.12 : 1)
+                    Image(systemName: HUDModel.slideIcons[i])
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(i == model.leftSlide ? Color.white : Color.white.opacity(0.30))
+                        .frame(width: 22, height: 22)
+                        .scaleEffect(i == model.leftSlide ? 1.18 : 1)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 7)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 8)
         .background(
             Capsule()
-                .fill(Color.black.opacity(0.35))
+                .fill(Color.black.opacity(0.45))
                 .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
         )
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: model.leftSlide)
     }
 
     @ViewBuilder
-    private var leftSlide: some View {
-        switch model.leftSlide {
+    private func slideContent(_ index: Int) -> some View {
+        switch index {
         case 1: tiresBlock
-        case 2: mapTeaser
-        case 3: mediaBlock
-        default: tripBlock
+        case 2: tripBlock
+        case 3: mapInfoBlock
+        case 4: mediaBlock
+        default: simpleBlock
         }
     }
 
+    /// Sade — minimal clean left
+    private var simpleBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("PULSE")
+                .font(.system(size: 13, weight: .bold))
+                .tracking(2)
+                .foregroundStyle(muted)
+            Text(model.bleOK ? "Anahtar hazir" : "Hazir")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(ink)
+            Text("…\(model.vinTail)")
+                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                .foregroundStyle(muted)
+            Spacer()
+            Text("kaydir · 5 ekran")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(muted.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(.vertical, 16)
+    }
+
     private var tripBlock: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             tripRow("Destination", model.destination)
             tripRow("Arrival Time", model.eta)
             tripRow("Energy at Arrival", model.energyAtArrival)
             tripRow("Distance", model.tripDist)
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(.vertical, 12)
     }
 
     private func tripRow(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.system(size: 11, weight: .regular))
+                .font(.system(size: 12, weight: .regular))
                 .foregroundStyle(muted)
-            Text(value)
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
+            Text(value.isEmpty ? "--" : value)
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundStyle(ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                .animation(.easeOut(duration: 0.25), value: value)
         }
     }
 
+    /// Tesla Model Y top-down + PSI (classic look)
     private var tiresBlock: some View {
         GeometryReader { geo in
             let w = max(geo.size.width, 1)
             let h = max(geo.size.height, 1)
-            let carW = min(w * 0.38, 96)
-            let carH = min(h * 0.72, 200)
+            let carW = min(w * 0.46, 110)
+            let carH = min(h * 0.82, 240)
             ZStack {
-                ModelYWireView()
+                TeslaTopView()
                     .frame(width: carW, height: carH)
+                    .shadow(color: .white.opacity(0.08), radius: 8)
 
-                psi(model.psiFL).position(x: w * 0.10, y: h * 0.30)
-                psi(model.psiFR).position(x: w * 0.90, y: h * 0.30)
-                psi(model.psiRL).position(x: w * 0.10, y: h * 0.70)
-                psi(model.psiRR).position(x: w * 0.90, y: h * 0.70)
+                psiLabel(model.psiFL).position(x: w * 0.08, y: h * 0.28)
+                psiLabel(model.psiFR).position(x: w * 0.92, y: h * 0.28)
+                psiLabel(model.psiRL).position(x: w * 0.08, y: h * 0.72)
+                psiLabel(model.psiRR).position(x: w * 0.92, y: h * 0.72)
             }
             .frame(width: w, height: h)
         }
     }
 
-    private func psi(_ v: Int) -> some View {
+    private func psiLabel(_ v: Int) -> some View {
         Text("\(v) psi")
             .font(.system(size: 13, weight: .medium, design: .rounded))
             .monospacedDigit()
-            .foregroundStyle(ink.opacity(0.85))
+            .foregroundStyle(ink.opacity(0.9))
     }
 
-    /// Left "map" slide — short nav cue; full map stays on the right.
-    private var mapTeaser: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(model.place, systemImage: "mappin.and.ellipse")
-                .font(.system(size: 15, weight: .semibold))
+    private var mapInfoBlock: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Harita")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(muted)
+            Text(model.place)
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(ink)
                 .lineLimit(2)
-                .minimumScaleFactor(0.8)
-            Text(model.destination)
-                .font(.system(size: 13, weight: .medium))
+            Text(String(format: "%.5f, %.5f", model.mapLat, model.mapLon))
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(muted)
-            Text(model.tripDist)
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundStyle(ink)
-            Text("ETA \(model.eta)")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(muted)
+            Text(model.mapSource)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color(red: 0.4, green: 0.85, blue: 0.55))
+            Text(String(format: "Yon %.0f°", model.mapHeading))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(ink.opacity(0.85))
+            Spacer()
+            Text("Sagda canli harita")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(muted.opacity(0.7))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(.vertical, 14)
     }
 
     private var mediaBlock: some View {
@@ -327,30 +342,31 @@ struct NativeHUDView: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(muted)
 
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color(red: 0.85, green: 0.45, blue: 0.18),
-                            Color(red: 0.35, green: 0.12, blue: 0.08),
+                            Color(red: 0.88, green: 0.48, blue: 0.20),
+                            Color(red: 0.28, green: 0.10, blue: 0.08),
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
-                .aspectRatio(1.1, contentMode: .fit)
-                .frame(maxWidth: 120)
+                .aspectRatio(1.15, contentMode: .fit)
+                .frame(maxWidth: 132)
                 .overlay {
                     Image(systemName: "music.note")
-                        .font(.system(size: 22, weight: .light))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .font(.system(size: 26, weight: .light))
+                        .foregroundStyle(.white.opacity(0.4))
                 }
+                .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
 
             Text(model.mediaTitle)
-                .font(.system(size: 17, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(ink)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.75)
             Text(model.mediaArtist)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(muted)
@@ -358,40 +374,36 @@ struct NativeHUDView: View {
             Button { model.togglePlay() } label: {
                 Image(systemName: model.mediaPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 16))
-                    .foregroundStyle(ink.opacity(0.8))
+                    .foregroundStyle(ink.opacity(0.85))
             }
             .buttonStyle(.plain)
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(.vertical, 10)
     }
 
-    // MARK: - Center dial
+    // MARK: Dial
 
     private func centerDial(size: CGFloat) -> some View {
         VStack(spacing: 6) {
-            HStack(spacing: 16) {
+            HStack(spacing: 18) {
                 ForEach(["P", "R", "N", "D"], id: \.self) { g in
                     Text(g)
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(model.gear == g ? Color.white : Color.white.opacity(0.28))
-                        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.gear)
                 }
             }
-
             ZStack {
                 Circle()
                     .fill(Color.black)
-                    .shadow(color: .black.opacity(0.45), radius: 16, y: 6)
-                    .overlay(
-                        Circle().stroke(Color.white.opacity(0.10), lineWidth: 1)
-                    )
-
+                    .shadow(color: .black.opacity(0.5), radius: 18, y: 8)
+                    .overlay(Circle().stroke(Color.white.opacity(0.10), lineWidth: 1))
                 VStack(spacing: 0) {
                     Text("\(Int(model.speed.rounded()))")
-                        .font(.system(size: size * 0.36, weight: .bold, design: .rounded))
+                        .font(.system(size: size * 0.38, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .monospacedDigit()
-                        .animation(.easeOut(duration: 0.1), value: Int(model.speed.rounded()))
                     Text("km/h")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.45))
@@ -401,23 +413,19 @@ struct NativeHUDView: View {
 
             Capsule()
                 .fill(Color.white.opacity(0.12))
-                .frame(width: size * 0.62, height: 2.5)
+                .frame(width: size * 0.58, height: 2.5)
                 .overlay(alignment: .leading) {
                     Capsule()
                         .fill(Color.white.opacity(0.85))
-                        .frame(width: size * 0.62 * CGFloat(min(1, abs(model.powerKW) / 80)), height: 2.5)
+                        .frame(width: size * 0.58 * CGFloat(min(1, abs(model.powerKW) / 80)), height: 2.5)
                 }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Bottom
-
     private var bottomBar: some View {
-        HStack(alignment: .center) {
+        HStack {
             HStack(spacing: 6) {
                 Image(systemName: "battery.100.bolt")
-                    .font(.system(size: 12))
                     .foregroundStyle(Color(red: 0.35, green: 0.85, blue: 0.45))
                 Text("\(Int(model.battery))% / \(model.rangeKm)km")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -426,16 +434,9 @@ struct NativeHUDView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 4) {
-                Image(systemName: "mappin")
-                    .font(.system(size: 10, weight: .semibold))
-                Text(model.place)
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .foregroundStyle(ink.opacity(0.85))
-            .frame(maxWidth: .infinity)
+            Text(HUDModel.slideNames[model.leftSlide])
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(muted)
 
             Text(String(format: "ODO %.0fkm", model.odometer))
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -443,67 +444,89 @@ struct NativeHUDView: View {
                 .foregroundStyle(ink.opacity(0.7))
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .frame(height: 28)
     }
 
     private var compass: some View {
         ZStack {
-            Circle()
-                .fill(Color.white.opacity(0.92))
-                .frame(width: 28, height: 28)
+            Circle().fill(Color.white.opacity(0.92)).frame(width: 30, height: 30)
                 .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
-            Text("N")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(Color.black.opacity(0.75))
+            Text("N").font(.system(size: 10, weight: .bold)).foregroundStyle(Color.black.opacity(0.75))
         }
     }
 }
 
-// MARK: - Wireframe Model Y (top-down, screenshot style)
+// MARK: - Tesla Model Y / 3 top-down wireframe (classic)
 
-private struct ModelYWireView: View {
+private struct TeslaTopView: View {
     var body: some View {
         Canvas { ctx, size in
-            let sx = size.width / 200
-            let sy = size.height / 420
+            let sx = size.width / 220
+            let sy = size.height / 460
             func P(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * sx, y: y * sy) }
-            let stroke = Color.white.opacity(0.85)
+            let stroke = Color.white.opacity(0.88)
+            let thin = Color.white.opacity(0.55)
 
+            // Body silhouette — Model Y proportions
             var body = Path()
-            body.move(to: P(72, 34))
-            body.addCurve(to: P(100, 10), control1: P(72, 18), control2: P(84, 10))
-            body.addCurve(to: P(128, 34), control1: P(116, 10), control2: P(128, 18))
-            body.addLine(to: P(142, 72))
-            body.addLine(to: P(152, 118))
-            body.addLine(to: P(152, 268))
-            body.addLine(to: P(142, 328))
-            body.addLine(to: P(128, 386))
-            body.addCurve(to: P(100, 410), control1: P(128, 402), control2: P(116, 410))
-            body.addCurve(to: P(72, 386), control1: P(84, 410), control2: P(72, 402))
-            body.addLine(to: P(58, 328))
-            body.addLine(to: P(48, 268))
-            body.addLine(to: P(48, 118))
-            body.addLine(to: P(58, 72))
+            body.move(to: P(78, 40))
+            body.addCurve(to: P(110, 12), control1: P(78, 22), control2: P(92, 12))
+            body.addCurve(to: P(142, 40), control1: P(128, 12), control2: P(142, 22))
+            body.addLine(to: P(158, 78))
+            body.addLine(to: P(168, 128))
+            body.addLine(to: P(168, 300))
+            body.addLine(to: P(158, 360))
+            body.addLine(to: P(142, 420))
+            body.addCurve(to: P(110, 448), control1: P(142, 438), control2: P(128, 448))
+            body.addCurve(to: P(78, 420), control1: P(92, 448), control2: P(78, 438))
+            body.addLine(to: P(62, 360))
+            body.addLine(to: P(52, 300))
+            body.addLine(to: P(52, 128))
+            body.addLine(to: P(62, 78))
             body.closeSubpath()
-            ctx.fill(body, with: .color(Color.white.opacity(0.06)))
-            ctx.stroke(body, with: .color(stroke), lineWidth: 1.6)
+            ctx.fill(body, with: .color(Color.white.opacity(0.05)))
+            ctx.stroke(body, with: .color(stroke), lineWidth: 1.7)
 
-            var glass = Path()
-            glass.move(to: P(70, 108)); glass.addLine(to: P(130, 108))
-            glass.addLine(to: P(138, 162)); glass.addLine(to: P(62, 162)); glass.closeSubpath()
-            ctx.stroke(glass, with: .color(stroke.opacity(0.75)), lineWidth: 1.2)
+            // Glass / roof
+            var roof = Path()
+            roof.move(to: P(76, 118))
+            roof.addLine(to: P(144, 118))
+            roof.addLine(to: P(152, 175))
+            roof.addLine(to: P(68, 175))
+            roof.closeSubpath()
+            ctx.stroke(roof, with: .color(thin), lineWidth: 1.2)
 
-            // Center line
+            var rearGlass = Path()
+            rearGlass.move(to: P(80, 300))
+            rearGlass.addLine(to: P(140, 300))
+            rearGlass.addLine(to: P(148, 348))
+            rearGlass.addLine(to: P(72, 348))
+            rearGlass.closeSubpath()
+            ctx.stroke(rearGlass, with: .color(thin), lineWidth: 1.1)
+
+            // Center spine
             var mid = Path()
-            mid.move(to: P(100, 40)); mid.addLine(to: P(100, 390))
-            ctx.stroke(mid, with: .color(stroke.opacity(0.25)), lineWidth: 1)
+            mid.move(to: P(110, 48)); mid.addLine(to: P(110, 430))
+            ctx.stroke(mid, with: .color(Color.white.opacity(0.22)), lineWidth: 1)
 
-            for (x, y) in [(28.0, 100.0), (154.0, 100.0), (28.0, 268.0), (154.0, 268.0)] {
-                let r = Path(roundedRect: CGRect(x: x * sx, y: y * sy, width: 18 * sx, height: 46 * sy), cornerRadius: 4 * sx)
-                ctx.stroke(r, with: .color(stroke), lineWidth: 1.4)
+            // Side mirrors
+            ctx.stroke(
+                Path(ellipseIn: CGRect(x: 38 * sx, y: 150 * sy, width: 14 * sx, height: 10 * sy)),
+                with: .color(stroke), lineWidth: 1.2
+            )
+            ctx.stroke(
+                Path(ellipseIn: CGRect(x: 168 * sx, y: 150 * sy, width: 14 * sx, height: 10 * sy)),
+                with: .color(stroke), lineWidth: 1.2
+            )
+
+            // Wheels
+            for (x, y) in [(30.0, 112.0), (162.0, 112.0), (30.0, 300.0), (162.0, 300.0)] {
+                let r = Path(roundedRect: CGRect(x: x * sx, y: y * sy, width: 28 * sx, height: 52 * sy), cornerRadius: 5 * sx)
+                ctx.fill(r, with: .color(Color.white.opacity(0.04)))
+                ctx.stroke(r, with: .color(stroke), lineWidth: 1.5)
             }
         }
-        .aspectRatio(200 / 420, contentMode: .fit)
+        .aspectRatio(220 / 460, contentMode: .fit)
     }
 }

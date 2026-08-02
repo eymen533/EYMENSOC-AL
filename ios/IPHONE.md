@@ -1,7 +1,5 @@
 # iPhone · PulsePhoneKey
 
-**`build-28-livemap`** — canlı OSM harita (telefon GPS) + isteğe bağlı Dash telemetri
+**`build-29-slides`** — 5’li dikey slider (Sade/Lastik/Rota/Harita/Medya) + Tesla lastik + canlı harita
 
-BLE Pair = Phone Key. Canlı araç hız/GPS için Dash URL + Tesla API gerekir.
-
-Zip: `/downloads/PulsePhoneKey-playground-build28.zip`
+Zip: `/downloads/PulsePhoneKey-playground-build29.zip`

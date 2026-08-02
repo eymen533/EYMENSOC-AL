@@ -1,21 +1,15 @@
-# build-28-livemap
+# build-29-slides
 
-## Arabaya baglayinca ne calisir?
+Ekran fotolarindaki gibi:
 
-| Ozellik | BLE Pair (araba) | Aciklama |
-|---|---|---|
-| Phone Key (kilit/surus anahtari) | Evet | Tesla Key Card onayi sonrasi |
-| Canli hiz / batarya BLE uzerinden | Hayir | VCSEC anahtar protokolu telemetri degil |
-| Canli harita | Evet | Telefon GPS (OSM) |
-| Arac GPS + hiz HUD’da | Dash URL + PIN | Settings’te Dash adresi; sunucu Tesla API live ise gercek arac |
+- Dikey slider (5): **Sade · Lastik · Rota · Harita · Medya**
+- Icon rail + yukari/asagi kaydir
+- Tesla ustten lastik + PSI
+- Sagda egimli canli harita (bosluksuz blend)
+- Orta siyah hiz dairesi sabit
 
-## Kurulum
-1. Eski PulsePhoneKey sil  
-2. Zip ac → Run ▶ → **`build-28-livemap`**  
-3. Konum izni ver  
-4. Settings → Dash URL + PIN `428462` (telemetri icin)  
-5. Cluster → yatay  
+Eski projeyi sil → Run ▶ → **`build-29-slides`** → yatay → sol tarafi kaydir
 
-Zip: https://authorization-card-wonder-chuck.trycloudflare.com/downloads/PulsePhoneKey-playground-build28.zip
+Zip: https://authorization-card-wonder-chuck.trycloudflare.com/downloads/PulsePhoneKey-playground-build29.zip
 
-GitHub: https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build28.zip
+GitHub: https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build29.zip
