@@ -247,14 +247,14 @@ def phone_key_html(vin: str = "") -> str:
       <ol style="margin:0 0 .9rem;padding-left:1.15rem;color:rgba(255,255,255,.88);font-size:.88rem;line-height:1.45">
         <li>App Store → <strong>Swift Playgrounds</strong> (iPhone)</li>
         <li>Zip indir → Dosyalar → <code>PulsePhoneKey.swiftpm</code> → basılı tut → Paylaş → Playgrounds</li>
-        <li>Signing → <strong>Run ▶</strong> → sürüm <code>build-16-native</code></li>
+        <li>Signing → <strong>Run ▶</strong> → sürüm <code>build-24-simple</code></li>
         <li>Pair Vehicle → Key Card konsola → <strong>Cluster’i ac</strong> (uygulama içi)</li>
       </ol>
-      <a class="btn" href="/downloads/PulsePhoneKey-playground-build23.zip" style="text-decoration:none;text-align:center">iPhone · build-23 Model Y + akıcı HUD</a>
+      <a class="btn" href="/downloads/PulsePhoneKey-playground-build24.zip" style="text-decoration:none;text-align:center">iPhone · build-24 sade HUD (çökme fix)</a>
       <a class="btn ghost" href="/downloads/PulsePhoneKey-playground.zip" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Aynı zip</a>
       <a class="btn ghost" href="/downloads/PulsePhoneKey-swift-files.zip" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Zip açılmazsa · sadece Swift dosyaları</a>
       <p class="support" style="background:rgba(255,214,10,.12);color:#ffe566;margin-top:.75rem">
-        <strong>SÜRÜM: build-23-fluid</strong> · Model Y lastik · akıcı kaydırma · güvenli harita
+        <strong>SÜRÜM: build-24-simple</strong> · sade cluster · MapKit/foto/base64 yok · çökmemeli
       </p>
       <a class="btn ghost" href="https://apps.apple.com/app/swift-playgrounds/id908519492" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Swift Playgrounds · App Store</a>
       <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:1rem 0" />
@@ -369,71 +369,75 @@ def register_phone_key(server) -> None:
 
     @server.get("/downloads/PulsePhoneKey-playground-build7.zip")
     def download_playgrounds_build7_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build8.zip")
     def download_playgrounds_build8_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build9.zip")
     def download_playgrounds_build9_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build10.zip")
     def download_playgrounds_build10_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build11.zip")
     def download_playgrounds_build11_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build12.zip")
     def download_playgrounds_build12_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build13.zip")
     def download_playgrounds_build13_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build14.zip")
     def download_playgrounds_build14_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build15.zip")
     def download_playgrounds_build15_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build16.zip")
     def download_playgrounds_build16_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build17.zip")
     def download_playgrounds_build17_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build18.zip")
     def download_playgrounds_build18_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build19.zip")
     def download_playgrounds_build19_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build20.zip")
     def download_playgrounds_build20_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build21.zip")
     def download_playgrounds_build21_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build22.zip")
     def download_playgrounds_build22_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build23.zip")
     def download_playgrounds_build23_zip():  # type: ignore[no-redef]
-        return _send_release_zip("PulsePhoneKey-playground-build23.zip", public=True)
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
+
+    @server.get("/downloads/PulsePhoneKey-playground-build24.zip")
+    def download_playgrounds_build24_zip():  # type: ignore[no-redef]
+        return _send_release_zip("PulsePhoneKey-playground-build24.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-swift-files.zip")
     def download_swift_files_zip():  # type: ignore[no-redef]

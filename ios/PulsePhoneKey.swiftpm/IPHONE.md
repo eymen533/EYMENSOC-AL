@@ -1,9 +1,11 @@
-# build-23-fluid
+# build-24-simple
 
-- Lastik: Tesla Model Y foto (küçük güvenli JPEG)
-- Harita: düzeltilmiş çizim (MapKit yok → çökmez)
-- Kaydırma / ikon rayı daha akıcı
+Sade HUD — çökme fix:
 
-https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build23.zip
+- MapKit / UIImage / base64 / Canvas yok
+- Model Y foto yok (SF Symbol)
+- Hafif timer, basit kaydırma
 
-Eski projeyi sil → Run ▶ → **`build-23-fluid`**
+Eski projeyi Playgrounds’tan sil → zip aç → Run ▶ → ana ekranda **`build-24-simple`**
+
+Zip: `/downloads/PulsePhoneKey-playground-build24.zip`

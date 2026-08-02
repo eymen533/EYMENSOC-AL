@@ -1,15 +1,17 @@
-# build-22-nocrash
+# build-24-simple
 
 Çökme kaynakları kaldırıldı:
+
 - MapKit yok
-- Bundle / Resources / büyük PNG yok
-- Model Y vektör çizim
+- Bundle.module / Resources PNG yok
+- base64 UIImage decode yok
+- Canvas / soft map yok
+- Animasyon Task / spring rail yok
 
-## Mutlaka
+Kurulum:
 
-1. Playgrounds’taki **tüm eski** PulsePhoneKey projelerini sil  
-2. build-22 zip’i indir/aç  
-3. Signing → Bluetooth Always → Run ▶  
-4. Ana ekranda **`build-22-nocrash`** yazmalı  
-
-Hâlâ çökerse sorun büyük ihtimalle Signing / Bluetooth capability’dir (`MANUAL.md`).
+1. Eski PulsePhoneKey projesini sil  
+2. build-24 zip’i indir/aç  
+3. Signing + Bluetooth Always → Run ▶  
+4. Ana ekranda **`build-24-simple`** yazmalı  
+5. Cluster HUD (uygulama ici)

@@ -1,3 +1,7 @@
-https://leadership-disabled-buyers-spaces.trycloudflare.com/downloads/PulsePhoneKey-playground-build22.zip  
+# iPhone · PulsePhoneKey
 
-**`build-22-nocrash`** — MapKit ve büyük görsel kaldırıldı (çökme fix)
+**`build-24-simple`** — sade HUD (MapKit / foto / base64 yok)
+
+Zip: `/downloads/PulsePhoneKey-playground-build24.zip`
+
+Adımlar: `ios/PulsePhoneKey.swiftpm/IPHONE.md`
