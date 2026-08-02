@@ -1,11 +1,19 @@
-# build-29-slides
+# build-29-slides — calisan indirme
 
-**Calisan linkler (sirayla dene):**
+Safari’de asagidakilerden birini ac:
 
-1. GitHub (en saglam):  
-   https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build29.zip
+## En kolay (PIN yok)
+https://along-scene-designated-kits.trycloudflare.com/iphone
 
-2. Tunnel:  
-   https://wizard-awareness-travis-equation.trycloudflare.com/downloads/PulsePhoneKey-playground-build29.zip
+Bu sayfada 5 farkli indirme dugmesi var.
 
-Eski PulsePhoneKey sil → zip ac → Run ▶ → **build-29-slides**
+## Dogrudan zip
+https://along-scene-designated-kits.trycloudflare.com/downloads/iphone.zip
+
+## GitHub (telefondan “Download raw file”)
+https://github.com/eymen533/EYMENSOC-AL/blob/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build29.zip
+
+## CDN
+https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build29.zip
+
+Kurulum: zip → Dosyalar → .swiftpm basili tut → Playgrounds → Run ▶ → **build-29-slides**

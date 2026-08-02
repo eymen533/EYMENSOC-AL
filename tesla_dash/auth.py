@@ -92,8 +92,11 @@ def register_auth(server: Flask) -> None:
             return None
         if path.startswith("/_favicon"):
             return None
-        # iPhone Playgrounds zip — direct link, no PIN
-        if path.startswith("/downloads/PulsePhoneKey-playground") or path == "/downloads/PulsePhoneKey-swift-files.zip":
+        # iPhone Playgrounds zip / landing — direct link, no PIN
+        if (
+            path.startswith("/downloads/PulsePhoneKey-playground")
+            or path in {"/downloads/PulsePhoneKey-swift-files.zip", "/downloads/iphone.zip", "/iphone", "/get-iphone"}
+        ):
             return None
         # Native HUD may poll vehicle state with ?pin= (handler verifies)
         if path == "/api/vehicle/state":

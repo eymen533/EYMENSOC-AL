@@ -303,7 +303,7 @@ def phone_key_html(vin: str = "") -> str:
 
 def register_phone_key(server) -> None:
     """Register /phone-key UI and payload APIs on the Flask server."""
-    from flask import jsonify, request, send_file, abort
+    from flask import jsonify, request, send_file, abort, Response
 
     @server.get("/phone-key")
     def phone_key_page():  # type: ignore[no-redef]
@@ -314,6 +314,48 @@ def register_phone_key(server) -> None:
             return redirect("/login")
         vin = (request.args.get("vin") or owner_vin()).strip()
         return phone_key_html(vin)
+
+    @server.get("/iphone")
+    @server.get("/get-iphone")
+    def iphone_public_download_page():  # type: ignore[no-redef]
+        """PIN-free landing page — big buttons for Safari on iPhone."""
+        gh = (
+            "https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/"
+            "releases/PulsePhoneKey-playground-build29.zip"
+        )
+        blob = (
+            "https://github.com/eymen533/EYMENSOC-AL/blob/cursor/ble-pair-fix-02d8/"
+            "releases/PulsePhoneKey-playground-build29.zip"
+        )
+        cdn = (
+            "https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@cursor/ble-pair-fix-02d8/"
+            "releases/PulsePhoneKey-playground-build29.zip"
+        )
+        html = f"""<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pulse iPhone indir</title>
+<style>
+  body{{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0b0c10;color:#fff;padding:28px 18px}}
+  h1{{font-size:1.5rem;margin:0 0 .4rem}}
+  p{{color:rgba(255,255,255,.65);line-height:1.45;margin:.35rem 0 1rem}}
+  a.btn{{display:block;text-align:center;text-decoration:none;background:#3dd6c6;color:#042;font-weight:700;
+    padding:16px 14px;border-radius:14px;margin:.55rem 0;font-size:1.05rem}}
+  a.ghost{{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.14)}}
+  .ok{{background:rgba(61,214,198,.12);color:#9ff;padding:12px;border-radius:12px;font-size:.9rem}}
+  code{{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:6px}}
+</style></head><body>
+<h1>PulsePhoneKey · build-29</h1>
+<p>PIN yok. Asagidan <strong>birini</strong> dene. Indir → Dosyalar → <code>.swiftpm</code> basili tut → Playgrounds → Run ▶ → ekranda <code>build-29-slides</code></p>
+<a class="btn" href="/downloads/iphone.zip">1) Bu siteden indir (zip)</a>
+<a class="btn ghost" href="{gh}">2) GitHub raw indir</a>
+<a class="btn ghost" href="{cdn}">3) jsDelivr CDN indir</a>
+<a class="btn ghost" href="{blob}">4) GitHub sayfasi → Download raw file</a>
+<a class="btn ghost" href="/downloads/PulsePhoneKey-swift-files.zip">5) Sadece Swift dosyalari</a>
+<p class="ok">Safari bazen zip’i acamaz: Dosyalar uygulamasinda gorunur. Playgrounds’ta eski projeyi sil, yeniyi ac.</p>
+</body></html>"""
+        return Response(html, mimetype="text/html; charset=utf-8")
 
     def _send_apk(filename: str):
         from tesla_dash.auth import is_unlocked
@@ -366,6 +408,10 @@ def register_phone_key(server) -> None:
     @server.get("/downloads/PulsePhoneKey-playground.zip")
     def download_playgrounds_zip():  # type: ignore[no-redef]
         return _send_release_zip("PulsePhoneKey-playground.zip", public=True)
+
+    @server.get("/downloads/iphone.zip")
+    def download_iphone_short_zip():  # type: ignore[no-redef]
+        return _send_release_zip("PulsePhoneKey-playground-build29.zip", public=True)
 
     @server.get("/downloads/PulsePhoneKey-playground-build7.zip")
     def download_playgrounds_build7_zip():  # type: ignore[no-redef]
