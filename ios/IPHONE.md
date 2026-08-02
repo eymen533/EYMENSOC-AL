@@ -1,7 +1,7 @@
 # iPhone · PulsePhoneKey
 
-**`build-24-simple`** — sade HUD (MapKit / foto / base64 yok)
+**`build-25-paired`** — eşli animasyonlu HUD (SoftMap + Model Y vektör, MapKit/foto yok)
 
-Zip: `/downloads/PulsePhoneKey-playground-build24.zip`
+Zip: `/downloads/PulsePhoneKey-playground-build25.zip`
 
 Adımlar: `ios/PulsePhoneKey.swiftpm/IPHONE.md`

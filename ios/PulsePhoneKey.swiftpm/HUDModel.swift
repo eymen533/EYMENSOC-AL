@@ -1,7 +1,8 @@
 import Foundation
 import Combine
+import SwiftUI
 
-/// On-device demo telemetry for the simplified cluster HUD.
+/// On-device cluster — day HUD + classic 4-slide carousels (trip/tires/map/media).
 @MainActor
 final class HUDModel: ObservableObject {
     static let slideCount = 4
@@ -37,14 +38,18 @@ final class HUDModel: ObservableObject {
     @Published var dayName = ""
     @Published var dateLine = ""
     @Published var nextPrayer = "Öğle 13:10"
-    /// Same order as Dash: 0 trip, 1 tires, 2 map, 3 media
-    @Published var leftSlide = 0
+    /// Paired day look: media | speed | map
+    @Published var leftSlide = 3
     @Published var rightSlide = 2
+    @Published var leftRailVisible = false
+    @Published var rightRailVisible = false
 
     private var timer: AnyCancellable?
     private var phase: Double = 0
     private var leftCool: Date = .distantPast
     private var rightCool: Date = .distantPast
+    private var leftRailTask: Task<Void, Never>?
+    private var rightRailTask: Task<Void, Never>?
 
     private let clockFmt: DateFormatter = {
         let f = DateFormatter()
@@ -71,7 +76,7 @@ final class HUDModel: ObservableObject {
         vinTail = String(v.suffix(6))
         bleOK = paired
         night = false
-        leftSlide = 0
+        leftSlide = 3
         rightSlide = 2
         if paired {
             energyAtArrival = "\(Int(battery))%"
@@ -83,8 +88,8 @@ final class HUDModel: ObservableObject {
     func start() {
         timer?.cancel()
         phase = 0
-        // 4 Hz — enough for demo gauges, light on Playgrounds
-        timer = Timer.publish(every: 0.25, on: .main, in: .common)
+        // ~15 Hz — smooth dial, light on Playgrounds
+        timer = Timer.publish(every: 1.0 / 15.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.tick() }
     }
@@ -92,6 +97,8 @@ final class HUDModel: ObservableObject {
     func stop() {
         timer?.cancel()
         timer = nil
+        leftRailTask?.cancel()
+        rightRailTask?.cancel()
     }
 
     func toggleDrive() {
@@ -107,25 +114,56 @@ final class HUDModel: ObservableObject {
 
     func togglePlay() { mediaPlaying.toggle() }
 
-    /// delta +1 = swipe up (next), -1 = swipe down (prev)
     func nudgeLeft(_ delta: Int) {
         guard Date().timeIntervalSince(leftCool) > 0.28 else { return }
         leftCool = Date()
         leftSlide = ((leftSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
+        flashLeftRail()
     }
 
     func nudgeRight(_ delta: Int) {
         guard Date().timeIntervalSince(rightCool) > 0.28 else { return }
         rightCool = Date()
         rightSlide = ((rightSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
+        flashRightRail()
     }
 
     func setLeft(_ i: Int) {
         leftSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount
+        flashLeftRail()
     }
 
     func setRight(_ i: Int) {
         rightSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount
+        flashRightRail()
+    }
+
+    private func flashLeftRail() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            leftRailVisible = true
+        }
+        leftRailTask?.cancel()
+        leftRailTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_100_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.35)) {
+                leftRailVisible = false
+            }
+        }
+    }
+
+    private func flashRightRail() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            rightRailVisible = true
+        }
+        rightRailTask?.cancel()
+        rightRailTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_100_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.35)) {
+                rightRailVisible = false
+            }
+        }
     }
 
     private func refreshClock() {
@@ -136,31 +174,32 @@ final class HUDModel: ObservableObject {
     }
 
     private func tick() {
-        phase += 0.25
-        if Int(phase * 4) % 4 == 0 { refreshClock() }
+        let dt = 1.0 / 15.0
+        phase += dt
+        if Int(phase * 15) % 15 == 0 { refreshClock() }
 
         if driving {
             let wave = (sin(phase * 0.35) + 1) * 0.5
             let target = 40 + wave * 70
-            speed += (target - speed) * 0.12
+            speed += (target - speed) * 0.08
             powerKW = (target - speed) * 1.2 + sin(phase * 2) * 8
-            let dKm = speed / 3600.0 * 0.25
+            let dKm = speed / 3600.0 * dt
             tripKm += dKm
             odometer += dKm
             tripDist = String(format: "%.1f km", max(0, 13.3 - tripKm))
             let remainMin = max(1, Int(max(0, 18 - tripKm * 1.4)))
             eta = clockFmt.string(from: Date().addingTimeInterval(TimeInterval(remainMin * 60)))
             energyAtArrival = "\(max(5, Int(battery) - Int(tripKm / 3)))%"
-            if Int(phase * 4) % 20 == 0 {
+            if Int(phase * 5) % 20 == 0 {
                 battery = max(5, battery - 0.02)
                 rangeKm = Int(battery / 100 * 440)
             }
         } else {
-            speed += (0 - speed) * 0.2
-            powerKW += (0 - powerKW) * 0.25
+            speed += (0 - speed) * 0.12
+            powerKW += (0 - powerKW) * 0.15
         }
 
-        if Int(phase * 4) % 40 == 0 {
+        if Int(phase * 5) % 45 == 0 {
             psiFL = 41 + Int.random(in: 0...2)
             psiFR = 41 + Int.random(in: 0...2)
             psiRL = 41 + Int.random(in: 0...2)

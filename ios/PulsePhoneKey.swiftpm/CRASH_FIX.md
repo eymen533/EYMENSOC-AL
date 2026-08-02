@@ -1,17 +1,10 @@
-# build-24-simple
+# build-25-paired
 
-Çökme kaynakları kaldırıldı:
+Çökmesiz eşli HUD:
 
-- MapKit yok
-- Bundle.module / Resources PNG yok
-- base64 UIImage decode yok
-- Canvas / soft map yok
-- Animasyon Task / spring rail yok
+- MapKit yok → SoftMap Canvas
+- Bundle.module / PNG yok
+- base64 UIImage yok → vektör Model Y
+- TimelineView animasyon (hafif)
 
-Kurulum:
-
-1. Eski PulsePhoneKey projesini sil  
-2. build-24 zip’i indir/aç  
-3. Signing + Bluetooth Always → Run ▶  
-4. Ana ekranda **`build-24-simple`** yazmalı  
-5. Cluster HUD (uygulama ici)
+Kurulum: eski projeyi sil → build-25 zip → Run ▶ → **`build-25-paired`**
