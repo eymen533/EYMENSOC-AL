@@ -3,14 +3,13 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Pulse HUD · xcode-ble-2 önizleme</title>
+<title>Pulse HUD · xcode-ble-4</title>
 <style>
   :root {
     --ink: #fff;
     --muted: rgba(255,255,255,.55);
     --dim: rgba(255,255,255,.22);
     --accent: #59d9c0;
-    --map: #dbd9d4;
   }
   * { box-sizing: border-box; }
   body {
@@ -24,16 +23,13 @@
     border: 1px solid rgba(255,255,255,.08);
     box-shadow: 0 30px 80px rgba(0,0,0,.55);
     display: grid; grid-template-rows: 40px 1fr;
-    position: relative;
   }
   .top {
     display: flex; align-items: center; gap: 10px; padding: 0 14px;
     background: linear-gradient(to bottom, rgba(0,0,0,.92), rgba(0,0,0,.2));
     font-size: 13px; z-index: 2;
   }
-  .pill {
-    margin-left: auto; display: flex; gap: 8px; align-items: center;
-  }
+  .pill { margin-left: auto; display: flex; gap: 8px; align-items: center; }
   .batt {
     background: rgba(255,255,255,.1); border-radius: 999px; padding: 3px 8px;
     font-variant-numeric: tabular-nums;
@@ -62,45 +58,61 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
     background: linear-gradient(90deg, #000 60%, rgba(0,0,0,.15));
   }
-  .gears { display: flex; gap: 20px; font-weight: 700; font-size: 18px; }
-  .gears b { color: #fff; }
-  .gears i { color: var(--dim); font-style: normal; }
+  .gears { display: flex; gap: 18px; font-weight: 700; font-size: 18px; }
+  .gears .p { color: #f273d9; } .gears .r { color: var(--dim); }
+  .gears .n { color: var(--dim); } .gears .d { color: #59b3ff; }
   .dial {
     width: 210px; height: 210px; border-radius: 50%; background: #000;
     display: grid; place-items: center; box-shadow: -10px 0 28px rgba(0,0,0,.55);
+    position: relative;
+  }
+  .ring {
+    position: absolute; inset: 6px; border-radius: 50%;
+    background: conic-gradient(from -90deg, #59d9c0 0 18%, transparent 18% 100%);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+            mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
   }
   .speed { font-size: 84px; font-weight: 700; line-height: .9; font-variant-numeric: tabular-nums; }
   .unit { text-align: center; color: var(--muted); font-size: 12px; margin-top: 2px; }
   .place { color: var(--muted); font-size: 12px; }
   .map {
-    position: relative; background:
-      linear-gradient(180deg, rgba(0,0,0,.15), transparent 30%),
-      repeating-linear-gradient(90deg, #e8e6e1 0 28px, #ddd9d2 28px 30px),
-      repeating-linear-gradient(0deg, #e8e6e1 0 28px, #ddd9d2 28px 30px);
-    overflow: hidden;
+    position: relative; overflow: hidden;
+    background: #cfd8c8
+      linear-gradient(180deg, rgba(180,200,160,.35), transparent 40%);
+  }
+  .map-grid {
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 26px, rgba(255,255,255,.35) 26px 28px),
+      repeating-linear-gradient(0deg, transparent 0 26px, rgba(255,255,255,.28) 26px 28px),
+      linear-gradient(#d7e0cc, #c5d0b8);
   }
   .map::before {
-    content: ""; position: absolute; inset: 0;
+    content: ""; position: absolute; inset: 0; z-index: 2;
     background: linear-gradient(90deg, rgba(0,0,0,.95), rgba(0,0,0,.35), transparent 48px);
     pointer-events: none;
   }
+  .apple-badge {
+    position: absolute; left: 56px; top: 12px; z-index: 3;
+    background: rgba(255,255,255,.92); color: #111; font-size: 11px; font-weight: 700;
+    padding: 4px 8px; border-radius: 999px;
+  }
   .blocks {
-    position: absolute; inset: 18% 12% 28% 18%;
+    position: absolute; inset: 18% 12% 28% 18%; z-index: 1;
     background:
-      linear-gradient(#cfcbc3, #cfcbc3) 10% 20% / 18% 28% no-repeat,
-      linear-gradient(#c4bfb6, #c4bfb6) 40% 35% / 22% 40% no-repeat,
-      linear-gradient(#d2cdc4, #d2cdc4) 70% 15% / 16% 32% no-repeat,
-      linear-gradient(#bbb6ad, #bbb6ad) 55% 70% / 20% 22% no-repeat;
-    opacity: .95;
+      linear-gradient(#b7c2a8, #b7c2a8) 10% 20% / 18% 28% no-repeat,
+      linear-gradient(#aeb9a0, #aeb9a0) 40% 35% / 22% 40% no-repeat,
+      linear-gradient(#c2ccb4, #c2ccb4) 70% 15% / 16% 32% no-repeat,
+      linear-gradient(#9eaa90, #9eaa90) 55% 70% / 20% 22% no-repeat;
   }
   .route {
-    position: absolute; left: 22%; top: 30%; width: 58%; height: 48%;
+    position: absolute; left: 22%; top: 30%; width: 58%; height: 48%; z-index: 1;
     border: 0; border-left: 6px solid #1a73e8; border-bottom: 6px solid #1a73e8;
-    border-radius: 0 0 0 40px; opacity: .95;
+    border-radius: 0 0 0 40px;
     filter: drop-shadow(0 0 4px rgba(26,115,232,.45));
   }
   .car {
-    position: absolute; left: 24%; bottom: 28%;
+    position: absolute; left: 24%; bottom: 28%; z-index: 1;
     width: 0; height: 0;
     border-left: 8px solid transparent; border-right: 8px solid transparent;
     border-bottom: 16px solid #e53935;
@@ -108,15 +120,24 @@
     filter: drop-shadow(0 1px 1px #fff);
   }
   .compass {
-    position: absolute; right: 12px; bottom: 42px; width: 36px; height: 36px;
+    position: absolute; right: 12px; bottom: 42px; width: 36px; height: 36px; z-index: 3;
     border-radius: 50%; background: rgba(255,255,255,.92); color: #222;
     display: grid; place-items: center; font-size: 10px; font-weight: 700;
   }
   .odo {
-    position: absolute; right: 12px; bottom: 12px;
+    position: absolute; right: 12px; bottom: 12px; z-index: 3;
     background: rgba(255,255,255,.9); color: rgba(0,0,0,.7);
     font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 600;
     padding: 4px 8px; border-radius: 999px;
+  }
+  .model-y {
+    width: 42%; max-width: 120px; margin: 8px auto 0; display: block;
+    filter: brightness(10) contrast(1.1);
+    opacity: .9;
+  }
+  .tires {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px 8px; margin-top: 8px;
+    font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 600;
   }
   .caption {
     max-width: 980px; width: 100%; margin-top: 14px; color: rgba(255,255,255,.65);
@@ -138,37 +159,33 @@
 </head>
 <body>
   <div>
-    <div class="phone" id="hud">
+    <div class="phone">
       <div class="top">
         <span>‹</span>
-        <strong>18:59</strong>
+        <strong>19:40</strong>
         <span style="color:var(--muted)">29°C</span>
         <span style="color:var(--accent)">▣</span>
         <div class="pill">
-          <span style="color:var(--muted);font-size:12px">↻ Reconnect</span>
+          <span style="color:var(--muted);font-size:12px">BLE LIVE</span>
           <span class="batt">🔋 69</span>
           <span style="color:var(--muted)">⚙</span>
         </div>
       </div>
       <div class="main">
-        <div class="left" id="left">
-          <h3>Destination</h3><div class="val">Sabiha Gökçen</div>
-          <h3>Arrival Time</h3><div class="val">19:12</div>
-          <h3>Energy at Arrival</h3><div class="val">66%</div>
-          <h3>Distance</h3><div class="val">13.3 km</div>
-          <div class="batt-chip"><span class="g">🔋</span><span>69% / 331km</span></div>
-        </div>
+        <div class="left" id="left"></div>
         <div class="rail">
-          <span>□</span><span>🚗</span><span class="on">➤</span><span>🗺</span><span>♪</span>
+          <span>□</span><span class="on">🚗</span><span>➤</span><span>🗺</span><span>♪</span>
         </div>
         <div class="center">
-          <div class="gears"><i>P</i><i>R</i><i>N</i><b>D</b></div>
-          <div class="dial"><div><div class="speed">0</div><div class="unit">km/h</div></div></div>
+          <div class="gears"><span class="p">P</span><span class="r">R</span><span class="n">N</span><span class="d">D</span></div>
+          <div class="dial"><div class="ring"></div><div><div class="speed">0</div><div class="unit">km/h</div></div></div>
           <div class="place">📍 Ertürk Sk. No:29</div>
         </div>
         <div class="map">
+          <div class="map-grid"></div>
+          <div class="apple-badge"> Apple Maps · API key yok</div>
           <div class="blocks"></div>
-          <div class="route" title="Google Directions rota"></div>
+          <div class="route"></div>
           <div class="car"></div>
           <div class="compass">N</div>
           <div class="odo">ODO 74832km</div>
@@ -177,35 +194,33 @@
     </div>
 
     <div class="caption">
-      <div class="tag">xcode-ble-2 önizleme · web</div>
-      <div><strong>Ne değişti:</strong> Dashla tarzı triad HUD · sağda Google Maps · hedef varken mavi rota çizgisi · iOS 16+</div>
+      <div class="tag">xcode-ble-4 · güncel görsel</div>
+      <div><strong>Güncel:</strong> Model Y lastik · Apple Maps (key yok) · araç GPS/rota · Performans/Düşük</div>
       <div class="tabs">
-        <button class="active" onclick="setPanel('rota', this)">Rota</button>
-        <button onclick="setPanel('lastik', this)">Lastik</button>
+        <button class="active" onclick="setPanel('lastik', this)">Lastik (Model Y)</button>
+        <button onclick="setPanel('rota', this)">Rota</button>
         <button onclick="setPanel('medya', this)">Medya</button>
       </div>
       <p style="margin:.8rem 0 0">
-        Kod farkı:
-        <a href="https://github.com/eymen533/EYMENSOC-AL/pull/7/files" target="_blank" rel="noopener">PR #7 Files</a>
-        ·
-        <a href="https://github.com/eymen533/EYMENSOC-AL/commit/e0de41a" target="_blank" rel="noopener">Google Maps commit</a>
+        <a href="https://github.com/eymen533/EYMENSOC-AL/pull/7/files" target="_blank" rel="noopener">PR farkı</a>
         ·
         <a href="https://github.com/eymen533/EYMENSOC-AL/tree/cursor/ble-pair-fix-02d8/ios/PulsePhoneKey" target="_blank" rel="noopener">Xcode kaynak</a>
       </p>
     </div>
   </div>
 <script>
+const modelY = "https://raw.githubusercontent.com/eymen533/EYMENSOC-AL/cursor/ble-pair-fix-02d8/tesla_dash/assets/model-y-top.png";
 function setPanel(kind, btn){
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   const left = document.getElementById('left');
   if(kind==='lastik'){
     left.innerHTML = `
-      <div style="height:70%;display:grid;place-items:center;position:relative">
-        <div style="width:38%;height:62%;border:2px solid rgba(255,255,255,.35);border-radius:28%"></div>
-        <div style="position:absolute;inset:12% 0;display:flex;flex-direction:column;justify-content:space-between">
-          <div style="display:flex;justify-content:space-between"><span>42 psi</span><span>42 psi</span></div>
-          <div style="display:flex;justify-content:space-between"><span>41 psi</span><span>42 psi</span></div>
+      <div style="text-align:center">
+        <img class="model-y" src="${modelY}" alt="Model Y"/>
+        <div class="tires">
+          <span>42 psi</span><span style="text-align:right">42 psi</span>
+          <span>41 psi</span><span style="text-align:right">42 psi</span>
         </div>
       </div>
       <div class="batt-chip"><span class="g">🔋</span><span>69% / 331km</span></div>`;
@@ -225,6 +240,7 @@ function setPanel(kind, btn){
       <div class="batt-chip"><span class="g">🔋</span><span>69% / 331km</span></div>`;
   }
 }
+setPanel('lastik', document.querySelector('.tabs button'));
 </script>
 </body>
 </html>
