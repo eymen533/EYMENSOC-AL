@@ -1,7 +1,10 @@
-# build-39-lazy
+# build-40-stable
 
-https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build39.zip
+Önce çökmeden açılsın. Canlı hız/vites sonra eklenecek.
 
-1. Eski uygulamayı sil
-2. Zip → Run ▶ → `build-39-lazy` (açılış çökmemeli)
-3. Pair → Key Card → Cluster → kaynak **BLE**
+https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build40.zip
+
+1. Eski PulsePhoneKey’i **sil**
+2. Zip → Run ▶
+3. Ekranda `build-40-stable` görmelisin
+4. Pair Vehicle çalışır

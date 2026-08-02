@@ -1,7 +1,8 @@
-# build-39-lazy
+# build-40-stable
 
-BLE telemetri motoru uygulama açılışında YOK.
-Pair’e basınca oluşur → hız/vites/lastik/medya aynı.
-MapKit yok.
+Plan A: önce açılan stabil uygulama.
+- Pair + Cluster HUD
+- MapKit yok
+- BLE AES telemetri dosyaları yok (sonra parça parça)
 
-Eski proje SIL → **build-39-lazy**
+Eski proje SIL → **build-40-stable**

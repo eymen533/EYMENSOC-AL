@@ -2,8 +2,7 @@ import Foundation
 import Combine
 import SwiftUI
 
-/// Night triad — prefers real BLE vehicle-command telemetry; Dash/API fallback.
-/// Local demo only when neither BLE nor Dash is live. No CoreLocation / WebKit.
+/// Night triad — 5 left slides. No CoreLocation / WebKit (Playgrounds crash-safe).
 @MainActor
 final class HUDModel: ObservableObject {
     static let slideCount = 5
@@ -11,59 +10,45 @@ final class HUDModel: ObservableObject {
     static let slideIcons = ["square", "car.fill", "flag.fill", "map", "music.note"]
 
     @Published var speed: Double = 0
-    @Published var battery: Double = 0
+    @Published var battery: Double = 69
     @Published var powerKW: Double = 0
     @Published var gear: String = "P"
-    @Published var rangeKm: Int = 0
-    @Published var odometer: Double = 0
+    @Published var rangeKm: Int = 331
+    @Published var odometer: Double = 74_832
     @Published var tripKm: Double = 0
-    @Published var psiFL = 0
-    @Published var psiFR = 0
-    @Published var psiRL = 0
-    @Published var psiRR = 0
-    @Published var outdoorC: Int = 0
+    @Published var psiFL = 42
+    @Published var psiFR = 42
+    @Published var psiRL = 41
+    @Published var psiRR = 42
+    @Published var outdoorC: Int = 29
     @Published var night = true
     @Published var vin: String = "XP7YGCEK0PB159959"
     @Published var vinTail: String = "159959"
     @Published var bleOK = false
     @Published var driving = false
-    @Published var destination = "—"
-    @Published var eta = "—"
-    @Published var energyAtArrival = "—"
-    @Published var tripDist = "—"
-    @Published var place = "—"
-    @Published var mediaService = "—"
-    @Published var mediaTitle = "—"
-    @Published var mediaArtist = "—"
+    @Published var destination = "Sabiha Gökçen"
+    @Published var eta = "19:12"
+    @Published var energyAtArrival = "66%"
+    @Published var tripDist = "13.3 km"
+    @Published var place = "Ertürk Sk. No:29"
+    @Published var mediaService = "YouTube Music"
+    @Published var mediaTitle = "Kayıp Kalp"
+    @Published var mediaArtist = "BLOK3"
     @Published var mediaPlaying = false
-    @Published var mediaProgress: Double = 0
-    @Published var mediaVolume: Double = 0.5
+    @Published var mediaProgress: Double = 0.28
+    @Published var mediaVolume: Double = 0.55
     @Published var clock = ""
     @Published var leftSlide = 0
     @Published var leftRailVisible = true
-    @Published var mapHeading: Double = 0
-    @Published var latitude: Double = 0
-    @Published var longitude: Double = 0
-    @Published var telemetrySource = "baglaniyor"
-    @Published var feedOK = false
-    @Published var isLive = false
-    @Published var vehicleName = ""
-    @Published var feedError = ""
+    @Published var mapHeading: Double = -8
+    @Published var telemetrySource = "yerel"
     @Published var mapPulse: Double = 0
-    @Published var charging = false
 
     private var timer: AnyCancellable?
     private var pollTask: Task<Void, Never>?
     private var phase: Double = 0
     private var leftCool: Date = .distantPast
     private var useVehicleFeed = false
-    private var useBLE = false
-    private var localDemo = false
-
-    /// Optional BLE media / volume actuators (wired from ContentView).
-    var bleSetVolume: ((Double) -> Void)?
-    var bleMediaPlay: (() -> Void)?
-    var bleMediaSkip: ((Int) -> Void)?
 
     private let tracks: [(String, String)] = [
         ("Kayıp Kalp", "BLOK3"),
@@ -80,77 +65,19 @@ final class HUDModel: ObservableObject {
         return f
     }()
 
-    var liveLocked: Bool { isLive || useVehicleFeed || useBLE }
-
     func configure(vin raw: String, paired: Bool) {
         vin = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         vinTail = String(vin.suffix(6))
         bleOK = paired
         night = true
         leftSlide = 0
-        feedOK = false
-        isLive = false
-        useVehicleFeed = false
-        useBLE = false
-        // NEVER fake-drive after pair — wait for real BLE / LIVE API.
-        localDemo = false
-        telemetrySource = paired ? "BLE bekleniyor" : "baglaniyor"
-        feedError = paired ? "Key Card + araç uyanık olmalı" : ""
-        speed = 0
-        powerKW = 0
-        gear = "—"
-        driving = false
-        battery = 0
-        rangeKm = 0
-        psiFL = 0; psiFR = 0; psiRL = 0; psiRR = 0
-        destination = "—"; eta = "—"; energyAtArrival = "—"; tripDist = "—"
-        place = "—"
-        mediaTitle = "—"; mediaArtist = "—"; mediaService = "—"
-        mediaPlaying = false
-        latitude = 0; longitude = 0
         refreshClock()
         start()
-    }
-
-    /// Apply real signed BLE `getVehicleData` snapshot (highest priority).
-    func applyBLE(_ s: VehicleLiveSnapshot, linkOK: Bool) {
-        guard linkOK else { return }
-        useBLE = true
-        feedOK = true
-        isLive = true
-        localDemo = false
-        useVehicleFeed = false
-        bleOK = true
-        telemetrySource = "BLE"
-        feedError = ""
-        // Always mirror car — including 0 speed / P gear.
-        speed = s.speedKmh
-        powerKW = s.powerKW
-        gear = s.gear.isEmpty ? "—" : s.gear
-        driving = abs(s.speedKmh) > 1.5 || s.gear == "D" || s.gear == "R"
-        battery = s.batteryPercent
-        rangeKm = s.rangeKm
-        if s.odometerKm > 0 { odometer = s.odometerKm }
-        charging = s.charging
-        psiFL = s.psiFL
-        psiFR = s.psiFR
-        psiRL = s.psiRL
-        psiRR = s.psiRR
-        outdoorC = s.outdoorC
-        if abs(s.latitude) > 0.0001 { latitude = s.latitude }
-        if abs(s.longitude) > 0.0001 { longitude = s.longitude }
-        mapHeading = s.heading
-        destination = s.destination
-        eta = s.eta
-        energyAtArrival = s.energyAtArrival
-        tripDist = s.tripDist
-        place = s.place
-        mediaTitle = s.mediaTitle
-        mediaArtist = s.mediaArtist
-        mediaService = s.mediaService
-        mediaPlaying = s.mediaPlaying
-        mediaVolume = s.mediaVolume
-        mediaProgress = s.mediaProgress
+        // Demo: show moving speed so dial is obviously alive
+        if !useVehicleFeed {
+            driving = true
+            gear = "D"
+        }
     }
 
     func start() {
@@ -159,7 +86,9 @@ final class HUDModel: ObservableObject {
         timer = Timer.publish(every: 0.2, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.tick() }
-        startVehiclePoll()
+        // build-36: no network poll (Playgrounds crash/hang risk). Local demo only.
+        useVehicleFeed = false
+        telemetrySource = "demo"
     }
 
     func stop() {
@@ -168,9 +97,7 @@ final class HUDModel: ObservableObject {
     }
 
     func toggleDrive() {
-        // Live / dash feed: car controls gear — HUD is read-only
-        guard !liveLocked else { return }
-        localDemo = true
+        guard !useVehicleFeed else { return }
         driving.toggle()
         if driving {
             if gear == "P" || gear == "N" { gear = "D" }
@@ -183,9 +110,8 @@ final class HUDModel: ObservableObject {
 
     func setGear(_ g: String) {
         guard ["P", "R", "N", "D"].contains(g) else { return }
-        guard !liveLocked else { return }
-        localDemo = true
         gear = g
+        if useVehicleFeed { return }
         if g == "D" || g == "R" {
             driving = true
         } else {
@@ -197,22 +123,9 @@ final class HUDModel: ObservableObject {
 
     func beginAfterPair() {}
 
-    func togglePlay() {
-        if useBLE {
-            bleMediaPlay?()
-            mediaPlaying.toggle()
-            return
-        }
-        guard !isLive else { return }
-        mediaPlaying.toggle()
-    }
+    func togglePlay() { mediaPlaying.toggle() }
 
     func skipTrack(_ delta: Int) {
-        if useBLE {
-            bleMediaSkip?(delta)
-            return
-        }
-        guard !isLive else { return }
         trackIndex = ((trackIndex + delta) % tracks.count + tracks.count) % tracks.count
         mediaTitle = tracks[trackIndex].0
         mediaArtist = tracks[trackIndex].1
@@ -222,16 +135,9 @@ final class HUDModel: ObservableObject {
 
     func nudgeVolume(_ delta: Double) {
         mediaVolume = min(1, max(0, mediaVolume + delta))
-        if useBLE {
-            // Prefer step commands on car; also push absolute as fallback via closure.
-            bleSetVolume?(mediaVolume)
-            return
-        }
-        guard !isLive else { return }
     }
 
     func adjustTire(_ corner: String, delta: Int) {
-        guard !liveLocked else { return }
         switch corner {
         case "FL": psiFL = clampPsi(psiFL + delta)
         case "FR": psiFR = clampPsi(psiFR + delta)
@@ -242,7 +148,6 @@ final class HUDModel: ObservableObject {
     }
 
     func resetTires() {
-        guard !liveLocked else { return }
         psiFL = 42; psiFR = 42; psiRL = 41; psiRR = 42
     }
 
@@ -264,111 +169,48 @@ final class HUDModel: ObservableObject {
 
     func setRight(_ i: Int) { setLeft(i) }
 
-    func enableLiveOnDash(token: String, vehicleId: String, pin: String, dashURL: String) async -> String {
-        let base = dashURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard let root = URL(string: base) else { return "Dash URL gecersiz" }
-        var req = URLRequest(url: root.appendingPathComponent("api/tesla/enable"))
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue(pin, forHTTPHeaderField: "X-Pulse-Pin")
-        let body: [String: Any] = [
-            "pin": pin,
-            "access_token": token,
-            "vehicle_id": vehicleId,
-            "vin": vin,
-        ]
-        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        do {
-            let (data, resp) = try await URLSession.shared.data(for: req)
-            let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
-            let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-            if code == 200, (obj?["ok"] as? Bool) == true {
-                isLive = true
-                feedOK = true
-                telemetrySource = "live"
-                if let n = obj?["vehicle_name"] as? String { vehicleName = n }
-                return "Canli baglandi ✓"
-            }
-            return (obj?["error"] as? String) ?? "Canli acilamadi (\(code))"
-        } catch {
-            return error.localizedDescription
-        }
-    }
-
     private func startVehiclePoll() {
         pollTask?.cancel()
         let base = (UserDefaults.standard.string(forKey: "pulse_dash_url") ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let pin = (UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        // Paired BLE path: do not fall back to fake demo numbers.
-        if bleOK {
-            localDemo = false
-            if !useBLE {
-                telemetrySource = "BLE bekleniyor"
-            }
-        }
         guard !base.isEmpty, let root = URL(string: base) else {
             useVehicleFeed = false
-            if !bleOK {
-                feedOK = false
-                telemetrySource = "BLE / Settings"
-                feedError = "Pair yap veya Settings → token"
-            }
+            telemetrySource = "demo"
             return
         }
         pollTask = Task { @MainActor in
             while !Task.isCancelled {
-                _ = await pullVehicle(root: root, pin: pin)
-                // Never seed fake demo — wait for BLE LIVE or Owner API live.
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                await pullVehicle(root: root, pin: pin)
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
         }
     }
 
-    @discardableResult
-    private func pullVehicle(root: URL, pin: String) async -> Bool {
+    private func pullVehicle(root: URL, pin: String) async {
         var comps = URLComponents(url: root.appendingPathComponent("api/vehicle/state"), resolvingAgainstBaseURL: false)
         comps?.queryItems = [URLQueryItem(name: "pin", value: pin)]
-        guard let final = comps?.url else { return false }
+        guard let final = comps?.url else { return }
         do {
-            var req = URLRequest(url: final, timeoutInterval: 8)
-            req.setValue(pin, forHTTPHeaderField: "X-Pulse-Pin")
-            let (data, resp) = try await URLSession.shared.data(for: req)
+            let (data, resp) = try await URLSession.shared.data(from: final)
             guard let http = resp as? HTTPURLResponse, http.statusCode == 200,
                   let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   (obj["ok"] as? Bool) == true else {
-                if !useBLE { feedOK = false }
-                return false
+                useVehicleFeed = false
+                telemetrySource = "demo"
+                return
             }
-            // Real BLE session wins over Dash / Owner API.
-            if useBLE { return true }
-            let src = ((obj["source"] as? String) ?? "demo").lower()
-            // Ignore server simulator / fake dash when we expect real car data.
-            guard src == "live" else { return false }
             useVehicleFeed = true
-            feedOK = true
-            feedError = ""
-            localDemo = false
-            isLive = true
-            telemetrySource = "LIVE"
-            if let n = obj["vehicle_name"] as? String, !n.isEmpty { vehicleName = n }
-
-            if let lat = num(obj["latitude"]) { latitude = lat }
-            if let lon = num(obj["longitude"]) { longitude = lon }
+            let src = (obj["source"] as? String) ?? "demo"
+            telemetrySource = src == "live" ? "live" : "dash"
             if let h = num(obj["heading"]) { mapHeading = h }
-            if let sp = num(obj["speed_kmh"]) {
-                speed = sp
-                driving = abs(sp) > 1.5 || (obj["gear"] as? String) == "D" || (obj["gear"] as? String) == "R"
-            }
-            if let pw = num(obj["power_kw"]) { powerKW = pw }
+            if let sp = num(obj["speed_kmh"]) { speed = sp; driving = sp > 1.5 }
             if let bat = num(obj["battery_percent"]) { battery = bat }
             if let rng = num(obj["battery_range_km"]) { rangeKm = Int(rng) }
             if let g = obj["gear"] as? String, !g.isEmpty { gear = g }
             if let odo = num(obj["odometer_km"]) { odometer = odo }
-            if let st = obj["street"] as? String, !st.isEmpty, st != "--" { place = st }
+            if let st = obj["street"] as? String, !st.isEmpty { place = st }
             if let d = obj["destination"] as? String, !d.isEmpty, d != "--" { destination = d }
             if let a = obj["arrival_time"] as? String, !a.isEmpty, a != "--" { eta = a }
             if let e = obj["energy_at_arrival"] as? String, !e.isEmpty, e != "--" { energyAtArrival = e }
@@ -376,17 +218,14 @@ final class HUDModel: ObservableObject {
             if let mt = obj["media_title"] as? String { mediaTitle = mt }
             if let ma = obj["media_artist"] as? String { mediaArtist = ma }
             if let ms = obj["media_service"] as? String { mediaService = ms }
-            if let mp = num(obj["media_progress"]) { mediaProgress = mp }
-            if let t = num(obj["tire_fl"]) { psiFL = Int(t.rounded()) }
-            if let t = num(obj["tire_fr"]) { psiFR = Int(t.rounded()) }
-            if let t = num(obj["tire_rl"]) { psiRL = Int(t.rounded()) }
-            if let t = num(obj["tire_rr"]) { psiRR = Int(t.rounded()) }
-            if let temp = num(obj["outside_temp_c"]) { outdoorC = Int(temp.rounded()) }
-            if let ch = obj["charging"] as? Bool { charging = ch }
-            return true
+            if let t = num(obj["tire_fl"]) { psiFL = Int(t) }
+            if let t = num(obj["tire_fr"]) { psiFR = Int(t) }
+            if let t = num(obj["tire_rl"]) { psiRL = Int(t) }
+            if let t = num(obj["tire_rr"]) { psiRR = Int(t) }
+            if let temp = num(obj["outside_temp_c"]) { outdoorC = Int(temp) }
         } catch {
-            feedOK = false
-            return false
+            useVehicleFeed = false
+            telemetrySource = "demo"
         }
     }
 
@@ -404,21 +243,22 @@ final class HUDModel: ObservableObject {
         phase += 0.2
         mapPulse = phase
         if Int(phase * 5) % 5 == 0 { refreshClock() }
-        // Never animate over BLE / live / dash feed
-        guard !useBLE && !useVehicleFeed else { return }
-        guard localDemo else { return }
         if mediaPlaying {
             mediaProgress = min(1, mediaProgress + 0.002)
             if mediaProgress >= 1 { skipTrack(1) }
         }
+        guard !useVehicleFeed else { return }
         if driving {
             let wave = (sin(phase * 0.35) + 1) * 0.5
             let target = gear == "R" ? -(20 + wave * 15) : (48 + wave * 62)
             speed += (target - speed) * 0.12
-            powerKW = abs(target - speed) * 1.1 + 8
+            powerKW = abs(target - speed) * 1.1 + (driving ? 8 : 0)
             let dKm = abs(speed) / 3600.0 * 0.2
             tripKm += dKm
             odometer += dKm
+            tripDist = String(format: "%.1f km", max(0, 13.3 - tripKm))
+            eta = clockFmt.string(from: Date().addingTimeInterval(max(60, 900 - tripKm * 40)))
+            energyAtArrival = "\(max(5, Int(battery) - Int(tripKm / 3)))%"
             mapHeading = 10 + sin(phase) * 25
         } else {
             speed += (0 - speed) * 0.18
