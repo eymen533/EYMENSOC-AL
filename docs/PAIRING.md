@@ -60,8 +60,8 @@ This sends the same VCSEC `SIGNATURE_TYPE_PRESENT_KEY` envelope as
    Deep link attempts: `tesla://`, `tesla://security`.
 
 2. **iPhone / iPad native app via Swift Playgrounds (no Mac)** — `ios/PulsePhoneKey.swiftpm/`  
-   App Store → Swift Playgrounds → open zip → Sign → **Run ▶** (installs to Home Screen; not Safari).  
-   Zip: `/downloads/PulsePhoneKey-playground-build14.zip` · steps: `ios/PulsePhoneKey.swiftpm/IPHONE.md`
+   App Store → Swift Playgrounds → unzip → long-press `.swiftpm` → Share → Open in Playgrounds → Sign → **Run ▶**.  
+   Zip: `/downloads/PulsePhoneKey-playground-build15.zip` · steps: `ios/PulsePhoneKey.swiftpm/IPHONE.md`
 
 3. **Native companion (Mac + Xcode)** — `ios/PulsePhoneKey/`  
    Same CoreBluetooth payload; optional if you prefer Xcode.  

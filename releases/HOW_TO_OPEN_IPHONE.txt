@@ -1,0 +1,9 @@
+PulsePhoneKey — iPhone (Swift Playgrounds)
+
+1) Bu zip’i ac (Dosyalar).
+2) PulsePhoneKey.swiftpm klasorune BASILI TUT.
+3) Paylas → Swift Playgrounds’ta Ac.
+4) Signing (Apple ID) → Run ▶
+5) Ana ekranda surum: build-15-wagon
+
+Zip acilmazsa: PulsePhoneKey-swift-files.zip kullan (MANUAL.md).

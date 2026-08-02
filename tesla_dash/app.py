@@ -687,11 +687,11 @@ app.layout = html.Div(
                     ],
                 ),
                 html.Div(
-                    className="triad",
+                    className="triad wagon-triad",
                     children=[
                         _side_panel("left", 0),
                         html.Main(
-                            className="center-panel",
+                            className="center-panel wagon-center",
                             children=[
                                 html.Div(className="center-veil"),
                                 _select_rail("left"),

@@ -17,8 +17,8 @@ let package = Package(
             targets: ["AppModule"],
             bundleIdentifier: "com.teslapulse.phonekey",
             teamIdentifier: "",
-            displayVersion: "1.3",
-            bundleVersion: "13",
+            displayVersion: "1.5",
+            bundleVersion: "15",
             appIcon: .placeholder(icon: .car),
             accentColor: .presetColor(.blue),
             supportedDeviceFamilies: [
@@ -48,7 +48,8 @@ let package = Package(
                 "Info.plist",
                 "PLAYGROUNDS.md",
                 "CRASH_FIX.md",
-                "MANUAL.md"
+                "MANUAL.md",
+                "IPHONE.md"
             ]
         )
     ]

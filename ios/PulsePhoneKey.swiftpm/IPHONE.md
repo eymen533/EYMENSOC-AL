@@ -6,32 +6,35 @@ Bu Linux ortamından App Store’a imzalı `.ipa` yayınlanamaz. iPhone’a kurm
 
 ## Yol A — Swift Playgrounds (Mac şart değil)
 
-1. App Store → **Swift Playgrounds** kur (iPhone destekler).
-2. Zip indir: `/downloads/PulsePhoneKey-playground-build14.zip` (veya `…-playground.zip`).
-3. Dosyalar’da zip’i aç → `PulsePhoneKey.swiftpm` klasörüne dokun → **Playgrounds’ta Aç**.
-4. App Settings → **Signing** → kendi Apple ID’n.
-5. Capabilities → **Bluetooth Always** açık olsun (Package.swift’te gömülü).
-6. **Run ▶** — uygulama iPhone’a native kurulur (Ana Ekran’a eklenir). Safari değildir.
-7. Ayarlar → Dash server = canlı tunnel URL · PIN = `428462`.
-8. **Pair Vehicle** → VIN → listeden `🔑 Tesla …` → Key Card’ı **konsola** → Confirm → **Open Cluster HUD**.
+1. App Store → **Swift Playgrounds** kur (iPhone).
+2. Zip indir: `/downloads/PulsePhoneKey-playground-build15.zip`
+3. **Dosyalar** uygulamasında zip’e dokun → **Aç** (sıkıştırmayı kaldır).
+4. Açılan klasörde **`PulsePhoneKey.swiftpm`** klasörüne **basılı tut** → **Paylaş** → **Swift Playgrounds’ta Aç**  
+   (Sadece klasöre tek dokunuş yetmeyebilir — Paylaş yolu daha güvenilir.)
+5. Playgrounds → App Settings → **Signing** → Apple ID.
+6. Capabilities → **Bluetooth Always**.
+7. **Run ▶** — Ana Ekran’a yerel uygulama kurulur.
+8. Ana ekranda sürüm: **`build-15-wagon`** olmalı.
+9. Settings → Dash server + PIN `428462`.
+10. **Pair Vehicle** → VIN → `🔑 Tesla …` → Key Card **konsola** → HUD.
 
-Ücretsiz Personal Team ile kurulum ~7 günde yenilenir; tekrar Run yeterli.
+### Zip açılmıyorsa
 
-Ana ekranda sürüm: `build-14-iphone` görünmeli. Eski sürümse zip’i yeniden indir.
+- Eski zip’i sil, **build15** indir (Safari önbelleği eski dosya verebilir).
+- Alternatif: `/downloads/PulsePhoneKey-swift-files.zip` → Playgrounds’ta **Yeni App** → dosyaları yapıştır ([`MANUAL.md`](MANUAL.md)).
+- “Unable to open” → Signing / Apple ID gir, Bluetooth capability açık olsun.
+- Ücretsiz Personal Team ~7 günde yenilenir; tekrar Run.
 
-## Yol B — Mac + Xcode (kalıcı geliştirici kurulumu)
+## Yol B — Mac + Xcode
 
-1. Mac’te Xcode aç → `ios/PulsePhoneKey.swiftpm` veya `ios/PulsePhoneKey/`.
-2. Signing → Personal Team / Apple Developer.
-3. iPhone’u kabloyla bağla → Trust → Run.
-4. iPhone: Ayarlar → Genel → VPN ve Cihaz Yönetimi → geliştiriciyi güven.
+1. `ios/PulsePhoneKey.swiftpm` aç → Signing → iPhone’a Run.
+2. Ayarlar → Genel → VPN ve Cihaz Yönetimi → geliştiriciyi güven.
 
 ## Bağlantı hatası
 
-- **BLE Pair** telefonda lokaldir; internet gerekmez.
-- **HUD** Dash sunucusuna HTTP ister. Quick tunnel düşerse Settings’te URL güncelle veya **Varsayilan sunucuya don**.
-- Settings → **Sunucu baglantisini test et** ile kontrol et.
+- **BLE Pair** lokaldir.
+- **HUD** Dash URL ister. Settings → test / varsayılana dön.
 
 ## App Store / .ipa
 
-İmzalı App Store paketi bu ortamda üretilmez. Kendi Mac + Apple Developer hesabınla Archive → Distribute gerekir.
+Bu ortamda imzalı IPA üretilmez.
