@@ -1,9 +1,8 @@
-# build-41-dash
+# build-42-ble
 
-Plan B: stabil açılış + Dash Owner API poll.
-- Pair + Cluster HUD
+Dashla yolu: Phone Key pair + Infotainment BLE AES-GCM telemetri.
+- Lazy telemetry (Pair’de oluşur)
 - MapKit yok
-- BLE AES telemetri dosyaları yok
-- Canlı hız/vites/batarya: Dash `/api/vehicle/state` (+ opsiyonel `/api/tesla/enable`)
+- Dash Owner API yedek
 
-Eski proje SIL → **build-41-dash**
+Playgrounds açılış çökerse → hemen yaz (build-40/41 stabil yolu + Xcode planı).

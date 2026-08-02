@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Tek uygulama: BLE Pair + native cluster. WebView / uzak Dash yok.
+/// Tek uygulama: BLE Pair + gerçek BLE cluster telemetrisi (+ Dash yedek).
 struct ContentView: View {
     @StateObject private var ble = BLEPairer()
     @StateObject private var hud = HUDModel()
@@ -9,6 +9,9 @@ struct ContentView: View {
         ?? "https://mon-holds-cloud-grateful.trycloudflare.com"
     @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
     @State private var teslaToken = UserDefaults.standard.string(forKey: "pulse_tesla_token") ?? ""
+    @State private var teslaVehicleId = UserDefaults.standard.string(forKey: "pulse_tesla_vid") ?? ""
+    @State private var liveStatus = ""
+    @State private var liveBusy = false
     @State private var showPairFlow = false
     @State private var screen: Screen = .home
     @State private var showSettings = false
@@ -52,6 +55,25 @@ struct ContentView: View {
         .onChange(of: ble.readyForDashboard) { _, on in
             if on { hud.bleOK = true }
         }
+        .onChange(of: ble.bleSnapRev) { _, _ in
+            if ble.bleLiveOK {
+                hud.bleOK = true
+                hud.applyBLE(ble.bleSnapshot, linkOK: true)
+            }
+        }
+        .onChange(of: ble.bleLiveOK) { _, ok in
+            if ok {
+                hud.bleOK = true
+                hud.applyBLE(ble.bleSnapshot, linkOK: true)
+            }
+        }
+        .onAppear {
+            // Closures only; telemetry engine still created at Pair, not here.
+            let pairer = ble
+            hud.bleSetVolume = { level in pairer.mediaSetVolume(level) }
+            hud.bleMediaPlay = { pairer.mediaPlayToggle() }
+            hud.bleMediaSkip = { delta in pairer.mediaSkip(delta) }
+        }
     }
 
     private var home: some View {
@@ -69,12 +91,13 @@ struct ContentView: View {
                     Text("PULSE")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                    Text("Tek uygulama · BLE Pair + klasik Cluster")
+                    Text("BLE Pair + gerçek Cluster (araç BLE)")
                         .foregroundStyle(.white.opacity(0.55))
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("build-41 · Dash live · Pair + HUD\nSettings: Dash URL + PIN (+ token) → LIVE")
+                    Text("build-42 · BLE live · Dash yedek
+Pair → Key Card → Cluster → BLE LIVE")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -116,7 +139,7 @@ struct ContentView: View {
                         save()
                         openHUD()
                     } label: {
-                        Text("Cluster HUD (uygulama ici)")
+                        Text(ble.bleLiveOK ? "Cluster HUD (BLE LIVE)" : "Cluster HUD")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
@@ -160,22 +183,48 @@ struct ContentView: View {
                     TextField("VIN", text: $vin)
                         .textInputAutocapitalization(.characters)
                 }
-                Section("Dash (canli telemetri)") {
+                Section("BLE telemetri (asıl kaynak)") {
+                    Text(ble.bleStatus)
+                        .font(.footnote)
+                    Text("Pair sonrası araçla imzalı BLE oturumu açılır: hız, vites, lastik, batarya, medya, GPS. Key Card konsolda olmalı.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Dash (yedek)") {
                     TextField("Dash URL", text: $dashURL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
                     SecureField("PIN", text: $pin)
                         .keyboardType(.numberPad)
-                    SecureField("Tesla access token (opsiyonel)", text: $teslaToken)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Text("HUD açılınca Dash’ten hız/vites/batarya/lastik/medya çeker. Token yazarsan Dash live moda geçer. HUD’da LIVE = gerçek araç.")
+                    Text("BLE yoksa yedek olarak /api/vehicle/state.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                Section("Arabaya baglaninca") {
-                    Text("BLE Pair = Phone Key. Canlı hız/vites BLE AES ile değil — Owner API + Dash üzerinden gelir (çökme riski düşük).")
+                Section("Tesla Owner API (opsiyonel yedek)") {
+                    SecureField("Access Token", text: $teslaToken)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    TextField("Vehicle ID (bos = VIN’den bul)", text: $teslaVehicleId)
+                        .keyboardType(.numberPad)
+                    Button {
+                        Task { await enableLive() }
+                    } label: {
+                        if liveBusy {
+                            ProgressView()
+                        } else {
+                            Text("Dash üzerinden API yedek aç")
+                        }
+                    }
+                    .disabled(liveBusy || teslaToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if !liveStatus.isEmpty {
+                        Text(liveStatus)
+                            .font(.footnote)
+                            .foregroundStyle(liveStatus.contains("✓") ? .green : .orange)
+                    }
+                }
+                Section("Not") {
+                    Text("Asıl veri: araç BLE (AES-GCM). Sahte demo YOK. D/hız/lastik/medya arabadan. Harita paneli MapKit’siz (GPS + yön).")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -202,17 +251,31 @@ struct ContentView: View {
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         UserDefaults.standard.set(url, forKey: "pulse_dash_url")
         UserDefaults.standard.set(pin.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pulse_pin")
-        UserDefaults.standard.set(
-            teslaToken.trimmingCharacters(in: .whitespacesAndNewlines),
-            forKey: "pulse_tesla_token"
+        UserDefaults.standard.set(teslaToken, forKey: "pulse_tesla_token")
+        UserDefaults.standard.set(teslaVehicleId, forKey: "pulse_tesla_vid")
+    }
+
+    private func enableLive() async {
+        save()
+        liveBusy = true
+        liveStatus = "Baglanıyor…"
+        let msg = await hud.enableLiveOnDash(
+            token: teslaToken.trimmingCharacters(in: .whitespacesAndNewlines),
+            vehicleId: teslaVehicleId.trimmingCharacters(in: .whitespacesAndNewlines),
+            pin: pin.trimmingCharacters(in: .whitespacesAndNewlines),
+            dashURL: dashURL
         )
+        liveStatus = msg
+        liveBusy = false
     }
 
     private func openHUD() {
-        hud.configure(
-            vin: vinNorm,
-            paired: ble.linkUp || ble.paired || ble.readyForDashboard || ble.waitingForCard
-        )
+        let paired = ble.linkUp || ble.paired || ble.readyForDashboard || ble.waitingForCard || ble.bleLiveOK
+        hud.configure(vin: vinNorm, paired: paired)
+        ble.ensureTelemetry()
+        if ble.bleLiveOK {
+            hud.applyBLE(ble.bleSnapshot, linkOK: true)
+        }
         screen = .hud
     }
 }
