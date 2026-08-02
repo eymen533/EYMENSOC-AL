@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Dashla-style night triad HUD — left media / center dial / Apple Maps + turn guidance.
+/// Dashla-style night triad — left + right swipeable panels, rails peek then hide.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     @ObservedObject private var settings = HUDSettings.shared
@@ -23,13 +23,13 @@ struct NativeHUDView: View {
                 Group {
                     if wide {
                         HStack(spacing: 0) {
-                            leftColumn
+                            sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
                                 .frame(width: geo.size.width * 0.27)
-                            rail
-                                .padding(.leading, 2)
+                            sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                             centerDial
                                 .frame(width: geo.size.width * 0.30)
-                            mapPanel
+                            sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
+                            sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                                 .frame(maxWidth: .infinity)
                         }
                     } else {
@@ -37,9 +37,10 @@ struct NativeHUDView: View {
                             centerDial
                                 .frame(height: max(220, geo.size.height * 0.40))
                             HStack(spacing: 0) {
-                                leftColumn
-                                rail.padding(.horizontal, 2)
-                                mapPanel
+                                sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
+                                sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
+                                sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                                sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
                             }
                         }
                     }
@@ -55,6 +56,7 @@ struct NativeHUDView: View {
         .statusBarHidden(true)
         .onAppear {
             model.start()
+            model.pulseRails()
             MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist)
         }
         .onDisappear { model.stop() }
@@ -65,6 +67,8 @@ struct NativeHUDView: View {
             MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist)
         }
     }
+
+    private enum Side { case left, right }
 
     // MARK: - Top bar
 
@@ -133,60 +137,92 @@ struct NativeHUDView: View {
         return "battery.25"
     }
 
-    // MARK: - Rail
+    // MARK: - Rails (peek 2–3s then hide)
 
-    private var rail: some View {
-        VStack(spacing: 16) {
-            ForEach(0..<HUDModel.slideCount, id: \.self) { i in
-                Button { model.setLeft(i) } label: {
-                    Image(systemName: HUDModel.slideIcons[i])
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(i == model.leftSlide ? ink : dim)
-                        .frame(width: 26, height: 26)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(i == model.leftSlide ? ink.opacity(0.7) : .clear, lineWidth: 1)
-                        )
+    private func sideRail(selected: Int, visible: Bool, onSelect: @escaping (Int) -> Void) -> some View {
+        ZStack {
+            // Always-tappable strip — tap to re-show rail when hidden.
+            Color.clear
+                .frame(width: 30)
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { onSelect(selected) }
+
+            VStack(spacing: 16) {
+                ForEach(0..<HUDModel.slideCount, id: \.self) { i in
+                    Button { onSelect(i) } label: {
+                        Image(systemName: HUDModel.slideIcons[i])
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(i == selected ? ink : dim)
+                            .frame(width: 26, height: 26)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 5)
+                                    .stroke(i == selected ? ink.opacity(0.7) : .clear, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 4)
+            .opacity(visible ? 1 : 0)
+            .allowsHitTesting(visible)
+            .animation(.easeOut(duration: 0.3), value: visible)
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 4)
+        .frame(width: 34)
     }
 
-    // MARK: - Left
+    // MARK: - Side columns
 
-    private var leftColumn: some View {
+    private func sideColumn(slide: Int, side: Side, showBattery: Bool) -> some View {
         ZStack(alignment: .bottomLeading) {
             Color.black
-            Group {
-                switch model.leftSlide {
-                case 1: tiresPanel
-                case 2: tripPanel
-                case 3: mapInfoPanel
-                case 4: mediaPanel
-                default: simplePanel
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 44)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            slideContent(slide, side: side)
+                .padding(.horizontal, slide == 3 ? 0 : 16)
+                .padding(.top, slide == 3 ? 0 : 8)
+                .padding(.bottom, showBattery && slide != 3 ? 44 : 0)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-            batteryChip
-                .padding(.leading, 16)
-                .padding(.bottom, 12)
+            if showBattery {
+                batteryChip
+                    .padding(.leading, 16)
+                    .padding(.bottom, 12)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
+        .contentShape(Rectangle())
         .gesture(
-            DragGesture(minimumDistance: 28)
+            DragGesture(minimumDistance: 24)
                 .onEnded { g in
-                    if g.translation.height < -36 { model.nudgeLeft(1) }
-                    else if g.translation.height > 36 { model.nudgeLeft(-1) }
+                    let vertical = abs(g.translation.height) > abs(g.translation.width)
+                    guard vertical else { return }
+                    if side == .left {
+                        if g.translation.height < -30 { model.nudgeLeft(1) }
+                        else if g.translation.height > 30 { model.nudgeLeft(-1) }
+                        else { model.flashLeftRail() }
+                    } else {
+                        if g.translation.height < -30 { model.nudgeRight(1) }
+                        else if g.translation.height > 30 { model.nudgeRight(-1) }
+                        else { model.flashRightRail() }
+                    }
                 }
         )
+        .onTapGesture {
+            if side == .left { model.flashLeftRail() }
+            else { model.flashRightRail() }
+        }
+    }
+
+    @ViewBuilder
+    private func slideContent(_ slide: Int, side: Side) -> some View {
+        switch slide {
+        case 1: tiresPanel
+        case 2: tripPanel
+        case 3: mapPanel(edge: side == .left ? .trailing : .leading)
+        case 4: mediaPanel
+        default: simplePanel
+        }
     }
 
     private var batteryChip: some View {
@@ -284,24 +320,6 @@ struct NativeHUDView: View {
             .foregroundStyle(ink.opacity(0.85))
     }
 
-    private var mapInfoPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Map")
-                .font(.caption)
-                .foregroundStyle(muted)
-            Text(displayOrDash(model.place))
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(ink)
-            Text(displayOrDash(model.destination))
-                .font(.subheadline)
-                .foregroundStyle(muted)
-            Text(String(format: "%.5f, %.5f", model.latitude, model.longitude))
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(dim)
-            Spacer(minLength: 0)
-        }
-    }
-
     private var mediaPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             mediaServiceHeader
@@ -353,7 +371,7 @@ struct NativeHUDView: View {
         return Color(red: 0.55, green: 0.35, blue: 0.95)
     }
 
-    // MARK: - Center dial (gears inside ring — Dashla screenshot)
+    // MARK: - Center dial
 
     private var centerDial: some View {
         let dialSize: CGFloat = settings.speedStyle == .compact ? 168 : 220
@@ -435,9 +453,11 @@ struct NativeHUDView: View {
             .padding(.horizontal, 8)
     }
 
-    // MARK: - Map
+    // MARK: - Map slide (usable on left or right)
 
-    private var mapPanel: some View {
+    private enum MapEdge { case leading, trailing }
+
+    private func mapPanel(edge: MapEdge) -> some View {
         ZStack(alignment: .topLeading) {
             VehicleMapView(
                 lat: model.latitude,
@@ -462,7 +482,7 @@ struct NativeHUDView: View {
 
             if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
                 turnBanner
-                    .padding(.leading, 52)
+                    .padding(.leading, edge == .leading ? 52 : 12)
                     .padding(.top, 10)
             }
 
@@ -497,12 +517,14 @@ struct NativeHUDView: View {
             .allowsHitTesting(false)
 
             LinearGradient(
-                colors: [Color.black.opacity(0.95), Color.black.opacity(0.35), .clear],
+                colors: edge == .leading
+                    ? [Color.black.opacity(0.95), Color.black.opacity(0.35), .clear]
+                    : [.clear, Color.black.opacity(0.35), Color.black.opacity(0.95)],
                 startPoint: .leading,
                 endPoint: .trailing
             )
             .frame(width: 48)
-            .frame(maxHeight: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edge == .leading ? .leading : .trailing)
             .allowsHitTesting(false)
         }
         .clipped()

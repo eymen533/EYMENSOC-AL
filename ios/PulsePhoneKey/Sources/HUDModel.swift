@@ -44,7 +44,9 @@ final class HUDModel: ObservableObject {
     @Published var mediaVolume: Double = 0.5
     @Published var clock = ""
     @Published var leftSlide = 4
-    @Published var leftRailVisible = true
+    @Published var rightSlide = 3
+    @Published var leftRailVisible = false
+    @Published var rightRailVisible = false
     @Published var mapHeading: Double = 0
     @Published var latitude: Double = 0
     @Published var longitude: Double = 0
@@ -65,9 +67,14 @@ final class HUDModel: ObservableObject {
     private var pollTask: Task<Void, Never>?
     private var phase: Double = 0
     private var leftCool: Date = .distantPast
+    private var rightCool: Date = .distantPast
+    private var leftRailHideTask: Task<Void, Never>?
+    private var rightRailHideTask: Task<Void, Never>?
     private var useVehicleFeed = false
     private var useBLE = false
     private var localDemo = false
+    /// Rail icons stay visible this long, then fade (Dashla-like).
+    private let railVisibleSeconds: UInt64 = 2_500_000_000
 
     /// Optional BLE media / volume actuators (wired from ContentView).
     var bleSetVolume: ((Double) -> Void)?
@@ -96,7 +103,10 @@ final class HUDModel: ObservableObject {
         vinTail = String(vin.suffix(6))
         bleOK = paired
         night = true
-        leftSlide = 4 // Medya — Dashla-like default
+        leftSlide = 4 // Medya
+        rightSlide = 3 // Harita
+        leftRailVisible = false
+        rightRailVisible = false
         feedOK = false
         isLive = false
         useVehicleFeed = false
@@ -277,17 +287,51 @@ final class HUDModel: ObservableObject {
         guard Date().timeIntervalSince(leftCool) > 0.18 else { return }
         leftCool = Date()
         leftSlide = ((leftSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
-        leftRailVisible = true
+        flashLeftRail()
     }
 
-    func nudgeRight(_ delta: Int) { nudgeLeft(delta) }
+    func nudgeRight(_ delta: Int) {
+        guard Date().timeIntervalSince(rightCool) > 0.18 else { return }
+        rightCool = Date()
+        rightSlide = ((rightSlide + delta) % Self.slideCount + Self.slideCount) % Self.slideCount
+        flashRightRail()
+    }
 
     func setLeft(_ i: Int) {
         leftSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount
-        leftRailVisible = true
+        flashLeftRail()
     }
 
-    func setRight(_ i: Int) { setLeft(i) }
+    func setRight(_ i: Int) {
+        rightSlide = ((i % Self.slideCount) + Self.slideCount) % Self.slideCount
+        flashRightRail()
+    }
+
+    /// Call when HUD opens — both rails peek for ~2.5s then hide.
+    func pulseRails() {
+        flashLeftRail()
+        flashRightRail()
+    }
+
+    func flashLeftRail() {
+        leftRailVisible = true
+        leftRailHideTask?.cancel()
+        leftRailHideTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: railVisibleSeconds)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.35)) { leftRailVisible = false }
+        }
+    }
+
+    func flashRightRail() {
+        rightRailVisible = true
+        rightRailHideTask?.cancel()
+        rightRailHideTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: railVisibleSeconds)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.35)) { rightRailVisible = false }
+        }
+    }
 
     func enableLiveOnDash(token: String, vehicleId: String, pin: String, dashURL: String) async -> String {
         let base = dashURL.trimmingCharacters(in: .whitespacesAndNewlines)
