@@ -1,13 +1,10 @@
-# build-36-stable
+# build-37-real
 
-Bilinen stabil sürüme geri alındı (build-32 tabanı).
+Gerçek araç BLE telemetrisi + Apple Maps.
 
-**Kaldırıldı (çökme kaynakları):**
-- BLE AES-GCM telemetri / CryptoKit session
-- MapKit / AsyncImage / ağ haritası
-- Dash HTTP poll
-- statusBarHidden
+- Sahte demo KAPALI (pair sonrası)
+- D / hız / lastik / medya / GPS → BLE AES-GCM
+- Harita → Apple Maps (MKMapSnapshotter)
+- Alt barda kaynak `BLE` olmalı
 
-**Kaldı:** BLE Phone Key pair + triad HUD (yerel demo).
-
-Eski proje **SIL** → zip → Run ▶ → `build-36-stable`
+Eski proje SIL → **build-37-real**

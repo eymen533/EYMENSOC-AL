@@ -1,2 +1,2 @@
-# build-36-stable
-Eski projeyi SİL → zip → Run ▶ → `build-36-stable`
+# build-37-real
+Sil → zip → Run ▶ → `build-37-real` · Key Card → Cluster · kaynak BLE
