@@ -1,5 +1,11 @@
-# iPhone · PulsePhoneKey
+# build-29-slides
 
-**`build-29-slides`** — 5’li dikey slider (Sade/Lastik/Rota/Harita/Medya) + Tesla lastik + canlı harita
+**Calisan linkler (sirayla dene):**
 
-Zip: `/downloads/PulsePhoneKey-playground-build29.zip`
+1. GitHub (en saglam):  
+   https://github.com/eymen533/EYMENSOC-AL/raw/cursor/ble-pair-fix-02d8/releases/PulsePhoneKey-playground-build29.zip
+
+2. Tunnel:  
+   https://wizard-awareness-travis-equation.trycloudflare.com/downloads/PulsePhoneKey-playground-build29.zip
+
+Eski PulsePhoneKey sil → zip ac → Run ▶ → **build-29-slides**
