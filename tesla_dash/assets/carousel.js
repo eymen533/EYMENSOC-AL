@@ -54,17 +54,8 @@
     }
     var track = document.getElementById(side + "-carousel");
     if (track) {
-      /* flu → net on vertical wagon step */
-      track.style.transition =
-        "transform 0.55s cubic-bezier(0.22, 1, 0.36, 1), filter 0.55s ease";
-      track.style.filter = "blur(7px) saturate(0.85)";
       track.style.transform = "translateY(-" + index * 100 + "%)";
       track.dataset.index = String(index);
-      window.requestAnimationFrame(function () {
-        window.requestAnimationFrame(function () {
-          track.style.filter = "blur(0px) saturate(1)";
-        });
-      });
     }
     var host = document.getElementById(side + "-dots");
     if (host) {

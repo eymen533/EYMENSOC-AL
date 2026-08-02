@@ -9,7 +9,7 @@ Adımlar: [`IPHONE.md`](IPHONE.md) · Çökme: [`CRASH_FIX.md`](CRASH_FIX.md)
 1. Zip → Dosyalar’da aç  
 2. `PulsePhoneKey.swiftpm` → **Paylaş → Playgrounds’ta Aç**  
 3. Signing → Run ▶  
-4. Sürüm: **`build-15-wagon`**
+4. Sürüm: **`build-14-iphone`**
 
 ## Pair
 

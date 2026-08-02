@@ -250,11 +250,11 @@ def phone_key_html(vin: str = "") -> str:
         <li>Signing (Apple ID) → <strong>Run ▶</strong> → Ana Ekran’da Pulse</li>
         <li>Pair Vehicle → VIN → <code>🔑 Tesla</code> → Key Card <strong>konsola</strong> → HUD</li>
       </ol>
-      <a class="btn" href="/downloads/PulsePhoneKey-playground-build15.zip" style="text-decoration:none;text-align:center">iPhone uygulaması · build-15 zip</a>
+      <a class="btn" href="/downloads/PulsePhoneKey-playground-build14.zip" style="text-decoration:none;text-align:center">iPhone uygulaması · build-14 zip</a>
       <a class="btn ghost" href="/downloads/PulsePhoneKey-playground.zip" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Aynı zip</a>
       <a class="btn ghost" href="/downloads/PulsePhoneKey-swift-files.zip" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Zip açılmazsa · sadece Swift dosyaları</a>
       <p class="support" style="background:rgba(255,214,10,.12);color:#ffe566;margin-top:.75rem">
-        <strong>SÜRÜM: build-15-wagon</strong> · Dosyalar’da .swiftpm’ye basılı tut → Paylaş → Playgrounds’ta Aç · Run ▶
+        <strong>SÜRÜM: build-14-iphone</strong> · Klasik triad (diyagonal yok) · .swiftpm → Paylaş → Playgrounds’ta Aç · Run ▶
       </p>
       <a class="btn ghost" href="https://apps.apple.com/app/swift-playgrounds/id908519492" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Swift Playgrounds · App Store</a>
       <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:1rem 0" />
