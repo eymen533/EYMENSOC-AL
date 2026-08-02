@@ -103,7 +103,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("build-37 · GERÇEK BLE hız/vites/lastik/medya\nPair → Key Card konsola → Cluster")
+                    Text("build-38 · BLE gerçek · MapKit yok\nPair → Key Card konsola → Cluster")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -230,7 +230,7 @@ struct ContentView: View {
                     }
                 }
                 Section("Not") {
-                    Text("Asıl veri: araç BLE (AES-GCM). Sahte demo YOK. D/hız/lastik/medya arabadan. Harita: Apple Maps. Yedek için Owner API token.")
+                    Text("Asıl veri: araç BLE (AES-GCM). Sahte demo YOK. D/hız/lastik/medya arabadan. Harita paneli MapKit’siz (GPS + yön).")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

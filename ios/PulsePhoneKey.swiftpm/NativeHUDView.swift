@@ -463,13 +463,13 @@ struct NativeHUDView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Map panel (Apple Maps snapshot)
+    // MARK: - Map panel (no MapKit — GPS + heading)
 
     private var mapPanel: some View {
         ZStack(alignment: .bottomTrailing) {
             VehicleMapView(lat: model.latitude, lon: model.longitude, heading: model.mapHeading)
             VStack(alignment: .trailing, spacing: 6) {
-                Text(model.telemetrySource == "BLE" ? "APPLE · BLE" : (model.isLive ? "APPLE · LIVE" : "APPLE MAPS"))
+                Text(model.telemetrySource == "BLE" ? "GPS · BLE" : (model.isLive ? "GPS · LIVE" : "GPS"))
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.black.opacity(0.75))
                     .padding(.horizontal, 8)

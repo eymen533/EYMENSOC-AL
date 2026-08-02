@@ -1,10 +1,6 @@
-# build-37-real
+# build-38-nomapkit
 
-Gerçek araç BLE telemetrisi + Apple Maps.
+Sadece MapKit kaldırıldı (Playgrounds çökmesi).
+BLE hız/vites/lastik/medya aynı. Harita paneli = GPS + yön.
 
-- Sahte demo KAPALI (pair sonrası)
-- D / hız / lastik / medya / GPS → BLE AES-GCM
-- Harita → Apple Maps (MKMapSnapshotter)
-- Alt barda kaynak `BLE` olmalı
-
-Eski proje SIL → **build-37-real**
+Eski proje SIL → **build-38-nomapkit**
