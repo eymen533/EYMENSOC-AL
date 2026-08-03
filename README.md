@@ -1,25 +1,19 @@
-# EYMEN BeamNG Digital Cluster
+# EYMEN BeamNG — HTML kadran (iPhone)
 
-PC’ye program kurulmaz.
+PC’ye Node/EXE **kurulmaz**. BeamNG modu + iPhone Safari.
 
-## Bluetooth ile bağlan (masaüstü için en iyi yol)
+## Hızlı başlangıç
+→ **[IPHONE-BASLA.md](./IPHONE-BASLA.md)**
 
-BeamNG Bluetooth konuşmaz; telefon **Bluetooth tethering** ile PC’ye ağ açar:
+Özet:
+1. `dist/eymen_html_cluster.zip` → BeamNG `mods` klasörü  
+2. Arabaya bin → **Ctrl+R**  
+3. iPhone Safari: `http://PC_IP:8765`  
 
-1. Telefondan PC’yi **Bluetooth ile eşleştir**  
-2. Telefon: **Ayarlar → Bağlantı noktası ve modem → Bluetooth tethering** AÇ  
-3. Windows’ta Bluetooth cihazına bağlan / ağ bağlantısı gelsin  
-4. EYMEN uygulamasında görünen IP’yi BeamNG’ye yaz  
-   - OutGauge → o IP · `4444`  
-   - MotionSim → o IP · `4445`  
-5. Menüyü kapat → **Ctrl+R** → paket sayacı artsın → **Kadranı Başlat**
-
-## APK
-`dist/EYMEN-BeamNG-Cluster.apk`
-
-## Alternatifler
-- Aynı Wi‑Fi (bazen router engeller)  
-- USB tethering (kablo)
+## Dosyalar
+- `beamng-mod/eymen_html_cluster/` — kaynak mod  
+- `dist/eymen_html_cluster.zip` — kurulum zip  
+- `dist/EYMEN-BeamNG-Cluster.apk` — eski Android seçeneği (isteğe bağlı)  
 
 ## Lisans
 MIT

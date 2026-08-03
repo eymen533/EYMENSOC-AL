@@ -1,0 +1,8 @@
+{
+  "id": "eymen_html_cluster",
+  "name": "EYMEN HTML Cluster",
+  "author": "EYMEN",
+  "version": "1.0.0",
+  "description": "iPhone/Safari HTML dijital kadran. Oyunda Ctrl+R sonrası telefonda http://PC_IP:8765 aç.",
+  "severity": false
+}
