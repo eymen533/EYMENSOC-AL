@@ -1,0 +1,11 @@
+{
+  "name": "EYMEN BeamNG Cluster",
+  "short_name": "EYMEN Cluster",
+  "description": "BeamNG.drive dijital kadran — Android için",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07090c",
+  "theme_color": "#0b0e12",
+  "lang": "tr"
+}

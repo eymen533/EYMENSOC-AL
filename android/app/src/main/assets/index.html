@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0e12" />
+  <title>EYMEN Cluster</title>
+  <link rel="stylesheet" href="css/cluster.css" />
+  <style>
+    @font-face {
+      font-family: "Orbitron";
+      font-style: normal;
+      font-weight: 700;
+      src: local("Orbitron"), local("sans-serif");
+    }
+    @font-face {
+      font-family: "Rajdhani";
+      font-style: normal;
+      font-weight: 600;
+      src: local("Rajdhani"), local("sans-serif");
+    }
+    :root {
+      --font-display: "Orbitron", "sans-serif";
+      --font-ui: "Rajdhani", "sans-serif";
+    }
+  </style>
+</head>
+<body>
+  <main id="cluster" class="cluster">
+    <header class="topbar">
+      <div class="brand">EYMEN</div>
+      <div class="status" id="connStatus" data-state="wait">BEKLENİYOR</div>
+      <div class="unit-toggle">
+        <button type="button" id="unitBtn" class="ghost">km/h</button>
+      </div>
+    </header>
+
+    <section class="dials" aria-label="Kadranlar">
+      <div class="dial dial-speed">
+        <svg viewBox="0 0 320 320" class="gauge-svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="arcSpeed" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#7ec8ff" />
+              <stop offset="100%" stop-color="#e8f4ff" />
+            </linearGradient>
+            <filter id="softGlow">
+              <feGaussianBlur stdDeviation="2.2" result="b" />
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+          <circle class="gauge-face" cx="160" cy="160" r="138" />
+          <circle class="gauge-track" cx="160" cy="160" r="118" />
+          <circle id="speedArc" class="gauge-arc" cx="160" cy="160" r="118"
+            stroke="url(#arcSpeed)" filter="url(#softGlow)"
+            stroke-dasharray="0 742" />
+          <g id="speedTicks" class="ticks"></g>
+        </svg>
+        <div class="dial-readout">
+          <div class="value" id="speedValue">0</div>
+          <div class="label" id="speedUnit">km/h</div>
+        </div>
+      </div>
+
+      <div class="center-stack">
+        <div class="signals">
+          <span id="sigL" class="sig">◀</span>
+          <span id="beam" class="icon-light" title="Far">≡</span>
+          <span id="sigR" class="sig">▶</span>
+        </div>
+        <div class="gear-wrap">
+          <div class="gear" id="gearValue">N</div>
+          <div class="gear-caption">GEAR</div>
+        </div>
+        <div class="warn-row">
+          <span id="warnHb" class="warn">P</span>
+          <span id="warnAbs" class="warn">ABS</span>
+          <span id="warnTc" class="warn">TC</span>
+          <span id="warnOil" class="warn">OIL</span>
+          <span id="warnBat" class="warn">BAT</span>
+          <span id="warnShift" class="warn shift">SHIFT</span>
+        </div>
+        <div class="pedals">
+          <div class="pedal"><i id="throttleBar"></i><span>THR</span></div>
+          <div class="pedal"><i id="brakeBar"></i><span>BRK</span></div>
+        </div>
+      </div>
+
+      <div class="dial dial-rpm">
+        <svg viewBox="0 0 320 320" class="gauge-svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="arcRpm" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#9ad0ff" />
+              <stop offset="70%" stop-color="#f0f7ff" />
+              <stop offset="100%" stop-color="#ff6b4a" />
+            </linearGradient>
+          </defs>
+          <circle class="gauge-face" cx="160" cy="160" r="138" />
+          <circle class="gauge-track" cx="160" cy="160" r="118" />
+          <circle id="rpmArc" class="gauge-arc" cx="160" cy="160" r="118"
+            stroke="url(#arcRpm)" filter="url(#softGlow)"
+            stroke-dasharray="0 742" />
+          <g id="rpmTicks" class="ticks"></g>
+        </svg>
+        <div class="dial-readout">
+          <div class="value rpm" id="rpmValue">0</div>
+          <div class="label">x1000 rpm</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="bottombar">
+      <div class="meter">
+        <span class="m-label">YAKIT</span>
+        <div class="m-bar"><i id="fuelBar"></i></div>
+        <span class="m-val" id="fuelVal">—</span>
+      </div>
+      <div class="meter">
+        <span class="m-label">SU</span>
+        <div class="m-bar temp"><i id="tempBar"></i></div>
+        <span class="m-val" id="tempVal">—</span>
+      </div>
+      <div class="meter turbo" id="turboMeter" hidden>
+        <span class="m-label">TURBO</span>
+        <div class="m-bar"><i id="turboBar"></i></div>
+        <span class="m-val" id="turboVal">—</span>
+      </div>
+      <div class="meta" id="metaInfo">OutGauge bekleniyor…</div>
+    </footer>
+  </main>
+  <script src="js/cluster.js"></script>
+</body>
+</html>
