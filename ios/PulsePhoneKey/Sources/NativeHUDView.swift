@@ -501,28 +501,41 @@ struct NativeHUDView: View {
     // MARK: - Dial
 
     private func dialView(size: CGFloat, compact: Bool = false) -> some View {
-        let speedFont = compact ? size * 0.42 : size * 0.46
+        let speedFont = compact ? size * 0.40 : size * 0.46
+        let ringW: CGFloat = compact ? 2.5 : 3.5
+        // Accel: top → right (clockwise). Regen: top → left (counter-clockwise, green).
+        let accel = CGFloat(min(1, max(0, model.powerKW) / 180.0))
+        let regen = CGFloat(min(1, max(0, -model.powerKW) / 70.0))
         return ZStack {
             Circle()
                 .fill(Color.black)
-                .shadow(color: .black.opacity(0.65), radius: compact ? 10 : 22, x: -8, y: 0)
+                .shadow(color: .black.opacity(0.65), radius: compact ? 10 : 22, x: 0, y: 0)
             Circle()
-                .stroke(Color.white.opacity(0.14), lineWidth: compact ? 1.5 : 2)
-            if settings.powerStyle == .ring, !compact {
-                Circle()
-                    .trim(from: 0, to: min(1, abs(model.powerKW) / 220))
-                    .stroke(
-                        AngularGradient(
-                            colors: settings.speedColor == .multicolor
-                                ? [.cyan, .green, .yellow, .orange, .red]
-                                : [accent, accent],
-                            center: .center
-                        ),
-                        style: StrokeStyle(lineWidth: 5, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .padding(8)
-            }
+                .stroke(Color.white.opacity(0.16), lineWidth: compact ? 1.5 : 2)
+
+            // Acceleration — thin arc from 12 o'clock clockwise toward bottom-right.
+            Circle()
+                .trim(from: 0, to: accel)
+                .stroke(
+                    Color.white.opacity(0.92),
+                    style: StrokeStyle(lineWidth: ringW, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .padding(3)
+                .animation(.easeOut(duration: 0.12), value: accel)
+
+            // Regen — thin green arc from 12 o'clock counter-clockwise toward bottom-left.
+            Circle()
+                .trim(from: 0, to: regen)
+                .stroke(
+                    Color(red: 0.25, green: 0.92, blue: 0.45),
+                    style: StrokeStyle(lineWidth: ringW, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .scaleEffect(x: -1, y: 1) // mirror → counter-clockwise
+                .padding(3)
+                .animation(.easeOut(duration: 0.12), value: regen)
+
             VStack(spacing: compact ? 0 : 2) {
                 HStack(spacing: size * 0.06) {
                     ForEach(["P", "R", "N", "D"], id: \.self) { g in
