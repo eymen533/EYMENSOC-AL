@@ -1,45 +1,51 @@
 # EYMEN BeamNG Digital Cluster
 
-Android telefonunu BeamNG.drive **direksiyon önü dijital kadran** yapar.
+Telefona **PC IP** yazıyorsun. Kablosuz kadran + harita + dijital ikonlar.
 
-**CMD yok. PC’de ekstra program yok.** Sadece APK kur + BeamNG’de IP yaz.
+## Kurulum (kolay yol)
 
-> BeamNG Bluetooth ile telemetri göndermez. Aynı Wi‑Fi üzerinden OutGauge = kablosuz bağlantı.
+### 1) PC — bir kez Node.js
+https://nodejs.org → LTS kur
 
-## Kurulum (CMD yok)
+### 2) PC — çift tık
+Repodaki `EYMEN-Cluster-Baslat.bat` dosyasına **çift tıkla**.  
+Siyah pencerede PC IP’leri yazar (ör. `http://192.168.1.20:8080`).
 
-### 1) Telefona yükle
-`dist/EYMEN-BeamNG-Cluster.apk` dosyasını telefona at ve kur  
-(Bilinmeyen kaynaklara izin ver).
+### 3) BeamNG (localhost!)
+Options → Other → Protocols (Advanced açık):
 
-### 2) Uygulamayı aç
-Ekranda **Telefon IP** görünür (ör. `192.168.1.35`).  
-İstersen **IP’yi kopyala**.
+| Protocol   | Address     | Port |
+|------------|-------------|------|
+| OutGauge   | `127.0.0.1` | 4444 |
+| MotionSim  | `127.0.0.1` | 4445 |
 
-### 3) BeamNG ayarı (bir kez)
-1. PC ve telefon **aynı Wi‑Fi**
-2. BeamNG → **Options → Other → Protocols**
-3. **OutGauge** aç
-4. IP = telefondaki adres  
-5. Port = **4444**
+Menüyü kapat → arabaya bin → **Ctrl+R**
 
-### 4) Kadranı Başlat
-Telefonda **Kadranı Başlat** → direksiyon önüne yatay sabitle.
+### 4) Telefon
+1. `dist/EYMEN-BeamNG-Cluster.apk` kur  
+2. Uygulamada **Bilgisayar IP** = bat’ın yazdığı IP (sadece sayı, ör. `192.168.1.20`)  
+3. **PC’ye Bağlan**
 
-Oyunsuz denemek için uygulamada **Demo**.
+## Ne var?
+- Dijital kadran (hız, RPM, vites)
+- Sinyal / far / ABS / TC / shift ikonları
+- NAV harita: konum, sürüş izi, gidiş rotası (MotionSim)
+- Demo modu (oyunsuz)
 
-## Ne gösterir?
-Hız · RPM · vites · sinyal/far · ABS/TC · yakıt · su sıcaklığı · turbo · gaz/fren
+> BeamNG stok protokolünde “GPS hedef waypoint listesi” yok. Harita MotionSim konum + yön ile rota şeridi çizer. Oyundaki navigasyon hedefini birebir almak için özel mod gerekir (ileride eklenebilir).
 
-## APK’yı yeniden derlemek (geliştirici)
+## Sorun olursa
+- Bat penceresi açık kalsın  
+- Aynı Wi‑Fi (misafir ağ değil)  
+- Windows ilk seferde güvenlik duvarı sorarsa **İzin ver**  
+- Telefonda Demo çalışıyorsa uygulama tamam; sorun BeamNG/ağ tarafındadır  
+
+## Geliştirici
 ```bash
-cd android
-./gradlew assembleDebug
-# çıktı: app/build/outputs/apk/debug/app-debug.apk
+node server/index.js
+node server/index.js --demo
+cd android && ./gradlew assembleRelease
 ```
-
-## (İsteğe bağlı) PC web köprüsü
-Eski `npm start` yolu hâlâ `server/` altında duruyor; normal kullanım için gerekmez.
 
 ## Lisans
 MIT

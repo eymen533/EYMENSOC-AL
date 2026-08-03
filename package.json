@@ -1,7 +1,7 @@
 {
   "name": "eymen-beamng-cluster",
   "version": "1.0.0",
-  "description": "BeamNG.drive dijital kadran — Android cihaz için OutGauge tabanlı instrument cluster",
+  "description": "BeamNG.drive dijital kadran — PC bridge + Android (PC IP ile bağlan)",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

@@ -2,11 +2,11 @@
   "use strict";
 
   const CIRC = 2 * Math.PI * 118;
-  const SWEEP = 270 / 360;
-  const ARC_LEN = CIRC * SWEEP;
+  const ARC_LEN = CIRC * (270 / 360);
 
   const els = {
     connStatus: document.getElementById("connStatus"),
+    connText: document.getElementById("connText"),
     unitBtn: document.getElementById("unitBtn"),
     speedValue: document.getElementById("speedValue"),
     speedUnit: document.getElementById("speedUnit"),
@@ -24,15 +24,16 @@
     throttleBar: document.getElementById("throttleBar"),
     brakeBar: document.getElementById("brakeBar"),
     metaInfo: document.getElementById("metaInfo"),
-    sigL: document.getElementById("sigL"),
-    sigR: document.getElementById("sigR"),
-    beam: document.getElementById("beam"),
-    warnHb: document.getElementById("warnHb"),
-    warnAbs: document.getElementById("warnAbs"),
-    warnTc: document.getElementById("warnTc"),
-    warnOil: document.getElementById("warnOil"),
-    warnBat: document.getElementById("warnBat"),
-    warnShift: document.getElementById("warnShift"),
+    navMeta: document.getElementById("navMeta"),
+    icoL: document.getElementById("icoL"),
+    icoR: document.getElementById("icoR"),
+    icoBeam: document.getElementById("icoBeam"),
+    icoP: document.getElementById("icoP"),
+    icoAbs: document.getElementById("icoAbs"),
+    icoTc: document.getElementById("icoTc"),
+    icoOil: document.getElementById("icoOil"),
+    icoBat: document.getElementById("icoBat"),
+    icoShift: document.getElementById("icoShift"),
   };
 
   const state = {
@@ -48,15 +49,12 @@
     const g = document.getElementById(groupId);
     if (!g) return;
     g.innerHTML = "";
-    const start = -210;
-    const end = 60;
-    const span = end - start;
+    const start = -210, end = 60, span = end - start;
     for (let v = 0; v <= max; v += step) {
       const t = v / max;
       const ang = ((start + span * t) * Math.PI) / 180;
       const major = v % majorEvery === 0;
-      const r1 = major ? 128 : 132;
-      const r2 = 138;
+      const r1 = major ? 128 : 132, r2 = 138;
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", 160 + r1 * Math.cos(ang));
       line.setAttribute("y1", 160 + r1 * Math.sin(ang));
@@ -73,19 +71,13 @@
       }
     }
   }
-
   buildTicks("speedTicks", 260, 20, 40, 1);
   buildTicks("rpmTicks", 8, 1, 1, 1);
 
   function setArc(el, ratio) {
-    const r = Math.min(1, Math.max(0, ratio));
-    el.setAttribute("stroke-dasharray", `${ARC_LEN * r} ${CIRC}`);
+    el.setAttribute("stroke-dasharray", `${ARC_LEN * Math.min(1, Math.max(0, ratio))} ${CIRC}`);
   }
-
-  function setOn(el, on) {
-    el.classList.toggle("on", !!on);
-  }
-
+  function setOn(el, on) { el && el.classList.toggle("on", !!on); }
   function unitMode() {
     if (state.overrideUnit === "km") return true;
     if (state.overrideUnit === "mi") return false;
@@ -95,13 +87,13 @@
   function setConnection(connected, demo) {
     if (demo) {
       els.connStatus.dataset.state = "demo";
-      els.connStatus.textContent = "DEMO";
+      els.connText.textContent = "DEMO";
     } else if (connected) {
       els.connStatus.dataset.state = "live";
-      els.connStatus.textContent = "CANLI";
+      els.connText.textContent = "CANLI";
     } else {
       els.connStatus.dataset.state = "lost";
-      els.connStatus.textContent = "SİNYAL YOK";
+      els.connText.textContent = "SİNYAL YOK";
     }
   }
 
@@ -114,12 +106,11 @@
     const km = unitMode();
     const speed = km ? d.speedKmh : d.speedMph;
     const speedMax = km ? state.maxSpeed : state.maxSpeed * 0.621371;
-    const speedShown = Math.round(Math.max(0, speed));
-
+    const speedShown = Math.round(Math.max(0, speed || 0));
     els.speedValue.textContent = String(speedShown);
     els.speedUnit.textContent = km ? "km/h" : "mph";
     els.unitBtn.textContent = km ? "km/h" : "mph";
-    setArc(els.speedArc, speed / speedMax);
+    setArc(els.speedArc, (speed || 0) / speedMax);
 
     const rpm = Math.max(0, d.rpm || 0);
     if (rpm > state.maxRpm) state.maxRpm = Math.ceil(rpm / 1000) * 1000;
@@ -138,69 +129,87 @@
     const fuel = d.fuel ?? 0;
     els.fuelBar.style.width = `${fuel * 100}%`;
     els.fuelVal.textContent = `${Math.round(fuel * 100)}%`;
-
     const temp = d.engTemp ?? 0;
     els.tempBar.style.width = `${Math.min(1, Math.max(0, (temp - 40) / 80)) * 100}%`;
     els.tempVal.textContent = `${Math.round(temp)}°`;
-
     if (d.showTurbo) {
       els.turboMeter.hidden = false;
       const turbo = Math.max(0, d.turbo || 0);
       els.turboBar.style.width = `${Math.min(1, turbo / 2) * 100}%`;
-      els.turboVal.textContent = `${turbo.toFixed(1)}`;
+      els.turboVal.textContent = turbo.toFixed(1);
     }
-
     els.throttleBar.style.width = `${(d.throttle || 0) * 100}%`;
     els.brakeBar.style.width = `${(d.brake || 0) * 100}%`;
 
     const L = d.lights || {};
-    setOn(els.sigL, L.signalL);
-    setOn(els.sigR, L.signalR);
-    setOn(els.beam, L.fullbeam);
-    setOn(els.warnHb, L.handbrake);
-    setOn(els.warnAbs, L.abs);
-    setOn(els.warnTc, L.tc);
-    setOn(els.warnOil, L.oilWarn);
-    setOn(els.warnBat, L.battery);
-    setOn(els.warnShift, L.shift);
+    setOn(els.icoL, L.signalL);
+    setOn(els.icoR, L.signalR);
+    setOn(els.icoBeam, L.fullbeam);
+    setOn(els.icoP, L.handbrake);
+    setOn(els.icoAbs, L.abs);
+    setOn(els.icoTc, L.tc);
+    setOn(els.icoOil, L.oilWarn);
+    setOn(els.icoBat, L.battery);
+    setOn(els.icoShift, L.shift);
 
+    if (window.EymenMap) window.EymenMap.update(d);
     const src = d.source === "demo" ? "DEMO" : "LIVE";
     els.metaInfo.textContent = `${src} · ${speedShown} ${km ? "km/h" : "mph"} · ${Math.round(rpm)} rpm`;
   }
 
-  // Android native pushes JSON string here
+  // WebSocket to same host (PC bridge) OR Android inject
+  let ws, retry = 800;
+  function connectWs() {
+    if (location.protocol === "file:") return; // Android local assets use bridge inject / demo
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}`);
+    ws.addEventListener("open", () => {
+      retry = 800;
+      els.metaInfo.textContent = "Köprü bağlandı · OutGauge bekleniyor…";
+      setConnection(false, false);
+    });
+    ws.addEventListener("message", (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+      if (msg.type === "hello") {
+        setConnection(false, !!msg.demo);
+        return;
+      }
+      if (msg.type === "telemetry") {
+        applyTelemetry(msg.data);
+        return;
+      }
+      if (msg.type === "status") {
+        if (!msg.connected && Date.now() - state.lastSeen > 2000) setConnection(false, !!msg.demo);
+      }
+    });
+    ws.addEventListener("close", () => {
+      setConnection(false, false);
+      els.metaInfo.textContent = "Yeniden bağlanılıyor…";
+      setTimeout(connectWs, retry);
+      retry = Math.min(5000, retry * 1.4);
+    });
+  }
+
   window.__eymenPush = function (raw) {
     try {
-      const d = typeof raw === "string" ? JSON.parse(raw) : raw;
-      applyTelemetry(d);
-    } catch (e) {
-      /* ignore bad payloads */
-    }
+      applyTelemetry(typeof raw === "string" ? JSON.parse(raw) : raw);
+    } catch { /* ignore */ }
   };
-
   window.__eymenStatus = function (text) {
     if (els.metaInfo) els.metaInfo.textContent = String(text || "");
-    if (!state.lastSeen) {
-      els.connStatus.dataset.state = "wait";
-      els.connStatus.textContent = "BEKLENİYOR";
-    }
   };
 
   els.unitBtn.addEventListener("click", () => {
     state.overrideUnit = unitMode() ? "mi" : "km";
-    els.unitBtn.textContent = unitMode() ? "km/h" : "mph";
   });
 
   setInterval(() => {
-    if (state.lastSeen && Date.now() - state.lastSeen > 2000) {
+    if (state.lastSeen && Date.now() - state.lastSeen > 2500) {
       setConnection(false, false);
-      els.metaInfo.textContent = "Sinyal yok · BeamNG OutGauge IP’sini kontrol et";
+      if (els.navMeta) els.navMeta.textContent = "sinyal yok";
     }
   }, 1000);
 
-  try {
-    if (window.EymenAndroid && EymenAndroid.ready) EymenAndroid.ready();
-  } catch (e) {
-    /* web preview */
-  }
+  connectWs();
 })();
