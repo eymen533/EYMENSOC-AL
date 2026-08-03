@@ -29,8 +29,11 @@ struct NativeHUDView: View {
     /// Soft blend into dial — always dark so day mode never paints white bars.
     private var fadeIntoDial: Color { Color.black }
 
-    private var leftBleed: Bool { model.leftSlide == 3 || model.leftSlide == 4 }
-    private var rightBleed: Bool { model.rightSlide == 3 || model.rightSlide == 4 }
+    /// Media may full-bleed; map stays inside its panel only.
+    private var leftBleed: Bool { model.leftSlide == 4 }
+    private var rightBleed: Bool { model.rightSlide == 4 }
+    private var leftMap: Bool { model.leftSlide == 3 }
+    private var rightMap: Bool { model.rightSlide == 3 }
     private var anyBleed: Bool { leftBleed || rightBleed }
 
     var body: some View {
@@ -80,31 +83,12 @@ struct NativeHUDView: View {
         }
     }
 
-    /// Prefer map/media as edge-to-edge background (same visual under chrome).
+    /// Backdrop: solid canvas, or album art when media is selected — never full-screen map.
     @ViewBuilder
     private var fullBleedBackdrop: some View {
-        let slide = model.leftSlide == 3 || model.rightSlide == 3
-            ? 3
-            : (model.leftSlide == 4 || model.rightSlide == 4 ? 4 : -1)
-        switch slide {
-        case 3:
-            VehicleMapView(
-                lat: model.latitude,
-                lon: model.longitude,
-                heading: model.mapHeading,
-                destination: routeDestination,
-                destLat: model.destLatitude,
-                destLon: model.destLongitude,
-                apiKey: model.googleMapsKey,
-                turnByTurn: true,
-                turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
-                turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
-                turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 }),
-                forceDark: true
-            )
-        case 4:
+        if model.leftSlide == 4 || model.rightSlide == 4 {
             AlbumArtFill(image: art.image, url: art.imageURL, loading: art.loading)
-        default:
+        } else {
             canvas
         }
     }
@@ -129,8 +113,12 @@ struct NativeHUDView: View {
         return ZStack {
             HStack(spacing: 0) {
                 Group {
-                    if leftBleed {
-                        // Backdrop already paints art/map; keep interactive overlay + side fade.
+                    if leftMap {
+                        // Map only in this panel — clipped, never full screen.
+                        mapSurface(edge: .trailing, side: .left, showTapExpand: true, asOverlay: false)
+                            .frame(height: panelH)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    } else if leftBleed {
                         bleedSurface(slide: model.leftSlide, edge: .trailing, side: .left, asOverlay: anyBleed)
                             .frame(maxHeight: .infinity)
                     } else {
@@ -143,7 +131,11 @@ struct NativeHUDView: View {
                 Spacer(minLength: 0)
 
                 Group {
-                    if rightBleed {
+                    if rightMap {
+                        mapSurface(edge: .leading, side: .right, showTapExpand: true, asOverlay: false)
+                            .frame(height: panelH)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    } else if rightBleed {
                         bleedSurface(slide: model.rightSlide, edge: .leading, side: .right, asOverlay: anyBleed)
                             .frame(maxHeight: .infinity)
                     } else {
@@ -219,12 +211,23 @@ struct NativeHUDView: View {
         let bleedExtra = dialW * 0.28
         let cx = w * 0.5
         let cy = wingH + gap + dialW * 0.5
-        let topBleed = model.leftSlide == 3 || model.leftSlide == 4
-        let bottomBleed = model.rightSlide == 3 || model.rightSlide == 4
+        let topBleed = model.leftSlide == 4
+        let bottomBleed = model.rightSlide == 4
+        let topMap = model.leftSlide == 3
+        let bottomMap = model.rightSlide == 3
         return ZStack {
             VStack(spacing: gap) {
                 Group {
-                    if topBleed {
+                    if topMap {
+                        mapSurface(
+                            edge: .trailing,
+                            side: .left,
+                            showTapExpand: true,
+                            verticalFromTop: false,
+                            asOverlay: false
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    } else if topBleed {
                         bleedSurface(
                             slide: model.leftSlide,
                             edge: .trailing,
@@ -239,14 +242,23 @@ struct NativeHUDView: View {
                 .frame(height: topBleed ? wingH + bleedExtra : wingH)
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, topBleed ? -bleedExtra : 0)
-                .zIndex(topBleed ? 0 : 1)
+                .zIndex(topBleed || topMap ? 0 : 1)
 
                 Color.clear
                     .frame(height: dialW)
                     .zIndex(2)
 
                 Group {
-                    if bottomBleed {
+                    if bottomMap {
+                        mapSurface(
+                            edge: .leading,
+                            side: .right,
+                            showTapExpand: true,
+                            verticalFromTop: true,
+                            asOverlay: false
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    } else if bottomBleed {
                         bleedSurface(
                             slide: model.rightSlide,
                             edge: .leading,
@@ -261,7 +273,7 @@ struct NativeHUDView: View {
                 .frame(height: bottomBleed ? wingH + bleedExtra : wingH)
                 .frame(maxWidth: .infinity)
                 .padding(.top, bottomBleed ? -bleedExtra : 0)
-                .zIndex(bottomBleed ? 0 : 1)
+                .zIndex(bottomBleed || bottomMap ? 0 : 1)
             }
             .frame(maxHeight: .infinity)
 

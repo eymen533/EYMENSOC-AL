@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-23"
+    static let buildId = "xcode-ble-24"
 
     enum Step: String {
         case idle = "Hazir"
@@ -390,8 +390,13 @@ final class BLEPairer: NSObject, ObservableObject {
             logLine("telemetry engine create")
             telemetry = BLETelemetry()
         }
-        let mode = UserDefaults.standard.string(forKey: "pulse_refresh_mode") ?? "Performans"
-        let interval: TimeInterval = (mode == "Düşük") ? 0.5 : 0.14
+        let mode = UserDefaults.standard.string(forKey: "pulse_refresh_mode") ?? "Anlık"
+        let interval: TimeInterval
+        switch mode {
+        case "Düşük": interval = 0.35
+        case "Performans": interval = 0.07
+        default: interval = 0.05 // Anlık
+        }
         telemetry?.applyPollInterval(interval)
         logLine("refresh \(mode) \(interval)s")
     }

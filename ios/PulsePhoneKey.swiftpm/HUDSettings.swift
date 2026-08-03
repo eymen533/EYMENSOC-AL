@@ -10,11 +10,24 @@ final class HUDSettings: ObservableObject {
     enum RefreshMode: String, CaseIterable, Identifiable {
         case low = "Düşük"
         case performance = "Performans"
+        case instant = "Anlık"
         var id: String { rawValue }
-        /// BLE poll interval seconds
-        var bleInterval: TimeInterval { self == .performance ? 0.14 : 0.5 }
+        /// BLE poll interval seconds — Anlık is max throughput.
+        var bleInterval: TimeInterval {
+            switch self {
+            case .instant: return 0.05
+            case .performance: return 0.07
+            case .low: return 0.35
+            }
+        }
         /// Dash HTTP poll nanoseconds
-        var dashNanos: UInt64 { self == .performance ? 200_000_000 : 900_000_000 }
+        var dashNanos: UInt64 {
+            switch self {
+            case .instant: return 80_000_000
+            case .performance: return 150_000_000
+            case .low: return 700_000_000
+            }
+        }
     }
 
     enum SpeedStyle: String, CaseIterable, Identifiable {
@@ -86,7 +99,7 @@ final class HUDSettings: ObservableObject {
 
     private init() {
         let d = UserDefaults.standard
-        refreshMode = RefreshMode(rawValue: d.string(forKey: "pulse_refresh_mode") ?? "") ?? .performance
+        refreshMode = RefreshMode(rawValue: d.string(forKey: "pulse_refresh_mode") ?? "") ?? .instant
         speedStyle = SpeedStyle(rawValue: d.string(forKey: "pulse_speed_style") ?? "") ?? .classic
         speedColor = SpeedColor(rawValue: d.string(forKey: "pulse_speed_color") ?? "") ?? .multicolor
         powerStyle = PowerStyle(rawValue: d.string(forKey: "pulse_power_style") ?? "") ?? .ring

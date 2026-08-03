@@ -110,7 +110,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-23 · telefon GPS · Apple/Google Maps")
+                    Text("xcode-ble-24 · panel harita · anlık BLE")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -260,9 +260,13 @@ struct ContentView: View {
                         ForEach(HUDSettings.RefreshMode.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    Text(hudSettings.refreshMode == .performance
-                         ? "Performans: daha hızlı BLE/Dash verisi (telefon ısınabilir)."
-                         : "Düşük: daha az pil, daha seyrek güncelleme.")
+                    Text({
+                        switch hudSettings.refreshMode {
+                        case .instant: return "Anlık: maksimum BLE hızı (~20 Hz), en canlı hız/GPS."
+                        case .performance: return "Performans: hızlı BLE, dengeli pil."
+                        case .low: return "Düşük: daha az pil, daha seyrek güncelleme."
+                        }
+                    }())
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
