@@ -108,16 +108,16 @@ struct ContentView: View {
                     Text("Xcode native · gerçek BLE Cluster")
                         .foregroundStyle(.white.opacity(0.55))
                     Text(BLEPairer.buildId)
-                        .font(.system(.title3, design: .monospaced).weight(.bold))
+                        .font(.system(.title2, design: .monospaced).weight(.bold))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
                         .background(
-                            Capsule().fill(Color(red: 0.15, green: 0.55, blue: 0.45).opacity(0.9))
+                            Capsule().fill(Color(red: 0.12, green: 0.72, blue: 0.55))
                         )
-                    Text("panel harita · anlık BLE · ikon")
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.45))
+                    Text("Build 27 · panel harita · anlık BLE")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.55))
                         .multilineTextAlignment(.center)
 
                     if ble.linkUp {
