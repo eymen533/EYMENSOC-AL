@@ -1,27 +1,25 @@
 # EYMEN BeamNG Digital Cluster
 
-**PC’ye program kurulmaz.** Sadece APK + BeamNG ayarı.
+PC’ye program kurulmaz.
 
-## Normal kurulum
-1. `dist/EYMEN-BeamNG-Cluster.apk` kur  
-2. Telefondaki IP’yi BeamNG’ye yaz  
-   - OutGauge → telefon IP : `4444`  
-   - MotionSim → telefon IP : `4445`  
-3. Ctrl+R → paket sayacı artsın → Kadranı Başlat  
+## Bluetooth ile bağlan (masaüstü için en iyi yol)
 
-## Masaüstü PC (hotspot yok) — USB tethering
-Ev Wi‑Fi çoğu zaman paketleri engeller. Hotspot da yoksa:
+BeamNG Bluetooth konuşmaz; telefon **Bluetooth tethering** ile PC’ye ağ açar:
 
-1. Telefonu **USB kablo** ile PC’ye tak  
-2. Telefonda bildirimden **USB tethering / USB modem / USB ile internet paylaş** aç  
-3. Uygulamayı aç → görünen **yeni IP**’yi kopyala  
-4. BeamNG OutGauge + MotionSim’e o IP’yi yaz  
-5. Ctrl+R  
+1. Telefondan PC’yi **Bluetooth ile eşleştir**  
+2. Telefon: **Ayarlar → Bağlantı noktası ve modem → Bluetooth tethering** AÇ  
+3. Windows’ta Bluetooth cihazına bağlan / ağ bağlantısı gelsin  
+4. EYMEN uygulamasında görünen IP’yi BeamNG’ye yaz  
+   - OutGauge → o IP · `4444`  
+   - MotionSim → o IP · `4445`  
+5. Menüyü kapat → **Ctrl+R** → paket sayacı artsın → **Kadranı Başlat**
 
-PC’ye ekstra program yok; sadece USB paylaşımı.
+## APK
+`dist/EYMEN-BeamNG-Cluster.apk`
 
-## Özellikler
-Dijital kadran · ikonlar · NAV harita · demo
+## Alternatifler
+- Aynı Wi‑Fi (bazen router engeller)  
+- USB tethering (kablo)
 
 ## Lisans
 MIT

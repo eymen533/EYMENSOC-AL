@@ -88,6 +88,15 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/linkType"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="bağlantı bekleniyor"
+                    android:textColor="@color/muted"
+                    android:textSize="12sp" />
+
+                <TextView
                     android:id="@+id/portValue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

@@ -11,8 +11,8 @@ android {
         applicationId = "com.eymen.beamngcluster"
         minSdk = 21
         targetSdk = 34
-        versionCode = 8
-        versionName = "3.2.1"
+        versionCode = 9
+        versionName = "3.3.0"
     }
 
     // Eski Android'lerde "paket ayrıştırılamadı" olmasın diye v1+v2 imza

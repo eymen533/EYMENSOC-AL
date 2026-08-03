@@ -81,12 +81,67 @@ class MainActivity : AppCompatActivity() {
 
         // Listen immediately on setup screen — proves network without opening gauges
         startUdpListening()
+
+        // Refresh IP while waiting (BT/USB link may appear after tethering)
+        lifecycleScope.launch {
+            while (isActive) {
+                if (!clusterMode) refreshIp()
+                delay(2000)
+            }
+        }
     }
 
     private fun refreshIp() {
-        phoneIp = localWifiIpv4() ?: wifiManagerIpv4() ?: "Wi‑Fi yok"
+        val best = bestIpv4()
+        phoneIp = best?.second ?: wifiManagerIpv4() ?: "Bağlantı yok"
         binding.ipValue.text = phoneIp
+        binding.linkType.text = when {
+            best == null -> "Bluetooth tethering / USB / Wi‑Fi bekleniyor"
+            isBluetoothIface(best.first) -> "Bluetooth tethering · ${best.first}"
+            isUsbIface(best.first) -> "USB tethering · ${best.first}"
+            isWifiIface(best.first) -> "Wi‑Fi · ${best.first}"
+            else -> "Ağ · ${best.first}"
+        }
     }
+
+    private fun bestIpv4(): Pair<String, String>? {
+        val list = allIpv4()
+        return list.maxByOrNull { (name, _) ->
+            when {
+                isBluetoothIface(name) -> 6
+                isUsbIface(name) -> 5
+                isWifiIface(name) -> 3
+                else -> 1
+            }
+        }
+    }
+
+    private fun allIpv4(): List<Pair<String, String>> {
+        val list = mutableListOf<Pair<String, String>>()
+        val interfaces = NetworkInterface.getNetworkInterfaces() ?: return list
+        for (intf in interfaces) {
+            if (!intf.isUp || intf.isLoopback) continue
+            val name = intf.name ?: continue
+            for (addr in intf.inetAddresses) {
+                val host = addr.hostAddress ?: continue
+                if (addr.isLoopbackAddress || host.contains(':') || host.startsWith("169.254.")) continue
+                list += name to host
+            }
+        }
+        return list
+    }
+
+    private fun isBluetoothIface(name: String) =
+        name.contains("bnep", true) ||
+            name.contains("bt-pan", true) ||
+            name.contains("bt_pan", true) ||
+            name.equals("bt-pan", true)
+
+    private fun isUsbIface(name: String) =
+        name.contains("rndis", true) || name.contains("usb", true)
+
+    private fun isWifiIface(name: String) =
+        name.startsWith("wlan", true) || name.contains("wlan", true) || name.startsWith("ap", true)
 
     private fun startUdpListening() {
         listener?.stop()
@@ -134,7 +189,7 @@ class MainActivity : AppCompatActivity() {
         if (total == 0) {
             binding.packetStatus.setTextColor(Color.parseColor("#7F8FA3"))
             binding.packetStatus.text =
-                "Dinleniyor… paket: 0\nMenü kapat + Ctrl+R\nOlmazsa: USB tethering"
+                "Dinleniyor… paket: 0\nBluetooth tethering aç + Ctrl+R"
         } else {
             binding.packetStatus.setTextColor(Color.parseColor("#5DDEA6"))
             val extra = if (from != null) " · $from ${size}b" else ""
@@ -314,31 +369,6 @@ class MainActivity : AppCompatActivity() {
             controller.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
-    }
-
-    private fun localWifiIpv4(): String? {
-        val list = mutableListOf<Pair<String, String>>()
-        val interfaces = NetworkInterface.getNetworkInterfaces() ?: return null
-        for (intf in interfaces) {
-            if (!intf.isUp || intf.isLoopback) continue
-            val name = intf.name ?: continue
-            for (addr in intf.inetAddresses) {
-                val host = addr.hostAddress ?: continue
-                if (addr.isLoopbackAddress || host.contains(':') || host.startsWith("169.254.")) continue
-                list += name to host
-            }
-        }
-        list.sortByDescending { (name, _) ->
-            when {
-                name.contains("rndis", true) -> 5
-                name.contains("usb", true) -> 5
-                name.startsWith("wlan", true) -> 3
-                name.startsWith("ap", true) -> 2
-                name.contains("wlan", true) -> 2
-                else -> 0
-            }
-        }
-        return list.firstOrNull()?.second
     }
 
     @Suppress("DEPRECATION")
