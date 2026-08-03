@@ -381,7 +381,9 @@ struct NativeHUDView: View {
     // MARK: - Side columns
 
     private func sideColumn(slide: Int, side: Side, showBattery: Bool) -> some View {
-        ZStack(alignment: .bottomLeading) {
+        // Keep content clear of the vertical selection rail (~34pt near dial).
+        let railClear: CGFloat = 36
+        return ZStack(alignment: .bottomLeading) {
             Color.clear.opacity(0.001)
             Group {
                 switch slide {
@@ -392,10 +394,11 @@ struct NativeHUDView: View {
                 default: simplePanel
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.leading, side == .right ? railClear : 10)
+            .padding(.trailing, side == .left ? railClear : 10)
             .padding(.top, 8)
             .padding(.bottom, showBattery ? 44 : 12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
             if showBattery {
                 batteryChip
@@ -667,40 +670,49 @@ struct NativeHUDView: View {
     }
 
     private var simplePanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .center, spacing: 12) {
             Text(displayOrDash(model.place))
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(ink)
+                .multilineTextAlignment(.center)
                 .lineLimit(2)
             Text(linkLabel)
                 .font(.caption)
                 .foregroundStyle(model.bleOK ? accent : muted)
+                .multilineTextAlignment(.center)
             Text(model.telemetrySource.uppercased())
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(model.isLive ? accent : muted)
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: 220)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private var tripPanel: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .center, spacing: 16) {
             tripRow("Destination", displayOrDash(model.destination))
             tripRow("Arrival Time", displayOrDash(model.eta))
             tripRow("Energy at Arrival", displayOrDash(model.energyAtArrival))
             tripRow("Distance", displayOrDash(model.tripDist))
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: 220)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private func tripRow(_ k: String, _ v: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(k).font(.caption).foregroundStyle(muted)
+        VStack(alignment: .center, spacing: 4) {
+            Text(k)
+                .font(.caption)
+                .foregroundStyle(muted)
+                .multilineTextAlignment(.center)
             Text(v)
                 .font(.title3.weight(.medium))
                 .foregroundStyle(ink)
-                .lineLimit(1)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
                 .minimumScaleFactor(0.7)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private func tiresPanel(side: Side) -> some View {
@@ -747,36 +759,44 @@ struct NativeHUDView: View {
     }
 
     private var mapInfoPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .center, spacing: 10) {
             Text("Map").font(.caption).foregroundStyle(muted)
             Text(displayOrDash(model.place))
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(ink)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
             Text(displayOrDash(model.destination))
                 .font(.subheadline)
                 .foregroundStyle(muted)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
             Text(String(format: "%.5f, %.5f", model.latitude, model.longitude))
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(dim)
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: 220)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private var mediaPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .center, spacing: 12) {
             mediaServiceHeader
-            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: 132)
+            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: 120)
             Text(displayOrDash(model.mediaTitle))
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(ink)
+                .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.75)
             Text(displayOrDash(model.mediaArtist))
                 .font(.subheadline)
                 .foregroundStyle(muted)
+                .multilineTextAlignment(.center)
                 .lineLimit(1)
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: 200)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private var mediaServiceHeader: some View {
