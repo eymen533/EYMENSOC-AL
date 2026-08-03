@@ -111,10 +111,10 @@ struct PairingFlowView: View {
         VStack(spacing: 0) {
             topBar(showProgress: true, fraction: "1/2", title: "Pair Vehicle", subtitle: "Enter Vehicle VIN")
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 12) {
                     teslaAppHintCard
                         .padding(.horizontal, 20)
-                        .padding(.top, 8)
+                        .padding(.top, 4)
 
                     Text("VEHICLE IDENTIFICATION NUMBER (VIN)")
                         .font(.system(size: 11, weight: .semibold))
@@ -124,7 +124,7 @@ struct PairingFlowView: View {
                     HStack(spacing: 10) {
                         Image(systemName: "car.fill")
                             .foregroundStyle(.white.opacity(0.5))
-                        TextField("17-character VIN", text: $vin)
+                        TextField("Paste 17-character VIN", text: $vin)
                             .textInputAutocapitalization(.characters)
                             .autocorrectionDisabled()
                             .font(.system(.body, design: .monospaced))
@@ -146,7 +146,7 @@ struct PairingFlowView: View {
                         .foregroundStyle(Color(red: 0.45, green: 0.55, blue: 1))
                     }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 12)
                     .background(Capsule().fill(Color.white.opacity(0.08)))
                     .padding(.horizontal, 20)
 
@@ -168,7 +168,7 @@ struct PairingFlowView: View {
                         Text(err).foregroundStyle(.red).font(.footnote).padding(.horizontal, 24)
                     }
                 }
-                .padding(.bottom, 100)
+                .padding(.bottom, 88)
             }
             bottomCTA(vinNorm.count == 17 ? "Start pairing" : "Enter VIN to start pairing", enabled: vinNorm.count == 17) {
                 startScan()
@@ -430,7 +430,7 @@ struct PairingFlowView: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(red: 0.1, green: 0.11, blue: 0.14))
                 .padding(3)
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("MODEL Y")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.5))
@@ -442,9 +442,9 @@ struct PairingFlowView: View {
                         Text("VIN")
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.4))
-                        Text(vinNorm.isEmpty ? "XP7YGCEK0······" : String(vinNorm.prefix(11)) + "······")
+                        Text(vinNorm.isEmpty ? "Paste VIN from Tesla app" : String(vinNorm.prefix(11)) + "······")
                             .font(.system(.footnote, design: .monospaced))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(vinNorm.isEmpty ? .white.opacity(0.35) : .white)
                     }
                     Spacer()
                     Image(systemName: "viewfinder")
@@ -458,8 +458,8 @@ struct PairingFlowView: View {
                         .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.04)))
                 )
             }
-            .padding(18)
+            .padding(14)
         }
-        .frame(height: 180)
+        .frame(height: 148)
     }
 }

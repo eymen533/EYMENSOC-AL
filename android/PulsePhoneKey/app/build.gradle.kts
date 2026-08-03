@@ -18,7 +18,7 @@ android {
             "DEFAULT_SERVER",
             "\"https://prix-navy-webshots-administrator.trycloudflare.com\"",
         )
-        buildConfigField("String", "DEFAULT_VIN", "\"XP7YGCEK0PB159959\"")
+        buildConfigField("String", "DEFAULT_VIN", "\"\"")
     }
 
     buildFeatures {

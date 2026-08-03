@@ -22,8 +22,8 @@ final class HUDModel: ObservableObject {
     @Published var psiRR = 42
     @Published var outdoorC: Int = 29
     @Published var night = true
-    @Published var vin: String = "XP7YGCEK0PB159959"
-    @Published var vinTail: String = "159959"
+    @Published var vin: String = ""
+    @Published var vinTail: String = ""
     @Published var bleOK = false
     @Published var driving = false
     @Published var destination = "Sabiha Gökçen"

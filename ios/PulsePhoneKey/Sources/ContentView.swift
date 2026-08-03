@@ -5,7 +5,7 @@ struct ContentView: View {
     @StateObject private var ble = BLEPairer()
     @StateObject private var hud = HUDModel()
     @ObservedObject private var hudSettings = HUDSettings.shared
-    @State private var vin = UserDefaults.standard.string(forKey: "pulse_vin") ?? "XP7YGCEK0PB159959"
+    @State private var vin = Self.loadStoredVIN()
     @State private var dashURL = UserDefaults.standard.string(forKey: "pulse_dash_url")
         ?? "https://mon-holds-cloud-grateful.trycloudflare.com"
     @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
@@ -99,7 +99,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-14 · paneller ortalı, ray çakışması yok")
+                    Text("xcode-ble-15 · VIN boş + dikey oran düzeltmesi")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -288,8 +288,27 @@ struct ContentView: View {
         vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 
+    /// Never ship with a baked-in VIN — empty until user pastes from Tesla app.
+    private static func loadStoredVIN() -> String {
+        let key = "pulse_vin"
+        let raw = (UserDefaults.standard.string(forKey: key) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        // Strip previously hardcoded sample VIN if still in defaults.
+        let sample = "XP7YGCEK0PB159959"
+        if raw.isEmpty || raw == sample {
+            UserDefaults.standard.removeObject(forKey: key)
+            return ""
+        }
+        return raw
+    }
+
     private func save() {
-        UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
+        if vinNorm.count == 17 {
+            UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
+        } else if vinNorm.isEmpty {
+            UserDefaults.standard.removeObject(forKey: "pulse_vin")
+        }
         let url = dashURL.trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         UserDefaults.standard.set(url, forKey: "pulse_dash_url")

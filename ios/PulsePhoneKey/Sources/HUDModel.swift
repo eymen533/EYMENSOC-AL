@@ -38,8 +38,8 @@ final class HUDModel: ObservableObject {
     @Published var lightFog = false
     @Published var turnLeft = false
     @Published var turnRight = false
-    @Published var vin: String = "XP7YGCEK0PB159959"
-    @Published var vinTail: String = "159959"
+    @Published var vin: String = ""
+    @Published var vinTail: String = ""
     @Published var bleOK = false
     @Published var driving = false
     @Published var destination = "—"

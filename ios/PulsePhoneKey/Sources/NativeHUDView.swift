@@ -78,14 +78,16 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.34, h * 0.70)
+        // Smaller dial — leaves vertical room for side panels without clipping.
+        let dialW = min(w * 0.30, h * 0.54)
         let cx = w * 0.5
-        let cy = h * 0.52
-        let gap: CGFloat = 8
+        let cy = h * 0.50
+        let topPad: CGFloat = 40
+        let gap: CGFloat = 14
         // Hard clear zone for tires/media — never under dial.
-        let sideW = max(130, (w - dialW) / 2 - gap)
-        // Map tucks deep under dial like Dashla reference photo.
-        let mapW = sideW + dialW * 0.42
+        let sideW = max(140, (w - dialW) / 2 - gap)
+        // Map still tucks under dial; non-map panels stay in clear column.
+        let mapW = sideW + dialW * 0.36
         let rightIsMap = model.rightSlide == 3
         let leftIsMap = model.leftSlide == 3
         return ZStack {
@@ -93,8 +95,11 @@ struct NativeHUDView: View {
                 Group {
                     if leftIsMap {
                         mapSurface(edge: .trailing, side: .left, showTapExpand: true)
+                            .frame(maxHeight: .infinity)
                     } else {
                         sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
+                            .frame(maxHeight: min(h - topPad - 24, dialW * 1.15))
+                            .frame(maxHeight: .infinity, alignment: .center)
                     }
                 }
                 .frame(width: leftIsMap ? mapW : sideW)
@@ -104,24 +109,28 @@ struct NativeHUDView: View {
                 Group {
                     if rightIsMap {
                         mapSurface(edge: .leading, side: .right, showTapExpand: true)
+                            .frame(maxHeight: .infinity)
                     } else {
                         sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                            .frame(maxHeight: min(h - topPad - 24, dialW * 1.15))
+                            .frame(maxHeight: .infinity, alignment: .center)
                     }
                 }
                 .frame(width: rightIsMap ? mapW : sideW)
             }
-            .padding(.top, 28)
+            .padding(.top, topPad)
+            .padding(.bottom, 12)
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
-                .position(x: max(16, cx - dialW * 0.5 - 16), y: cy)
+                .position(x: max(16, cx - dialW * 0.5 - 18), y: cy)
             sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
-                .position(x: min(w - 16, cx + dialW * 0.5 + 16), y: cy)
+                .position(x: min(w - 16, cx + dialW * 0.5 + 18), y: cy)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
 
-            dialStatusStrip(maxWidth: dialW * 1.1)
-                .position(x: cx, y: min(h - 28, cy + dialW * 0.5 + 22))
+            dialStatusStrip(maxWidth: dialW * 1.05)
+                .position(x: cx, y: min(h - 22, cy + dialW * 0.5 + 18))
         }
     }
 
@@ -719,8 +728,8 @@ struct NativeHUDView: View {
         GeometryReader { geo in
             let w = max(1, geo.size.width)
             let h = max(1, geo.size.height)
-            let carW = w * 0.96
-            let carH = min(h * 0.90, carW * 2.15)
+            let carW = min(w * 0.92, h * 0.42)
+            let carH = min(h * 0.82, carW * 2.05)
             ZStack {
                 Image("ModelYTop")
                     .resizable()
@@ -780,23 +789,26 @@ struct NativeHUDView: View {
     }
 
     private var mediaPanel: some View {
-        VStack(alignment: .center, spacing: 12) {
-            mediaServiceHeader
-            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: 120)
-            Text(displayOrDash(model.mediaTitle))
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(ink)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.75)
-            Text(displayOrDash(model.mediaArtist))
-                .font(.subheadline)
-                .foregroundStyle(muted)
-                .multilineTextAlignment(.center)
-                .lineLimit(1)
+        GeometryReader { geo in
+            let artSize = min(112, max(72, min(geo.size.width * 0.72, geo.size.height * 0.42)))
+            VStack(alignment: .center, spacing: 10) {
+                mediaServiceHeader
+                AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: artSize)
+                Text(displayOrDash(model.mediaTitle))
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(ink)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
+                Text(displayOrDash(model.mediaArtist))
+                    .font(.subheadline)
+                    .foregroundStyle(muted)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: min(200, geo.size.width))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .frame(maxWidth: 200)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private var mediaServiceHeader: some View {

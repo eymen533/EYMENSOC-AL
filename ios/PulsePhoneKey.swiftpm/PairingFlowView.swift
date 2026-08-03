@@ -442,9 +442,9 @@ struct PairingFlowView: View {
                         Text("VIN")
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.4))
-                        Text(vinNorm.isEmpty ? "XP7YGCEK0······" : String(vinNorm.prefix(11)) + "······")
+                        Text(vinNorm.isEmpty ? "Paste VIN from Tesla app" : String(vinNorm.prefix(11)) + "······")
                             .font(.system(.footnote, design: .monospaced))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(vinNorm.isEmpty ? .white.opacity(0.35) : .white)
                     }
                     Spacer()
                     Image(systemName: "viewfinder")
