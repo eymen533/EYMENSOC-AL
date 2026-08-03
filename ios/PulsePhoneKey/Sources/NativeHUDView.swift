@@ -140,48 +140,83 @@ struct NativeHUDView: View {
     }
 
     @ViewBuilder
-    private func bleedSurface(slide: Int, edge: MapEdge, side: Side) -> some View {
+    private func bleedSurface(slide: Int, edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
         if slide == 4 {
-            mediaSurface(edge: edge, side: side)
+            mediaSurface(edge: edge, side: side, verticalFromTop: verticalFromTop)
         } else {
-            mapSurface(edge: edge, side: side, showTapExpand: true)
+            mapSurface(edge: edge, side: side, showTapExpand: true, verticalFromTop: verticalFromTop)
         }
     }
 
     private func triadPortrait(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.58, h * 0.34)
+        // Equal top/bottom wings around the dial.
+        let topSafe: CGFloat = 40
+        let bottomSafe: CGFloat = 36
+        let contentH = max(220, h - topSafe - bottomSafe)
+        let gap: CGFloat = 8
+        let dialW = min(w * 0.54, contentH * 0.32)
+        let wingH = max(96, (contentH - dialW - gap * 2) / 2)
+        let bleedExtra = dialW * 0.28
         let cx = w * 0.5
-        let cy = h * 0.36
+        let cy = topSafe + wingH + gap + dialW * 0.5
+        let topBleed = model.leftSlide == 3 || model.leftSlide == 4
+        let bottomBleed = model.rightSlide == 3 || model.rightSlide == 4
         return ZStack {
-            VStack(spacing: 8) {
-                sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
-                    .frame(height: max(140, (h - dialW) * 0.36))
-                Spacer(minLength: dialW * 0.2)
-                rightPanel(showTapExpand: true)
-                    .frame(maxHeight: .infinity)
+            VStack(spacing: gap) {
+                Group {
+                    if topBleed {
+                        bleedSurface(slide: model.leftSlide, edge: .trailing, side: .left, verticalFromTop: false)
+                    } else {
+                        sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
+                    }
+                }
+                .frame(height: topBleed ? wingH + bleedExtra : wingH)
+                .frame(maxWidth: .infinity)
+                // Extend toward dial from above.
+                .padding(.bottom, topBleed ? -bleedExtra : 0)
+                .zIndex(topBleed ? 0 : 1)
+
+                Color.clear
+                    .frame(height: dialW)
+                    .zIndex(2)
+
+                Group {
+                    if bottomBleed {
+                        bleedSurface(slide: model.rightSlide, edge: .leading, side: .right, verticalFromTop: true)
+                    } else {
+                        sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                    }
+                }
+                .frame(height: bottomBleed ? wingH + bleedExtra : wingH)
+                .frame(maxWidth: .infinity)
+                .padding(.top, bottomBleed ? -bleedExtra : 0)
+                .zIndex(bottomBleed ? 0 : 1)
             }
-            .padding(.top, 36)
-            .padding(.horizontal, 8)
+            .padding(.top, topSafe)
+            .padding(.bottom, bottomSafe)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
+                .zIndex(3)
 
-            dialStatusStrip(maxWidth: dialW * 1.1)
-                .position(x: cx, y: cy + dialW * 0.5 + 16)
+            dialStatusStrip(maxWidth: dialW * 1.05)
+                .position(x: cx, y: min(h - bottomSafe * 0.5, cy + dialW * 0.5 + 14))
+                .zIndex(3)
 
             batteryChip
-                .position(x: 70, y: h - 28)
+                .position(x: 70, y: h - bottomSafe * 0.45)
+                .zIndex(3)
         }
     }
 
     @ViewBuilder
     private func rightPanel(showTapExpand: Bool) -> some View {
         if model.rightSlide == 3 {
-            mapSurface(edge: .leading, side: .right, showTapExpand: showTapExpand)
+            mapSurface(edge: .leading, side: .right, showTapExpand: showTapExpand, verticalFromTop: nil)
         } else if model.rightSlide == 4 {
-            mediaSurface(edge: .leading, side: .right)
+            mediaSurface(edge: .leading, side: .right, verticalFromTop: nil)
         } else {
             sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
         }
@@ -459,7 +494,7 @@ struct NativeHUDView: View {
 
     // MARK: - Map surface
 
-    private func mapSurface(edge: MapEdge, side: Side, showTapExpand: Bool) -> some View {
+    private func mapSurface(edge: MapEdge, side: Side, showTapExpand: Bool, verticalFromTop: Bool? = nil) -> some View {
         ZStack(alignment: .topLeading) {
             VehicleMapView(
                 lat: model.latitude,
@@ -476,7 +511,11 @@ struct NativeHUDView: View {
             )
 
             if !mapExpanded {
-                dialFade(edge: edge)
+                if let verticalFromTop {
+                    dialFadeVertical(fromTop: verticalFromTop)
+                } else {
+                    dialFade(edge: edge)
+                }
             }
 
             if !mapExpanded, model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
@@ -518,11 +557,15 @@ struct NativeHUDView: View {
     }
 
     /// Album art fills the panel and tucks under the dial like the map.
-    private func mediaSurface(edge: MapEdge, side: Side) -> some View {
+    private func mediaSurface(edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
         ZStack {
             AlbumArtFill(image: art.image, url: art.imageURL, loading: art.loading)
 
-            dialFade(edge: edge)
+            if let verticalFromTop {
+                dialFadeVertical(fromTop: verticalFromTop)
+            } else {
+                dialFade(edge: edge)
+            }
 
             LinearGradient(
                 colors: [.clear, .black.opacity(0.55), .black.opacity(0.82)],
@@ -548,8 +591,6 @@ struct NativeHUDView: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 18)
-            .padding(.leading, edge == .leading ? 10 : 0)
-            .padding(.trailing, edge == .trailing ? 10 : 0)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
             .allowsHitTesting(false)
         }
@@ -562,16 +603,28 @@ struct NativeHUDView: View {
         }
     }
 
+    /// Soft blend into dial — opaque on dial side, clear toward outer edge.
     private func dialFade(edge: MapEdge) -> some View {
-        LinearGradient(
-            colors: edge == .leading
-                ? [canvas.opacity(0.95), canvas.opacity(0.35), .clear]
-                : [.clear, canvas.opacity(0.35), canvas.opacity(0.95)],
-            startPoint: edge == .leading ? .leading : .trailing,
-            endPoint: edge == .leading ? .trailing : .leading
+        let dialSide: UnitPoint = edge == .leading ? .leading : .trailing
+        let outerSide: UnitPoint = edge == .leading ? .trailing : .leading
+        return LinearGradient(
+            colors: [canvas.opacity(0.92), canvas.opacity(0.28), .clear],
+            startPoint: dialSide,
+            endPoint: outerSide
         )
-        .frame(width: 56)
+        .frame(width: 64)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edge == .leading ? .leading : .trailing)
+        .allowsHitTesting(false)
+    }
+
+    private func dialFadeVertical(fromTop: Bool) -> some View {
+        LinearGradient(
+            colors: [canvas.opacity(0.92), canvas.opacity(0.28), .clear],
+            startPoint: fromTop ? .top : .bottom,
+            endPoint: fromTop ? .bottom : .top
+        )
+        .frame(height: 56)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: fromTop ? .top : .bottom)
         .allowsHitTesting(false)
     }
 
