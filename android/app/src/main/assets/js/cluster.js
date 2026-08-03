@@ -75,6 +75,7 @@
   buildTicks("rpmTicks", 8, 1, 1, 1);
 
   function setArc(el, ratio) {
+    if (!el) return;
     el.setAttribute("stroke-dasharray", `${ARC_LEN * Math.min(1, Math.max(0, ratio))} ${CIRC}`);
   }
   function setOn(el, on) { el && el.classList.toggle("on", !!on); }
@@ -85,19 +86,29 @@
   }
 
   function setConnection(connected, demo) {
+    if (!els.connStatus) return;
+    const label = els.connText || els.connStatus;
     if (demo) {
       els.connStatus.dataset.state = "demo";
-      els.connText.textContent = "DEMO";
+      label.textContent = "DEMO";
     } else if (connected) {
       els.connStatus.dataset.state = "live";
-      els.connText.textContent = "CANLI";
+      label.textContent = "CANLI";
     } else {
       els.connStatus.dataset.state = "lost";
-      els.connText.textContent = "SİNYAL YOK";
+      label.textContent = "SİNYAL YOK";
     }
   }
 
   function applyTelemetry(d) {
+    try {
+      applyTelemetryInner(d);
+    } catch (e) {
+      if (els.metaInfo) els.metaInfo.textContent = "UI hata: " + (e && e.message ? e.message : e);
+    }
+  }
+
+  function applyTelemetryInner(d) {
     if (!d) return;
     state.preferKm = d.preferKm !== false;
     state.lastSeen = Date.now();
@@ -107,18 +118,18 @@
     const speed = km ? d.speedKmh : d.speedMph;
     const speedMax = km ? state.maxSpeed : state.maxSpeed * 0.621371;
     const speedShown = Math.round(Math.max(0, speed || 0));
-    els.speedValue.textContent = String(speedShown);
-    els.speedUnit.textContent = km ? "km/h" : "mph";
-    els.unitBtn.textContent = km ? "km/h" : "mph";
+    if (els.speedValue) els.speedValue.textContent = String(speedShown);
+    if (els.speedUnit) els.speedUnit.textContent = km ? "km/h" : "mph";
+    if (els.unitBtn) els.unitBtn.textContent = km ? "km/h" : "mph";
     setArc(els.speedArc, (speed || 0) / speedMax);
 
     const rpm = Math.max(0, d.rpm || 0);
     if (rpm > state.maxRpm) state.maxRpm = Math.ceil(rpm / 1000) * 1000;
-    els.rpmValue.textContent = (rpm / 1000).toFixed(1);
+    if (els.rpmValue) els.rpmValue.textContent = (rpm / 1000).toFixed(1);
     setArc(els.rpmArc, rpm / state.maxRpm);
 
     const gear = d.gearLabel || "N";
-    if (gear !== state.lastGear) {
+    if (els.gearValue && gear !== state.lastGear) {
       els.gearValue.textContent = gear;
       els.gearValue.classList.remove("pop");
       void els.gearValue.offsetWidth;
@@ -127,19 +138,19 @@
     }
 
     const fuel = d.fuel ?? 0;
-    els.fuelBar.style.width = `${fuel * 100}%`;
-    els.fuelVal.textContent = `${Math.round(fuel * 100)}%`;
+    if (els.fuelBar) els.fuelBar.style.width = `${fuel * 100}%`;
+    if (els.fuelVal) els.fuelVal.textContent = `${Math.round(fuel * 100)}%`;
     const temp = d.engTemp ?? 0;
-    els.tempBar.style.width = `${Math.min(1, Math.max(0, (temp - 40) / 80)) * 100}%`;
-    els.tempVal.textContent = `${Math.round(temp)}°`;
-    if (d.showTurbo) {
+    if (els.tempBar) els.tempBar.style.width = `${Math.min(1, Math.max(0, (temp - 40) / 80)) * 100}%`;
+    if (els.tempVal) els.tempVal.textContent = `${Math.round(temp)}°`;
+    if (d.showTurbo && els.turboMeter) {
       els.turboMeter.hidden = false;
       const turbo = Math.max(0, d.turbo || 0);
-      els.turboBar.style.width = `${Math.min(1, turbo / 2) * 100}%`;
-      els.turboVal.textContent = turbo.toFixed(1);
+      if (els.turboBar) els.turboBar.style.width = `${Math.min(1, turbo / 2) * 100}%`;
+      if (els.turboVal) els.turboVal.textContent = turbo.toFixed(1);
     }
-    els.throttleBar.style.width = `${(d.throttle || 0) * 100}%`;
-    els.brakeBar.style.width = `${(d.brake || 0) * 100}%`;
+    if (els.throttleBar) els.throttleBar.style.width = `${(d.throttle || 0) * 100}%`;
+    if (els.brakeBar) els.brakeBar.style.width = `${(d.brake || 0) * 100}%`;
 
     const L = d.lights || {};
     setOn(els.icoL, L.signalL);
@@ -152,9 +163,9 @@
     setOn(els.icoBat, L.battery);
     setOn(els.icoShift, L.shift);
 
-    if (window.EymenMap) window.EymenMap.update(d);
+    try { if (window.EymenMap) window.EymenMap.update(d); } catch (e) { /* map optional */ }
     const src = d.source === "demo" ? "DEMO" : "LIVE";
-    els.metaInfo.textContent = `${src} · ${speedShown} ${km ? "km/h" : "mph"} · ${Math.round(rpm)} rpm`;
+    if (els.metaInfo) els.metaInfo.textContent = `${src} · ${speedShown} ${km ? "km/h" : "mph"} · ${Math.round(rpm)} rpm`;
   }
 
   // WebSocket to same host (PC bridge) OR Android inject
@@ -194,15 +205,26 @@
   window.__eymenPush = function (raw) {
     try {
       applyTelemetry(typeof raw === "string" ? JSON.parse(raw) : raw);
-    } catch { /* ignore */ }
+    } catch (e) {
+      if (els.metaInfo) els.metaInfo.textContent = "parse hata";
+    }
   };
   window.__eymenStatus = function (text) {
     if (els.metaInfo) els.metaInfo.textContent = String(text || "");
   };
 
-  els.unitBtn.addEventListener("click", () => {
-    state.overrideUnit = unitMode() ? "mi" : "km";
-  });
+  // Drain anything Android queued before JS finished
+  if (Array.isArray(window.__eymenQ)) {
+    for (const item of window.__eymenQ) window.__eymenPush(item);
+    window.__eymenQ.length = 0;
+  }
+  if (window.__eymenStatusQ) window.__eymenStatus(window.__eymenStatusQ);
+
+  if (els.unitBtn) {
+    els.unitBtn.addEventListener("click", () => {
+      state.overrideUnit = unitMode() ? "mi" : "km";
+    });
+  }
 
   setInterval(() => {
     if (state.lastSeen && Date.now() - state.lastSeen > 2500) {
@@ -212,4 +234,5 @@
   }, 1000);
 
   connectWs();
+  if (els.metaInfo && !state.lastSeen) els.metaInfo.textContent = "Android veri bekleniyor…";
 })();

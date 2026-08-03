@@ -74,8 +74,17 @@ class MainActivity : AppCompatActivity() {
         binding.clusterWeb.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 clusterReady = true
-                pushStatus("CANLI dinleme · OG:$packetOg MS:$packetMs")
-                pendingJson?.let { pushToWeb(it) }
+                // Flush latest telemetry several times until JS is ready
+                lifecycleScope.launch {
+                    repeat(10) {
+                        pushStatus("OG:$packetOg MS:$packetMs")
+                        pushMerged()
+                        delay(100)
+                        if (lastOut != null || lastMotion != null) {
+                            // keep pushing a bit
+                        }
+                    }
+                }
             }
         }
 
@@ -231,10 +240,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var lastPushAt = 0L
+
     private fun pushMerged() {
         val og = lastOut
         val mot = lastMotion
         if (og == null && mot == null) return
+
+        // WebView can't keep up with 200Hz MotionSim — cap ~20 FPS
+        val now = System.currentTimeMillis()
+        if (clusterReady && now - lastPushAt < 50) return
+        lastPushAt = now
+
+        // Keep trail small for JS bridge
+        while (trail.length() > 80) trail.remove(0)
 
         val json = JSONObject().apply {
             if (og != null) {
