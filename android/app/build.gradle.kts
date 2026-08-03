@@ -9,15 +9,25 @@ android {
 
     defaultConfig {
         applicationId = "com.eymen.beamngcluster"
-        minSdk = 26
+        minSdk = 21
         targetSdk = 34
-        versionCode = 2
-        versionName = "2.0.0"
+        versionCode = 3
+        versionName = "2.0.1"
+    }
+
+    // Eski Android'lerde "paket ayrıştırılamadı" olmasın diye v1+v2 imza
+    signingConfigs {
+        named("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -25,6 +35,7 @@ android {
         }
         debug {
             isDebuggable = true
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
