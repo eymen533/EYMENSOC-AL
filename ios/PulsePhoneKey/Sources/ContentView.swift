@@ -81,6 +81,8 @@ struct ContentView: View {
             hud.bleSetVolume = { level in pairer.mediaSetVolume(level) }
             hud.bleMediaPlay = { pairer.mediaPlayToggle() }
             hud.bleMediaSkip = { delta in pairer.mediaSkip(delta) }
+            // Dashla-style: start phone GPS early so map works without car.
+            PhoneLocationStore.shared.start()
             // Bir kez eşleşmişse arka planda otomatik bağlanmayı başlat.
             if alreadyPaired, !ble.linkUp, !ble.bleLiveOK, vinNorm.count == 17 {
                 ble.resumeSession(vin: vinNorm)
@@ -108,7 +110,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-22 · Apple/Google Maps · araç rotası")
+                    Text("xcode-ble-23 · telefon GPS · Apple/Google Maps")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)

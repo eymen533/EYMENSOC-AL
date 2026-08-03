@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 
 /// Night triad — prefers real BLE vehicle-command telemetry; Dash/API fallback.
-/// Local demo only when neither BLE nor Dash is live. No CoreLocation / WebKit.
+/// Map uses phone GPS when the car is offline (Dashla-style).
 @MainActor
 final class HUDModel: ObservableObject {
     static let slideCount = 5

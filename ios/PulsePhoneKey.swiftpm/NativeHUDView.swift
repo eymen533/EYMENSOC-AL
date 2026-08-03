@@ -58,6 +58,7 @@ struct NativeHUDView: View {
         .onAppear {
             model.start()
             model.pulseRails()
+            PhoneLocationStore.shared.start()
             UIApplication.shared.isIdleTimerDisabled = true
             MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist, album: model.mediaAlbum)
         }
@@ -614,7 +615,7 @@ struct NativeHUDView: View {
             }
 
             // Route status when GPS coords missing but destination known.
-            if !mapExpanded, !hasCarGPS, !isBlank(model.destination) {
+            if !mapExpanded, !hasMapGPS, !isBlank(model.destination) {
                 Text(model.destination)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white)
@@ -622,8 +623,8 @@ struct NativeHUDView: View {
                     .padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.55)))
                     .padding(12)
-            } else if !mapExpanded, !hasCarGPS, abs(model.destLatitude) < 0.0001, abs(model.destLongitude) < 0.0001 {
-                Text("Araç GPS / rota bekleniyor")
+            } else if !mapExpanded, !hasMapGPS, abs(model.destLatitude) < 0.0001, abs(model.destLongitude) < 0.0001 {
+                Text("Konum izni / GPS bekleniyor")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.85))
                     .padding(.horizontal, 12)
@@ -731,6 +732,10 @@ struct NativeHUDView: View {
 
     private var hasCarGPS: Bool {
         abs(model.latitude) > 0.0001 || abs(model.longitude) > 0.0001
+    }
+
+    private var hasMapGPS: Bool {
+        hasCarGPS || PhoneLocationStore.shared.hasFix
     }
 
     private var compassBadge: some View {

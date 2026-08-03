@@ -50,7 +50,7 @@ struct AppleMapPanel: View {
                 )
             } else {
                 Color(red: 0.12, green: 0.13, blue: 0.14)
-                Text(nameOK ? "Hedef araniyor…" : "Araç GPS / rota bekleniyor")
+                Text(nameOK ? "Hedef araniyor…" : "Konum bekleniyor")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.85))
                     .padding(10)

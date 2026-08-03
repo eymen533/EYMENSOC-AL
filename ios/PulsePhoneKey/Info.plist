@@ -26,6 +26,10 @@
 	<string>Tesla Phone Key eslesmesi ve canli cluster telemetrisi icin Bluetooth gerekir.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Tesla Phone Key eslesmesi ve canli cluster telemetrisi icin Bluetooth gerekir.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Araca bagli degilken haritada guncel konumunu gostermek icin konum izni gerekir.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Araca bagli degilken haritada guncel konumunu gostermek icin konum izni gerekir.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

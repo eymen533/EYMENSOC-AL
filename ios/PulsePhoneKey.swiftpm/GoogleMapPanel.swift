@@ -1,5 +1,7 @@
 import SwiftUI
 import WebKit
+import CoreLocation
+import Combine
 
 /// Google Maps (JS) — car GPS marker + Directions route from vehicle destination.
 struct GoogleMapPanel: UIViewRepresentable {
@@ -347,7 +349,106 @@ struct GoogleMapPanel: UIViewRepresentable {
     }
 }
 
+/// Phone GPS — Dashla-style map works even when the car is not connected.
+@MainActor
+final class PhoneLocationStore: NSObject, ObservableObject {
+    static let shared = PhoneLocationStore()
+
+    @Published var latitude: Double = 0
+    @Published var longitude: Double = 0
+    @Published var heading: Double = 0
+    @Published var hasFix = false
+    @Published var status = "Konum…"
+
+    private let manager = CLLocationManager()
+    private var started = false
+
+    func start() {
+        if started {
+            resumeIfNeeded()
+            return
+        }
+        started = true
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.distanceFilter = 4
+        manager.headingFilter = 3
+        manager.activityType = .automotiveNavigation
+        requestAndStart()
+    }
+
+    private func resumeIfNeeded() {
+        switch manager.authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse:
+            manager.startUpdatingLocation()
+            if CLLocationManager.headingAvailable() {
+                manager.startUpdatingHeading()
+            }
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+        default:
+            status = "Konum izni yok"
+        }
+    }
+
+    private func requestAndStart() {
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            status = "Konum izni isteniyor…"
+            manager.requestWhenInUseAuthorization()
+        case .authorizedAlways, .authorizedWhenInUse:
+            status = "Telefon GPS…"
+            manager.startUpdatingLocation()
+            if CLLocationManager.headingAvailable() {
+                manager.startUpdatingHeading()
+            }
+        case .denied, .restricted:
+            status = "Konum izni yok (Ayarlar)"
+        @unknown default:
+            status = "Konum bilinmiyor"
+        }
+    }
+}
+
+extension PhoneLocationStore: CLLocationManagerDelegate {
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in
+            self.requestAndStart()
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let loc = locations.last else { return }
+        Task { @MainActor in
+            self.latitude = loc.coordinate.latitude
+            self.longitude = loc.coordinate.longitude
+            self.hasFix = true
+            self.status = "Telefon GPS"
+            if loc.course >= 0 {
+                self.heading = loc.course
+            }
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        let h = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+        guard h >= 0 else { return }
+        Task { @MainActor in
+            self.heading = h
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in
+            if !self.hasFix {
+                self.status = "Konum alinamadi"
+            }
+        }
+    }
+}
+
 /// Vehicle nav map — Apple Maps or Google Maps (Settings). Car destination → Directions route.
+/// Falls back to phone GPS when the vehicle is not connected (Dashla-style).
 struct VehicleMapView: View {
     var lat: Double
     var lon: Double
@@ -363,6 +464,15 @@ struct VehicleMapView: View {
     /// When set, overrides settings map theme (vehicle day/night).
     var forceDark: Bool? = nil
     @ObservedObject private var settings = HUDSettings.shared
+    @ObservedObject private var phone = PhoneLocationStore.shared
+
+    private var hasCarGPS: Bool { abs(lat) > 0.0001 || abs(lon) > 0.0001 }
+
+    /// Prefer car GPS; otherwise phone location so the map always shows.
+    private var mapLat: Double { hasCarGPS ? lat : phone.latitude }
+    private var mapLon: Double { hasCarGPS ? lon : phone.longitude }
+    private var mapHeading: Double { hasCarGPS ? heading : phone.heading }
+    private var usingPhone: Bool { !hasCarGPS && phone.hasFix }
 
     private var effectiveTheme: HUDSettings.MapTheme {
         if let forceDark {
@@ -381,13 +491,13 @@ struct VehicleMapView: View {
     }
 
     var body: some View {
-        Group {
+        ZStack(alignment: .bottomTrailing) {
             switch settings.mapsProvider {
             case .google:
                 GoogleMapPanel(
-                    lat: lat,
-                    lon: lon,
-                    heading: heading,
+                    lat: mapLat,
+                    lon: mapLon,
+                    heading: mapHeading,
                     destination: destination,
                     destLat: destLat,
                     destLon: destLon,
@@ -397,9 +507,9 @@ struct VehicleMapView: View {
                 )
             case .apple:
                 AppleMapPanel(
-                    lat: lat,
-                    lon: lon,
-                    heading: heading,
+                    lat: mapLat,
+                    lon: mapLon,
+                    heading: mapHeading,
                     destination: destination,
                     destLat: destLat,
                     destLon: destLon,
@@ -411,7 +521,26 @@ struct VehicleMapView: View {
                     turnSymbol: $turnSymbol
                 )
             }
+
+            if usingPhone {
+                Text("Telefon konumu")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                    .padding(10)
+            } else if !hasCarGPS && !phone.hasFix {
+                Text(phone.status)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                    .padding(10)
+            }
         }
         .background(isDark ? Color.black : Color(red: 0.90, green: 0.91, blue: 0.93))
+        .onAppear { phone.start() }
     }
 }
