@@ -33,6 +33,8 @@ class MainActivity : AppCompatActivity() {
     private var demoJob: Job? = null
     private var clusterReady = false
     private var pendingJson: String? = null
+    private var packetCount = 0
+    private var phoneIp: String = "—"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,13 +44,17 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         hideSystemUi()
 
-        val ip = localIpv4() ?: "Wi‑Fi yok"
-        binding.ipValue.text = ip
+        val ips = localIpv4List()
+        phoneIp = ips.firstOrNull()?.second ?: "Wi‑Fi yok"
+        binding.ipValue.text = phoneIp
         binding.portValue.text = "Port $OUTGAUGE_PORT"
+        if (ips.size > 1) {
+            binding.btNote.text = getString(R.string.multi_ip_note, ips.joinToString(" · ") { "${it.first}:${it.second}" })
+        }
 
         binding.btnCopy.setOnClickListener {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("ip", ip))
+            cm.setPrimaryClip(ClipData.newPlainText("ip", phoneIp))
             Toast.makeText(this, "IP kopyalandı", Toast.LENGTH_SHORT).show()
         }
 
@@ -59,13 +65,14 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             mediaPlaybackRequiresUserGesture = false
-            cacheMode = WebSettings.LOAD_DEFAULT
+            cacheMode = WebSettings.LOAD_NO_CACHE
             allowFileAccess = true
         }
         binding.clusterWeb.addJavascriptInterface(JsBridge(), "EymenAndroid")
         binding.clusterWeb.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 clusterReady = true
+                pushStatus("Dinleniyor · $phoneIp:$OUTGAUGE_PORT · paket: $packetCount")
                 pendingJson?.let { pushToWeb(it) }
             }
         }
@@ -75,6 +82,7 @@ class MainActivity : AppCompatActivity() {
         binding.setupRoot.visibility = View.GONE
         binding.clusterWeb.visibility = View.VISIBLE
         clusterReady = false
+        packetCount = 0
         binding.clusterWeb.loadUrl("file:///android_asset/index.html")
 
         demoJob?.cancel()
@@ -84,11 +92,26 @@ class MainActivity : AppCompatActivity() {
             startDemo()
         } else {
             listener = OutGaugeListener(
+                context = this,
                 port = OUTGAUGE_PORT,
                 scope = lifecycleScope,
+                onListening = { ok ->
+                    runOnUiThread {
+                        if (ok) {
+                            pushStatus("Dinleniyor · $phoneIp:$OUTGAUGE_PORT · paket: 0")
+                        }
+                    }
+                },
+                onRawPacket = { size, from ->
+                    packetCount += 1
+                    runOnUiThread {
+                        pushStatus("Paket #$packetCount · $size byte · $from")
+                    }
+                },
                 onPacket = { data -> pushTelemetry(data) },
                 onError = { msg ->
                     runOnUiThread {
+                        pushStatus(msg)
                         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
                     }
                 },
@@ -165,6 +188,15 @@ class MainActivity : AppCompatActivity() {
         runOnUiThread { pushToWeb(json) }
     }
 
+    private fun pushStatus(text: String) {
+        if (!clusterReady) return
+        val escaped = JSONObject.quote(text)
+        binding.clusterWeb.evaluateJavascript(
+            "window.__eymenStatus && window.__eymenStatus($escaped)",
+            null,
+        )
+    }
+
     private fun pushToWeb(json: String) {
         if (!clusterReady) {
             pendingJson = json
@@ -183,20 +215,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun localIpv4(): String? {
-        val interfaces = NetworkInterface.getNetworkInterfaces() ?: return null
+    /** Prefer wlan* Wi‑Fi addresses first. */
+    private fun localIpv4List(): List<Pair<String, String>> {
+        val result = mutableListOf<Pair<String, String>>()
+        val interfaces = NetworkInterface.getNetworkInterfaces() ?: return result
         for (intf in interfaces) {
             if (!intf.isUp || intf.isLoopback) continue
+            val name = intf.name ?: continue
             for (addr in intf.inetAddresses) {
-                if (!addr.isLoopbackAddress && addr.hostAddress?.contains(':') != true) {
-                    val host = addr.hostAddress ?: continue
-                    // skip link-local
-                    if (host.startsWith("169.254.")) continue
-                    return host
-                }
+                if (addr.isLoopbackAddress) continue
+                val host = addr.hostAddress ?: continue
+                if (host.contains(':') || host.startsWith("169.254.")) continue
+                result += name to host
             }
         }
-        return null
+        return result.sortedByDescending { (name, _) ->
+            when {
+                name.startsWith("wlan", ignoreCase = true) -> 3
+                name.startsWith("wifi", ignoreCase = true) -> 2
+                name.startsWith("eth", ignoreCase = true) -> 1
+                else -> 0
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -205,6 +245,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (binding.clusterWeb.visibility == View.VISIBLE) {
             demoJob?.cancel()
@@ -213,6 +254,7 @@ class MainActivity : AppCompatActivity() {
             binding.setupRoot.visibility = View.VISIBLE
             clusterReady = false
         } else {
+            @Suppress("DEPRECATION")
             super.onBackPressed()
         }
     }
@@ -220,7 +262,7 @@ class MainActivity : AppCompatActivity() {
     inner class JsBridge {
         @JavascriptInterface
         fun ready() {
-            // no-op; page can call when boot complete
+            // no-op
         }
     }
 

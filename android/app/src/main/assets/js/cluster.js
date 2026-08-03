@@ -178,6 +178,14 @@
     }
   };
 
+  window.__eymenStatus = function (text) {
+    if (els.metaInfo) els.metaInfo.textContent = String(text || "");
+    if (!state.lastSeen) {
+      els.connStatus.dataset.state = "wait";
+      els.connStatus.textContent = "BEKLENİYOR";
+    }
+  };
+
   els.unitBtn.addEventListener("click", () => {
     state.overrideUnit = unitMode() ? "mi" : "km";
     els.unitBtn.textContent = unitMode() ? "km/h" : "mph";
