@@ -99,7 +99,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-10 · merkez kadran · gaz/rejen yay")
+                    Text("xcode-ble-11 · lastik araç tam görünür")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)

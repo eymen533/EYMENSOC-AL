@@ -65,35 +65,37 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.44, h * 0.84)
+        let dialW = min(w * 0.42, h * 0.82)
         let cx = w * 0.5
         let cy = h * 0.52
+        // Side panels stay mostly clear of the dial; only a slight tuck under the circle.
+        let clearSide = max(120, (w - dialW) * 0.5)
+        let tuck = dialW * 0.08
+        let sideW = clearSide + tuck
         return ZStack {
-            // Left / right panels meet under the dial and peek out either side.
             HStack(spacing: 0) {
                 sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
-                    .frame(width: w * 0.5)
+                    .frame(width: sideW)
+                Spacer(minLength: 0)
                 rightPanel(showTapExpand: true)
-                    .frame(width: w * 0.5)
+                    .frame(width: sideW)
             }
             .padding(.top, 28)
 
-            // Soft vignette so panels tuck behind the circle.
             RadialGradient(
-                colors: [Color.black.opacity(0.72), Color.black.opacity(0.25), .clear],
+                colors: [Color.black.opacity(0.55), Color.black.opacity(0.15), .clear],
                 center: .center,
-                startRadius: dialW * 0.28,
-                endRadius: dialW * 0.72
+                startRadius: dialW * 0.32,
+                endRadius: dialW * 0.62
             )
-            .frame(width: dialW * 1.35, height: dialW * 1.35)
+            .frame(width: dialW * 1.2, height: dialW * 1.2)
             .position(x: cx, y: cy)
             .allowsHitTesting(false)
 
-            // Rails sit just outside the dial.
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
-                .position(x: cx - dialW * 0.52 - 10, y: cy)
+                .position(x: max(18, cx - dialW * 0.52 - 8), y: cy)
             sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
-                .position(x: cx + dialW * 0.52 + 10, y: cy)
+                .position(x: min(w - 18, cx + dialW * 0.52 + 8), y: cy)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
@@ -371,17 +373,18 @@ struct NativeHUDView: View {
     private func sideColumn(slide: Int, side: Side, showBattery: Bool) -> some View {
         ZStack(alignment: .bottomLeading) {
             Color.black.opacity(0.001)
-            // Non-map slides only here; map is always the right surface in triad.
             Group {
                 switch slide {
-                case 1: tiresPanel
+                case 1: tiresPanel(side: side)
                 case 2: tripPanel
                 case 3: mapInfoPanel
                 case 4: mediaPanel
                 default: simplePanel
                 }
             }
-            .padding(.horizontal, 16)
+            // Keep content away from the dial edge so nothing is clipped.
+            .padding(.leading, side == .right ? 22 : 12)
+            .padding(.trailing, side == .left ? 22 : 12)
             .padding(.top, 8)
             .padding(.bottom, showBattery ? 44 : 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
