@@ -625,34 +625,38 @@ struct NativeHUDView: View {
         }
     }
 
-    private var tiresPanel: some View {
+    private func tiresPanel(side: Side) -> some View {
         GeometryReader { geo in
+            let w = geo.size.width
             let h = geo.size.height
+            let carH = min(h * 0.82, w * 1.55, 280)
             ZStack {
                 Image("ModelYTop")
                     .resizable()
                     .scaledToFit()
-                    .frame(maxHeight: min(h * 0.78, 240))
-                    .opacity(0.92)
+                    .frame(width: min(w * 0.92, carH * 0.55), height: carH)
+                    .opacity(0.95)
                     .colorMultiply(Color.white)
+                    .accessibilityLabel("Tesla Model Y")
+
                 VStack {
                     HStack {
                         psiLabel(model.psiFL)
                         Spacer()
                         psiLabel(model.psiFR)
                     }
-                    .padding(.top, h * 0.16)
+                    .padding(.top, carH * 0.14)
                     Spacer()
                     HStack {
                         psiLabel(model.psiRL)
                         Spacer()
                         psiLabel(model.psiRR)
                     }
-                    .padding(.bottom, h * 0.14)
+                    .padding(.bottom, carH * 0.12)
                 }
-                .padding(.horizontal, 2)
+                .frame(width: min(w * 0.92, carH * 0.55), height: carH)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: side == .left ? .leading : .trailing)
         }
     }
 
