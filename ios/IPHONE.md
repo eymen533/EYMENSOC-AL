@@ -1,19 +1,25 @@
-# iPhone / iPad
+# iPhone / iPad — Pulse Key (Xcode)
 
-## Gerçek BLE + Google Maps → Xcode (`xcode-ble-2`)
-
-[`PulsePhoneKey/`](PulsePhoneKey/)
+## Doğru komutlar (bunu kullan)
 
 ```bash
-git clone -b cursor/ble-pair-fix-02d8 https://github.com/eymen533/EYMENSOC-AL.git
-cd EYMENSOC-AL && git pull
-open ios/PulsePhoneKey/PulsePhoneKey.xcodeproj
+cd ~/EYMENSOC-AL
+git fetch origin
+git checkout cursor/hud-day-night-doors-02d8
+git reset --hard origin/cursor/hud-day-night-doors-02d8
+
+# Doğrulama — şunu yazmalı: xcode-ble-28
+grep -n 'buildId =' ios/PulsePhoneKey/Sources/BLEPairer.swift
+
+open -a Xcode ios/PulsePhoneKey/PulsePhoneKey.xcodeproj
 ```
 
-- iOS 16+
-- Settings → Google Maps API key (Maps JavaScript + Directions)
-- Pair → Cluster → haritada rota (hedef varken)
+Xcode: **Product → Clean Build Folder** → telefondaki eski **Pulse**’u sil → Run.
 
-## Playgrounds (demo)
+Ana ekranda yeşil: **xcode-ble-28**. Uygulama adı: **Pulse28**.
 
-[`PulsePhoneKey.swiftpm/`](PulsePhoneKey.swiftpm/) — stabil demo; gerçek BLE değil.
+## Yanlış olanlar
+
+- `cursor/ble-pair-fix-02d8` → eski (ble-12), kullanma
+- `ios/PulsePhoneKey.swiftpm` → Playgrounds demo, tam BLE değil
+- Sadece `git pull` (yanlış branch’teyken) → eski build kalır

@@ -115,7 +115,7 @@ struct ContentView: View {
                         .background(
                             Capsule().fill(Color(red: 0.12, green: 0.72, blue: 0.55))
                         )
-                    Text("Build 27 · panel harita · anlık BLE")
+                    Text("Build 28 · yanlis branch kullanma · pull-pulse.sh")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.55))
                         .multilineTextAlignment(.center)

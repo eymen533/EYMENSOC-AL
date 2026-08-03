@@ -1,19 +1,22 @@
-# Pulse Key — Xcode native (`xcode-ble-27`)
+# Pulse Key — Xcode native (`xcode-ble-28`)
 
-## Güncel kodu al + aç
+## Tek komut
 
-**Doğru branch:** `cursor/hud-day-night-doors-02d8`  
-**Doğru proje:** `ios/PulsePhoneKey/PulsePhoneKey.xcodeproj`  
-(`ios/PulsePhoneKey.swiftpm` Playgrounds — gerçek BLE için Xcodeproj kullan)
+```bash
+cd ~/EYMENSOC-AL
+bash pull-pulse.sh
+```
+
+veya:
 
 ```bash
 cd ~/EYMENSOC-AL
 git fetch origin
 git checkout cursor/hud-day-night-doors-02d8
 git reset --hard origin/cursor/hud-day-night-doors-02d8
+grep 'buildId =' ios/PulsePhoneKey/Sources/BLEPairer.swift   # → xcode-ble-28
 open -a Xcode ios/PulsePhoneKey/PulsePhoneKey.xcodeproj
 ```
 
-Xcode: **Product → Clean Build Folder** (⇧⌘K), telefondaki eski Pulse’u sil, sonra **Run**.
-
-Ana ekranda yeşil kapsül: **xcode-ble-27** görünmeli.
+Clean Build → eski Pulse’u sil → Run.  
+Ana ekran: yeşil **xcode-ble-28**. Ana ekran ikonu: **Pulse28**.
