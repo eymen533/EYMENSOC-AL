@@ -78,16 +78,15 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        // Smaller dial — leaves vertical room for side panels without clipping.
-        let dialW = min(w * 0.30, h * 0.54)
+        // Equal top/bottom margin — keep horizontal triad intact.
+        let vPad = max(28, h * 0.08)
+        let dialW = min(w * 0.32, h - vPad * 2 - 24)
         let cx = w * 0.5
-        let cy = h * 0.50
-        let topPad: CGFloat = 40
-        let gap: CGFloat = 14
-        // Hard clear zone for tires/media — never under dial.
-        let sideW = max(140, (w - dialW) / 2 - gap)
-        // Map still tucks under dial; non-map panels stay in clear column.
-        let mapW = sideW + dialW * 0.36
+        let cy = h * 0.5
+        let gap: CGFloat = 12
+        let sideW = max(150, (w - dialW) / 2 - gap)
+        let mapW = sideW + dialW * 0.34
+        let panelH = min(dialW * 1.05, h - vPad * 2)
         let rightIsMap = model.rightSlide == 3
         let leftIsMap = model.leftSlide == 3
         return ZStack {
@@ -97,9 +96,8 @@ struct NativeHUDView: View {
                         mapSurface(edge: .trailing, side: .left, showTapExpand: true)
                             .frame(maxHeight: .infinity)
                     } else {
-                        sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
-                            .frame(maxHeight: min(h - topPad - 24, dialW * 1.15))
-                            .frame(maxHeight: .infinity, alignment: .center)
+                        sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
+                            .frame(height: panelH)
                     }
                 }
                 .frame(width: leftIsMap ? mapW : sideW)
@@ -112,14 +110,13 @@ struct NativeHUDView: View {
                             .frame(maxHeight: .infinity)
                     } else {
                         sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
-                            .frame(maxHeight: min(h - topPad - 24, dialW * 1.15))
-                            .frame(maxHeight: .infinity, alignment: .center)
+                            .frame(height: panelH)
                     }
                 }
                 .frame(width: rightIsMap ? mapW : sideW)
             }
-            .padding(.top, topPad)
-            .padding(.bottom, 12)
+            .frame(maxHeight: .infinity, alignment: .center)
+            .padding(.vertical, vPad)
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                 .position(x: max(16, cx - dialW * 0.5 - 18), y: cy)
@@ -130,7 +127,10 @@ struct NativeHUDView: View {
                 .position(x: cx, y: cy)
 
             dialStatusStrip(maxWidth: dialW * 1.05)
-                .position(x: cx, y: min(h - 22, cy + dialW * 0.5 + 18))
+                .position(x: cx, y: min(h - vPad * 0.45, cy + dialW * 0.5 + 16))
+
+            batteryChip
+                .position(x: 70, y: h - max(16, vPad * 0.55))
         }
     }
 
@@ -728,9 +728,20 @@ struct NativeHUDView: View {
         GeometryReader { geo in
             let w = max(1, geo.size.width)
             let h = max(1, geo.size.height)
-            let carW = min(w * 0.92, h * 0.42)
-            let carH = min(h * 0.82, carW * 2.05)
-            ZStack {
+            let labelW: CGFloat = min(56, w * 0.22)
+            let gap: CGFloat = 4
+            // Car sits in the middle; PSI labels stay beside it (never on the body).
+            let carW = min(max(48, w - labelW * 2 - gap * 2), h * 0.36)
+            let carH = min(h * 0.90, carW * 2.15)
+            let labelH = carH * 0.68
+            HStack(alignment: .center, spacing: gap) {
+                VStack(spacing: 0) {
+                    psiLabel(model.psiFL)
+                    Spacer(minLength: 0)
+                    psiLabel(model.psiRL)
+                }
+                .frame(width: labelW, height: labelH)
+
                 Image("ModelYTop")
                     .resizable()
                     .scaledToFit()
@@ -739,32 +750,25 @@ struct NativeHUDView: View {
                     .colorMultiply(night ? Color.white : Color(red: 0.15, green: 0.16, blue: 0.18))
                     .accessibilityLabel("Tesla Model Y")
 
-                VStack {
-                    HStack {
-                        psiLabel(model.psiFL)
-                        Spacer(minLength: 4)
-                        psiLabel(model.psiFR)
-                    }
-                    .padding(.top, carH * 0.12)
+                VStack(spacing: 0) {
+                    psiLabel(model.psiFR)
                     Spacer(minLength: 0)
-                    HStack {
-                        psiLabel(model.psiRL)
-                        Spacer(minLength: 4)
-                        psiLabel(model.psiRR)
-                    }
-                    .padding(.bottom, carH * 0.10)
+                    psiLabel(model.psiRR)
                 }
-                .frame(width: carW, height: carH)
+                .frame(width: labelW, height: labelH)
             }
-            .frame(width: carW, height: carH)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 
     private func psiLabel(_ psi: Int) -> some View {
         Text(psi > 0 ? "\(psi) psi" : "-- psi")
-            .font(.caption.monospacedDigit().weight(.semibold))
-            .foregroundStyle(ink.opacity(0.85))
+            .font(.caption2.monospacedDigit().weight(.semibold))
+            .foregroundStyle(ink.opacity(0.9))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
     }
 
     private var mapInfoPanel: some View {
