@@ -1,22 +1,10 @@
-# Pulse Key — Xcode native (`xcode-ble-28`)
+# Pulse28 (`xcode-ble-28`)
 
-## Tek komut
-
-```bash
-cd ~/EYMENSOC-AL
-bash pull-pulse.sh
-```
-
-veya:
+Bundle id: `com.teslapulse.phonekey28` — **yeni app**, eski Pulse(23) ile karışmaz.
 
 ```bash
-cd ~/EYMENSOC-AL
-git fetch origin
-git checkout cursor/hud-day-night-doors-02d8
-git reset --hard origin/cursor/hud-day-night-doors-02d8
-grep 'buildId =' ios/PulsePhoneKey/Sources/BLEPairer.swift   # → xcode-ble-28
-open -a Xcode ios/PulsePhoneKey/PulsePhoneKey.xcodeproj
+cd ~
+curl -fsSL https://raw.githubusercontent.com/eymen533/EYMENSOC-AL/cursor/hud-day-night-doors-02d8/install-pulse28.sh | bash
 ```
 
-Clean Build → eski Pulse’u sil → Run.  
-Ana ekran: yeşil **xcode-ble-28**. Ana ekran ikonu: **Pulse28**.
+Ana ekranda **Pulse28** ikonunu aç. Sarı: **xcode-ble-28**.

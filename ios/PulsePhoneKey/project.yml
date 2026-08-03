@@ -19,12 +19,13 @@ targets:
       - path: Sources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.teslapulse.phonekey
+        PRODUCT_BUNDLE_IDENTIFIER: com.teslapulse.phonekey28
+        PRODUCT_NAME: Pulse28
         INFOPLIST_FILE: Info.plist
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_STYLE: Automatic
-        CURRENT_PROJECT_VERSION: 3
-        MARKETING_VERSION: "2.2"
+        CURRENT_PROJECT_VERSION: 28
+        MARKETING_VERSION: "2.12"
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
         TARGETED_DEVICE_FAMILY: "1,2"

@@ -1,0 +1,16 @@
+xcode-ble-28
+branch: cursor/hud-day-night-doors-02d8
+bundle: com.teslapulse.phonekey28
+display: Pulse28
+
+Mac:
+  rm -rf ~/EYMENSOC-AL
+  cd ~
+  git clone -b cursor/hud-day-night-doors-02d8 https://github.com/eymen533/EYMENSOC-AL.git
+  cd EYMENSOC-AL
+  cat BUILD_ID.txt
+  grep 'buildId =' ios/PulsePhoneKey/Sources/BLEPairer.swift
+  open -a Xcode ios/PulsePhoneKey/PulsePhoneKey.xcodeproj
+
+Xcode: scheme PulsePhoneKey / product Pulse28 → Clean → Run
+Phone home screen must show NEW icon named Pulse28 (not old Pulse).
