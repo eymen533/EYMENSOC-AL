@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Dashla-style night triad — left + right swipeable panels, rails peek then hide.
+/// Dashla-style HUD — panels tuck under center dial; map tap → fullscreen.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     @ObservedObject private var settings = HUDSettings.shared
@@ -9,6 +9,8 @@ struct NativeHUDView: View {
     var linkLabel: String
     var onBack: () -> Void
     var onSettings: (() -> Void)? = nil
+
+    @State private var mapExpanded = false
 
     private let ink = Color.white
     private let muted = Color.white.opacity(0.55)
@@ -21,33 +23,13 @@ struct NativeHUDView: View {
             ZStack(alignment: .top) {
                 Color.black.ignoresSafeArea()
 
-                Group {
-                    if wide {
-                        HStack(spacing: 0) {
-                            sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
-                                .frame(width: geo.size.width * 0.24)
-                            sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
-                            centerDial
-                                .frame(width: geo.size.width * 0.38)
-                            sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
-                            sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
-                                .frame(maxWidth: .infinity)
-                        }
-                    } else {
-                        VStack(spacing: 0) {
-                            centerDial
-                                .frame(height: max(220, geo.size.height * 0.40))
-                            HStack(spacing: 0) {
-                                sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
-                                sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
-                                sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
-                                sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
-                            }
-                        }
-                    }
+                if mapExpanded {
+                    fullscreenMap(geo: geo)
+                } else if wide {
+                    triadLandscape(geo: geo)
+                } else {
+                    triadPortrait(geo: geo)
                 }
-                .padding(.top, 36)
-                .ignoresSafeArea(edges: .bottom)
 
                 topBar
                     .frame(height: 36)
@@ -78,6 +60,154 @@ struct NativeHUDView: View {
 
     private enum Side { case left, right }
 
+    // MARK: - Triad (Dashla overlap)
+
+    private func triadLandscape(geo: GeometryProxy) -> some View {
+        let w = geo.size.width
+        let h = geo.size.height
+        let dialW = min(w * 0.36, h * 0.78)
+        return ZStack {
+            // Left + right extend under the dial (Dashla “sarkma”).
+            HStack(spacing: 0) {
+                sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
+                    .frame(width: w * 0.34)
+                mapSurface(edge: .leading, showTapExpand: true)
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.top, 36)
+
+            // Soft black fade under dial so content tucks behind.
+            HStack(spacing: 0) {
+                LinearGradient(
+                    colors: [.clear, Color.black.opacity(0.55)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: dialW * 0.55)
+                LinearGradient(
+                    colors: [Color.black.opacity(0.55), .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: dialW * 0.55)
+            }
+            .frame(width: dialW * 1.1, height: h)
+            .allowsHitTesting(false)
+
+            HStack(spacing: 0) {
+                Spacer().frame(width: w * 0.34 - 18)
+                sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
+                Spacer()
+                sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
+                    .padding(.trailing, 8)
+            }
+            .padding(.top, 36)
+
+            dialView(size: dialW)
+                .frame(width: dialW, height: dialW)
+                .position(x: w * 0.38, y: h * 0.52)
+        }
+    }
+
+    private func triadPortrait(geo: GeometryProxy) -> some View {
+        VStack(spacing: 0) {
+            dialView(size: min(geo.size.width * 0.55, 240))
+                .frame(height: max(200, geo.size.height * 0.36))
+            HStack(spacing: 0) {
+                sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
+                sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
+                mapSurface(edge: .leading, showTapExpand: true)
+                sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
+            }
+        }
+        .padding(.top, 36)
+    }
+
+    // MARK: - Fullscreen map
+
+    private func fullscreenMap(geo: GeometryProxy) -> some View {
+        ZStack(alignment: .top) {
+            mapSurface(edge: .leading, showTapExpand: false)
+                .ignoresSafeArea()
+
+            // Compact dial top-left — tap to restore triad.
+            Button {
+                withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = false }
+            } label: {
+                dialView(size: min(150, geo.size.width * 0.22), compact: true)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 48)
+            .padding(.leading, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            // Media or tires top-right.
+            Group {
+                if shouldShowMediaMini {
+                    miniMediaCard
+                } else {
+                    miniTiresCard
+                }
+            }
+            .padding(.top, 48)
+            .padding(.trailing, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+
+            if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
+                turnBanner
+                    .padding(.top, 56)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+        }
+    }
+
+    private var shouldShowMediaMini: Bool {
+        model.mediaPlaying || (!isBlank(model.mediaTitle) && model.leftSlide == 4)
+    }
+
+    private var miniMediaCard: some View {
+        HStack(spacing: 10) {
+            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: 52)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayOrDash(model.mediaTitle))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(ink)
+                    .lineLimit(1)
+                Text(displayOrDash(model.mediaArtist))
+                    .font(.caption2)
+                    .foregroundStyle(muted)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: 140, alignment: .leading)
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.black.opacity(0.72)))
+    }
+
+    private var miniTiresCard: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            Text("Lastik")
+                .font(.caption2)
+                .foregroundStyle(muted)
+            HStack(spacing: 10) {
+                Text(psi(model.psiFL))
+                Text(psi(model.psiFR))
+            }
+            .font(.caption.monospacedDigit().weight(.semibold))
+            .foregroundStyle(ink)
+            HStack(spacing: 10) {
+                Text(psi(model.psiRL))
+                Text(psi(model.psiRR))
+            }
+            .font(.caption.monospacedDigit().weight(.semibold))
+            .foregroundStyle(ink)
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.black.opacity(0.72)))
+    }
+
+    private func psi(_ v: Int) -> String { v > 0 ? "\(v)" : "--" }
+
     // MARK: - Top bar
 
     private var topBar: some View {
@@ -98,14 +228,12 @@ struct NativeHUDView: View {
                 .foregroundStyle(model.bleOK || model.isLive ? accent : dim)
             Spacer(minLength: 6)
 
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.7))
-                    .frame(width: 7, height: 7)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(Capsule().fill(Color.white.opacity(0.10)))
+            Circle()
+                .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.7))
+                .frame(width: 7, height: 7)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(Color.white.opacity(0.10)))
 
             HStack(spacing: 5) {
                 Image(systemName: phoneBattIcon)
@@ -118,9 +246,7 @@ struct NativeHUDView: View {
             .padding(.vertical, 4)
             .background(Capsule().fill(Color.white.opacity(0.10)))
 
-            Button {
-                onSettings?()
-            } label: {
+            Button { onSettings?() } label: {
                 Image(systemName: "gearshape.fill")
                     .font(.caption)
                     .foregroundStyle(muted)
@@ -145,11 +271,10 @@ struct NativeHUDView: View {
         return "battery.25"
     }
 
-    // MARK: - Rails (peek 2–3s then hide)
+    // MARK: - Rails
 
     private func sideRail(selected: Int, visible: Bool, onSelect: @escaping (Int) -> Void) -> some View {
         ZStack {
-            // Always-tappable strip — tap to re-show rail when hidden.
             Color.clear
                 .frame(width: 30)
                 .frame(maxHeight: .infinity)
@@ -172,7 +297,6 @@ struct NativeHUDView: View {
                 }
             }
             .padding(.vertical, 12)
-            .padding(.horizontal, 4)
             .opacity(visible ? 1 : 0)
             .allowsHitTesting(visible)
             .animation(.easeOut(duration: 0.3), value: visible)
@@ -184,12 +308,21 @@ struct NativeHUDView: View {
 
     private func sideColumn(slide: Int, side: Side, showBattery: Bool) -> some View {
         ZStack(alignment: .bottomLeading) {
-            Color.black
-            slideContent(slide, side: side)
-                .padding(.horizontal, slide == 3 ? 0 : 16)
-                .padding(.top, slide == 3 ? 0 : 8)
-                .padding(.bottom, showBattery && slide != 3 ? 44 : 0)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            Color.black.opacity(0.001)
+            // Non-map slides only here; map is always the right surface in triad.
+            Group {
+                switch slide {
+                case 1: tiresPanel
+                case 2: tripPanel
+                case 3: mapInfoPanel
+                case 4: mediaPanel
+                default: simplePanel
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, showBattery ? 44 : 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             if showBattery {
                 batteryChip
@@ -203,8 +336,7 @@ struct NativeHUDView: View {
         .gesture(
             DragGesture(minimumDistance: 24)
                 .onEnded { g in
-                    let vertical = abs(g.translation.height) > abs(g.translation.width)
-                    guard vertical else { return }
+                    guard abs(g.translation.height) > abs(g.translation.width) else { return }
                     if side == .left {
                         if g.translation.height < -30 { model.nudgeLeft(1) }
                         else if g.translation.height > 30 { model.nudgeLeft(-1) }
@@ -222,16 +354,144 @@ struct NativeHUDView: View {
         }
     }
 
-    @ViewBuilder
-    private func slideContent(_ slide: Int, side: Side) -> some View {
-        switch slide {
-        case 1: tiresPanel
-        case 2: tripPanel
-        case 3: mapPanel(edge: side == .left ? .trailing : .leading)
-        case 4: mediaPanel
-        default: simplePanel
+    // MARK: - Map surface
+
+    private func mapSurface(edge: MapEdge, showTapExpand: Bool) -> some View {
+        ZStack(alignment: .topLeading) {
+            VehicleMapView(
+                lat: model.latitude,
+                lon: model.longitude,
+                heading: model.mapHeading,
+                destination: routeDestination,
+                destLat: model.destLatitude,
+                destLon: model.destLongitude,
+                turnByTurn: true,
+                turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
+                turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
+                turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 })
+            )
+
+            if !mapExpanded, model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
+                turnBanner
+                    .padding(.leading, edge == .leading ? 20 : 12)
+                    .padding(.top, 10)
+            }
+
+            if !mapExpanded {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 8) {
+                            compassBadge
+                            Text(odoText)
+                                .font(.caption2.monospacedDigit().weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.9))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Capsule().fill(Color.black.opacity(0.45)))
+                        }
+                        .padding(12)
+                    }
+                }
+                .allowsHitTesting(false)
+            }
+
+            if showTapExpand {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = true }
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 28)
+                            .onEnded { g in
+                                if abs(g.translation.height) > abs(g.translation.width) {
+                                    if g.translation.height < -30 { model.nudgeRight(1) }
+                                    else if g.translation.height > 30 { model.nudgeRight(-1) }
+                                    else { model.flashRightRail() }
+                                }
+                            }
+                    )
+            }
+        }
+        .clipped()
+    }
+
+    private var compassBadge: some View {
+        ZStack {
+            Circle()
+                .fill(Color.white.opacity(0.92))
+                .frame(width: 36, height: 36)
+            Text("N")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.black.opacity(0.75))
+                .offset(y: -8)
+            Image(systemName: "location.north.fill")
+                .font(.caption2)
+                .foregroundStyle(.red)
+                .rotationEffect(.degrees(model.mapHeading))
         }
     }
+
+    private enum MapEdge { case leading, trailing }
+
+    // MARK: - Dial
+
+    private func dialView(size: CGFloat, compact: Bool = false) -> some View {
+        let speedFont = compact ? size * 0.42 : size * 0.46
+        return ZStack {
+            Circle()
+                .fill(Color.black)
+                .shadow(color: .black.opacity(0.65), radius: compact ? 10 : 22, x: -8, y: 0)
+            Circle()
+                .stroke(Color.white.opacity(0.14), lineWidth: compact ? 1.5 : 2)
+            if settings.powerStyle == .ring, !compact {
+                Circle()
+                    .trim(from: 0, to: min(1, abs(model.powerKW) / 220))
+                    .stroke(
+                        AngularGradient(
+                            colors: settings.speedColor == .multicolor
+                                ? [.cyan, .green, .yellow, .orange, .red]
+                                : [accent, accent],
+                            center: .center
+                        ),
+                        style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .padding(8)
+            }
+            VStack(spacing: compact ? 0 : 2) {
+                HStack(spacing: size * 0.06) {
+                    ForEach(["P", "R", "N", "D"], id: \.self) { g in
+                        Text(g)
+                            .font(.system(size: max(11, size * 0.065), weight: .bold))
+                            .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: ink, dim: dim))
+                    }
+                }
+                Text("\(Int(abs(model.speed).rounded()))")
+                    .font(.system(size: speedFont, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(ink)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                Text("km/h")
+                    .font(.system(size: max(10, size * 0.05), weight: .medium))
+                    .foregroundStyle(muted)
+                if !compact, settings.liveLocation != .off, !isBlank(model.place) {
+                    Text(model.place)
+                        .font(.system(size: max(9, size * 0.045)))
+                        .foregroundStyle(muted)
+                        .lineLimit(1)
+                        .padding(.top, 2)
+                }
+            }
+            .padding(.horizontal, 8)
+        }
+        .frame(width: size, height: size)
+    }
+
+    // MARK: - Panels
 
     private var batteryChip: some View {
         HStack(spacing: 6) {
@@ -278,9 +538,7 @@ struct NativeHUDView: View {
 
     private func tripRow(_ k: String, _ v: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(k)
-                .font(.caption)
-                .foregroundStyle(muted)
+            Text(k).font(.caption).foregroundStyle(muted)
             Text(v)
                 .font(.title3.weight(.medium))
                 .foregroundStyle(ink)
@@ -299,8 +557,6 @@ struct NativeHUDView: View {
                     .frame(maxHeight: min(h * 0.78, 240))
                     .opacity(0.92)
                     .colorMultiply(Color.white)
-                    .accessibilityLabel("Tesla Model Y")
-
                 VStack {
                     HStack {
                         psiLabel(model.psiFL)
@@ -326,6 +582,22 @@ struct NativeHUDView: View {
         Text(psi > 0 ? "\(psi) psi" : "-- psi")
             .font(.caption.monospacedDigit().weight(.semibold))
             .foregroundStyle(ink.opacity(0.85))
+    }
+
+    private var mapInfoPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Map").font(.caption).foregroundStyle(muted)
+            Text(displayOrDash(model.place))
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(ink)
+            Text(displayOrDash(model.destination))
+                .font(.subheadline)
+                .foregroundStyle(muted)
+            Text(String(format: "%.5f, %.5f", model.latitude, model.longitude))
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(dim)
+            Spacer(minLength: 0)
+        }
     }
 
     private var mediaPanel: some View {
@@ -379,172 +651,6 @@ struct NativeHUDView: View {
         return Color(red: 0.55, green: 0.35, blue: 0.95)
     }
 
-    // MARK: - Center dial
-
-    private var centerDial: some View {
-        GeometryReader { geo in
-            let side = min(geo.size.width, geo.size.height)
-            let dialSize: CGFloat = settings.speedStyle == .compact
-                ? min(side * 0.78, 240)
-                : min(side * 0.92, 320)
-            let speedFont: CGFloat = settings.speedStyle == .compact
-                ? dialSize * 0.42
-                : dialSize * 0.48
-            VStack(spacing: 6) {
-                Spacer(minLength: 2)
-                if settings.liveLocation == .top, !isBlank(model.place) {
-                    locationChip
-                }
-                if settings.powerStyle == .top {
-                    Text(String(format: "%+.0f kW", model.powerKW))
-                        .font(.caption.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(model.powerKW >= 0 ? accent : Color.orange)
-                }
-                ZStack {
-                    Circle()
-                        .stroke(Color.white.opacity(0.14), lineWidth: 2)
-                    Circle()
-                        .fill(Color.black)
-                        .padding(4)
-                        .shadow(color: .black.opacity(0.55), radius: 16, x: -8, y: 0)
-                    if settings.powerStyle == .ring {
-                        Circle()
-                            .trim(from: 0, to: min(1, abs(model.powerKW) / 220))
-                            .stroke(
-                                AngularGradient(
-                                    colors: settings.speedColor == .multicolor
-                                        ? [.cyan, .green, .yellow, .orange, .red]
-                                        : [accent, accent],
-                                    center: .center
-                                ),
-                                style: StrokeStyle(lineWidth: 5, lineCap: .round)
-                            )
-                            .rotationEffect(.degrees(-90))
-                            .padding(8)
-                    }
-                    VStack(spacing: 0) {
-                        HStack(spacing: dialSize * 0.07) {
-                            ForEach(["P", "R", "N", "D"], id: \.self) { g in
-                                Text(g)
-                                    .font(.system(size: max(14, dialSize * 0.07), weight: .bold))
-                                    .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: ink, dim: dim))
-                            }
-                        }
-                        .padding(.bottom, 4)
-                        Text("\(Int(abs(model.speed).rounded()))")
-                            .font(.system(size: speedFont, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(ink)
-                            .minimumScaleFactor(0.5)
-                            .lineLimit(1)
-                        Text("km/h")
-                            .font(.system(size: max(12, dialSize * 0.055), weight: .medium))
-                            .foregroundStyle(muted)
-                    }
-                }
-                .frame(width: dialSize, height: dialSize)
-                if settings.liveLocation == .bottom, !isBlank(model.place) {
-                    locationChip
-                }
-                Spacer(minLength: 2)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .background(
-            LinearGradient(
-                colors: [.black, .black, Color.black.opacity(0.12)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
-    }
-
-    private var locationChip: some View {
-        Label(model.place, systemImage: "mappin")
-            .font(.caption)
-            .foregroundStyle(muted)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .padding(.horizontal, 8)
-    }
-
-    // MARK: - Map slide (usable on left or right)
-
-    private enum MapEdge { case leading, trailing }
-
-    private func mapPanel(edge: MapEdge) -> some View {
-        ZStack(alignment: .topLeading) {
-            VehicleMapView(
-                lat: model.latitude,
-                lon: model.longitude,
-                heading: model.mapHeading,
-                destination: routeDestination,
-                destLat: model.destLatitude,
-                destLon: model.destLongitude,
-                turnDistanceM: Binding(
-                    get: { model.turnDistanceM },
-                    set: { model.turnDistanceM = $0 }
-                ),
-                turnInstruction: Binding(
-                    get: { model.turnInstruction },
-                    set: { model.turnInstruction = $0 }
-                ),
-                turnSymbol: Binding(
-                    get: { model.turnSymbol },
-                    set: { model.turnSymbol = $0 }
-                )
-            )
-
-            if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
-                turnBanner
-                    .padding(.leading, edge == .leading ? 52 : 12)
-                    .padding(.top, 10)
-            }
-
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 8) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.white.opacity(0.92))
-                                .frame(width: 36, height: 36)
-                            Text("N")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.black.opacity(0.75))
-                                .offset(y: -8)
-                            Image(systemName: "location.north.fill")
-                                .font(.caption2)
-                                .foregroundStyle(.red)
-                                .rotationEffect(.degrees(model.mapHeading))
-                        }
-                        Text(odoText)
-                            .font(.caption2.monospacedDigit().weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.9))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.black.opacity(0.45)))
-                    }
-                    .padding(12)
-                }
-            }
-            .allowsHitTesting(false)
-
-            LinearGradient(
-                colors: edge == .leading
-                    ? [Color.black.opacity(0.95), Color.black.opacity(0.35), .clear]
-                    : [.clear, Color.black.opacity(0.35), Color.black.opacity(0.95)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            .frame(width: 48)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edge == .leading ? .leading : .trailing)
-            .allowsHitTesting(false)
-        }
-        .clipped()
-    }
-
     private var turnBanner: some View {
         HStack(spacing: 12) {
             Image(systemName: model.turnSymbol.isEmpty ? "arrow.turn.up.right" : model.turnSymbol)
@@ -565,25 +671,19 @@ struct NativeHUDView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.black.opacity(0.72))
-        )
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.black.opacity(0.72)))
         .allowsHitTesting(false)
     }
 
     private var turnDistanceText: String {
         let m = model.turnDistanceM
-        if m >= 1000 {
-            return String(format: "%.1f km", Double(m) / 1000.0)
-        }
+        if m >= 1000 { return String(format: "%.1f km", Double(m) / 1000.0) }
         return "\(m) m"
     }
 
     private var routeDestination: String {
         let d = model.destination.trimmingCharacters(in: .whitespacesAndNewlines)
-        if isBlank(d) { return "" }
-        return d
+        return isBlank(d) ? "" : d
     }
 
     private var odoText: String {
