@@ -60,98 +60,119 @@ struct NativeHUDView: View {
 
     private enum Side { case left, right }
 
-    // MARK: - Triad (Dashla overlap)
+    // MARK: - Triad (Dashla overlap — dial dead-center)
 
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.36, h * 0.78)
+        let dialW = min(w * 0.44, h * 0.84)
+        let cx = w * 0.5
+        let cy = h * 0.52
         return ZStack {
-            // Left + right extend under the dial (Dashla “sarkma”).
+            // Left / right panels meet under the dial and peek out either side.
             HStack(spacing: 0) {
                 sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
-                    .frame(width: w * 0.34)
-                mapSurface(edge: .leading, showTapExpand: true)
-                    .frame(maxWidth: .infinity)
+                    .frame(width: w * 0.5)
+                rightPanel(showTapExpand: true)
+                    .frame(width: w * 0.5)
             }
-            .padding(.top, 36)
+            .padding(.top, 28)
 
-            // Soft black fade under dial so content tucks behind.
-            HStack(spacing: 0) {
-                LinearGradient(
-                    colors: [.clear, Color.black.opacity(0.55)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: dialW * 0.55)
-                LinearGradient(
-                    colors: [Color.black.opacity(0.55), .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: dialW * 0.55)
-            }
-            .frame(width: dialW * 1.1, height: h)
+            // Soft vignette so panels tuck behind the circle.
+            RadialGradient(
+                colors: [Color.black.opacity(0.72), Color.black.opacity(0.25), .clear],
+                center: .center,
+                startRadius: dialW * 0.28,
+                endRadius: dialW * 0.72
+            )
+            .frame(width: dialW * 1.35, height: dialW * 1.35)
+            .position(x: cx, y: cy)
             .allowsHitTesting(false)
 
-            HStack(spacing: 0) {
-                Spacer().frame(width: w * 0.34 - 18)
-                sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
-                Spacer()
-                sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
-                    .padding(.trailing, 8)
-            }
-            .padding(.top, 36)
+            // Rails sit just outside the dial.
+            sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
+                .position(x: cx - dialW * 0.52 - 10, y: cy)
+            sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
+                .position(x: cx + dialW * 0.52 + 10, y: cy)
 
             dialView(size: dialW)
-                .frame(width: dialW, height: dialW)
-                .position(x: w * 0.38, y: h * 0.52)
+                .position(x: cx, y: cy)
         }
     }
 
     private func triadPortrait(geo: GeometryProxy) -> some View {
-        VStack(spacing: 0) {
-            dialView(size: min(geo.size.width * 0.55, 240))
-                .frame(height: max(200, geo.size.height * 0.36))
-            HStack(spacing: 0) {
-                sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
-                sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
-                mapSurface(edge: .leading, showTapExpand: true)
-                sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
+        // Portrait still centers the dial; panels tuck above/below feel — prefer landscape.
+        let w = geo.size.width
+        let h = geo.size.height
+        let dialW = min(w * 0.72, h * 0.42)
+        let cx = w * 0.5
+        let cy = h * 0.42
+        return ZStack {
+            VStack(spacing: 0) {
+                sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
+                    .frame(height: h * 0.28)
+                rightPanel(showTapExpand: true)
+                    .frame(maxHeight: .infinity)
             }
+            .padding(.top, 28)
+
+            RadialGradient(
+                colors: [Color.black.opacity(0.75), Color.black.opacity(0.2), .clear],
+                center: .center,
+                startRadius: dialW * 0.25,
+                endRadius: dialW * 0.7
+            )
+            .frame(width: dialW * 1.3, height: dialW * 1.3)
+            .position(x: cx, y: cy)
+            .allowsHitTesting(false)
+
+            dialView(size: dialW)
+                .position(x: cx, y: cy)
+
+            batteryChip
+                .position(x: 70, y: h - 28)
         }
-        .padding(.top, 36)
+    }
+
+    @ViewBuilder
+    private func rightPanel(showTapExpand: Bool) -> some View {
+        if model.rightSlide == 3 {
+            mapSurface(edge: .leading, showTapExpand: showTapExpand)
+        } else {
+            sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                .overlay(alignment: .topTrailing) {
+                    if showTapExpand {
+                        // Still allow jumping to map fullscreen via long-press on right non-map? skip
+                        EmptyView()
+                    }
+                }
+        }
     }
 
     // MARK: - Fullscreen map
 
     private func fullscreenMap(geo: GeometryProxy) -> some View {
-        ZStack(alignment: .top) {
+        let dialSize = min(188, geo.size.width * 0.28)
+        return ZStack(alignment: .top) {
             mapSurface(edge: .leading, showTapExpand: false)
                 .ignoresSafeArea()
 
-            // Compact dial top-left — tap to restore triad.
+            // Larger compact dial top-left — tap to restore triad.
             Button {
                 withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = false }
             } label: {
-                dialView(size: min(150, geo.size.width * 0.22), compact: true)
+                dialView(size: dialSize, compact: true)
             }
             .buttonStyle(.plain)
             .padding(.top, 48)
-            .padding(.leading, 16)
+            .padding(.leading, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-            // Media or tires top-right.
-            Group {
-                if shouldShowMediaMini {
-                    miniMediaCard
-                } else {
-                    miniTiresCard
-                }
-            }
-            .padding(.top, 48)
-            .padding(.trailing, 16)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            // Whatever is selected on the right (or left if right is map).
+            fullscreenCornerCard
+                .padding(.top, 48)
+                .padding(.trailing, 14)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
 
             if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
                 turnBanner
@@ -161,8 +182,49 @@ struct NativeHUDView: View {
         }
     }
 
-    private var shouldShowMediaMini: Bool {
-        model.mediaPlaying || (!isBlank(model.mediaTitle) && model.leftSlide == 4)
+    /// Right-slide content for fullscreen corner; if right is map, use left slide.
+    @ViewBuilder
+    private var fullscreenCornerCard: some View {
+        let slide = model.rightSlide == 3 ? model.leftSlide : model.rightSlide
+        switch slide {
+        case 1: miniTiresCard
+        case 2: miniTripCard
+        case 4: miniMediaCard
+        default: miniSimpleCard
+        }
+    }
+
+    private var miniSimpleCard: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            Text(displayOrDash(model.place))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(ink)
+                .lineLimit(2)
+            Text(linkLabel)
+                .font(.caption2)
+                .foregroundStyle(muted)
+        }
+        .padding(10)
+        .frame(maxWidth: 160, alignment: .trailing)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.black.opacity(0.72)))
+    }
+
+    private var miniTripCard: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            Text(displayOrDash(model.destination))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(ink)
+                .lineLimit(1)
+            Text(displayOrDash(model.eta))
+                .font(.caption2)
+                .foregroundStyle(muted)
+            Text(displayOrDash(model.tripDist))
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(muted)
+        }
+        .padding(10)
+        .frame(maxWidth: 170, alignment: .trailing)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.black.opacity(0.72)))
     }
 
     private var miniMediaCard: some View {
