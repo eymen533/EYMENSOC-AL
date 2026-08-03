@@ -19,7 +19,9 @@ struct GoogleMapPanel: UIViewRepresentable {
         let cfg = WKWebViewConfiguration()
         cfg.allowsInlineMediaPlayback = true
         let web = WKWebView(frame: .zero, configuration: cfg)
-        web.isOpaque = false
+        web.isOpaque = true
+        web.clipsToBounds = true
+        web.layer.masksToBounds = true
         web.backgroundColor = dark
             ? UIColor(red: 0.10, green: 0.11, blue: 0.12, alpha: 1)
             : UIColor(red: 0.86, green: 0.85, blue: 0.82, alpha: 1)
@@ -491,7 +493,7 @@ struct VehicleMapView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        Group {
             switch settings.mapsProvider {
             case .google:
                 GoogleMapPanel(
@@ -521,26 +523,9 @@ struct VehicleMapView: View {
                     turnSymbol: $turnSymbol
                 )
             }
-
-            if usingPhone {
-                Text("Telefon konumu")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Color.black.opacity(0.55)))
-                    .padding(10)
-            } else if !hasCarGPS && !phone.hasFix {
-                Text(phone.status)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Color.black.opacity(0.55)))
-                    .padding(10)
-            }
         }
         .background(isDark ? Color.black : Color(red: 0.90, green: 0.91, blue: 0.93))
+        .clipped()
         .onAppear { phone.start() }
     }
 }

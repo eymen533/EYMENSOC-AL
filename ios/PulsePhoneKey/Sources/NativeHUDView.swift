@@ -114,10 +114,8 @@ struct NativeHUDView: View {
             HStack(spacing: 0) {
                 Group {
                     if leftMap {
-                        // Map only in this panel — clipped, never full screen.
-                        mapSurface(edge: .trailing, side: .left, showTapExpand: true, asOverlay: false)
+                        panelMap(edge: .trailing, side: .left)
                             .frame(height: panelH)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     } else if leftBleed {
                         bleedSurface(slide: model.leftSlide, edge: .trailing, side: .left, asOverlay: anyBleed)
                             .frame(maxHeight: .infinity)
@@ -127,14 +125,15 @@ struct NativeHUDView: View {
                     }
                 }
                 .frame(width: leftBleed ? bleedW : sideW)
+                .zIndex(leftMap ? 0 : 2)
 
                 Spacer(minLength: 0)
+                    .allowsHitTesting(false)
 
                 Group {
                     if rightMap {
-                        mapSurface(edge: .leading, side: .right, showTapExpand: true, asOverlay: false)
+                        panelMap(edge: .leading, side: .right)
                             .frame(height: panelH)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     } else if rightBleed {
                         bleedSurface(slide: model.rightSlide, edge: .leading, side: .right, asOverlay: anyBleed)
                             .frame(maxHeight: .infinity)
@@ -144,6 +143,7 @@ struct NativeHUDView: View {
                     }
                 }
                 .frame(width: rightBleed ? bleedW : sideW)
+                .zIndex(rightMap ? 0 : 2)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -186,6 +186,17 @@ struct NativeHUDView: View {
         }
     }
 
+    /// Map confined to one panel — UIKit clipsToBounds + opaque mask.
+    private func panelMap(edge: MapEdge, side: Side) -> some View {
+        mapSurface(edge: edge, side: side, showTapExpand: true, asOverlay: false)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipped()
+            // Extra opaque mask so MapKit metal layer can't paint siblings.
+            .mask(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
     @ViewBuilder
     private func bleedSurface(
         slide: Int,
@@ -219,14 +230,7 @@ struct NativeHUDView: View {
             VStack(spacing: gap) {
                 Group {
                     if topMap {
-                        mapSurface(
-                            edge: .trailing,
-                            side: .left,
-                            showTapExpand: true,
-                            verticalFromTop: false,
-                            asOverlay: false
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        panelMap(edge: .trailing, side: .left)
                     } else if topBleed {
                         bleedSurface(
                             slide: model.leftSlide,
@@ -250,14 +254,7 @@ struct NativeHUDView: View {
 
                 Group {
                     if bottomMap {
-                        mapSurface(
-                            edge: .leading,
-                            side: .right,
-                            showTapExpand: true,
-                            verticalFromTop: true,
-                            asOverlay: false
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        panelMap(edge: .leading, side: .right)
                     } else if bottomBleed {
                         bleedSurface(
                             slide: model.rightSlide,
@@ -543,7 +540,9 @@ struct NativeHUDView: View {
         // Keep content clear of the vertical selection rail (~34pt near dial).
         let railClear: CGFloat = 36
         return ZStack(alignment: .bottomLeading) {
-            Color.clear.opacity(0.001)
+            // Opaque — blocks MapKit bleed from the other panel.
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(dialFill)
             Group {
                 switch slide {
                 case 1: tiresPanel(side: side)

@@ -110,7 +110,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-24 · panel harita · anlık BLE")
+                    Text("xcode-ble-25 · panel harita · anlık BLE")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)

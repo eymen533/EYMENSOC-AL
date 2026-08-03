@@ -295,23 +295,50 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
     var turnByTurn: Bool
     var dark: Bool
 
-    func makeUIView(context: Context) -> MKMapView {
+    /// Clip host — MKMapView ignores SwiftUI clipShape and bleeds under sibling panels.
+    func makeUIView(context: Context) -> UIView {
+        let host = UIView(frame: .zero)
+        host.clipsToBounds = true
+        host.layer.masksToBounds = true
+        host.backgroundColor = dark
+            ? UIColor(red: 0.10, green: 0.11, blue: 0.12, alpha: 1)
+            : UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 1)
+
         let map = MKMapView(frame: .zero)
+        map.translatesAutoresizingMaskIntoConstraints = false
         map.isUserInteractionEnabled = false
         map.showsCompass = false
         map.showsTraffic = false
         map.showsPointsOfInterest = true
         map.delegate = context.coordinator
         map.overrideUserInterfaceStyle = dark ? .dark : .unspecified
+        map.clipsToBounds = true
+        map.layer.masksToBounds = true
+
+        host.addSubview(map)
+        NSLayoutConstraint.activate([
+            map.topAnchor.constraint(equalTo: host.topAnchor),
+            map.bottomAnchor.constraint(equalTo: host.bottomAnchor),
+            map.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+            map.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+        ])
 
         let car = CarMapAnnotation(coordinate: center)
         car.heading = heading
         map.addAnnotation(car)
         context.coordinator.car = car
-        return map
+        context.coordinator.mapView = map
+        return host
     }
 
-    func updateUIView(_ map: MKMapView, context: Context) {
+    func updateUIView(_ host: UIView, context: Context) {
+        host.clipsToBounds = true
+        host.layer.masksToBounds = true
+        guard let map = context.coordinator.mapView ?? host.subviews.compactMap({ $0 as? MKMapView }).first else {
+            return
+        }
+        context.coordinator.mapView = map
+        map.clipsToBounds = true
         map.overrideUserInterfaceStyle = dark ? .dark : .unspecified
         let c = context.coordinator
 
@@ -347,7 +374,6 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
 
         guard autoZoom else { return }
 
-        // Throttle camera — MapKit thrashing freezes the HUD.
         let now = Date()
         let moved: CLLocationDistance = {
             guard let last = c.lastCameraCenter else { return 999 }
@@ -359,7 +385,6 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             return
         }
 
-        // Turn-by-turn: stay close behind the car (Dashla / Tesla style).
         let distance: CLLocationDistance = turnByTurn ? 220 : 520
         let pitch: CGFloat = turnByTurn ? 58 : 48
         let cam = MKMapCamera(
@@ -377,6 +402,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
     func makeCoordinator() -> Coord { Coord() }
 
     final class Coord: NSObject, MKMapViewDelegate {
+        weak var mapView: MKMapView?
         var car: CarMapAnnotation?
         var dest: DestMapAnnotation?
         var lastCameraCenter: CLLocationCoordinate2D?
