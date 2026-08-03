@@ -165,7 +165,7 @@
     ws = new WebSocket(`${proto}://${location.host}`);
     ws.addEventListener("open", () => {
       retry = 800;
-      els.metaInfo.textContent = "Köprü bağlandı · OutGauge bekleniyor…";
+      els.metaInfo.textContent = "OutGauge bekleniyor…";
       setConnection(false, false);
     });
     ws.addEventListener("message", (ev) => {

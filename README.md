@@ -1,51 +1,38 @@
 # EYMEN BeamNG Digital Cluster
 
-Telefona **PC IP** yazıyorsun. Kablosuz kadran + harita + dijital ikonlar.
+**PC’ye hiçbir şey kurulmaz.** Sadece Android APK + BeamNG ayarı.
 
-## Kurulum (kolay yol)
+## Kurulum
 
-### 1) PC — bir kez Node.js
-https://nodejs.org → LTS kur
+### 1) APK kur
+`dist/EYMEN-BeamNG-Cluster.apk`
 
-### 2) PC — çift tık
-Repodaki `EYMEN-Cluster-Baslat.bat` dosyasına **çift tıkla**.  
-Siyah pencerede PC IP’leri yazar (ör. `http://192.168.1.20:8080`).
+### 2) Uygulamayı aç
+Ekranda **Telefon IP** görünür → kopyala.
 
-### 3) BeamNG (localhost!)
-Options → Other → Protocols (Advanced açık):
+### 3) BeamNG
+Options → Other → Protocols (Advanced):
 
-| Protocol   | Address     | Port |
-|------------|-------------|------|
-| OutGauge   | `127.0.0.1` | 4444 |
-| MotionSim  | `127.0.0.1` | 4445 |
+| Protocol   | Address (telefon IP) | Port |
+|------------|----------------------|------|
+| OutGauge   | örn. `192.168.1.149` | 4444 |
+| MotionSim  | aynı IP              | 4445 |
 
-Menüyü kapat → arabaya bin → **Ctrl+R**
+Menüyü kapat → arabaya bin → **Ctrl+R** → telefonda **Kadranı Başlat**.
 
-### 4) Telefon
-1. `dist/EYMEN-BeamNG-Cluster.apk` kur  
-2. Uygulamada **Bilgisayar IP** = bat’ın yazdığı IP (sadece sayı, ör. `192.168.1.20`)  
-3. **PC’ye Bağlan**
+## Bağlantı olmazsa (en kesin yöntem)
+Router bazen cihazları birbirinden ayırır. O zaman:
 
-## Ne var?
-- Dijital kadran (hız, RPM, vites)
-- Sinyal / far / ABS / TC / shift ikonları
-- NAV harita: konum, sürüş izi, gidiş rotası (MotionSim)
-- Demo modu (oyunsuz)
+1. Windows’ta **mobil hotspot** aç  
+2. Telefonu o hotspota bağla  
+3. Telefondaki **yeni IP**’yi BeamNG’ye yaz  
 
-> BeamNG stok protokolünde “GPS hedef waypoint listesi” yok. Harita MotionSim konum + yön ile rota şeridi çizer. Oyundaki navigasyon hedefini birebir almak için özel mod gerekir (ileride eklenebilir).
+PC’ye ekstra program yok.
 
-## Sorun olursa
-- Bat penceresi açık kalsın  
-- Aynı Wi‑Fi (misafir ağ değil)  
-- Windows ilk seferde güvenlik duvarı sorarsa **İzin ver**  
-- Telefonda Demo çalışıyorsa uygulama tamam; sorun BeamNG/ağ tarafındadır  
-
-## Geliştirici
-```bash
-node server/index.js
-node server/index.js --demo
-cd android && ./gradlew assembleRelease
-```
+## Özellikler
+- Dijital kadran, ikonlar (sinyal, far, ABS, SHIFT…)
+- NAV harita (MotionSim konum + iz + gidiş şeridi)
+- Demo modu
 
 ## Lisans
 MIT

@@ -1,16 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">EYMEN Cluster</string>
-    <string name="connect_title">Kadranı aç</string>
-    <string name="connect_hint">PC’de EYMEN-Cluster-Baslat.bat çalışsın. BeamNG OutGauge+MotionSim = 127.0.0.1. Aşağıya PC’nin IP’sini yaz.</string>
-    <string name="pc_ip_label">Bilgisayar IP</string>
-    <string name="your_ip">Telefon IP</string>
-    <string name="port_label">Port</string>
-    <string name="start_cluster">PC’ye Bağlan</string>
+    <string name="connect_hint">PC’ye program kurulmaz. BeamNG’de OutGauge + MotionSim IP’sine aşağıdaki telefon adresini yaz. Olmazsa PC’den mobil hotspot aç, telefonu ona bağla.</string>
+    <string name="your_ip">Telefon IP (BeamNG’ye yaz)</string>
+    <string name="start_cluster">Kadranı Başlat</string>
     <string name="demo_mode">Demo (oyunsuz)</string>
-    <string name="waiting">Bekleniyor…</string>
-    <string name="live">CANLI</string>
     <string name="copy_ip">IP’yi kopyala</string>
-    <string name="bt_note">Telefon → PC IP ile bağlanır. CMD yazmana gerek yok: .bat dosyasına çift tıkla.</string>
-    <string name="multi_ip_note">Birden fazla IP var — Wi‑Fi olanı kullan: %1$s</string>
+    <string name="bt_note">BeamNG Bluetooth desteklemez. Aynı ağ veya PC hotspot yeterli. Menüyü kapat → Ctrl+R.</string>
 </resources>
