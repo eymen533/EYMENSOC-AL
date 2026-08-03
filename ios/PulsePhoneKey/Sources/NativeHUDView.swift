@@ -78,45 +78,50 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        // Equal top/bottom margin — keep horizontal triad intact.
-        let vPad = max(28, h * 0.08)
-        let dialW = min(w * 0.32, h - vPad * 2 - 24)
+        // Equal visual top/bottom: account for top bar + bottom battery band.
+        let topSafe: CGFloat = 40
+        let bottomSafe: CGFloat = 34
+        let contentH = max(160, h - topSafe - bottomSafe)
+        let dialW = min(w * 0.32, contentH - 16)
         let cx = w * 0.5
-        let cy = h * 0.5
+        let cy = topSafe + contentH * 0.5
         let gap: CGFloat = 12
         let sideW = max(150, (w - dialW) / 2 - gap)
-        let mapW = sideW + dialW * 0.34
-        let panelH = min(dialW * 1.05, h - vPad * 2)
-        let rightIsMap = model.rightSlide == 3
-        let leftIsMap = model.leftSlide == 3
+        // Map + media tuck under dial the same way.
+        let bleedW = sideW + dialW * 0.34
+        let panelH = min(dialW * 1.02, contentH)
+        let leftBleed = model.leftSlide == 3 || model.leftSlide == 4
+        let rightBleed = model.rightSlide == 3 || model.rightSlide == 4
         return ZStack {
             HStack(spacing: 0) {
                 Group {
-                    if leftIsMap {
-                        mapSurface(edge: .trailing, side: .left, showTapExpand: true)
+                    if leftBleed {
+                        bleedSurface(slide: model.leftSlide, edge: .trailing, side: .left)
                             .frame(maxHeight: .infinity)
                     } else {
                         sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                             .frame(height: panelH)
                     }
                 }
-                .frame(width: leftIsMap ? mapW : sideW)
+                .frame(width: leftBleed ? bleedW : sideW)
 
                 Spacer(minLength: 0)
 
                 Group {
-                    if rightIsMap {
-                        mapSurface(edge: .leading, side: .right, showTapExpand: true)
+                    if rightBleed {
+                        bleedSurface(slide: model.rightSlide, edge: .leading, side: .right)
                             .frame(maxHeight: .infinity)
                     } else {
                         sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                             .frame(height: panelH)
                     }
                 }
-                .frame(width: rightIsMap ? mapW : sideW)
+                .frame(width: rightBleed ? bleedW : sideW)
             }
-            .frame(maxHeight: .infinity, alignment: .center)
-            .padding(.vertical, vPad)
+            .frame(height: contentH)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .padding(.top, topSafe)
+            .padding(.bottom, bottomSafe)
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                 .position(x: max(16, cx - dialW * 0.5 - 18), y: cy)
@@ -127,10 +132,19 @@ struct NativeHUDView: View {
                 .position(x: cx, y: cy)
 
             dialStatusStrip(maxWidth: dialW * 1.05)
-                .position(x: cx, y: min(h - vPad * 0.45, cy + dialW * 0.5 + 16))
+                .position(x: cx, y: min(h - bottomSafe * 0.55, cy + dialW * 0.5 + 14))
 
             batteryChip
-                .position(x: 70, y: h - max(16, vPad * 0.55))
+                .position(x: 70, y: h - bottomSafe * 0.45)
+        }
+    }
+
+    @ViewBuilder
+    private func bleedSurface(slide: Int, edge: MapEdge, side: Side) -> some View {
+        if slide == 4 {
+            mediaSurface(edge: edge, side: side)
+        } else {
+            mapSurface(edge: edge, side: side, showTapExpand: true)
         }
     }
 
@@ -166,6 +180,8 @@ struct NativeHUDView: View {
     private func rightPanel(showTapExpand: Bool) -> some View {
         if model.rightSlide == 3 {
             mapSurface(edge: .leading, side: .right, showTapExpand: showTapExpand)
+        } else if model.rightSlide == 4 {
+            mediaSurface(edge: .leading, side: .right)
         } else {
             sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
         }
@@ -459,18 +475,8 @@ struct NativeHUDView: View {
                 forceDark: night
             )
 
-            // Soft fade into dial (Dashla tuck).
             if !mapExpanded {
-                LinearGradient(
-                    colors: edge == .leading
-                        ? [canvas.opacity(0.95), canvas.opacity(0.35), .clear]
-                        : [.clear, canvas.opacity(0.35), canvas.opacity(0.95)],
-                    startPoint: edge == .leading ? .leading : .trailing,
-                    endPoint: edge == .leading ? .trailing : .leading
-                )
-                .frame(width: 56)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edge == .leading ? .leading : .trailing)
-                .allowsHitTesting(false)
+                dialFade(edge: edge)
             }
 
             if !mapExpanded, model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
@@ -509,6 +515,64 @@ struct NativeHUDView: View {
             }
         }
         .clipped()
+    }
+
+    /// Album art fills the panel and tucks under the dial like the map.
+    private func mediaSurface(edge: MapEdge, side: Side) -> some View {
+        ZStack {
+            AlbumArtFill(image: art.image, url: art.imageURL, loading: art.loading)
+
+            dialFade(edge: edge)
+
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.55), .black.opacity(0.82)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            .allowsHitTesting(false)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Spacer(minLength: 0)
+                mediaServiceHeader
+                Text(displayOrDash(model.mediaTitle))
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .shadow(color: .black.opacity(0.45), radius: 4, y: 1)
+                Text(displayOrDash(model.mediaArtist))
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.75))
+                    .lineLimit(1)
+                    .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 18)
+            .padding(.leading, edge == .leading ? 10 : 0)
+            .padding(.trailing, edge == .trailing ? 10 : 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .allowsHitTesting(false)
+        }
+        .clipped()
+        .contentShape(Rectangle())
+        .gesture(sideSwipe(side: side))
+        .onTapGesture {
+            if side == .left { model.flashLeftRail() }
+            else { model.flashRightRail() }
+        }
+    }
+
+    private func dialFade(edge: MapEdge) -> some View {
+        LinearGradient(
+            colors: edge == .leading
+                ? [canvas.opacity(0.95), canvas.opacity(0.35), .clear]
+                : [.clear, canvas.opacity(0.35), canvas.opacity(0.95)],
+            startPoint: edge == .leading ? .leading : .trailing,
+            endPoint: edge == .leading ? .trailing : .leading
+        )
+        .frame(width: 56)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edge == .leading ? .leading : .trailing)
+        .allowsHitTesting(false)
     }
 
     private var compassBadge: some View {
@@ -728,12 +792,12 @@ struct NativeHUDView: View {
         GeometryReader { geo in
             let w = max(1, geo.size.width)
             let h = max(1, geo.size.height)
-            let labelW: CGFloat = min(56, w * 0.22)
-            let gap: CGFloat = 4
+            let labelW: CGFloat = min(58, w * 0.24)
+            let gap: CGFloat = 10
             // Car sits in the middle; PSI labels stay beside it (never on the body).
-            let carW = min(max(48, w - labelW * 2 - gap * 2), h * 0.36)
-            let carH = min(h * 0.90, carW * 2.15)
-            let labelH = carH * 0.68
+            let carW = min(max(44, w - labelW * 2 - gap * 2), h * 0.34)
+            let carH = min(h * 0.88, carW * 2.15)
+            let labelH = carH * 0.62
             HStack(alignment: .center, spacing: gap) {
                 VStack(spacing: 0) {
                     psiLabel(model.psiFL)

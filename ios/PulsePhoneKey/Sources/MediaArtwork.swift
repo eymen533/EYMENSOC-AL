@@ -167,17 +167,31 @@ struct AlbumArtView: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.85, green: 0.28, blue: 0.22),
-                            Color(red: 0.35, green: 0.08, blue: 0.12),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+            AlbumArtFill(image: image, url: url, loading: loading, noteSize: size * 0.32)
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+    }
+}
+
+/// Full-bleed album art (map-style panel background).
+struct AlbumArtFill: View {
+    var image: UIImage?
+    var url: URL?
+    var loading: Bool = false
+    var noteSize: CGFloat = 48
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.85, green: 0.28, blue: 0.22),
+                    Color(red: 0.22, green: 0.06, blue: 0.10),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
             if let image {
                 Image(uiImage: image)
                     .resizable()
@@ -189,7 +203,7 @@ struct AlbumArtView: View {
                         img.resizable().scaledToFill()
                     case .failure:
                         Image(systemName: "music.note")
-                            .font(.system(size: size * 0.32, weight: .medium))
+                            .font(.system(size: noteSize, weight: .medium))
                             .foregroundStyle(.white.opacity(0.45))
                     default:
                         ProgressView().tint(.white)
@@ -199,12 +213,11 @@ struct AlbumArtView: View {
                 ProgressView().tint(.white)
             } else {
                 Image(systemName: "music.note")
-                    .font(.system(size: size * 0.32, weight: .medium))
+                    .font(.system(size: noteSize, weight: .medium))
                     .foregroundStyle(.white.opacity(0.45))
             }
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
     }
 }
