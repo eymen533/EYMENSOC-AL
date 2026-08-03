@@ -108,7 +108,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-21 · otomatik bağlan · araç destinasyonu")
+                    Text("xcode-ble-22 · Apple/Google Maps · araç rotası")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -283,11 +283,22 @@ struct ContentView: View {
                     }
                     .pickerStyle(.segmented)
                 }
-                Section("Maps (araç GPS)") {
-                    Text("Apple Maps — API key yok. Konum/hedef arabadan (BLE) gelir; rota Apple Directions ile çizilir.")
+                Section("Harita") {
+                    Picker("Sağlayıcı", selection: $hudSettings.mapsProvider) {
+                        ForEach(HUDSettings.MapsProvider.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    Text(hudSettings.mapsProvider == .google
+                        ? "Google Maps: araçta seçilen destinasyon Directions ile rotaya dönüşür. Maps JavaScript + Directions API key gerekir."
+                        : "Apple Maps: API key yok. Konum/hedef arabadan (BLE); rota Apple Directions.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Toggle("Auto Zoom", isOn: $hudSettings.autoZoom)
+                    if hudSettings.mapsProvider == .google {
+                        SecureField("Google Maps API key", text: $googleMapsKey)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+                    Toggle("Auto Zoom (rota sığdır)", isOn: $hudSettings.autoZoom)
                     Picker("Theme", selection: $hudSettings.mapTheme) {
                         ForEach(HUDSettings.MapTheme.allCases) { Text($0.rawValue).tag($0) }
                     }
