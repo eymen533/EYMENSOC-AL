@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tesla Pulse</string>
+    <string name="login_title">Tesla Pulse</string>
+    <string name="login_sub">Kişisel cluster HUD · BLE Phone Key</string>
+    <string name="pin_label">PIN</string>
+    <string name="pin_hint">Erişim PIN</string>
+    <string name="login_button">Giriş</string>
+    <string name="settings">Sunucu ayarı</string>
+    <string name="server_label">Sunucu adresi (HTTPS)</string>
+    <string name="server_hint">https://….trycloudflare.com</string>
+    <string name="save">Kaydet</string>
+    <string name="pair_title">BLE Eşleşme</string>
+    <string name="pair_sub">Bluetooth ile araca add-key gönder. Key Card’ı konsola koy → Pair.</string>
+    <string name="vin_label">VIN</string>
+    <string name="vin_hint">17 karakter VIN</string>
+    <string name="pair_button">Key Card ile eşleştir</string>
+    <string name="skip_hud">Eşleşmeden HUD’u aç</string>
+    <string name="open_hud">HUD’u aç</string>
+    <string name="status_ready">Hazır. Araç yakında, Bluetooth açık olsun.</string>
+    <string name="step1">1 · Bluetooth ile Tesla’yı bul</string>
+    <string name="step2">2 · Key Card → konsol (telefona değil)</string>
+    <string name="step3">3 · Araçta Pair / Confirm → HUD</string>
+</resources>
