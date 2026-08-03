@@ -33,7 +33,7 @@ data class OutGaugeData(
 object OutGaugeParser {
     private const val OG_TURBO = 8192
     private const val OG_KM = 16384
-    private const val MIN_SIZE = 92
+    private const val MIN_SIZE = 64
 
     private const val DL_SHIFT = 1
     private const val DL_FULLBEAM = 1 shl 1

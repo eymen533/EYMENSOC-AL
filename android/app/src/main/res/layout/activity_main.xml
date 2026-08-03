@@ -5,157 +5,167 @@
     android:layout_height="match_parent"
     android:background="@color/bg">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <androidx.core.widget.NestedScrollView
         android:id="@+id/setupRoot"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="20dp">
+        android:fillViewport="true">
 
-        <TextView
-            android:id="@+id/brand"
-            android:layout_width="wrap_content"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:letterSpacing="0.25"
-            android:text="EYMEN"
-            android:textColor="@color/accent"
-            android:textSize="40sp"
-            android:textStyle="bold"
-            app:layout_constraintBottom_toTopOf="@id/subtitle"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_chainStyle="packed" />
-
-        <TextView
-            android:id="@+id/subtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:letterSpacing="0.3"
-            android:text="DIGITAL COCKPIT"
-            android:textColor="@color/muted"
-            android:textSize="12sp"
-            app:layout_constraintBottom_toTopOf="@id/hint"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/brand" />
-
-        <TextView
-            android:id="@+id/hint"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:gravity="center"
-            android:text="@string/connect_hint"
-            android:textColor="@color/ink"
-            android:textSize="14sp"
-            app:layout_constraintBottom_toTopOf="@id/ipCard"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/subtitle"
-            app:layout_constraintWidth_max="540dp" />
-
-        <LinearLayout
-            android:id="@+id/ipCard"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/card_bg"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="16dp"
-            app:layout_constraintBottom_toTopOf="@id/btnStart"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/hint"
-            app:layout_constraintWidth_max="440dp">
+            android:padding="18dp">
 
             <TextView
+                android:id="@+id/brand"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:letterSpacing="0.12"
-                android:text="@string/your_ip"
-                android:textColor="@color/muted"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/ipValue"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="—"
-                android:textColor="@color/ink"
-                android:textIsSelectable="true"
-                android:textSize="28sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/portValue"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:gravity="center"
-                android:text="OutGauge 4444 · MotionSim 4445"
+                android:letterSpacing="0.25"
+                android:text="EYMEN"
                 android:textColor="@color/accent"
-                android:textSize="13sp" />
+                android:textSize="36sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.28"
+                android:text="DIGITAL COCKPIT"
+                android:textColor="@color/muted"
+                android:textSize="11sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/brand" />
+
+            <TextView
+                android:id="@+id/hint"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center"
+                android:text="@string/connect_hint"
+                android:textColor="@color/ink"
+                android:textSize="13sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/subtitle"
+                app:layout_constraintWidth_max="560dp" />
+
+            <LinearLayout
+                android:id="@+id/ipCard"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/card_bg"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="14dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/hint"
+                app:layout_constraintWidth_max="460dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/your_ip"
+                    android:textColor="@color/muted"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/ipValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="—"
+                    android:textColor="@color/ink"
+                    android:textIsSelectable="true"
+                    android:textSize="26sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/portValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:gravity="center"
+                    android:text="OutGauge 4444 · MotionSim 4445"
+                    android:textColor="@color/accent"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/packetStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="#22101820"
+                    android:gravity="center"
+                    android:padding="10dp"
+                    android:text="@string/packet_waiting"
+                    android:textColor="@color/muted"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCopy"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/copy_ip"
+                    android:textColor="@color/accent" />
+            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCopy"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
+                android:id="@+id/btnStart"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/start_cluster"
+                android:textAllCaps="false"
+                app:backgroundTint="@color/accent"
+                app:cornerRadius="4dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/ipCard"
+                app:layout_constraintWidth_max="460dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDemo"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="46dp"
+                android:layout_marginTop="8dp"
+                android:text="@string/demo_mode"
+                android:textAllCaps="false"
+                android:textColor="@color/ink"
+                app:cornerRadius="4dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/btnStart"
+                app:layout_constraintWidth_max="460dp"
+                app:strokeColor="@color/muted" />
+
+            <TextView
+                android:id="@+id/btNote"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="@string/copy_ip"
-                android:textColor="@color/accent" />
-        </LinearLayout>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnStart"
-            android:layout_width="0dp"
-            android:layout_height="54dp"
-            android:layout_marginTop="14dp"
-            android:text="@string/start_cluster"
-            android:textAllCaps="false"
-            android:textSize="16sp"
-            app:backgroundTint="@color/accent"
-            app:cornerRadius="4dp"
-            app:layout_constraintBottom_toTopOf="@id/btnDemo"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/ipCard"
-            app:layout_constraintWidth_max="440dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnDemo"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_marginTop="8dp"
-            android:text="@string/demo_mode"
-            android:textAllCaps="false"
-            android:textColor="@color/ink"
-            app:cornerRadius="4dp"
-            app:layout_constraintBottom_toTopOf="@id/btNote"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btnStart"
-            app:layout_constraintWidth_max="440dp"
-            app:strokeColor="@color/muted" />
-
-        <TextView
-            android:id="@+id/btNote"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center"
-            android:text="@string/bt_note"
-            android:textColor="@color/muted"
-            android:textSize="12sp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btnDemo"
-            app:layout_constraintWidth_max="540dp" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:gravity="center"
+                android:text="@string/bt_note"
+                android:textColor="@color/muted"
+                android:textSize="12sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/btnDemo"
+                app:layout_constraintWidth_max="560dp" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <WebView
         android:id="@+id/clusterWeb"

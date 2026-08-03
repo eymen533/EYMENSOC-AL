@@ -11,8 +11,8 @@ android {
         applicationId = "com.eymen.beamngcluster"
         minSdk = 21
         targetSdk = 34
-        versionCode = 6
-        versionName = "3.1.0"
+        versionCode = 7
+        versionName = "3.2.0"
     }
 
     // Eski Android'lerde "paket ayrıştırılamadı" olmasın diye v1+v2 imza
@@ -56,5 +56,6 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 }

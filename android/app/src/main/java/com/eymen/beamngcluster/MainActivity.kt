@@ -5,6 +5,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.graphics.Color
+import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.view.View
 import android.webkit.WebSettings
@@ -35,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private var clusterReady = false
     private var pendingJson: String? = null
     private var phoneIp: String = "—"
+    private var clusterMode = false
 
     private var lastOut: OutGaugeData? = null
     private var lastMotion: MotionSimData? = null
@@ -50,14 +53,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         hideSystemUi()
 
-        phoneIp = localWifiIpv4() ?: "Wi‑Fi yok"
-        binding.ipValue.text = phoneIp
+        refreshIp()
         binding.portValue.text = "OutGauge 4444 · MotionSim 4445"
 
         binding.btnCopy.setOnClickListener {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("ip", phoneIp))
-            Toast.makeText(this, "IP kopyalandı", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "IP kopyalandı: $phoneIp", Toast.LENGTH_SHORT).show()
         }
         binding.btnStart.setOnClickListener { openCluster(demo = false) }
         binding.btnDemo.setOnClickListener { openCluster(demo = true) }
@@ -72,57 +74,95 @@ class MainActivity : AppCompatActivity() {
         binding.clusterWeb.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 clusterReady = true
-                pushStatus("Dinleniyor · $phoneIp · OG:$packetOg MS:$packetMs")
+                pushStatus("CANLI dinleme · OG:$packetOg MS:$packetMs")
                 pendingJson?.let { pushToWeb(it) }
             }
+        }
+
+        // Listen immediately on setup screen — proves network without opening gauges
+        startUdpListening()
+    }
+
+    private fun refreshIp() {
+        phoneIp = localWifiIpv4() ?: wifiManagerIpv4() ?: "Wi‑Fi yok"
+        binding.ipValue.text = phoneIp
+    }
+
+    private fun startUdpListening() {
+        listener?.stop()
+        packetOg = 0
+        packetMs = 0
+        updatePacketUi()
+        listener = UdpTelemetryListener(
+            context = this,
+            scope = lifecycleScope,
+            onListening = { port, ok ->
+                runOnUiThread {
+                    if (!ok) {
+                        binding.packetStatus.text = "Port $port açılamadı"
+                        binding.packetStatus.setTextColor(Color.parseColor("#FF6B4A"))
+                    }
+                }
+            },
+            onRaw = { port, size, from ->
+                if (port == OUTGAUGE_PORT) packetOg++ else packetMs++
+                runOnUiThread {
+                    updatePacketUi(from, size)
+                }
+            },
+            onOutGauge = { data ->
+                lastOut = data
+                if (clusterMode) pushMerged()
+            },
+            onMotion = { data ->
+                lastMotion = data
+                appendTrail(data.posX.toDouble(), data.posY.toDouble())
+                if (clusterMode) pushMerged()
+            },
+            onError = { msg ->
+                runOnUiThread {
+                    if (packetOg == 0 && packetMs == 0) {
+                        binding.packetStatus.text = msg
+                    }
+                }
+            },
+        ).also { it.start(OUTGAUGE_PORT, MOTION_PORT) }
+    }
+
+    private fun updatePacketUi(from: String? = null, size: Int? = null) {
+        val total = packetOg + packetMs
+        if (total == 0) {
+            binding.packetStatus.setTextColor(Color.parseColor("#7F8FA3"))
+            binding.packetStatus.text =
+                "Dinleniyor… paket: 0\nBeamNG menüsünü kapat + Ctrl+R\nOlmazsa PC hotspot"
+        } else {
+            binding.packetStatus.setTextColor(Color.parseColor("#5DDEA6"))
+            val extra = if (from != null) " · $from ${size}b" else ""
+            binding.packetStatus.text =
+                "SİNYAL VAR · OG:$packetOg MS:$packetMs$extra\nŞimdi Kadranı Başlat"
+        }
+        if (clusterMode && clusterReady) {
+            pushStatus("OG:$packetOg MS:$packetMs · $phoneIp")
         }
     }
 
     private fun openCluster(demo: Boolean) {
+        clusterMode = true
         binding.setupRoot.visibility = View.GONE
         binding.clusterWeb.visibility = View.VISIBLE
         clusterReady = false
-        packetOg = 0
-        packetMs = 0
         while (trail.length() > 0) trail.remove(0)
         binding.clusterWeb.loadUrl("file:///android_asset/index.html")
 
         demoJob?.cancel()
-        listener?.stop()
 
         if (demo) {
+            listener?.stop()
             startDemo()
         } else {
-            listener = UdpTelemetryListener(
-                context = this,
-                scope = lifecycleScope,
-                onListening = { port, ok ->
-                    runOnUiThread {
-                        if (ok) pushStatus("Port $port açık · $phoneIp · OG:$packetOg MS:$packetMs")
-                    }
-                },
-                onRaw = { port, _, _ ->
-                    if (port == OUTGAUGE_PORT) packetOg++ else packetMs++
-                    runOnUiThread {
-                        pushStatus("Paket OG:$packetOg MS:$packetMs · $phoneIp")
-                    }
-                },
-                onOutGauge = { data ->
-                    lastOut = data
-                    pushMerged()
-                },
-                onMotion = { data ->
-                    lastMotion = data
-                    appendTrail(data.posX.toDouble(), data.posY.toDouble())
-                    pushMerged()
-                },
-                onError = { msg ->
-                    runOnUiThread {
-                        pushStatus(msg)
-                        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-                    }
-                },
-            ).also { it.start(OUTGAUGE_PORT, MOTION_PORT) }
+            // keep existing UDP listener; if somehow stopped, restart
+            if (listener == null) startUdpListening()
+            lastOut?.let { pushMerged() }
         }
     }
 
@@ -239,9 +279,8 @@ class MainActivity : AppCompatActivity() {
                     })
                     put("trail", trail)
                 }.toString()
-                val escaped = JSONObject.quote(json)
                 binding.clusterWeb.evaluateJavascript(
-                    "window.__eymenPush && window.__eymenPush($escaped)",
+                    "window.__eymenPush && window.__eymenPush(${JSONObject.quote(json)})",
                     null,
                 )
                 delay(50)
@@ -251,9 +290,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun pushStatus(text: String) {
         if (!clusterReady) return
-        val escaped = JSONObject.quote(text)
         binding.clusterWeb.evaluateJavascript(
-            "window.__eymenStatus && window.__eymenStatus($escaped)",
+            "window.__eymenStatus && window.__eymenStatus(${JSONObject.quote(text)})",
             null,
         )
     }
@@ -263,8 +301,10 @@ class MainActivity : AppCompatActivity() {
             pendingJson = json
             return
         }
-        val escaped = JSONObject.quote(json)
-        binding.clusterWeb.evaluateJavascript("window.__eymenPush && window.__eymenPush($escaped)", null)
+        binding.clusterWeb.evaluateJavascript(
+            "window.__eymenPush && window.__eymenPush(${JSONObject.quote(json)})",
+            null,
+        )
     }
 
     private fun hideSystemUi() {
@@ -292,11 +332,37 @@ class MainActivity : AppCompatActivity() {
             when {
                 name.startsWith("wlan", true) -> 3
                 name.startsWith("ap", true) -> 2
-                name.startsWith("wifi", true) -> 2
+                name.contains("wlan", true) -> 2
                 else -> 0
             }
         }
         return list.firstOrNull()?.second
+    }
+
+    @Suppress("DEPRECATION")
+    private fun wifiManagerIpv4(): String? {
+        return try {
+            val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+            val ip = wm.connectionInfo?.ipAddress ?: return null
+            if (ip == 0) return null
+            String.format(
+                "%d.%d.%d.%d",
+                ip and 0xff,
+                ip shr 8 and 0xff,
+                ip shr 16 and 0xff,
+                ip shr 24 and 0xff,
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshIp()
+        if (!clusterMode || demoJob?.isActive != true) {
+            if (listener == null) startUdpListening()
+        }
     }
 
     override fun onDestroy() {
@@ -309,10 +375,12 @@ class MainActivity : AppCompatActivity() {
     override fun onBackPressed() {
         if (binding.clusterWeb.visibility == View.VISIBLE) {
             demoJob?.cancel()
-            listener?.stop()
+            clusterMode = false
             binding.clusterWeb.visibility = View.GONE
             binding.setupRoot.visibility = View.VISIBLE
             clusterReady = false
+            refreshIp()
+            startUdpListening()
         } else {
             @Suppress("DEPRECATION")
             super.onBackPressed()
