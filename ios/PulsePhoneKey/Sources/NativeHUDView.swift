@@ -381,9 +381,8 @@ struct NativeHUDView: View {
                 default: simplePanel
                 }
             }
-            // Keep content away from the dial edge so nothing is clipped.
-            .padding(.leading, side == .right ? 22 : 12)
-            .padding(.trailing, side == .left ? 22 : 12)
+            // Keep content fully inside the clear column (no dial clip).
+            .padding(.horizontal, 8)
             .padding(.top, 8)
             .padding(.bottom, showBattery ? 44 : 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -626,36 +625,39 @@ struct NativeHUDView: View {
 
     private func tiresPanel(side: Side) -> some View {
         GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
-            let carH = min(h * 0.82, w * 1.55, 280)
+            let w = max(1, geo.size.width)
+            let h = max(1, geo.size.height)
+            // Fit entire top-down car inside the clear side column (never under dial).
+            let carW = w * 0.96
+            let carH = min(h * 0.90, carW * 2.15)
             ZStack {
                 Image("ModelYTop")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: min(w * 0.92, carH * 0.55), height: carH)
-                    .opacity(0.95)
+                    .frame(width: carW, height: carH)
+                    .opacity(0.96)
                     .colorMultiply(Color.white)
                     .accessibilityLabel("Tesla Model Y")
 
                 VStack {
                     HStack {
                         psiLabel(model.psiFL)
-                        Spacer()
+                        Spacer(minLength: 4)
                         psiLabel(model.psiFR)
                     }
-                    .padding(.top, carH * 0.14)
-                    Spacer()
+                    .padding(.top, carH * 0.12)
+                    Spacer(minLength: 0)
                     HStack {
                         psiLabel(model.psiRL)
-                        Spacer()
+                        Spacer(minLength: 4)
                         psiLabel(model.psiRR)
                     }
-                    .padding(.bottom, carH * 0.12)
+                    .padding(.bottom, carH * 0.10)
                 }
-                .frame(width: min(w * 0.92, carH * 0.55), height: carH)
+                .frame(width: carW, height: carH)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: side == .left ? .leading : .trailing)
+            .frame(width: carW, height: carH)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 
