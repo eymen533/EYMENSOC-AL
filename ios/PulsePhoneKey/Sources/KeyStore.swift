@@ -20,6 +20,12 @@ enum KeyStore {
         return out
     }
 
+    static func hasPrivateKey(vin: String) -> Bool {
+        let v = vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard v.count == 17 else { return false }
+        return UserDefaults.standard.data(forKey: "pulse.pk.vin." + v) != nil
+    }
+
     /// True after Phone Key was accepted once for this VIN — reconnect without add-key.
     static func isPaired(vin: String) -> Bool {
         let v = vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()

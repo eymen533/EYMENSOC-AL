@@ -108,7 +108,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-20 · bir kez eşleş, sonra otomatik bağlan")
+                    Text("xcode-ble-21 · otomatik bağlan · araç destinasyonu")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -351,7 +351,7 @@ struct ContentView: View {
 
     private var alreadyPaired: Bool {
         _ = pairEpoch
-        return KeyStore.isPaired(vin: vinNorm)
+        return KeyStore.isPaired(vin: vinNorm) || KeyStore.hasPrivateKey(vin: vinNorm)
     }
 
     /// Never ship with a baked-in VIN — empty until user pastes from Tesla app.

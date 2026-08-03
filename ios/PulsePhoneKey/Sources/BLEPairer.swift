@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-20"
+    static let buildId = "xcode-ble-21"
 
     enum Step: String {
         case idle = "Hazir"
@@ -130,7 +130,7 @@ final class BLEPairer: NSObject, ObservableObject {
                 self.fail("VIN 17 karakter olmali")
                 return
             }
-            guard KeyStore.isPaired(vin: v) else {
+            guard KeyStore.isPaired(vin: v) || KeyStore.hasPrivateKey(vin: v) else {
                 self.fail("Once Pair Vehicle ile eslestir")
                 return
             }
@@ -139,6 +139,10 @@ final class BLEPairer: NSObject, ObservableObject {
             } else {
                 self.fail("Anahtar yuklenemedi")
                 return
+            }
+            // Eski kurulum: key var ama paired bayragi yoksa yine resume dene (add-key yok).
+            if !KeyStore.isPaired(vin: v) {
+                KeyStore.markPaired(vin: v)
             }
             self.resetSessionState(vin: v, resumeOnly: true)
             self.payload = nil
@@ -273,6 +277,26 @@ final class BLEPairer: NSObject, ObservableObject {
         }
         step = .scanning
         central.stopScan()
+
+        // Zaten bagli Tesla GATT (araca binince bazen zaten connected)
+        let linked = central.retrieveConnectedPeripherals(withServices: [serviceUUID])
+        for p in linked {
+            let name = p.name ?? ""
+            upsertDevice(p, name: name.isEmpty ? "Tesla (bagli)" : name, rssi: -40)
+            let resume = !forceRePair && (resumeTelemetryOnly || pairWriteDone || KeyStore.isPaired(vin: vin))
+            if resume {
+                logLine("connected-peripheral auto \(name)")
+                connect(id: p.identifier)
+                return
+            }
+        }
+
+        if let id = KeyStore.storedPeripheralId(vin: vin) {
+            for p in central.retrievePeripherals(withIdentifiers: [id]) {
+                upsertDevice(p, name: p.name ?? "Tesla", rssi: -50)
+            }
+        }
+
         central.scanForPeripherals(withServices: nil, options: [
             CBCentralManagerScanOptionAllowDuplicatesKey: true,
         ])
@@ -495,10 +519,14 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         upsertDevice(peripheral, name: name, rssi: RSSI.intValue)
 
         guard step == .scanning else { return }
-        let hot = name.contains("🔑") || name.localizedCaseInsensitiveContains("tesla")
+        let names = VCSECPayload.bleNames(vin: vin)
+        let hot = name.contains("🔑")
+            || name.localizedCaseInsensitiveContains("tesla")
+            || names.contains(where: { name.localizedCaseInsensitiveContains($0) })
+            || name.range(of: #"S[0-9a-fA-F]{16}C"#, options: .regularExpression) != nil
         let resume = !forceRePair && (resumeTelemetryOnly || pairWriteDone || KeyStore.isPaired(vin: vin))
         // Resume: daha agresif otomatik bağlan; ilk pair: yakın ve Tesla adı
-        let rssiOK = resume ? RSSI.intValue > -85 : RSSI.intValue > -60
+        let rssiOK = resume ? RSSI.intValue > -92 : RSSI.intValue > -60
         if hot, rssiOK {
             logLine("auto-tap \(name) rssi=\(RSSI.intValue) resume=\(resume)")
             connect(id: peripheral.identifier)

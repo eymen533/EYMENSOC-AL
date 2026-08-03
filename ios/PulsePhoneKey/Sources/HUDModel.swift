@@ -209,12 +209,29 @@ final class HUDModel: ObservableObject {
             longitude = s.longitude
         }
         mapHeading = s.heading
-        if !s.destination.isEmpty { destination = s.destination }
-        if abs(s.destLatitude) > 0.0001 { destLatitude = s.destLatitude }
-        if abs(s.destLongitude) > 0.0001 { destLongitude = s.destLongitude }
-        eta = s.eta
-        energyAtArrival = s.energyAtArrival
-        tripDist = s.tripDist
+        if s.routeActive {
+            if !s.destination.isEmpty, s.destination != "—", s.destination != "-", s.destination != "--" {
+                destination = s.destination
+            }
+            if abs(s.destLatitude) > 0.0001 || abs(s.destLongitude) > 0.0001 {
+                destLatitude = s.destLatitude
+                destLongitude = s.destLongitude
+            }
+            if !s.eta.isEmpty, s.eta != "—" { eta = s.eta }
+            if !s.energyAtArrival.isEmpty, s.energyAtArrival != "—" { energyAtArrival = s.energyAtArrival }
+            if !s.tripDist.isEmpty, s.tripDist != "—" { tripDist = s.tripDist }
+        } else {
+            // Nav ended / not set — clear so map doesn't keep a stale pin.
+            destination = "—"
+            destLatitude = 0
+            destLongitude = 0
+            eta = "—"
+            energyAtArrival = "—"
+            tripDist = "—"
+            turnDistanceM = 0
+            turnInstruction = ""
+            turnSymbol = "arrow.up"
+        }
         if !s.place.isEmpty, s.place != "—" { place = s.place }
         mediaTitle = s.mediaTitle
         mediaArtist = s.mediaArtist

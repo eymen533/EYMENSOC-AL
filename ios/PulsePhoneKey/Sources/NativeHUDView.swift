@@ -620,7 +620,7 @@ struct NativeHUDView: View {
                     .padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.55)))
                     .padding(12)
-            } else if !mapExpanded, !hasCarGPS {
+            } else if !mapExpanded, !hasCarGPS, abs(model.destLatitude) < 0.0001, abs(model.destLongitude) < 0.0001 {
                 Text("Araç GPS / rota bekleniyor")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.85))
@@ -1047,7 +1047,7 @@ struct NativeHUDView: View {
             }
             Text(displayOrDash(model.mediaService))
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(ink)
+                .foregroundStyle(anyBleed || night ? Color.white : ink)
                 .lineLimit(1)
         }
     }
@@ -1063,10 +1063,10 @@ struct NativeHUDView: View {
 
     private var serviceAccent: Color {
         let s = model.mediaService.lowercased()
-        if s.contains("youtube") { return Color(red: 0.90, green: 0.18, blue: 0.18) }
+        if s.contains("youtube") { return Color(red: 0.78, green: 0.16, blue: 0.16) }
         if s.contains("spotify") { return Color(red: 0.18, green: 0.72, blue: 0.35) }
-        if s.contains("tidal") { return Color(red: 0.05, green: 0.05, blue: 0.08) }
-        return Color(red: 0.55, green: 0.35, blue: 0.95)
+        if s.contains("tidal") { return Color(red: 0.12, green: 0.12, blue: 0.14) }
+        return Color(red: 0.22, green: 0.55, blue: 0.72)
     }
 
     private var turnBanner: some View {
