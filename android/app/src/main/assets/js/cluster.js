@@ -234,5 +234,28 @@
   }, 1000);
 
   connectWs();
-  if (els.metaInfo && !state.lastSeen) els.metaInfo.textContent = "Android veri bekleniyor…";
+
+  // Android native pull — reliable on file:// WebView
+  function pollNative() {
+    try {
+      if (!window.EymenNative || typeof EymenNative.getTelemetry !== "function") return;
+      const raw = EymenNative.getTelemetry();
+      if (!raw || raw.length < 3 || raw === "{}") return;
+      const d = JSON.parse(raw);
+      if (d.source === "wait") {
+        if (els.metaInfo) els.metaInfo.textContent = EymenNative.getStatus?.() || "bekleniyor";
+        return;
+      }
+      applyTelemetry(d);
+      if (els.metaInfo && EymenNative.getStatus) {
+        // keep LIVE line from applyTelemetry; optional overlay
+      }
+    } catch (e) {
+      if (els.metaInfo) els.metaInfo.textContent = "bridge: " + (e.message || e);
+    }
+  }
+  setInterval(pollNative, 50);
+  pollNative();
+
+  if (els.metaInfo && !state.lastSeen) els.metaInfo.textContent = "Android köprü bekleniyor…";
 })();

@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.view.View
+import android.webkit.JavascriptInterface
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.NetworkInterface
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
@@ -34,8 +36,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var listener: UdpTelemetryListener? = null
     private var demoJob: Job? = null
-    private var clusterReady = false
-    private var pendingJson: String? = null
     private var phoneIp: String = "—"
     private var clusterMode = false
 
@@ -45,7 +45,11 @@ class MainActivity : AppCompatActivity() {
     private var packetOg = 0
     private var packetMs = 0
 
-    @SuppressLint("SetJavaScriptEnabled")
+    /** HTML polls this — more reliable than evaluateJavascript push. */
+    private val latestJson = AtomicReference("{}")
+    private val statusText = AtomicReference("Dinleniyor")
+
+    @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
@@ -70,28 +74,22 @@ class MainActivity : AppCompatActivity() {
             mediaPlaybackRequiresUserGesture = false
             cacheMode = WebSettings.LOAD_NO_CACHE
             allowFileAccess = true
+            allowContentAccess = true
+            @Suppress("DEPRECATION")
+            allowFileAccessFromFileURLs = true
+            @Suppress("DEPRECATION")
+            allowUniversalAccessFromFileURLs = true
         }
+        binding.clusterWeb.addJavascriptInterface(NativeBridge(), "EymenNative")
         binding.clusterWeb.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                clusterReady = true
-                // Flush latest telemetry several times until JS is ready
-                lifecycleScope.launch {
-                    repeat(10) {
-                        pushStatus("OG:$packetOg MS:$packetMs")
-                        pushMerged()
-                        delay(100)
-                        if (lastOut != null || lastMotion != null) {
-                            // keep pushing a bit
-                        }
-                    }
-                }
+                statusText.set("OG:$packetOg MS:$packetMs")
+                rebuildJson()
             }
         }
 
-        // Listen immediately on setup screen — proves network without opening gauges
         startUdpListening()
 
-        // Refresh IP while waiting (BT/USB link may appear after tethering)
         lifecycleScope.launch {
             while (isActive) {
                 if (!clusterMode) refreshIp()
@@ -100,14 +98,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    inner class NativeBridge {
+        @JavascriptInterface
+        fun getTelemetry(): String = latestJson.get()
+
+        @JavascriptInterface
+        fun getStatus(): String = statusText.get()
+
+        @JavascriptInterface
+        fun packetCount(): Int = packetOg + packetMs
+    }
+
     private fun refreshIp() {
         val best = bestIpv4()
         phoneIp = best?.second ?: wifiManagerIpv4() ?: "Bağlantı yok"
         binding.ipValue.text = phoneIp
         binding.linkType.text = when {
-            best == null -> "Bluetooth tethering / USB / Wi‑Fi bekleniyor"
-            isBluetoothIface(best.first) -> "Bluetooth tethering · ${best.first}"
-            isUsbIface(best.first) -> "USB tethering · ${best.first}"
+            best == null -> "Wi‑Fi / USB / Bluetooth bekleniyor"
+            isBluetoothIface(best.first) -> "Bluetooth · ${best.first}"
+            isUsbIface(best.first) -> "USB · ${best.first}"
             isWifiIface(best.first) -> "Wi‑Fi · ${best.first}"
             else -> "Ağ · ${best.first}"
         }
@@ -141,10 +150,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isBluetoothIface(name: String) =
-        name.contains("bnep", true) ||
-            name.contains("bt-pan", true) ||
-            name.contains("bt_pan", true) ||
-            name.equals("bt-pan", true)
+        name.contains("bnep", true) || name.contains("bt-pan", true) || name.contains("bt_pan", true)
 
     private fun isUsbIface(name: String) =
         name.contains("rndis", true) || name.contains("usb", true)
@@ -170,24 +176,20 @@ class MainActivity : AppCompatActivity() {
             },
             onRaw = { port, size, from ->
                 if (port == OUTGAUGE_PORT) packetOg++ else packetMs++
-                runOnUiThread {
-                    updatePacketUi(from, size)
-                }
+                runOnUiThread { updatePacketUi(from, size) }
             },
             onOutGauge = { data ->
                 lastOut = data
-                if (clusterMode) pushMerged()
+                rebuildJson()
             },
             onMotion = { data ->
                 lastMotion = data
                 appendTrail(data.posX.toDouble(), data.posY.toDouble())
-                if (clusterMode) pushMerged()
+                rebuildJson()
             },
             onError = { msg ->
                 runOnUiThread {
-                    if (packetOg == 0 && packetMs == 0) {
-                        binding.packetStatus.text = msg
-                    }
+                    if (packetOg == 0 && packetMs == 0) binding.packetStatus.text = msg
                 }
             },
         ).also { it.start(OUTGAUGE_PORT, MOTION_PORT) }
@@ -195,18 +197,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun updatePacketUi(from: String? = null, size: Int? = null) {
         val total = packetOg + packetMs
+        statusText.set("OG:$packetOg MS:$packetMs")
         if (total == 0) {
             binding.packetStatus.setTextColor(Color.parseColor("#7F8FA3"))
-            binding.packetStatus.text =
-                "Dinleniyor… paket: 0\nBluetooth tethering aç + Ctrl+R"
+            binding.packetStatus.text = "Dinleniyor… paket: 0\nCtrl+R · aynı Wi‑Fi"
         } else {
             binding.packetStatus.setTextColor(Color.parseColor("#5DDEA6"))
             val extra = if (from != null) " · $from ${size}b" else ""
             binding.packetStatus.text =
                 "SİNYAL VAR · OG:$packetOg MS:$packetMs$extra\nŞimdi Kadranı Başlat"
-        }
-        if (clusterMode && clusterReady) {
-            pushStatus("OG:$packetOg MS:$packetMs · $phoneIp")
         }
     }
 
@@ -214,47 +213,37 @@ class MainActivity : AppCompatActivity() {
         clusterMode = true
         binding.setupRoot.visibility = View.GONE
         binding.clusterWeb.visibility = View.VISIBLE
-        clusterReady = false
         while (trail.length() > 0) trail.remove(0)
+        rebuildJson()
         binding.clusterWeb.loadUrl("file:///android_asset/index.html")
 
         demoJob?.cancel()
-
         if (demo) {
             listener?.stop()
+            listener = null
             startDemo()
-        } else {
-            // keep existing UDP listener; if somehow stopped, restart
-            if (listener == null) startUdpListening()
-            lastOut?.let { pushMerged() }
+        } else if (listener == null) {
+            startUdpListening()
         }
     }
 
     private fun appendTrail(x: Double, y: Double) {
         val last = if (trail.length() > 0) trail.getJSONObject(trail.length() - 1) else null
         if (last == null ||
-            kotlin.math.hypot(x - last.getDouble("x"), y - last.getDouble("y")) > 1.2
+            kotlin.math.hypot(x - last.getDouble("x"), y - last.getDouble("y")) > 1.5
         ) {
             trail.put(JSONObject().put("x", x).put("y", y).put("t", System.currentTimeMillis()))
-            while (trail.length() > 200) trail.remove(0)
+            while (trail.length() > 60) trail.remove(0)
         }
     }
 
-    private var lastPushAt = 0L
-
-    private fun pushMerged() {
+    private fun rebuildJson() {
         val og = lastOut
         val mot = lastMotion
-        if (og == null && mot == null) return
-
-        // WebView can't keep up with 200Hz MotionSim — cap ~20 FPS
-        val now = System.currentTimeMillis()
-        if (clusterReady && now - lastPushAt < 50) return
-        lastPushAt = now
-
-        // Keep trail small for JS bridge
-        while (trail.length() > 80) trail.remove(0)
-
+        if (og == null && mot == null) {
+            latestJson.set("""{"source":"wait","gearLabel":"N","speedKmh":0,"rpm":0,"fuel":0,"throttle":0,"brake":0,"engTemp":0,"preferKm":true,"lights":{}}""")
+            return
+        }
         val json = JSONObject().apply {
             if (og != null) {
                 put("gearLabel", og.gearLabel)
@@ -298,19 +287,16 @@ class MainActivity : AppCompatActivity() {
                     put("y", mot.posY.toDouble())
                     put("z", mot.posZ.toDouble())
                     put("yaw", mot.yawPos.toDouble())
-                    put("velX", mot.velX.toDouble())
-                    put("velY", mot.velY.toDouble())
                     put("speedMs", mot.speedMs.toDouble())
                 })
                 put("trail", trail)
             }
-        }.toString()
-        runOnUiThread { pushToWeb(json) }
+        }
+        latestJson.set(json.toString())
     }
 
     private fun startDemo() {
         demoJob = lifecycleScope.launch {
-            delay(350)
             var t = 0.0
             while (isActive) {
                 t += 0.05
@@ -322,71 +308,45 @@ class MainActivity : AppCompatActivity() {
                 val x = cos(ang) * r
                 val y = sin(ang) * r
                 appendTrail(x, y)
-                val json = JSONObject().apply {
-                    put("gearLabel", gearNum.toString())
-                    put("speedKmh", speedKmh)
-                    put("speedMph", speedKmh * 0.621371)
-                    put("preferKm", true)
-                    put("rpm", rpm)
-                    put("turbo", 0.4 + 0.6 * max(0.0, sin(t)))
-                    put("engTemp", 88 + 4 * sin(t * 0.2))
-                    put("fuel", 0.62)
-                    put("throttle", 0.3 + 0.5 * (0.5 + 0.5 * sin(t * 0.7)))
-                    put("brake", max(0.0, sin(t * 0.2) - 0.7))
-                    put("showTurbo", true)
-                    put("source", "demo")
-                    put("lights", JSONObject().apply {
-                        put("shift", rpm > 5500)
-                        put("fullbeam", true)
-                        put("handbrake", false)
-                        put("tc", false)
-                        put("signalL", (t * 2).toInt() % 2 == 0 && sin(t * 0.15) > 0.7)
-                        put("signalR", false)
-                        put("oilWarn", false)
-                        put("battery", false)
-                        put("abs", false)
-                    })
-                    put("map", JSONObject().apply {
-                        put("x", x); put("y", y); put("z", 0)
-                        put("yaw", ang + Math.PI / 2)
-                        put("speedMs", speedKmh / 3.6)
-                    })
-                    put("trail", trail)
-                }.toString()
-                binding.clusterWeb.evaluateJavascript(
-                    "window.__eymenPush && window.__eymenPush(${JSONObject.quote(json)})",
-                    null,
+                lastOut = OutGaugeData(
+                    gearLabel = gearNum.toString(),
+                    speedKmh = speedKmh.toFloat(),
+                    speedMph = (speedKmh * 0.621371).toFloat(),
+                    preferKm = true,
+                    rpm = rpm.toFloat(),
+                    turbo = (0.4 + 0.6 * max(0.0, sin(t))).toFloat(),
+                    engTemp = (88 + 4 * sin(t * 0.2)).toFloat(),
+                    fuel = 0.62f,
+                    throttle = (0.3 + 0.5 * (0.5 + 0.5 * sin(t * 0.7))).toFloat(),
+                    brake = max(0.0, sin(t * 0.2) - 0.7).toFloat(),
+                    clutch = 0f,
+                    showTurbo = true,
+                    shift = rpm > 5500,
+                    fullbeam = true,
+                    handbrake = false,
+                    tc = false,
+                    signalL = (t * 2).toInt() % 2 == 0 && sin(t * 0.15) > 0.7,
+                    signalR = false,
+                    oilWarn = false,
+                    battery = false,
+                    abs = false,
+                    source = "demo",
                 )
+                lastMotion = MotionSimData(
+                    posX = x.toFloat(),
+                    posY = y.toFloat(),
+                    posZ = 0f,
+                    velX = 0f,
+                    velY = 0f,
+                    velZ = 0f,
+                    yawPos = (ang + Math.PI / 2).toFloat(),
+                    speedMs = (speedKmh / 3.6).toFloat(),
+                )
+                packetOg++
+                rebuildJson()
+                statusText.set("DEMO")
                 delay(50)
             }
-        }
-    }
-
-    private fun pushStatus(text: String) {
-        if (!clusterReady) return
-        binding.clusterWeb.evaluateJavascript(
-            "window.__eymenStatus && window.__eymenStatus(${JSONObject.quote(text)})",
-            null,
-        )
-    }
-
-    private fun pushToWeb(json: String) {
-        if (!clusterReady) {
-            pendingJson = json
-            return
-        }
-        binding.clusterWeb.evaluateJavascript(
-            "window.__eymenPush && window.__eymenPush(${JSONObject.quote(json)})",
-            null,
-        )
-    }
-
-    private fun hideSystemUi() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, window.decorView).let { controller ->
-            controller.hide(WindowInsetsCompat.Type.systemBars())
-            controller.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
 
@@ -408,12 +368,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun hideSystemUi() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).let { controller ->
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         refreshIp()
-        if (!clusterMode || demoJob?.isActive != true) {
-            if (listener == null) startUdpListening()
-        }
+        if (!clusterMode && listener == null) startUdpListening()
     }
 
     override fun onDestroy() {
@@ -429,9 +396,8 @@ class MainActivity : AppCompatActivity() {
             clusterMode = false
             binding.clusterWeb.visibility = View.GONE
             binding.setupRoot.visibility = View.VISIBLE
-            clusterReady = false
             refreshIp()
-            startUdpListening()
+            if (listener == null) startUdpListening()
         } else {
             @Suppress("DEPRECATION")
             super.onBackPressed()
