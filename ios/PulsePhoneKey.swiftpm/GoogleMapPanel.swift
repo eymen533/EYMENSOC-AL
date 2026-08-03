@@ -474,7 +474,6 @@ struct VehicleMapView: View {
     private var mapLat: Double { hasCarGPS ? lat : phone.latitude }
     private var mapLon: Double { hasCarGPS ? lon : phone.longitude }
     private var mapHeading: Double { hasCarGPS ? heading : phone.heading }
-    private var usingPhone: Bool { !hasCarGPS && phone.hasFix }
 
     private var effectiveTheme: HUDSettings.MapTheme {
         if let forceDark {
