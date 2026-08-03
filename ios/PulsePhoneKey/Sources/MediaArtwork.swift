@@ -70,7 +70,11 @@ final class MediaArtworkStore: ObservableObject {
         for term in attempts {
             let key = term.lowercased()
             guard seen.insert(key).inserted else { continue }
-            if let url = await searchDeezer(term) ?? await searchITunes(term, country: "TR") ?? await searchITunes(term, country: "US") {
+            // Await each provider separately — Swift forbids `await` inside `??`.
+            var url = await searchDeezer(term)
+            if url == nil { url = await searchITunes(term, country: "TR") }
+            if url == nil { url = await searchITunes(term, country: "US") }
+            if let url {
                 guard !Task.isCancelled else { return }
                 cache[query] = url
                 lastSuccessQuery = query
