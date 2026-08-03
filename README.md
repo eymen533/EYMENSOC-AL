@@ -1,80 +1,45 @@
 # EYMEN BeamNG Digital Cluster
 
-Android telefonunu / tableti **direksiyon önü dijital kadran** olarak kullan.
-BeamNG.drive OutGauge telemetrisini alır, BMW tarzı geniş dijital cluster gösterir.
+Android telefonunu BeamNG.drive **direksiyon önü dijital kadran** yapar.
 
-## Ne lazım?
+**CMD yok. PC’de ekstra program yok.** Sadece APK kur + BeamNG’de IP yaz.
 
-- BeamNG.drive (PC)
-- Node.js 18+ (PC’de, küçük köprü sunucu için)
-- Android cihaz (aynı Wi‑Fi ağında)
-- Telefon tutucu (direksiyon arkası / göğüs paneli)
+> BeamNG Bluetooth ile telemetri göndermez. Aynı Wi‑Fi üzerinden OutGauge = kablosuz bağlantı.
 
-## Kurulum (3 adım)
+## Kurulum (CMD yok)
 
-### 1) PC’de sunucuyu çalıştır
+### 1) Telefona yükle
+`dist/EYMEN-BeamNG-Cluster.apk` dosyasını telefona at ve kur  
+(Bilinmeyen kaynaklara izin ver).
 
+### 2) Uygulamayı aç
+Ekranda **Telefon IP** görünür (ör. `192.168.1.35`).  
+İstersen **IP’yi kopyala**.
+
+### 3) BeamNG ayarı (bir kez)
+1. PC ve telefon **aynı Wi‑Fi**
+2. BeamNG → **Options → Other → Protocols**
+3. **OutGauge** aç
+4. IP = telefondaki adres  
+5. Port = **4444**
+
+### 4) Kadranı Başlat
+Telefonda **Kadranı Başlat** → direksiyon önüne yatay sabitle.
+
+Oyunsuz denemek için uygulamada **Demo**.
+
+## Ne gösterir?
+Hız · RPM · vites · sinyal/far · ABS/TC · yakıt · su sıcaklığı · turbo · gaz/fren
+
+## APK’yı yeniden derlemek (geliştirici)
 ```bash
-cd EYMENSOC-AL
-npm start
+cd android
+./gradlew assembleDebug
+# çıktı: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Konsolda Android için bir adres çıkar, örneğin:
-
-`http://192.168.1.42:8080`
-
-BeamNG yokken denemek için:
-
-```bash
-npm run demo
-```
-
-### 2) BeamNG OutGauge ayarı
-
-1. BeamNG.drive → **Options → Other → Protocols**
-2. **OutGauge** aç
-3. **IP** = PC’nin yerel IP’si (sunucunun yazdığı adres)
-4. **Port** = `4444`
-
-> Not: Android tarayıcı doğrudan UDP dinleyemez. Bu yüzden OutGauge **PC’deki bu sunucuya** gider; Android sadece web kadranı açar.
-
-### 3) Android’de kadranı aç
-
-1. Telefonda Chrome ile `http://PC_IP:8080` aç
-2. **Kadranı Aç** → tam ekran
-3. Telefonu **yatay** tut, direksiyon önüne sabitle
-4. Ana ekrana “Uygulama olarak ekle” dersen PWA gibi tam ekran kalır
-
-## Ekranda ne var?
-
-- Sol: hız (km/h / mph)
-- Orta: vites, sinyal, uyarılar, gaz/fren
-- Sağ: devir (RPM)
-- Alt: yakıt, su sıcaklığı, turbo (varsa)
-
-## Donanım ipuçları
-
-- Parlaklığı yüksek tut, gece sürüşte azalt
-- Mümkünse eski bir telefon kullan (pil + kırılma riski)
-- Tutucuyu görüşü engellemeyecek şekilde sabitle
-- PC ile telefon aynı Wi‑Fi’de olsun (misafir ağı ayırıyorsa bağlanmaz)
-
-## Klasör yapısı
-
-```
-server/          OutGauge UDP → WebSocket köprüsü
-public/          Android’de açılan kadran arayüzü
-```
-
-## Sorun giderme
-
-| Sorun | Çözüm |
-|---|---|
-| SİNYAL YOK | BeamNG OutGauge IP/port doğru mu? `npm start` çalışıyor mu? |
-| Sayfa açılmıyor | Windows Güvenlik Duvarı 8080/4444’e izin ver |
-| Demo çalışıyor, oyun yok | OutGauge kapalı veya yanlış IP |
-| Sadece localhost | Android’den PC IP’sini kullan, `localhost` değil |
+## (İsteğe bağlı) PC web köprüsü
+Eski `npm start` yolu hâlâ `server/` altında duruyor; normal kullanım için gerekmez.
 
 ## Lisans
-
 MIT

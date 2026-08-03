@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EYMEN Cluster</string>
+    <string name="connect_title">Kadranı aç</string>
+    <string name="connect_hint">PC ve telefon aynı Wi‑Fi’de olsun. BeamNG’de OutGauge IP’sine aşağıdaki adresi yaz.</string>
+    <string name="your_ip">Telefon IP</string>
+    <string name="port_label">Port</string>
+    <string name="start_cluster">Kadranı Başlat</string>
+    <string name="demo_mode">Demo (oyunsuz dene)</string>
+    <string name="waiting">OutGauge bekleniyor…</string>
+    <string name="live">CANLI</string>
+    <string name="copy_ip">IP’yi kopyala</string>
+    <string name="bt_note">BeamNG Bluetooth ile veri göndermez. Aynı Wi‑Fi + OutGauge = kablosuz bağlantı, CMD yok.</string>
+</resources>
