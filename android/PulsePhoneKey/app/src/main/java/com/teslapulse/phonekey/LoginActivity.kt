@@ -40,7 +40,12 @@ class LoginActivity : AppCompatActivity() {
             runOnUiThread {
                 binding.loginButton.isEnabled = true
                 if (result.ok) {
-                    startActivity(Intent(this, PairActivity::class.java))
+                    val next = if (AppPrefs.paired(this)) {
+                        Intent(this, HudActivity::class.java)
+                    } else {
+                        Intent(this, PairActivity::class.java)
+                    }
+                    startActivity(next)
                     finish()
                 } else {
                     showError(result.error ?: "Giriş başarısız (${result.code})")

@@ -281,7 +281,7 @@ struct PairingFlowView: View {
             Text("Phone Key added")
                 .font(.title.bold())
                 .foregroundStyle(.white)
-            Text("Your vehicle accepted the key. Open the cluster HUD to continue.")
+            Text("Anahtar kaydedildi. Bundan sonra araca her bindiğinde otomatik bağlanır — tekrar peynir gerekmez.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.65))
                 .multilineTextAlignment(.center)

@@ -1,9 +1,10 @@
 import Foundation
 import CoreBluetooth
+import CryptoKit
 
-/// Simple, reliable Tesla VCSEC pairer for Swift Playgrounds.
+/// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "build-44-exact40"
+    static let buildId = "xcode-ble-20"
 
     enum Step: String {
         case idle = "Hazir"
@@ -30,9 +31,16 @@ final class BLEPairer: NSObject, ObservableObject {
     @Published var waitingForCard = false
     @Published var paired = false
     @Published var readyForDashboard = false
-    /// Live GATT link to the vehicle (true while peripheral connected).
     @Published var linkUp = false
     @Published var linkLabel = "BLE kapali"
+    /// Flat published fields — telemetry is created only on Pair (launch-safe).
+    @Published var bleLiveOK = false
+    @Published var bleSnapRev = 0
+    @Published var bleStatus = "BLE telemetri kapali"
+    @Published private(set) var bleSnapshot = VehicleLiveSnapshot()
+
+    /// Lazy: nil until Pair starts — avoids Playgrounds launch crash.
+    private var telemetry: BLETelemetry?
 
     private let serviceUUID = CBUUID(string: "00000211-B2D1-43F0-9B88-960CEBF8B91E")
     private let writeUUID = CBUUID(string: "00000212-B2D1-43F0-9B88-960CEBF8B91E")
@@ -48,68 +56,189 @@ final class BLEPairer: NSObject, ObservableObject {
     private var deadline: Date?
     private var timer: Timer?
     private var reconnectAttempts = 0
+    private var vin = ""
+    private var privateKey: P256.KeyAgreement.PrivateKey?
+    private var pairWriteDone = false
+    private var resumeTelemetryOnly = false
+    /// true = kullanıcı bilinçli olarak yeniden eşleştiriyor (add-key tekrar gönder).
+    private var forceRePair = false
 
     // MARK: - Public
 
     var isLinked: Bool { linkUp || paired || readyForDashboard }
 
+    /// Disk’te bu VIN için Phone Key daha önce kabul edilmiş mi?
+    var hasPersistedPair: Bool { KeyStore.isPaired(vin: vin) || (!vin.isEmpty && KeyStore.isPaired(vin: vin)) }
+
+    static func hasPersistedPair(vin: String) -> Bool { KeyStore.isPaired(vin: vin) }
+
     func keepAliveReconnect() {
         onMain {
-            guard let p = self.peripheral else { return }
-            guard p.state != .connected else {
+            let maxAttempts = self.resumeTelemetryOnly || self.pairWriteDone || KeyStore.isPaired(vin: self.vin) ? 40 : 8
+            if let p = self.peripheral, p.state == .connected {
                 self.linkUp = true
                 self.linkLabel = "BLE bagli"
                 return
             }
-            guard self.reconnectAttempts < 5 else { return }
-            self.reconnectAttempts += 1
-            self.logLine("reconnect #\(self.reconnectAttempts)")
-            self.linkLabel = "Yeniden baglan…"
-            self.central?.connect(p, options: nil)
+            if let p = self.peripheral, self.reconnectAttempts < maxAttempts {
+                self.reconnectAttempts += 1
+                self.logLine("reconnect #\(self.reconnectAttempts)")
+                self.linkLabel = "Yeniden baglan…"
+                self.status = "BLE yeniden baglaniliyor…"
+                self.central?.connect(p, options: nil)
+                return
+            }
+            // Known peripheral exhausted — rescan (already paired / resume).
+            if self.resumeTelemetryOnly || self.pairWriteDone || KeyStore.isPaired(vin: self.vin) {
+                self.reconnectAttempts = 0
+                self.logLine("rescan after reconnect limit")
+                self.step = .scanning
+                self.status = "Arac araniyor — otomatik baglanacak"
+                self.deadline = Date().addingTimeInterval(120)
+                self.startScan()
+                self.timer?.invalidate()
+                self.timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                    self?.tick()
+                }
+            }
         }
     }
 
+    /// İlk eşleştirme: add-key + Key Card (sadece bir kez gerekir).
     func start(vin: String, publicKey: Data) {
         onMain {
+            self.resetSessionState(vin: vin, resumeOnly: false)
             self.payload = VCSECPayload.addKeyRequest(publicKeyUncompressed: publicKey)
-            self.waitingForCard = false
             self.paired = false
             self.readyForDashboard = false
-            self.linkUp = false
-            self.linkLabel = "Baglanti yok"
-            self.reconnectAttempts = 0
-            self.devices = []
-            self.peripherals = [:]
-            self.chunks = []
-            self.writing = false
-            self.peripheral = nil
-            self.writeChar = nil
-            self.logLine("\(Self.buildId) VIN \(vin)")
-            self.logLine("hedef \(VCSECPayload.bleNames(vin: vin).joined(separator: ", "))")
+            self.pairWriteDone = false
+            self.resumeTelemetryOnly = false
+            self.forceRePair = true
+            self.logLine("\(Self.buildId) PAIR VIN \(self.vin)")
+            self.logLine("hedef \(VCSECPayload.bleNames(vin: self.vin).joined(separator: ", "))")
             self.logLine("payload \(self.payload?.count ?? 0)b")
-            self.step = .scanning
-            self.status = "Tarama acik — asagidan 🔑 Tesla satirina DOKUN"
-            self.deadline = Date().addingTimeInterval(90)
+            self.ensureTelemetryEngine()
+            self.beginScanPhase(message: "Tarama acik — asagidan 🔑 Tesla satirina DOKUN", seconds: 90)
+        }
+    }
+
+    /// Daha önce peynir / Phone Key kabul edilmiş VIN — add-key YOK, sadece bağlan + telemetri.
+    func resumeSession(vin: String) {
+        onMain {
+            let v = vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            guard v.count == 17 else {
+                self.fail("VIN 17 karakter olmali")
+                return
+            }
+            guard KeyStore.isPaired(vin: v) else {
+                self.fail("Once Pair Vehicle ile eslestir")
+                return
+            }
+            if let key = try? KeyStore.loadOrCreatePrivateKey(forVIN: v) {
+                self.privateKey = key
+            } else {
+                self.fail("Anahtar yuklenemedi")
+                return
+            }
+            self.resetSessionState(vin: v, resumeOnly: true)
+            self.payload = nil
+            self.paired = true
+            self.readyForDashboard = true
+            self.pairWriteDone = true
+            self.resumeTelemetryOnly = true
+            self.waitingForCard = false
+            self.forceRePair = false
+            self.logLine("\(Self.buildId) RESUME VIN \(self.vin) — add-key yok")
+            self.ensureTelemetryEngine()
+
             if self.central == nil {
                 self.central = CBCentralManager(delegate: self, queue: .main)
-            } else {
-                self.startScan()
             }
-            self.timer?.invalidate()
-            self.timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-                self?.tick()
+
+            // Hızlı yol: bilinen peripheral UUID
+            if let id = KeyStore.storedPeripheralId(vin: self.vin),
+               let central = self.central, central.state == .poweredOn {
+                let known = central.retrievePeripherals(withIdentifiers: [id])
+                if let p = known.first {
+                    self.peripherals[p.identifier] = p
+                    self.peripheral = p
+                    p.delegate = self
+                    self.step = .connecting
+                    self.status = "Kayitli araca baglaniyor…"
+                    self.linkLabel = "Yeniden baglan…"
+                    self.logLine("retrieve \(id.uuidString.prefix(8))")
+                    central.connect(p, options: nil)
+                    self.timer?.invalidate()
+                    self.timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                        self?.tickResumeConnect()
+                    }
+                    return
+                }
+            }
+            self.beginScanPhase(message: "Arac araniyor — otomatik baglanacak (yeniden eslestirme yok)", seconds: 120)
+        }
+    }
+
+    private func resetSessionState(vin: String, resumeOnly: Bool) {
+        self.vin = vin.uppercased()
+        if !resumeOnly, let key = try? KeyStore.loadOrCreatePrivateKey(forVIN: self.vin) {
+            self.privateKey = key
+        }
+        self.linkUp = false
+        self.linkLabel = "Baglanti yok"
+        self.reconnectAttempts = 0
+        self.devices = []
+        self.peripherals = [:]
+        self.chunks = []
+        self.writing = false
+        self.peripheral = nil
+        self.writeChar = nil
+        self.telemetry?.detach()
+        self.telemetry = nil
+        self.bleLiveOK = false
+        self.bleStatus = "BLE telemetri kapali"
+        self.bleSnapRev = 0
+        self.bleSnapshot = VehicleLiveSnapshot()
+        self.waitingForCard = false
+    }
+
+    private func beginScanPhase(message: String, seconds: TimeInterval) {
+        self.step = .scanning
+        self.status = message
+        self.deadline = Date().addingTimeInterval(seconds)
+        if self.central == nil {
+            self.central = CBCentralManager(delegate: self, queue: .main)
+        } else {
+            self.startScan()
+        }
+        self.timer?.invalidate()
+        self.timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+    }
+
+    private func tickResumeConnect() {
+        guard step == .connecting, let p = peripheral else { return }
+        if p.state == .connected { return }
+        // 12 sn sonra tarama
+        if reconnectAttempts == 0 {
+            reconnectAttempts = 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
+                guard let self, self.step == .connecting, self.peripheral?.state != .connected else { return }
+                self.logLine("retrieve timeout → scan")
+                self.beginScanPhase(message: "Arac araniyor — otomatik baglanacak", seconds: 120)
             }
         }
     }
 
-    /// User tapped a device in the list — this is the main connect path.
     func connect(id: UUID) {
         onMain {
             guard let p = self.peripherals[id] else {
                 self.fail("Cihaz kayboldu — tekrar tara")
                 return
             }
-            guard self.payload != nil else {
+        let canResume = !self.forceRePair && (self.resumeTelemetryOnly || self.pairWriteDone || KeyStore.isPaired(vin: self.vin))
+            guard self.payload != nil || canResume else {
                 self.fail("Once Tara’ya bas")
                 return
             }
@@ -128,6 +257,13 @@ final class BLEPairer: NSObject, ObservableObject {
         }
     }
 
+    private func persistPairSuccess(peripheralId: UUID? = nil) {
+        guard !vin.isEmpty else { return }
+        KeyStore.markPaired(vin: vin, peripheralId: peripheralId ?? peripheral?.identifier)
+        paired = true
+        readyForDashboard = true
+    }
+
     // MARK: - Internals
 
     private func startScan() {
@@ -137,7 +273,6 @@ final class BLEPairer: NSObject, ObservableObject {
         }
         step = .scanning
         central.stopScan()
-        // Always unfiltered — show everything, user taps Tesla
         central.scanForPeripherals(withServices: nil, options: [
             CBCentralManagerScanOptionAllowDuplicatesKey: true,
         ])
@@ -185,11 +320,13 @@ final class BLEPairer: NSObject, ObservableObject {
     private func writeNext() {
         guard let peripheral, let writeChar else { return }
         if chunks.isEmpty {
+            pairWriteDone = true
             step = .waitingCard
             waitingForCard = true
             readyForDashboard = true
-            status = "OK — Key Card’i KONSOLA koy, sonra Dashboard ac"
-            logLine("TX OK — kart konsola")
+            status = "OK — Key Card’i KONSOLA koy · BLE telemetri basliyor"
+            logLine("TX OK — kart + telemetry")
+            startTelemetryIfPossible()
             return
         }
         guard !writing else { return }
@@ -197,6 +334,91 @@ final class BLEPairer: NSObject, ObservableObject {
         writing = true
         logLine("TX \(chunk.count)b")
         peripheral.writeValue(chunk, for: writeChar, type: .withResponse)
+    }
+
+    /// Call when opening Cluster — keeps real telemetry alive after pair.
+    func ensureTelemetry() {
+        onMain {
+            let ok = self.pairWriteDone || self.paired || self.readyForDashboard || KeyStore.isPaired(vin: self.vin)
+            guard ok else { return }
+            self.ensureTelemetryEngine()
+            self.startTelemetryIfPossible(force: true)
+        }
+    }
+
+    func mediaSetVolume(_ level: Double) {
+        onMain { self.telemetry?.setVolume(level) }
+    }
+
+    func mediaPlayToggle() {
+        onMain { self.telemetry?.mediaPlay() }
+    }
+
+    func mediaSkip(_ delta: Int) {
+        onMain {
+            if delta >= 0 { self.telemetry?.mediaNext() }
+            else { self.telemetry?.mediaPrev() }
+        }
+    }
+
+    private func ensureTelemetryEngine() {
+        if telemetry == nil {
+            logLine("telemetry engine create")
+            telemetry = BLETelemetry()
+        }
+        let mode = UserDefaults.standard.string(forKey: "pulse_refresh_mode") ?? "Performans"
+        let interval: TimeInterval = (mode == "Düşük") ? 0.5 : 0.14
+        telemetry?.applyPollInterval(interval)
+        logLine("refresh \(mode) \(interval)s")
+    }
+
+    /// Call when Settings refresh mode changes.
+    func applyRefreshModeFromSettings() {
+        onMain { self.ensureTelemetryEngine() }
+    }
+
+    private func startTelemetryIfPossible(force: Bool = false) {
+        ensureTelemetryEngine()
+        guard let telemetry else { return }
+        guard let peripheral, let writeChar, let key = privateKey, !vin.isEmpty else { return }
+        guard peripheral.state == .connected else {
+            keepAliveReconnect()
+            return
+        }
+        if telemetry.phase != .idle && telemetry.phase != .error && !force {
+            linkLabel = telemetry.liveOK ? "BLE LIVE" : "BLE telemetri…"
+            return
+        }
+        let delay: TimeInterval = force ? 0.15 : 0.35
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, let tele = self.telemetry else { return }
+            guard let p = self.peripheral, let wc = self.writeChar, let key = self.privateKey,
+                  p.state == .connected else { return }
+            self.logLine("telemetry attach")
+            tele.onUpdate = { [weak self] in
+                self?.syncTelemetryPublished()
+            }
+            tele.attach(vin: self.vin, privateKey: key, peripheral: p, writeChar: wc)
+            self.linkLabel = "BLE telemetri…"
+            self.syncTelemetryPublished()
+        }
+    }
+
+    private func syncTelemetryPublished() {
+        guard let telemetry else { return }
+        bleLiveOK = telemetry.liveOK
+        bleStatus = telemetry.status
+        bleSnapshot = telemetry.snapshot
+        bleSnapRev &+= 1
+        if telemetry.liveOK {
+            linkLabel = "BLE LIVE"
+            persistPairSuccess()
+            step = .done
+            status = "Phone Key + BLE LIVE ✓"
+        } else if telemetry.phase == .waitingKey {
+            waitingForCard = true
+            status = "Arac kart bekliyor — KONSOLA Key Card"
+        }
     }
 
     private func fail(_ msg: String) {
@@ -231,7 +453,6 @@ final class BLEPairer: NSObject, ObservableObject {
         } else {
             devices.append(DeviceRow(id: p.identifier, name: display, rssi: rssi))
         }
-        // Strong + Tesla-like first
         devices.sort { a, b in
             let ascore = score(a.name) + (a.rssi + 100)
             let bscore = score(b.name) + (b.rssi + 100)
@@ -253,6 +474,8 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         logLine("BT \(central.state.rawValue)")
         if central.state == .poweredOn, step == .scanning {
             startScan()
+        } else if central.state == .poweredOn, step == .connecting, resumeTelemetryOnly, let p = peripheral {
+            central.connect(p, options: nil)
         } else if central.state == .unauthorized {
             fail("Bluetooth izni yok (Capabilities)")
         } else if central.state == .poweredOff, step == .scanning {
@@ -271,11 +494,13 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
             ?? ""
         upsertDevice(peripheral, name: name, rssi: RSSI.intValue)
 
-        // Auto-connect only for very obvious Tesla ads (optional assist)
         guard step == .scanning else { return }
         let hot = name.contains("🔑") || name.localizedCaseInsensitiveContains("tesla")
-        if hot, RSSI.intValue > -60 {
-            logLine("auto-tap \(name)")
+        let resume = !forceRePair && (resumeTelemetryOnly || pairWriteDone || KeyStore.isPaired(vin: vin))
+        // Resume: daha agresif otomatik bağlan; ilk pair: yakın ve Tesla adı
+        let rssiOK = resume ? RSSI.intValue > -85 : RSSI.intValue > -60
+        if hot, rssiOK {
+            logLine("auto-tap \(name) rssi=\(RSSI.intValue) resume=\(resume)")
             connect(id: peripheral.identifier)
         }
     }
@@ -285,20 +510,28 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         linkLabel = "BLE bagli · \(peripheral.name ?? "Tesla")"
         reconnectAttempts = 0
         logLine("GATT OK")
-        // Fresh pair path: discover + write. Reconnect after card/done: keep session.
+        let skipAddKey = !forceRePair && (resumeTelemetryOnly || pairWriteDone || paired || KeyStore.isPaired(vin: vin))
+        if skipAddKey {
+            KeyStore.markPaired(vin: vin, peripheralId: peripheral.identifier)
+            resumeTelemetryOnly = true
+            pairWriteDone = true
+            readyForDashboard = true
+            status = "BLE bagli — telemetri yenileniyor…"
+            peripheral.discoverServices(nil)
+            return
+        }
         if step == .connecting || step == .services || step == .writing || step == .scanning {
+            resumeTelemetryOnly = false
             step = .services
             status = "GATT bagli — servisler…"
             peripheral.discoverServices(nil)
-        } else {
-            status = "BLE yeniden baglandi"
         }
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
         linkUp = false
         linkLabel = "Baglanti yok"
-        if step == .waitingCard || step == .done {
+        if resumeTelemetryOnly || pairWriteDone || KeyStore.isPaired(vin: vin) {
             keepAliveReconnect()
             return
         }
@@ -311,7 +544,7 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         linkUp = false
         linkLabel = "Baglanti koptu"
         logLine("disconnect \(error?.localizedDescription ?? "")")
-        if step == .waitingCard || step == .done {
+        if resumeTelemetryOnly || pairWriteDone || paired || KeyStore.isPaired(vin: vin) {
             status = "BLE koptu — yeniden baglaniliyor…"
             readyForDashboard = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
@@ -354,12 +587,22 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
             return
         }
         logLine("chars OK")
+        if resumeTelemetryOnly || pairWriteDone || (!forceRePair && KeyStore.isPaired(vin: vin)) {
+            startTelemetryIfPossible()
+            if step != .done { step = .waitingCard }
+            readyForDashboard = true
+            return
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
             self?.beginWrite()
         }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
+        if pairWriteDone || resumeTelemetryOnly {
+            telemetry?.didWrite(error: error)
+            return
+        }
         writing = false
         if let error {
             fail("Write: \(error.localizedDescription)")
@@ -373,17 +616,23 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         guard let data = characteristic.value else { return }
         let hex = data.map { String(format: "%02x", $0) }.joined()
         logLine("RX \(hex.prefix(40))")
+
+        let teleActive = telemetry.map { $0.phase != .idle } ?? false
+        if pairWriteDone || resumeTelemetryOnly || teleActive {
+            telemetry?.onNotify(data)
+            syncTelemetryPublished()
+        }
+
         if hex.contains("0801") || hex.contains("2202") {
             waitingForCard = true
             readyForDashboard = true
-            step = .waitingCard
+            if step != .done { step = .waitingCard }
             status = "Arac kart bekliyor — KONSOLA Key Card"
         }
         if hex.contains("1a08") || hex.contains("5f0d") {
-            paired = true
-            readyForDashboard = true
+            persistPairSuccess(peripheralId: peripheral.identifier)
             step = .done
-            status = "Phone Key eklendi ✓ — Dashboard ac"
+            status = "Phone Key eklendi ✓ — Dashboard / BLE LIVE"
         }
     }
 }

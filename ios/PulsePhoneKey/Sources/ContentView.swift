@@ -17,6 +17,8 @@ struct ContentView: View {
     @State private var showPairFlow = false
     @State private var screen: Screen = .home
     @State private var showSettings = false
+    /// Force home UI refresh when KeyStore paired flag changes.
+    @State private var pairEpoch = 0
 
     enum Screen { case home, hud }
 
@@ -50,7 +52,10 @@ struct ContentView: View {
             settingsSheet
         }
         .onChangeCompat(of: ble.paired) { on in
-            if on { hud.bleOK = true }
+            if on {
+                hud.bleOK = true
+                pairEpoch &+= 1
+            }
         }
         .onChangeCompat(of: ble.linkUp) { on in
             if on { hud.bleOK = true }
@@ -71,11 +76,15 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            // Closures only; telemetry engine still created at Pair, not here.
+            // Closures only; telemetry engine still created at Pair / Resume, not here.
             let pairer = ble
             hud.bleSetVolume = { level in pairer.mediaSetVolume(level) }
             hud.bleMediaPlay = { pairer.mediaPlayToggle() }
             hud.bleMediaSkip = { delta in pairer.mediaSkip(delta) }
+            // Bir kez eşleşmişse arka planda otomatik bağlanmayı başlat.
+            if alreadyPaired, !ble.linkUp, !ble.bleLiveOK, vinNorm.count == 17 {
+                ble.resumeSession(vin: vinNorm)
+            }
         }
     }
 
@@ -99,7 +108,7 @@ struct ContentView: View {
                     Text(BLEPairer.buildId)
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("xcode-ble-19 · tam ekran görsel + rota/GPS")
+                    Text("xcode-ble-20 · bir kez eşleş, sonra otomatik bağlan")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -107,6 +116,11 @@ struct ContentView: View {
                     if ble.linkUp {
                         Label(ble.linkLabel, systemImage: "antenna.radiowaves.left.and.right")
                             .foregroundStyle(Color(red: 0.3, green: 0.9, blue: 0.65))
+                    } else if alreadyPaired {
+                        Label("Phone Key kayıtlı — araca otomatik bağlanır", systemImage: "checkmark.seal.fill")
+                            .font(.footnote)
+                            .foregroundStyle(Color(red: 0.3, green: 0.9, blue: 0.65))
+                            .multilineTextAlignment(.center)
                     } else if ble.paired || ble.waitingForCard || ble.readyForDashboard {
                         Label("Key session ready", systemImage: "checkmark.seal.fill")
                             .foregroundStyle(Color(red: 0.3, green: 0.9, blue: 0.65))
@@ -114,11 +128,14 @@ struct ContentView: View {
 
                     Spacer()
 
-                    Button {
-                        save()
-                        showPairFlow = true
-                    } label: {
-                        Label("Pair Vehicle", systemImage: "key.fill")
+                    if alreadyPaired {
+                        Button {
+                            connectAndOpenHUD()
+                        } label: {
+                            Label(
+                                ble.bleLiveOK ? "Cluster HUD (BLE LIVE)" : "Araca bağlan · Cluster",
+                                systemImage: "antenna.radiowaves.left.and.right"
+                            )
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 18)
@@ -135,18 +152,54 @@ struct ContentView: View {
                                     )
                                 )
                             )
-                    }
+                        }
 
-                    Button {
-                        save()
-                        openHUD()
-                    } label: {
-                        Text(ble.bleLiveOK ? "Cluster HUD (BLE LIVE)" : "Cluster HUD")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .foregroundStyle(.white)
-                            .background(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
+                        Button {
+                            save()
+                            showPairFlow = true
+                        } label: {
+                            Text("Yeniden eşleştir")
+                                .font(.subheadline.weight(.medium))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .foregroundStyle(.white.opacity(0.85))
+                                .background(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1))
+                        }
+                    } else {
+                        Button {
+                            save()
+                            showPairFlow = true
+                        } label: {
+                            Label("Pair Vehicle", systemImage: "key.fill")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 18)
+                                .foregroundStyle(.white)
+                                .background(
+                                    Capsule().fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color(red: 0.2, green: 0.75, blue: 0.65),
+                                                Color(red: 0.15, green: 0.45, blue: 0.9),
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                )
+                        }
+
+                        Button {
+                            save()
+                            openHUD()
+                        } label: {
+                            Text("Cluster HUD")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .foregroundStyle(.white)
+                                .background(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
+                        }
                     }
 
                     Spacer().frame(height: 36)
@@ -188,9 +241,17 @@ struct ContentView: View {
                 Section("BLE telemetri (asıl kaynak)") {
                     Text(ble.bleStatus)
                         .font(.footnote)
-                    Text("Pair sonrası araçla imzalı BLE oturumu açılır: hız, vites, lastik, batarya, medya, GPS. Key Card konsolda olmalı.")
+                    Text(alreadyPaired
+                        ? "Phone Key bu VIN için kayıtlı. Araca her bindiğinde add-key yok — otomatik BLE bağlanır. Key Card konsolda olmalı."
+                        : "İlk seferde Pair Vehicle: add-key + Key Card. Sonrasında otomatik bağlanır.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    if alreadyPaired {
+                        Button("Eşleşmeyi unut (yeniden peynir gerekir)", role: .destructive) {
+                            KeyStore.clearPaired(vin: vinNorm)
+                            pairEpoch &+= 1
+                        }
+                    }
                 }
                 Section("Bağlantı hızı") {
                     Picker("Refresh", selection: $hudSettings.refreshMode) {
@@ -288,6 +349,11 @@ struct ContentView: View {
         vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 
+    private var alreadyPaired: Bool {
+        _ = pairEpoch
+        return KeyStore.isPaired(vin: vinNorm)
+    }
+
     /// Never ship with a baked-in VIN — empty until user pastes from Tesla app.
     private static func loadStoredVIN() -> String {
         let key = "pulse_vin"
@@ -336,9 +402,20 @@ struct ContentView: View {
         liveBusy = false
     }
 
+    private func connectAndOpenHUD() {
+        save()
+        if alreadyPaired, vinNorm.count == 17, !ble.bleLiveOK {
+            ble.resumeSession(vin: vinNorm)
+        }
+        openHUD()
+    }
+
     private func openHUD() {
-        let paired = ble.linkUp || ble.paired || ble.readyForDashboard || ble.waitingForCard || ble.bleLiveOK
+        let paired = alreadyPaired || ble.linkUp || ble.paired || ble.readyForDashboard || ble.waitingForCard || ble.bleLiveOK
         hud.configure(vin: vinNorm, paired: paired)
+        if alreadyPaired, !ble.linkUp, !ble.bleLiveOK, vinNorm.count == 17 {
+            ble.resumeSession(vin: vinNorm)
+        }
         ble.ensureTelemetry()
         if ble.bleLiveOK {
             hud.applyBLE(ble.bleSnapshot, linkOK: true)
