@@ -134,7 +134,7 @@ class MainActivity : AppCompatActivity() {
         if (total == 0) {
             binding.packetStatus.setTextColor(Color.parseColor("#7F8FA3"))
             binding.packetStatus.text =
-                "Dinleniyor… paket: 0\nBeamNG menüsünü kapat + Ctrl+R\nOlmazsa PC hotspot"
+                "Dinleniyor… paket: 0\nMenü kapat + Ctrl+R\nOlmazsa: USB tethering"
         } else {
             binding.packetStatus.setTextColor(Color.parseColor("#5DDEA6"))
             val extra = if (from != null) " · $from ${size}b" else ""
@@ -330,6 +330,8 @@ class MainActivity : AppCompatActivity() {
         }
         list.sortByDescending { (name, _) ->
             when {
+                name.contains("rndis", true) -> 5
+                name.contains("usb", true) -> 5
                 name.startsWith("wlan", true) -> 3
                 name.startsWith("ap", true) -> 2
                 name.contains("wlan", true) -> 2

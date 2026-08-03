@@ -1,38 +1,27 @@
 # EYMEN BeamNG Digital Cluster
 
-**PC’ye hiçbir şey kurulmaz.** Sadece Android APK + BeamNG ayarı.
+**PC’ye program kurulmaz.** Sadece APK + BeamNG ayarı.
 
-## Kurulum
+## Normal kurulum
+1. `dist/EYMEN-BeamNG-Cluster.apk` kur  
+2. Telefondaki IP’yi BeamNG’ye yaz  
+   - OutGauge → telefon IP : `4444`  
+   - MotionSim → telefon IP : `4445`  
+3. Ctrl+R → paket sayacı artsın → Kadranı Başlat  
 
-### 1) APK kur
-`dist/EYMEN-BeamNG-Cluster.apk`
+## Masaüstü PC (hotspot yok) — USB tethering
+Ev Wi‑Fi çoğu zaman paketleri engeller. Hotspot da yoksa:
 
-### 2) Uygulamayı aç
-Ekranda **Telefon IP** görünür → kopyala.
+1. Telefonu **USB kablo** ile PC’ye tak  
+2. Telefonda bildirimden **USB tethering / USB modem / USB ile internet paylaş** aç  
+3. Uygulamayı aç → görünen **yeni IP**’yi kopyala  
+4. BeamNG OutGauge + MotionSim’e o IP’yi yaz  
+5. Ctrl+R  
 
-### 3) BeamNG
-Options → Other → Protocols (Advanced):
-
-| Protocol   | Address (telefon IP) | Port |
-|------------|----------------------|------|
-| OutGauge   | örn. `192.168.1.149` | 4444 |
-| MotionSim  | aynı IP              | 4445 |
-
-Menüyü kapat → arabaya bin → **Ctrl+R** → telefonda **Kadranı Başlat**.
-
-## Bağlantı olmazsa (en kesin yöntem)
-Router bazen cihazları birbirinden ayırır. O zaman:
-
-1. Windows’ta **mobil hotspot** aç  
-2. Telefonu o hotspota bağla  
-3. Telefondaki **yeni IP**’yi BeamNG’ye yaz  
-
-PC’ye ekstra program yok.
+PC’ye ekstra program yok; sadece USB paylaşımı.
 
 ## Özellikler
-- Dijital kadran, ikonlar (sinyal, far, ABS, SHIFT…)
-- NAV harita (MotionSim konum + iz + gidiş şeridi)
-- Demo modu
+Dijital kadran · ikonlar · NAV harita · demo
 
 ## Lisans
 MIT

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">EYMEN Cluster</string>
-    <string name="connect_hint">BeamNG OutGauge + MotionSim adresine aşağıdaki telefon IP’sini yaz. Menüyü kapat, Ctrl+R. Paket sayacı artıyorsa Kadranı Başlat.</string>
+    <string name="connect_hint">BeamNG’ye aşağıdaki telefon IP’sini yaz (OutGauge 4444, MotionSim 4445). Menüyü kapat + Ctrl+R. Paket artsın.</string>
     <string name="your_ip">Telefon IP (BeamNG’ye yaz)</string>
     <string name="start_cluster">Kadranı Başlat</string>
     <string name="demo_mode">Demo (oyunsuz)</string>
     <string name="copy_ip">IP’yi kopyala</string>
-    <string name="packet_waiting">Dinleniyor… paket: 0\n(artmıyorsa PC hotspot dene)</string>
-    <string name="bt_note">Paket 0 kalıyorsa: Windows’ta Ayarlar → Ağ → Mobil hotspot AÇ → telefonu o ağa bağla → yeni IP’yi BeamNG’ye yaz → Ctrl+R. PC’ye program kurulmaz.</string>
+    <string name="packet_waiting">Dinleniyor… paket: 0\nMasaüstü ise USB tethering dene</string>
+    <string name="bt_note">Masaüstünde hotspot yoksa: USB kablo ile PC’ye tak → telefonda USB tethering / USB modem AÇ → buradaki yeni IP’yi BeamNG’ye yaz → Ctrl+R. PC’ye program kurulmaz.</string>
 </resources>
