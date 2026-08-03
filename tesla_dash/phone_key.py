@@ -616,8 +616,35 @@ def register_phone_key(server) -> None:
                 "outside_temp_c": s.get("outside_temp_c"),
                 "inside_temp_c": s.get("inside_temp_c"),
                 "trail": s.get("trail") or [],
+                "light_parking": s.get("light_parking"),
+                "light_low": s.get("light_low"),
+                "light_high": s.get("light_high"),
+                "light_fog": s.get("light_fog"),
+                "turn_left": s.get("turn_left"),
+                "turn_right": s.get("turn_right"),
+                "ui_theme": s.get("ui_theme"),
+                "locked": s.get("is_locked"),
+                "door_fl": _as_open(s.get("door_fl"), s.get("df")),
+                "door_fr": _as_open(s.get("door_fr"), s.get("pf")),
+                "door_rl": _as_open(s.get("door_rl"), s.get("dr")),
+                "door_rr": _as_open(s.get("door_rr"), s.get("pr")),
+                "frunk_open": _as_open(s.get("frunk_open"), s.get("ft")),
+                "trunk_open": _as_open(s.get("trunk_open"), s.get("rt")),
+                "charge_port_open": _as_open(s.get("charge_port_open")),
             }
         )
+
+    def _as_open(*vals):
+        for v in vals:
+            if v is None:
+                continue
+            if isinstance(v, bool):
+                return v
+            if isinstance(v, (int, float)):
+                return v != 0
+            if isinstance(v, str) and v.strip():
+                return v.strip().lower() not in {"0", "false", "no", "--"}
+        return False
 
     @server.get("/api/tesla/status")
     def tesla_live_status():  # type: ignore[no-redef]

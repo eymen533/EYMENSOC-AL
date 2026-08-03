@@ -427,6 +427,13 @@ class TeslaClient:
             light_fog=bool(vehicle.get("front_fog") or vehicle.get("fog_lights")),
             turn_left=bool(vehicle.get("turn_indicator_left")),
             turn_right=bool(vehicle.get("turn_indicator_right")),
+            door_fl=bool(vehicle.get("df")),
+            door_fr=bool(vehicle.get("pf")),
+            door_rl=bool(vehicle.get("dr")),
+            door_rr=bool(vehicle.get("pr")),
+            frunk_open=bool(vehicle.get("ft")),
+            trunk_open=bool(vehicle.get("rt")),
+            charge_port_open=bool(vehicle.get("charge_port_door_open") or charge.get("charge_port_door_open")),
             ui_theme=(
                 "night"
                 if (

@@ -410,6 +410,8 @@ final class TeslaBLESession {
     static func actionGetMedia() -> Data { Data(hex: "12070a057a00820100") }
     static func actionGetLocation() -> Data { Data(hex: "12040a023a00") }
     static func actionGetClimate() -> Data { Data(hex: "12040a021a00") }
+    /// GetClosuresState (8) — doors / frunk / trunk / locked / display.
+    static func actionGetClosures() -> Data { Data(hex: "12040a024200") }
     static func actionWake() -> Data { Data(hex: "101e") } // VCSEC UnsignedMessage RKE wake
     static func actionMediaNext() -> Data { Data(hex: "12039a0100") }
     static func actionMediaPrev() -> Data { Data(hex: "1203a20100") }
@@ -448,6 +450,7 @@ final class TeslaBLESession {
             case 4: parseClimate(f.bytes)
             case 5: parseDrive(f.bytes)
             case 8: parseLocation(f.bytes)
+            case 9: parseClosures(f.bytes)
             case 19: parseTires(f.bytes)
             case 20: parseMedia(f.bytes)
             case 21: parseMediaDetail(f.bytes)
@@ -537,9 +540,65 @@ final class TeslaBLESession {
                 if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
             case 122: // charger_power
                 if f.varint > 0 { snapshot.charging = true }
+            case 127: // charge_port_door_open
+                snapshot.chargePortOpen = f.varint != 0
             default: break
             }
         }
+    }
+
+    private func parseClosures(_ data: Data) {
+        for f in ProtoWire.parseFields(data) {
+            switch f.number {
+            case 101: snapshot.doorFL = f.varint != 0
+            case 102: snapshot.doorRL = f.varint != 0
+            case 103: snapshot.doorFR = f.varint != 0
+            case 104: snapshot.doorRR = f.varint != 0
+            case 105: snapshot.frunkOpen = f.varint != 0
+            case 106: snapshot.trunkOpen = f.varint != 0
+            case 113: snapshot.locked = f.varint != 0
+            case 15: // center_display_state oneof
+                let name = Self.displayStateName(f.bytes)
+                if !name.isEmpty {
+                    snapshot.centerDisplay = name
+                    // Dim / lock / sentry / off → night cluster; driving/on → hour heuristic.
+                    switch name {
+                    case "off", "dim", "lock", "sentry":
+                        snapshot.nightMode = true
+                    case "driving", "on", "entertainment", "accessory", "charging", "dog":
+                        let h = Calendar.current.component(.hour, from: Date())
+                        snapshot.nightMode = (h < 6 || h >= 19)
+                    default:
+                        break
+                    }
+                }
+            default: break
+            }
+        }
+        // Ambient fallback when display not present.
+        if snapshot.nightMode == nil {
+            let h = Calendar.current.component(.hour, from: Date())
+            snapshot.nightMode = (h < 6 || h >= 19)
+        }
+    }
+
+    private static func displayStateName(_ data: Data) -> String {
+        for f in ProtoWire.parseFields(data) {
+            switch f.number {
+            case 1: return "off"
+            case 2: return "dim"
+            case 3: return "accessory"
+            case 4: return "on"
+            case 5: return "driving"
+            case 6: return "charging"
+            case 7: return "lock"
+            case 8: return "sentry"
+            case 9: return "dog"
+            case 10: return "entertainment"
+            default: break
+            }
+        }
+        return ""
     }
 
     private func parseTires(_ data: Data) {

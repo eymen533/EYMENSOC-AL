@@ -51,6 +51,7 @@ final class BLETelemetry {
         TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetTire,
         TeslaBLESession.actionGetClimate,
+        TeslaBLESession.actionGetClosures,
     ]
 
     func attach(

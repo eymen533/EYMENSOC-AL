@@ -46,7 +46,7 @@ struct AppleMapPanel: View {
                     destination: destCoord,
                     autoZoom: autoZoom,
                     turnByTurn: turnByTurn && (hasDestCoord || resolvedDest != nil || !routeCoords.isEmpty),
-                    dark: theme == .dark || theme == .auto
+                    dark: theme != .light
                 )
             } else {
                 Color(red: 0.12, green: 0.13, blue: 0.14)

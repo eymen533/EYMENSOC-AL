@@ -211,7 +211,16 @@ struct VehicleMapView: View {
     @Binding var turnDistanceM: Int
     @Binding var turnInstruction: String
     @Binding var turnSymbol: String
+    /// When set, overrides settings map theme (vehicle day/night).
+    var forceDark: Bool? = nil
     @ObservedObject private var settings = HUDSettings.shared
+
+    private var effectiveTheme: HUDSettings.MapTheme {
+        if let forceDark {
+            return forceDark ? .dark : .light
+        }
+        return settings.mapTheme
+    }
 
     var body: some View {
         AppleMapPanel(
@@ -222,12 +231,12 @@ struct VehicleMapView: View {
             destLat: destLat,
             destLon: destLon,
             autoZoom: settings.autoZoom,
-            theme: settings.mapTheme,
+            theme: effectiveTheme,
             turnByTurn: turnByTurn,
             turnDistanceM: $turnDistanceM,
             turnInstruction: $turnInstruction,
             turnSymbol: $turnSymbol
         )
-        .background(Color.black)
+        .background(forceDark == false ? Color(red: 0.90, green: 0.91, blue: 0.93) : Color.black)
     }
 }

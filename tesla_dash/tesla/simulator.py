@@ -97,6 +97,14 @@ class VehicleState:
     light_fog: bool = False
     turn_left: bool = False
     turn_right: bool = False
+    # Doors / hatches (Owner API df/dr/pf/pr/ft/rt)
+    door_fl: bool = False
+    door_fr: bool = False
+    door_rl: bool = False
+    door_rr: bool = False
+    frunk_open: bool = False
+    trunk_open: bool = False
+    charge_port_open: bool = False
     # Vehicle-driven cluster theme
     ui_theme: str = "night"  # "day" | "night"
 

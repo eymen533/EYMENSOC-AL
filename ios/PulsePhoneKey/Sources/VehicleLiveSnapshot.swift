@@ -31,5 +31,24 @@ struct VehicleLiveSnapshot {
     var mediaPlaying: Bool = false
     var mediaProgress: Double = 0
     var mediaVolume: Double = 0.5
+    // Closures / doors
+    var doorFL = false
+    var doorFR = false
+    var doorRL = false
+    var doorRR = false
+    var frunkOpen = false
+    var trunkOpen = false
+    var chargePortOpen = false
+    var locked = false
+    var centerDisplay: String = "" // off/dim/on/driving/…
+    // Exterior lights (Owner/Dash when available; BLE rarely exposes these)
+    var lightParking = false
+    var lightLow = false
+    var lightHigh = false
+    var lightFog = false
+    var turnLeft = false
+    var turnRight = false
+    /// Vehicle-driven theme. nil = infer from display/hour.
+    var nightMode: Bool? = nil
     var updated = Date.distantPast
 }

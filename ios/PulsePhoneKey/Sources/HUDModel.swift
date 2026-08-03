@@ -24,6 +24,20 @@ final class HUDModel: ObservableObject {
     @Published var psiRR = 0
     @Published var outdoorC: Int = 0
     @Published var night = true
+    @Published var doorFL = false
+    @Published var doorFR = false
+    @Published var doorRL = false
+    @Published var doorRR = false
+    @Published var frunkOpen = false
+    @Published var trunkOpen = false
+    @Published var chargePortOpen = false
+    @Published var locked = false
+    @Published var lightParking = false
+    @Published var lightLow = false
+    @Published var lightHigh = false
+    @Published var lightFog = false
+    @Published var turnLeft = false
+    @Published var turnRight = false
     @Published var vin: String = "XP7YGCEK0PB159959"
     @Published var vinTail: String = "159959"
     @Published var bleOK = false
@@ -122,6 +136,10 @@ final class HUDModel: ObservableObject {
         battery = 0
         rangeKm = 0
         psiFL = 0; psiFR = 0; psiRL = 0; psiRR = 0
+        doorFL = false; doorFR = false; doorRL = false; doorRR = false
+        frunkOpen = false; trunkOpen = false; chargePortOpen = false; locked = false
+        lightParking = false; lightLow = false; lightHigh = false; lightFog = false
+        turnLeft = false; turnRight = false
         destination = "—"; destLatitude = 0; destLongitude = 0
         eta = "—"; energyAtArrival = "—"; tripDist = "—"
         place = "—"
@@ -166,6 +184,26 @@ final class HUDModel: ObservableObject {
         psiRL = s.psiRL
         psiRR = s.psiRR
         outdoorC = s.outdoorC
+        doorFL = s.doorFL
+        doorFR = s.doorFR
+        doorRL = s.doorRL
+        doorRR = s.doorRR
+        frunkOpen = s.frunkOpen
+        trunkOpen = s.trunkOpen
+        chargePortOpen = s.chargePortOpen
+        locked = s.locked
+        if s.lightParking || s.lightLow || s.lightHigh || s.lightFog {
+            lightParking = s.lightParking
+            lightLow = s.lightLow
+            lightHigh = s.lightHigh
+            lightFog = s.lightFog
+        }
+        turnLeft = s.turnLeft
+        turnRight = s.turnRight
+        if let n = s.nightMode {
+            night = n
+            HUDSettings.shared.mapTheme = n ? .dark : .light
+        }
         if abs(s.latitude) > 0.0001 || abs(s.longitude) > 0.0001 {
             latitude = s.latitude
             longitude = s.longitude
@@ -461,6 +499,25 @@ final class HUDModel: ObservableObject {
             if let t = num(obj["tire_rr"]) { psiRR = Int(t.rounded()) }
             if let temp = num(obj["outside_temp_c"]) { outdoorC = Int(temp.rounded()) }
             if let ch = obj["charging"] as? Bool { charging = ch }
+            if let v = obj["door_fl"] as? Bool { doorFL = v }
+            if let v = obj["door_fr"] as? Bool { doorFR = v }
+            if let v = obj["door_rl"] as? Bool { doorRL = v }
+            if let v = obj["door_rr"] as? Bool { doorRR = v }
+            if let v = obj["frunk_open"] as? Bool { frunkOpen = v }
+            if let v = obj["trunk_open"] as? Bool { trunkOpen = v }
+            if let v = obj["charge_port_open"] as? Bool { chargePortOpen = v }
+            if let v = obj["locked"] as? Bool { locked = v }
+            if let v = obj["light_parking"] as? Bool { lightParking = v }
+            if let v = obj["light_low"] as? Bool { lightLow = v }
+            if let v = obj["light_high"] as? Bool { lightHigh = v }
+            if let v = obj["light_fog"] as? Bool { lightFog = v }
+            if let v = obj["turn_left"] as? Bool { turnLeft = v }
+            if let v = obj["turn_right"] as? Bool { turnRight = v }
+            if let theme = obj["ui_theme"] as? String {
+                let n = theme.lowercased() != "day"
+                night = n
+                HUDSettings.shared.mapTheme = n ? .dark : .light
+            }
             return true
         } catch {
             feedOK = false
@@ -475,6 +532,21 @@ final class HUDModel: ObservableObject {
         if let s = any as? String { return Double(s) }
         return nil
     }
+
+    /// Open door / hatch labels for dial strip (Turkish short).
+    var openDoorLabels: [String] {
+        var out: [String] = []
+        if doorFL { out.append("Sol ön") }
+        if doorFR { out.append("Sağ ön") }
+        if doorRL { out.append("Sol arka") }
+        if doorRR { out.append("Sağ arka") }
+        if frunkOpen { out.append("Frunk") }
+        if trunkOpen { out.append("Bagaj") }
+        if chargePortOpen { out.append("Şarj kapağı") }
+        return out
+    }
+
+    var anyLightOn: Bool { lightParking || lightLow || lightHigh || lightFog || turnLeft || turnRight }
 
     private func refreshClock() { clock = clockFmt.string(from: Date()) }
 
