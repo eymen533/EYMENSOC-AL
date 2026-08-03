@@ -191,16 +191,16 @@ body {
   box-shadow: none;
 }
 
-.cluster.theme-day .slide-media {
+.cluster.theme-day .media-slide {
   position: relative;
   justify-content: flex-end;
   align-items: flex-start;
   padding: 1rem;
 }
 
-.cluster.theme-day .slide-media .media-service,
-.cluster.theme-day .slide-media .media-title,
-.cluster.theme-day .slide-media .media-artist {
+.cluster.theme-day .media-slide .media-service,
+.cluster.theme-day .media-slide .media-title,
+.cluster.theme-day .media-slide .media-artist {
   position: relative;
   z-index: 2;
   text-align: left;

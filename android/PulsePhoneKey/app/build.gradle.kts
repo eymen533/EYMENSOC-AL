@@ -16,7 +16,7 @@ android {
         buildConfigField(
             "String",
             "DEFAULT_SERVER",
-            "\"https://prix-navy-webshots-administrator.trycloudflare.com\"",
+            "\"https://sandwich-direct-mailed-recommendation.trycloudflare.com\"",
         )
         buildConfigField("String", "DEFAULT_VIN", "\"\"")
     }
