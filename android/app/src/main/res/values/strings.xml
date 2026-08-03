@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">EYMEN Cluster</string>
-    <string name="connect_hint">Bluetooth ile bağlan (PC’ye program yok):\n1) Telefondan PC’yi Bluetooth ile eşleştir\n2) Telefonda Ayarlar → Bağlantı noktası → Bluetooth tethering AÇ\n3) Aşağıdaki IP’yi BeamNG’ye yaz → Ctrl+R</string>
+    <string name="connect_hint">BeamNG’ye aşağıdaki telefon IP’sini yaz (OutGauge 4444, MotionSim 4445). Ctrl+R. SİNYAL VAR görünce Kadranı Başlat.</string>
     <string name="your_ip">Telefon IP (BeamNG’ye yaz)</string>
     <string name="start_cluster">Kadranı Başlat</string>
     <string name="demo_mode">Demo (oyunsuz)</string>
     <string name="copy_ip">IP’yi kopyala</string>
-    <string name="packet_waiting">Dinleniyor… paket: 0\nBluetooth tethering açık mı?</string>
-    <string name="bt_note">BeamNG doğrudan Bluetooth konuşmaz; telefonun Bluetooth tethering’i PC ile ağ kurar, OutGauge o IP’ye gider. Paket artsın → Kadranı Başlat.</string>
+    <string name="packet_waiting">Dinleniyor… paket: 0\nCtrl+R · aynı Wi‑Fi</string>
+    <string name="bt_note">Native kadran (WebView yok). SİNYAL VAR ise Kadranı Başlat — hız/RPM görünür.</string>
 </resources>

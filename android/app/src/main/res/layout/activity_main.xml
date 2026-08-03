@@ -3,107 +3,87 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg">
+    android:background="#02060C">
 
+    <!-- SETUP -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/setupRoot"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="18dp">
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:padding="20dp">
 
             <TextView
-                android:id="@+id/brand"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.25"
                 android:text="EYMEN"
-                android:textColor="@color/accent"
+                android:textColor="#8EC8FF"
                 android:textSize="36sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:letterSpacing="0.28"
+                android:letterSpacing="0.25"
                 android:text="DIGITAL COCKPIT"
-                android:textColor="@color/muted"
-                android:textSize="11sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/brand" />
+                android:textColor="#7F8FA3"
+                android:textSize="12sp" />
 
             <TextView
-                android:id="@+id/hint"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:gravity="center"
-                android:text="@string/connect_hint"
-                android:textColor="@color/ink"
-                android:textSize="13sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/subtitle"
-                app:layout_constraintWidth_max="560dp" />
-
-            <LinearLayout
-                android:id="@+id/ipCard"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:text="@string/connect_hint"
+                android:textColor="#EEF3F8"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
                 android:background="@drawable/card_bg"
                 android:gravity="center"
                 android:orientation="vertical"
-                android:padding="14dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/hint"
-                app:layout_constraintWidth_max="460dp">
+                android:padding="14dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/your_ip"
-                    android:textColor="@color/muted"
+                    android:textColor="#7F8FA3"
                     android:textSize="11sp" />
 
                 <TextView
                     android:id="@+id/ipValue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
                     android:text="—"
-                    android:textColor="@color/ink"
+                    android:textColor="#EEF3F8"
                     android:textIsSelectable="true"
-                    android:textSize="26sp"
+                    android:textSize="28sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/linkType"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="bağlantı bekleniyor"
-                    android:textColor="@color/muted"
+                    android:textColor="#7F8FA3"
                     android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/portValue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:gravity="center"
                     android:text="OutGauge 4444 · MotionSim 4445"
-                    android:textColor="@color/accent"
+                    android:textColor="#8EC8FF"
                     android:textSize="12sp" />
 
                 <TextView
@@ -111,11 +91,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:background="#22101820"
                     android:gravity="center"
                     android:padding="10dp"
                     android:text="@string/packet_waiting"
-                    android:textColor="@color/muted"
+                    android:textColor="#7F8FA3"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
@@ -125,60 +104,281 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/copy_ip"
-                    android:textColor="@color/accent" />
+                    android:textColor="#8EC8FF" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnStart"
-                android:layout_width="0dp"
-                android:layout_height="52dp"
-                android:layout_marginTop="12dp"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:layout_marginTop="14dp"
                 android:text="@string/start_cluster"
                 android:textAllCaps="false"
-                app:backgroundTint="@color/accent"
-                app:cornerRadius="4dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/ipCard"
-                app:layout_constraintWidth_max="460dp" />
+                app:backgroundTint="#8EC8FF"
+                app:cornerRadius="4dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDemo"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="46dp"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
                 android:layout_marginTop="8dp"
                 android:text="@string/demo_mode"
                 android:textAllCaps="false"
-                android:textColor="@color/ink"
+                android:textColor="#EEF3F8"
                 app:cornerRadius="4dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/btnStart"
-                app:layout_constraintWidth_max="460dp"
-                app:strokeColor="@color/muted" />
+                app:strokeColor="#7F8FA3" />
 
             <TextView
                 android:id="@+id/btNote"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:layout_marginBottom="8dp"
                 android:gravity="center"
                 android:text="@string/bt_note"
-                android:textColor="@color/muted"
-                android:textSize="12sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/btnDemo"
-                app:layout_constraintWidth_max="560dp" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
+                android:textColor="#7F8FA3"
+                android:textSize="12sp" />
+        </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <WebView
-        android:id="@+id/clusterWeb"
+    <!-- NATIVE CLUSTER (no WebView) -->
+    <LinearLayout
+        android:id="@+id/clusterRoot"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone" />
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:visibility="gone">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/clusterBrand"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:letterSpacing="0.25"
+                android:text="EYMEN"
+                android:textColor="#5EE7FF"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/clusterStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:background="@drawable/card_bg"
+                android:letterSpacing="0.15"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="4dp"
+                android:text="BEKLENİYOR"
+                android:textColor="#7F8FA3"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/clusterMeta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="—"
+                android:textColor="#7F8FA3"
+                android:textSize="11sp" />
+        </RelativeLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <!-- SPEED -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/speedValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="#EEF3F8"
+                    android:textSize="56sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/speedUnit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.2"
+                    android:text="km/h"
+                    android:textColor="#7F8FA3"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <!-- CENTER -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1.15"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingHorizontal="6dp">
+
+                <LinearLayout
+                    android:id="@+id/iconRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <TextView android:id="@+id/icoL" style="@style/WarnIcon" android:text="◀" />
+                    <TextView android:id="@+id/icoBeam" style="@style/WarnIcon" android:text="BEAM" />
+                    <TextView android:id="@+id/icoR" style="@style/WarnIcon" android:text="▶" />
+                    <TextView android:id="@+id/icoP" style="@style/WarnIcon" android:text="P" />
+                    <TextView android:id="@+id/icoAbs" style="@style/WarnIcon" android:text="ABS" />
+                    <TextView android:id="@+id/icoTc" style="@style/WarnIcon" android:text="TC" />
+                    <TextView android:id="@+id/icoShift" style="@style/WarnIcon" android:text="SHIFT" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/gearValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="N"
+                    android:textColor="#EEF3F8"
+                    android:textSize="64sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.3"
+                    android:text="GEAR"
+                    android:textColor="#7F8FA3"
+                    android:textSize="10sp" />
+
+                <com.eymen.beamngcluster.MapView
+                    android:id="@+id/mapView"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_marginTop="6dp"
+                    android:layout_weight="1"
+                    android:background="#080E18" />
+
+                <ProgressBar
+                    android:id="@+id/throttleBar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:layout_marginTop="6dp"
+                    android:max="1000"
+                    android:progress="0"
+                    android:progressTint="#5EE7FF" />
+
+                <ProgressBar
+                    android:id="@+id/brakeBar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:layout_marginTop="4dp"
+                    android:max="1000"
+                    android:progress="0"
+                    android:progressTint="#FF6B4A" />
+            </LinearLayout>
+
+            <!-- RPM -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/rpmValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0.0"
+                    android:textColor="#EEF3F8"
+                    android:textSize="48sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.15"
+                    android:text="×1000 rpm"
+                    android:textColor="#7F8FA3"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="6dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="FUEL"
+                android:textColor="#7F8FA3"
+                android:textSize="10sp" />
+
+            <ProgressBar
+                android:id="@+id/fuelBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="0dp"
+                android:layout_height="8dp"
+                android:layout_marginHorizontal="8dp"
+                android:layout_weight="1"
+                android:max="1000"
+                android:progressTint="#8EC8FF" />
+
+            <TextView
+                android:id="@+id/fuelVal"
+                android:layout_width="40dp"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="—"
+                android:textColor="#EEF3F8"
+                android:textSize="12sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="TEMP"
+                android:textColor="#7F8FA3"
+                android:textSize="10sp" />
+
+            <ProgressBar
+                android:id="@+id/tempBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="0dp"
+                android:layout_height="8dp"
+                android:layout_marginHorizontal="8dp"
+                android:layout_weight="1"
+                android:max="1000"
+                android:progressTint="#FFC14D" />
+
+            <TextView
+                android:id="@+id/tempVal"
+                android:layout_width="40dp"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="—"
+                android:textColor="#EEF3F8"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
 </FrameLayout>

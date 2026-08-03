@@ -1,6 +1,5 @@
 package com.eymen.beamngcluster
 
-import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -9,10 +8,7 @@ import android.graphics.Color
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.view.View
-import android.webkit.JavascriptInterface
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
@@ -24,10 +20,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
 import java.net.NetworkInterface
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
@@ -36,20 +29,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var listener: UdpTelemetryListener? = null
     private var demoJob: Job? = null
+    private var uiJob: Job? = null
     private var phoneIp: String = "—"
     private var clusterMode = false
 
-    private var lastOut: OutGaugeData? = null
-    private var lastMotion: MotionSimData? = null
-    private val trail = JSONArray()
+    @Volatile private var lastOut: OutGaugeData? = null
+    @Volatile private var lastMotion: MotionSimData? = null
+    @Volatile private var lastPacketWall = 0L
+
+    private val trail = ArrayList<MapView.Pt>(80)
     private var packetOg = 0
     private var packetMs = 0
 
-    /** HTML polls this — more reliable than evaluateJavascript push. */
-    private val latestJson = AtomicReference("{}")
-    private val statusText = AtomicReference("Dinleniyor")
-
-    @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
@@ -68,28 +59,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnStart.setOnClickListener { openCluster(demo = false) }
         binding.btnDemo.setOnClickListener { openCluster(demo = true) }
 
-        binding.clusterWeb.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            mediaPlaybackRequiresUserGesture = false
-            cacheMode = WebSettings.LOAD_NO_CACHE
-            allowFileAccess = true
-            allowContentAccess = true
-            @Suppress("DEPRECATION")
-            allowFileAccessFromFileURLs = true
-            @Suppress("DEPRECATION")
-            allowUniversalAccessFromFileURLs = true
-        }
-        binding.clusterWeb.addJavascriptInterface(NativeBridge(), "EymenNative")
-        binding.clusterWeb.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                statusText.set("OG:$packetOg MS:$packetMs")
-                rebuildJson()
-            }
-        }
-
         startUdpListening()
-
         lifecycleScope.launch {
             while (isActive) {
                 if (!clusterMode) refreshIp()
@@ -98,65 +68,97 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    inner class NativeBridge {
-        @JavascriptInterface
-        fun getTelemetry(): String = latestJson.get()
+    private fun openCluster(demo: Boolean) {
+        clusterMode = true
+        binding.setupRoot.visibility = View.GONE
+        binding.clusterRoot.visibility = View.VISIBLE
+        trail.clear()
+        binding.mapView.clear()
 
-        @JavascriptInterface
-        fun getStatus(): String = statusText.get()
+        demoJob?.cancel()
+        uiJob?.cancel()
 
-        @JavascriptInterface
-        fun packetCount(): Int = packetOg + packetMs
-    }
-
-    private fun refreshIp() {
-        val best = bestIpv4()
-        phoneIp = best?.second ?: wifiManagerIpv4() ?: "Bağlantı yok"
-        binding.ipValue.text = phoneIp
-        binding.linkType.text = when {
-            best == null -> "Wi‑Fi / USB / Bluetooth bekleniyor"
-            isBluetoothIface(best.first) -> "Bluetooth · ${best.first}"
-            isUsbIface(best.first) -> "USB · ${best.first}"
-            isWifiIface(best.first) -> "Wi‑Fi · ${best.first}"
-            else -> "Ağ · ${best.first}"
+        if (demo) {
+            listener?.stop()
+            listener = null
+            lastOut = null
+            lastMotion = null
+            startDemo()
+        } else if (listener == null) {
+            startUdpListening()
         }
-    }
 
-    private fun bestIpv4(): Pair<String, String>? {
-        val list = allIpv4()
-        return list.maxByOrNull { (name, _) ->
-            when {
-                isBluetoothIface(name) -> 6
-                isUsbIface(name) -> 5
-                isWifiIface(name) -> 3
-                else -> 1
+        uiJob = lifecycleScope.launch {
+            while (isActive && clusterMode) {
+                renderCluster()
+                delay(33)
             }
         }
     }
 
-    private fun allIpv4(): List<Pair<String, String>> {
-        val list = mutableListOf<Pair<String, String>>()
-        val interfaces = NetworkInterface.getNetworkInterfaces() ?: return list
-        for (intf in interfaces) {
-            if (!intf.isUp || intf.isLoopback) continue
-            val name = intf.name ?: continue
-            for (addr in intf.inetAddresses) {
-                val host = addr.hostAddress ?: continue
-                if (addr.isLoopbackAddress || host.contains(':') || host.startsWith("169.254.")) continue
-                list += name to host
-            }
+    private fun renderCluster() {
+        val og = lastOut
+        val mot = lastMotion
+        if (og == null && mot == null) {
+            binding.clusterStatus.text = "BEKLENİYOR"
+            binding.clusterStatus.setTextColor(Color.parseColor("#7F8FA3"))
+            binding.clusterMeta.text = "OG:$packetOg MS:$packetMs"
+            return
         }
-        return list
+
+        val ageOk = System.currentTimeMillis() - lastPacketWall < 2000
+        if (ageOk || og?.source == "demo") {
+            binding.clusterStatus.text = if (og?.source == "demo") "DEMO" else "CANLI"
+            binding.clusterStatus.setTextColor(Color.parseColor("#5DDEA6"))
+        } else {
+            binding.clusterStatus.text = "SİNYAL YOK"
+            binding.clusterStatus.setTextColor(Color.parseColor("#FF6B4A"))
+        }
+
+        val speed = og?.speedKmh ?: ((mot?.speedMs ?: 0f) * 3.6f)
+        val rpm = og?.rpm ?: 0f
+        binding.speedValue.text = speed.toInt().toString()
+        binding.rpmValue.text = String.format("%.1f", rpm / 1000f)
+        binding.gearValue.text = og?.gearLabel ?: "N"
+
+        binding.throttleBar.progress = ((og?.throttle ?: 0f) * 1000).toInt()
+        binding.brakeBar.progress = ((og?.brake ?: 0f) * 1000).toInt()
+        binding.fuelBar.progress = ((og?.fuel ?: 0f) * 1000).toInt()
+        binding.fuelVal.text = "${((og?.fuel ?: 0f) * 100).toInt()}%"
+        val temp = og?.engTemp ?: 0f
+        binding.tempBar.progress = (max(0f, minOf(1f, (temp - 40f) / 80f)) * 1000).toInt()
+        binding.tempVal.text = "${temp.toInt()}°"
+
+        setIcon(binding.icoL, og?.signalL == true, ok = true)
+        setIcon(binding.icoR, og?.signalR == true, ok = true)
+        setIcon(binding.icoBeam, og?.fullbeam == true, ok = true)
+        setIcon(binding.icoP, og?.handbrake == true, warn = true)
+        setIcon(binding.icoAbs, og?.abs == true, warn = true)
+        setIcon(binding.icoTc, og?.tc == true, warn = true)
+        setIcon(binding.icoShift, og?.shift == true, hot = true)
+
+        if (mot != null) {
+            binding.mapView.update(mot.posX, mot.posY, mot.yawPos, mot.speedMs, trail.toList())
+        }
+        binding.clusterMeta.text = "OG:$packetOg MS:$packetMs · ${speed.toInt()} km/h"
     }
 
-    private fun isBluetoothIface(name: String) =
-        name.contains("bnep", true) || name.contains("bt-pan", true) || name.contains("bt_pan", true)
-
-    private fun isUsbIface(name: String) =
-        name.contains("rndis", true) || name.contains("usb", true)
-
-    private fun isWifiIface(name: String) =
-        name.startsWith("wlan", true) || name.contains("wlan", true) || name.startsWith("ap", true)
+    private fun setIcon(
+        tv: TextView,
+        on: Boolean,
+        ok: Boolean = false,
+        warn: Boolean = false,
+        hot: Boolean = false,
+    ) {
+        val color = when {
+            !on -> "#557F8FA3"
+            hot -> "#FF6B4A"
+            warn -> "#FFC14D"
+            ok -> "#5DDEA6"
+            else -> "#5EE7FF"
+        }
+        tv.setTextColor(Color.parseColor(color))
+    }
 
     private fun startUdpListening() {
         listener?.stop()
@@ -176,16 +178,17 @@ class MainActivity : AppCompatActivity() {
             },
             onRaw = { port, size, from ->
                 if (port == OUTGAUGE_PORT) packetOg++ else packetMs++
+                lastPacketWall = System.currentTimeMillis()
                 runOnUiThread { updatePacketUi(from, size) }
             },
             onOutGauge = { data ->
                 lastOut = data
-                rebuildJson()
+                lastPacketWall = System.currentTimeMillis()
             },
             onMotion = { data ->
                 lastMotion = data
-                appendTrail(data.posX.toDouble(), data.posY.toDouble())
-                rebuildJson()
+                lastPacketWall = System.currentTimeMillis()
+                appendTrail(data.posX, data.posY)
             },
             onError = { msg ->
                 runOnUiThread {
@@ -195,9 +198,16 @@ class MainActivity : AppCompatActivity() {
         ).also { it.start(OUTGAUGE_PORT, MOTION_PORT) }
     }
 
+    private fun appendTrail(x: Float, y: Float) {
+        val last = trail.lastOrNull()
+        if (last == null || kotlin.math.hypot((x - last.x).toDouble(), (y - last.y).toDouble()) > 1.5) {
+            trail += MapView.Pt(x, y)
+            while (trail.size > 80) trail.removeAt(0)
+        }
+    }
+
     private fun updatePacketUi(from: String? = null, size: Int? = null) {
         val total = packetOg + packetMs
-        statusText.set("OG:$packetOg MS:$packetMs")
         if (total == 0) {
             binding.packetStatus.setTextColor(Color.parseColor("#7F8FA3"))
             binding.packetStatus.text = "Dinleniyor… paket: 0\nCtrl+R · aynı Wi‑Fi"
@@ -207,92 +217,6 @@ class MainActivity : AppCompatActivity() {
             binding.packetStatus.text =
                 "SİNYAL VAR · OG:$packetOg MS:$packetMs$extra\nŞimdi Kadranı Başlat"
         }
-    }
-
-    private fun openCluster(demo: Boolean) {
-        clusterMode = true
-        binding.setupRoot.visibility = View.GONE
-        binding.clusterWeb.visibility = View.VISIBLE
-        while (trail.length() > 0) trail.remove(0)
-        rebuildJson()
-        binding.clusterWeb.loadUrl("file:///android_asset/index.html")
-
-        demoJob?.cancel()
-        if (demo) {
-            listener?.stop()
-            listener = null
-            startDemo()
-        } else if (listener == null) {
-            startUdpListening()
-        }
-    }
-
-    private fun appendTrail(x: Double, y: Double) {
-        val last = if (trail.length() > 0) trail.getJSONObject(trail.length() - 1) else null
-        if (last == null ||
-            kotlin.math.hypot(x - last.getDouble("x"), y - last.getDouble("y")) > 1.5
-        ) {
-            trail.put(JSONObject().put("x", x).put("y", y).put("t", System.currentTimeMillis()))
-            while (trail.length() > 60) trail.remove(0)
-        }
-    }
-
-    private fun rebuildJson() {
-        val og = lastOut
-        val mot = lastMotion
-        if (og == null && mot == null) {
-            latestJson.set("""{"source":"wait","gearLabel":"N","speedKmh":0,"rpm":0,"fuel":0,"throttle":0,"brake":0,"engTemp":0,"preferKm":true,"lights":{}}""")
-            return
-        }
-        val json = JSONObject().apply {
-            if (og != null) {
-                put("gearLabel", og.gearLabel)
-                put("speedKmh", og.speedKmh.toDouble())
-                put("speedMph", og.speedMph.toDouble())
-                put("preferKm", og.preferKm)
-                put("rpm", og.rpm.toDouble())
-                put("turbo", og.turbo.toDouble())
-                put("engTemp", og.engTemp.toDouble())
-                put("fuel", og.fuel.toDouble())
-                put("throttle", og.throttle.toDouble())
-                put("brake", og.brake.toDouble())
-                put("showTurbo", og.showTurbo)
-                put("lights", JSONObject().apply {
-                    put("shift", og.shift)
-                    put("fullbeam", og.fullbeam)
-                    put("handbrake", og.handbrake)
-                    put("tc", og.tc)
-                    put("signalL", og.signalL)
-                    put("signalR", og.signalR)
-                    put("oilWarn", og.oilWarn)
-                    put("battery", og.battery)
-                    put("abs", og.abs)
-                })
-            } else {
-                put("gearLabel", "N")
-                put("speedKmh", (mot!!.speedMs * 3.6).toDouble())
-                put("speedMph", (mot.speedMs * 2.236936).toDouble())
-                put("preferKm", true)
-                put("rpm", 0)
-                put("fuel", 0)
-                put("throttle", 0)
-                put("brake", 0)
-                put("engTemp", 0)
-                put("lights", JSONObject())
-            }
-            put("source", "outgauge")
-            if (mot != null) {
-                put("map", JSONObject().apply {
-                    put("x", mot.posX.toDouble())
-                    put("y", mot.posY.toDouble())
-                    put("z", mot.posZ.toDouble())
-                    put("yaw", mot.yawPos.toDouble())
-                    put("speedMs", mot.speedMs.toDouble())
-                })
-                put("trail", trail)
-            }
-        }
-        latestJson.set(json.toString())
     }
 
     private fun startDemo() {
@@ -307,7 +231,6 @@ class MainActivity : AppCompatActivity() {
                 val r = 80 + 20 * sin(t * 0.1)
                 val x = cos(ang) * r
                 val y = sin(ang) * r
-                appendTrail(x, y)
                 lastOut = OutGaugeData(
                     gearLabel = gearNum.toString(),
                     speedKmh = speedKmh.toFloat(),
@@ -333,35 +256,72 @@ class MainActivity : AppCompatActivity() {
                     source = "demo",
                 )
                 lastMotion = MotionSimData(
-                    posX = x.toFloat(),
-                    posY = y.toFloat(),
-                    posZ = 0f,
-                    velX = 0f,
-                    velY = 0f,
-                    velZ = 0f,
-                    yawPos = (ang + Math.PI / 2).toFloat(),
-                    speedMs = (speedKmh / 3.6).toFloat(),
+                    x.toFloat(), y.toFloat(), 0f, 0f, 0f, 0f,
+                    (ang + Math.PI / 2).toFloat(), (speedKmh / 3.6).toFloat(),
                 )
+                appendTrail(x.toFloat(), y.toFloat())
                 packetOg++
-                rebuildJson()
-                statusText.set("DEMO")
+                lastPacketWall = System.currentTimeMillis()
                 delay(50)
             }
         }
     }
+
+    private fun refreshIp() {
+        val best = bestIpv4()
+        phoneIp = best?.second ?: wifiManagerIpv4() ?: "Bağlantı yok"
+        binding.ipValue.text = phoneIp
+        binding.linkType.text = when {
+            best == null -> "Wi‑Fi / USB / Bluetooth bekleniyor"
+            isBluetoothIface(best.first) -> "Bluetooth · ${best.first}"
+            isUsbIface(best.first) -> "USB · ${best.first}"
+            isWifiIface(best.first) -> "Wi‑Fi · ${best.first}"
+            else -> "Ağ · ${best.first}"
+        }
+    }
+
+    private fun bestIpv4(): Pair<String, String>? =
+        allIpv4().maxByOrNull { (name, _) ->
+            when {
+                isBluetoothIface(name) -> 6
+                isUsbIface(name) -> 5
+                isWifiIface(name) -> 3
+                else -> 1
+            }
+        }
+
+    private fun allIpv4(): List<Pair<String, String>> {
+        val list = mutableListOf<Pair<String, String>>()
+        val interfaces = NetworkInterface.getNetworkInterfaces() ?: return list
+        for (intf in interfaces) {
+            if (!intf.isUp || intf.isLoopback) continue
+            val name = intf.name ?: continue
+            for (addr in intf.inetAddresses) {
+                val host = addr.hostAddress ?: continue
+                if (addr.isLoopbackAddress || host.contains(':') || host.startsWith("169.254.")) continue
+                list += name to host
+            }
+        }
+        return list
+    }
+
+    private fun isBluetoothIface(name: String) =
+        name.contains("bnep", true) || name.contains("bt-pan", true) || name.contains("bt_pan", true)
+
+    private fun isUsbIface(name: String) =
+        name.contains("rndis", true) || name.contains("usb", true)
+
+    private fun isWifiIface(name: String) =
+        name.startsWith("wlan", true) || name.contains("wlan", true) || name.startsWith("ap", true)
 
     @Suppress("DEPRECATION")
     private fun wifiManagerIpv4(): String? {
         return try {
             val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
             val ip = wm.connectionInfo?.ipAddress ?: return null
-            if (ip == 0) return null
-            String.format(
+            if (ip == 0) null else String.format(
                 "%d.%d.%d.%d",
-                ip and 0xff,
-                ip shr 8 and 0xff,
-                ip shr 16 and 0xff,
-                ip shr 24 and 0xff,
+                ip and 0xff, ip shr 8 and 0xff, ip shr 16 and 0xff, ip shr 24 and 0xff,
             )
         } catch (_: Exception) {
             null
@@ -370,10 +330,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun hideSystemUi() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, window.decorView).let { controller ->
-            controller.hide(WindowInsetsCompat.Type.systemBars())
-            controller.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        WindowInsetsControllerCompat(window, window.decorView).let {
+            it.hide(WindowInsetsCompat.Type.systemBars())
+            it.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
 
@@ -385,16 +344,18 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         demoJob?.cancel()
+        uiJob?.cancel()
         listener?.stop()
         super.onDestroy()
     }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (binding.clusterWeb.visibility == View.VISIBLE) {
+        if (binding.clusterRoot.visibility == View.VISIBLE) {
             demoJob?.cancel()
+            uiJob?.cancel()
             clusterMode = false
-            binding.clusterWeb.visibility = View.GONE
+            binding.clusterRoot.visibility = View.GONE
             binding.setupRoot.visibility = View.VISIBLE
             refreshIp()
             if (listener == null) startUdpListening()
