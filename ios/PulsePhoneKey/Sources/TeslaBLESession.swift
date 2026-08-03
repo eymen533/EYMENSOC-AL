@@ -402,6 +402,8 @@ final class TeslaBLESession {
     // MARK: - Action payloads (CarServer.Action)
 
     static func actionGetDrive() -> Data { Data(hex: "12040a022200") }
+    /// Drive + Location in one round-trip (faster HUD / map).
+    static func actionGetDriveAndLocation() -> Data { Data(hex: "12060a0422003a00") }
     static func actionGetCharge() -> Data { Data(hex: "12040a021200") }
     static func actionGetTire() -> Data { Data(hex: "12040a027200") }
     /// GetMediaState (15) + GetMediaDetailState (16) — source string / album.
@@ -623,26 +625,57 @@ final class TeslaBLESession {
     }
 
     private func parseLocation(_ data: Data) {
+        var latPlain: Double?
+        var lonPlain: Double?
+        var latNative: Double?
+        var lonNative: Double?
+        var latGeo: Double?
+        var lonGeo: Double?
+        var headingVal: Double?
+        var placeVal: String?
+
         for f in ProtoWire.parseFields(data) {
             switch f.number {
-            case 101, 106, 114, 122: // latitude variants
-                if let d = ProtoWire.double64(f.bytes) { snapshot.latitude = d }
-                else if let fl = ProtoWire.float32(f.bytes) { snapshot.latitude = Double(fl) }
-            case 102, 107, 115, 123:
-                if let d = ProtoWire.double64(f.bytes) { snapshot.longitude = d }
-                else if let fl = ProtoWire.float32(f.bytes) { snapshot.longitude = Double(fl) }
-            case 103: // heading uint32?
-                snapshot.heading = Double(f.varint)
+            case 101: // latitude float
+                if let v = Self.readCoord(f) { latPlain = v }
+            case 102:
+                if let v = Self.readCoord(f) { lonPlain = v }
+            case 106: // native_latitude (preferred — matches car map)
+                if let v = Self.readCoord(f) { latNative = v }
+            case 107:
+                if let v = Self.readCoord(f) { lonNative = v }
+            case 114: // geo / raw GPS
+                if let v = Self.readCoord(f) { latGeo = v }
+            case 115:
+                if let v = Self.readCoord(f) { lonGeo = v }
+            case 103:
+                headingVal = Double(f.varint)
             case 116:
-                if let d = ProtoWire.double64(f.bytes) { snapshot.heading = d }
-                else if let fl = ProtoWire.float32(f.bytes) { snapshot.heading = Double(fl) }
+                if let v = Self.readCoord(f) { headingVal = v }
             case 113:
                 if let s = String(data: f.bytes, encoding: .utf8), !s.isEmpty {
-                    snapshot.place = s
+                    placeVal = s
                 }
             default: break
             }
         }
+
+        // Prefer native (car nav map), then plain, then raw geo.
+        let lat = latNative ?? latPlain ?? latGeo
+        let lon = lonNative ?? lonPlain ?? lonGeo
+        if let lat, let lon, abs(lat) <= 90, abs(lon) <= 180, (abs(lat) > 0.0001 || abs(lon) > 0.0001) {
+            snapshot.latitude = lat
+            snapshot.longitude = lon
+        }
+        if let headingVal { snapshot.heading = headingVal }
+        if let placeVal { snapshot.place = placeVal }
+    }
+
+    private static func readCoord(_ f: ProtoWire.Field) -> Double? {
+        if f.wire == 5, let fl = ProtoWire.float32(f.bytes) { return Double(fl) }
+        if f.bytes.count >= 8, let d = ProtoWire.double64(f.bytes) { return d }
+        if f.bytes.count >= 4, let fl = ProtoWire.float32(f.bytes) { return Double(fl) }
+        return nil
     }
 
     private func parseClimate(_ data: Data) {

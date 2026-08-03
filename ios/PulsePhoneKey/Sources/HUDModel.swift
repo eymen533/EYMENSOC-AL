@@ -166,8 +166,10 @@ final class HUDModel: ObservableObject {
         psiRL = s.psiRL
         psiRR = s.psiRR
         outdoorC = s.outdoorC
-        if abs(s.latitude) > 0.0001 { latitude = s.latitude }
-        if abs(s.longitude) > 0.0001 { longitude = s.longitude }
+        if abs(s.latitude) > 0.0001 || abs(s.longitude) > 0.0001 {
+            latitude = s.latitude
+            longitude = s.longitude
+        }
         mapHeading = s.heading
         if !s.destination.isEmpty { destination = s.destination }
         if abs(s.destLatitude) > 0.0001 { destLatitude = s.destLatitude }
@@ -175,7 +177,7 @@ final class HUDModel: ObservableObject {
         eta = s.eta
         energyAtArrival = s.energyAtArrival
         tripDist = s.tripDist
-        place = s.place
+        if !s.place.isEmpty, s.place != "—" { place = s.place }
         mediaTitle = s.mediaTitle
         mediaArtist = s.mediaArtist
         mediaAlbum = s.mediaAlbum
@@ -200,6 +202,8 @@ final class HUDModel: ObservableObject {
     func stop() {
         timer?.cancel(); timer = nil
         pollTask?.cancel(); pollTask = nil
+        leftRailHideTask?.cancel(); leftRailHideTask = nil
+        rightRailHideTask?.cancel(); rightRailHideTask = nil
     }
 
     func toggleDrive() {
@@ -393,7 +397,7 @@ final class HUDModel: ObservableObject {
                 _ = await pullVehicle(root: root, pin: pin)
                 // Never seed fake demo — wait for BLE LIVE or Owner API live.
                 let mode = UserDefaults.standard.string(forKey: "pulse_refresh_mode") ?? "Performans"
-                let nanos: UInt64 = (mode == "Düşük") ? 1_200_000_000 : 250_000_000
+                let nanos: UInt64 = (mode == "Düşük") ? 800_000_000 : 150_000_000
                 try? await Task.sleep(nanoseconds: nanos)
             }
         }

@@ -3,7 +3,7 @@ import CoreBluetooth
 import CryptoKit
 
 /// Polls vehicle telemetry on an open Tesla BLE GATT link.
-/// No @MainActor — Playgrounds-safe; caller keeps work on main CB queue.
+/// Pipelines requests (does not wait for each notify) for Dashla-like speed.
 final class BLETelemetry {
     enum Phase: String {
         case idle = "idle"
@@ -29,25 +29,29 @@ final class BLETelemetry {
     private var pollTimer: Timer?
     private var writeQueue: [Data] = []
     private var writing = false
-    private var awaiting = false
-    private var awaitStarted = Date.distantPast
+    private var inFlight = 0
+    private var lastNotifyAt = Date.distantPast
     private var pollIndex = 0
     private var handshakeTries = 0
-    /// Seconds between BLE polls. Performance ≈ 0.22, Low ≈ 0.9
-    var pollIntervalSeconds: TimeInterval = 0.22
+    private var useWithoutResponse = false
+    /// Seconds between BLE polls. Performance ≈ 0.10, Low ≈ 0.45
+    var pollIntervalSeconds: TimeInterval = 0.10
+    /// Max overlapping requests before we pause (avoids flooding).
+    private let maxInFlight = 2
 
-    /// Drive + location dominate so speed/gear/route feel live.
+    /// Drive+Location dominate; occasional media/charge/tire/climate.
     private let pollActions: [() -> Data] = [
+        TeslaBLESession.actionGetDriveAndLocation,
+        TeslaBLESession.actionGetDriveAndLocation,
+        TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetLocation,
-        TeslaBLESession.actionGetDrive,
+        TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetMedia,
-        TeslaBLESession.actionGetDrive,
+        TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetCharge,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetLocation,
+        TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetTire,
+        TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetClimate,
     ]
 
@@ -62,10 +66,11 @@ final class BLETelemetry {
         self.peripheral = peripheral
         self.writeChar = writeChar
         self.session = TeslaBLESession(vin: vin, privateKey: privateKey)
+        self.useWithoutResponse = writeChar.properties.contains(.writeWithoutResponse)
         rxBuffer.reset()
         writeQueue.removeAll()
         writing = false
-        awaiting = false
+        inFlight = 0
         handshakeTries = 0
         liveOK = false
         phase = .handshake
@@ -83,7 +88,7 @@ final class BLETelemetry {
         writeChar = nil
         writeQueue.removeAll()
         writing = false
-        awaiting = false
+        inFlight = 0
         liveOK = false
         phase = .idle
         status = "BLE telemetri kapali"
@@ -93,8 +98,7 @@ final class BLETelemetry {
         guard session != nil else { return }
         for frame in rxBuffer.append(data) {
             guard let session else { continue }
-            let ok = session.handleIncoming(frame)
-            _ = ok
+            _ = session.handleIncoming(frame)
             status = session.statusText
             if session.infotainmentReady {
                 phase = .live
@@ -109,7 +113,7 @@ final class BLETelemetry {
                 phase = .waitingKey
                 liveOK = false
             }
-            awaiting = false
+            inFlight = max(0, inFlight - 1)
             notify()
         }
     }
@@ -125,7 +129,7 @@ final class BLETelemetry {
     func mediaPlay() { enqueueCommand(domain: .infotainment, command: TeslaBLESession.actionMediaPlay()) }
 
     func applyPollInterval(_ seconds: TimeInterval) {
-        pollIntervalSeconds = max(0.18, min(3.0, seconds))
+        pollIntervalSeconds = max(0.08, min(3.0, seconds))
         if pollTimer != nil { startPolling() }
     }
 
@@ -140,18 +144,14 @@ final class BLETelemetry {
 
     private func tick() {
         guard session != nil, peripheral?.state == .connected else { return }
-        // Don't stall forever if a notify never arrives.
-        if awaiting, Date().timeIntervalSince(awaitStarted) > 1.1 {
-            awaiting = false
-            writeQueue.removeAll()
-            writing = false
-        }
-        if writing || awaiting { return }
+        // Pipeline: only pause if writes busy or too many unanswered.
+        if writing || !writeQueue.isEmpty { return }
+        if inFlight >= maxInFlight { return }
         guard let session else { return }
 
         if !session.infotainmentReady {
             handshakeTries += 1
-            if handshakeTries % 5 == 0 {
+            if handshakeTries % 4 == 0 {
                 enqueueCommand(domain: .vcsec, command: TeslaBLESession.actionWake(), preferHandshakeFirst: true)
             }
             sendHandshake()
@@ -195,15 +195,15 @@ final class BLETelemetry {
     private func enqueueFrame(_ frame: Data) {
         guard let peripheral, let writeChar else { return }
         guard peripheral.state == .connected else { return }
-        let mtu = max(20, peripheral.maximumWriteValueLength(for: .withResponse))
+        let writeType: CBCharacteristicWriteType = useWithoutResponse ? .withoutResponse : .withResponse
+        let mtu = max(20, peripheral.maximumWriteValueLength(for: writeType))
         var i = 0
         while i < frame.count {
             let j = min(i + mtu, frame.count)
             writeQueue.append(frame.subdata(in: i..<j))
             i = j
         }
-        awaiting = true
-        awaitStarted = Date()
+        inFlight += 1
         pumpWrite()
     }
 
@@ -213,7 +213,17 @@ final class BLETelemetry {
         guard !writeQueue.isEmpty else { return }
         writing = true
         let chunk = writeQueue.removeFirst()
-        peripheral.writeValue(chunk, for: writeChar, type: .withResponse)
+        let type: CBCharacteristicWriteType = useWithoutResponse ? .withoutResponse : .withResponse
+        peripheral.writeValue(chunk, for: writeChar, type: type)
+        if useWithoutResponse {
+            // didWrite is not called for withoutResponse — continue immediately.
+            writing = false
+            if writeQueue.isEmpty {
+                // Small yield so radio can breathe; next timer tick continues.
+            } else {
+                DispatchQueue.main.async { [weak self] in self?.pumpWrite() }
+            }
+        }
     }
 
     func didWrite(error: Error?) {
@@ -222,7 +232,7 @@ final class BLETelemetry {
             status = "BLE yazma: \(error.localizedDescription)"
             phase = .error
             writeQueue.removeAll()
-            awaiting = false
+            inFlight = 0
             notify()
             return
         }

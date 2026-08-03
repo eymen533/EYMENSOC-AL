@@ -1,8 +1,8 @@
 import SwiftUI
 import MapKit
 
-/// Apple Maps — car GPS + BLE destination coords/name. No Google/API key.
-/// Uses MKMapView for iOS 16+ (no MapCameraPosition / iOS 17-only APIs).
+/// Apple Maps — live car GPS from BLE. No Google/API key.
+/// MKMapView for iOS 16+ (no MapCameraPosition).
 struct AppleMapPanel: View {
     var lat: Double
     var lon: Double
@@ -22,24 +22,26 @@ struct AppleMapPanel: View {
     private var hasGPS: Bool { abs(lat) > 0.0001 || abs(lon) > 0.0001 }
     private var hasDestCoord: Bool { abs(destLat) > 0.0001 || abs(destLon) > 0.0001 }
     private var coord: CLLocationCoordinate2D {
-        CLLocationCoordinate2D(latitude: hasGPS ? lat : 41.0082, longitude: hasGPS ? lon : 28.9784)
+        CLLocationCoordinate2D(latitude: lat, longitude: lon)
     }
 
     var body: some View {
         ZStack {
-            AppleMapLegacyRepresentable(
-                center: coord,
-                heading: heading,
-                route: routeCoords,
-                autoZoom: autoZoom,
-                dark: theme == .dark || theme == .auto
-            )
-            if !hasGPS {
-                Text("GPS bekleniyor")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
-                    .padding(8)
-                    .background(Capsule().fill(.black.opacity(0.55)))
+            if hasGPS {
+                AppleMapLegacyRepresentable(
+                    center: coord,
+                    heading: heading,
+                    route: routeCoords,
+                    autoZoom: autoZoom,
+                    dark: theme == .dark || theme == .auto
+                )
+            } else {
+                Color(red: 0.12, green: 0.13, blue: 0.14)
+                Text("Araç GPS bekleniyor")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .padding(10)
+                    .background(Capsule().fill(.black.opacity(0.45)))
             }
         }
         .onAppear { fetchRouteIfNeeded() }
@@ -64,9 +66,10 @@ struct AppleMapPanel: View {
         }
         let key: String
         if hasDestCoord {
-            key = String(format: "%.4f,%.4f->%.4f,%.4f", lat, lon, destLat, destLon)
+            // Re-route when car moved ~40m or dest changed.
+            key = String(format: "%.3f,%.3f->%.4f,%.4f", lat, lon, destLat, destLon)
         } else {
-            key = String(format: "%.4f,%.4f|%@", lat, lon, dest)
+            key = String(format: "%.3f,%.3f|%@", lat, lon, dest)
         }
         guard key != lastRouteKey else { return }
         lastRouteKey = key
@@ -117,7 +120,6 @@ struct AppleMapPanel: View {
         instruction: inout String,
         symbol: inout String
     ) {
-        // Skip the first "depart" step when possible.
         let steps = route.steps.filter { !$0.instructions.isEmpty }
         let step = steps.dropFirst().first ?? steps.first
         guard let step else {
@@ -133,7 +135,6 @@ struct AppleMapPanel: View {
     }
 
     private static func shortenInstruction(_ raw: String) -> String {
-        // "Turn right onto Erturk Cd" → "onto Erturk Cd"
         let lower = raw.lowercased()
         if let r = lower.range(of: " onto ") {
             let idx = raw.index(raw.startIndex, offsetBy: lower.distance(from: lower.startIndex, to: r.lowerBound))
@@ -158,7 +159,13 @@ struct AppleMapPanel: View {
     }
 }
 
-/// MKMapView wrapper — works on iOS 16+.
+final class CarMapAnnotation: NSObject, MKAnnotation {
+    dynamic var coordinate: CLLocationCoordinate2D
+    var heading: CLLocationDirection = 0
+    init(coordinate: CLLocationCoordinate2D) { self.coordinate = coordinate }
+}
+
+/// MKMapView wrapper — follows car GPS smoothly, rotates marker with heading.
 struct AppleMapLegacyRepresentable: UIViewRepresentable {
     var center: CLLocationCoordinate2D
     var heading: Double
@@ -174,44 +181,77 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.showsPointsOfInterest = true
         map.delegate = context.coordinator
         map.overrideUserInterfaceStyle = dark ? .dark : .unspecified
+
+        let car = CarMapAnnotation(coordinate: center)
+        car.heading = heading
+        map.addAnnotation(car)
+        context.coordinator.car = car
         return map
     }
 
     func updateUIView(_ map: MKMapView, context: Context) {
         map.overrideUserInterfaceStyle = dark ? .dark : .unspecified
+        let coord = context.coordinator
+        if let car = coord.car {
+            let moved = CLLocation(latitude: car.coordinate.latitude, longitude: car.coordinate.longitude)
+                .distance(from: CLLocation(latitude: center.latitude, longitude: center.longitude))
+            car.coordinate = center
+            car.heading = heading
+            if let view = map.view(for: car) {
+                let angle = CGFloat(heading * .pi / 180)
+                if moved > 1 || abs(view.transform.a - cos(angle)) > 0.02 {
+                    UIView.animate(withDuration: 0.18) {
+                        view.transform = CGAffineTransform(rotationAngle: angle)
+                    }
+                }
+            }
+        }
+
         if autoZoom {
             let cam = MKMapCamera(
                 lookingAtCenter: center,
-                fromDistance: 520,
-                pitch: 48,
+                fromDistance: 420,
+                pitch: 52,
                 heading: heading
             )
-            map.setCamera(cam, animated: true)
+            // Avoid fighting the camera every tiny update.
+            let last = coord.lastCameraCenter
+            let jump = last == nil || CLLocation(latitude: last!.latitude, longitude: last!.longitude)
+                .distance(from: CLLocation(latitude: center.latitude, longitude: center.longitude)) > 4
+            if jump || abs((coord.lastHeading ?? 0) - heading) > 3 {
+                map.setCamera(cam, animated: true)
+                coord.lastCameraCenter = center
+                coord.lastHeading = heading
+            }
         } else {
             let region = MKCoordinateRegion(
                 center: center,
-                latitudinalMeters: 700,
-                longitudinalMeters: 700
+                latitudinalMeters: 550,
+                longitudinalMeters: 550
             )
             map.setRegion(region, animated: true)
         }
 
-        map.removeOverlays(map.overlays)
-        map.removeAnnotations(map.annotations)
-
-        let ann = MKPointAnnotation()
-        ann.coordinate = center
-        map.addAnnotation(ann)
-
-        if route.count > 1 {
-            let poly = MKPolyline(coordinates: route, count: route.count)
-            map.addOverlay(poly)
+        // Route overlay — only rebuild when count/identity changes.
+        let routeKey = route.count
+        if routeKey != coord.lastRouteCount {
+            map.removeOverlays(map.overlays)
+            if route.count > 1 {
+                let poly = MKPolyline(coordinates: route, count: route.count)
+                map.addOverlay(poly)
+            }
+            coord.lastRouteCount = routeKey
         }
     }
 
     func makeCoordinator() -> Coord { Coord() }
 
     final class Coord: NSObject, MKMapViewDelegate {
+        var car: CarMapAnnotation?
+        var lastCameraCenter: CLLocationCoordinate2D?
+        var lastHeading: Double?
+        var lastRouteCount = -1
+
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let p = overlay as? MKPolyline {
                 let r = MKPolylineRenderer(polyline: p)
@@ -230,10 +270,13 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: id)
                 ?? MKAnnotationView(annotation: annotation, reuseIdentifier: id)
             view.annotation = annotation
-            let cfg = UIImage.SymbolConfiguration(pointSize: 24, weight: .bold)
+            let cfg = UIImage.SymbolConfiguration(pointSize: 26, weight: .bold)
             view.image = UIImage(systemName: "location.north.fill", withConfiguration: cfg)?
                 .withTintColor(.systemRed, renderingMode: .alwaysOriginal)
-            view.centerOffset = CGPoint(x: 0, y: 0)
+            view.centerOffset = .zero
+            if let car = annotation as? CarMapAnnotation {
+                view.transform = CGAffineTransform(rotationAngle: CGFloat(car.heading * .pi / 180))
+            }
             return view
         }
     }

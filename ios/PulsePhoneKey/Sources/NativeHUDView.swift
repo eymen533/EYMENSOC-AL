@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Dashla-style night triad — left + right swipeable panels, rails peek then hide.
 struct NativeHUDView: View {
@@ -24,10 +25,10 @@ struct NativeHUDView: View {
                     if wide {
                         HStack(spacing: 0) {
                             sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
-                                .frame(width: geo.size.width * 0.27)
+                                .frame(width: geo.size.width * 0.24)
                             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                             centerDial
-                                .frame(width: geo.size.width * 0.30)
+                                .frame(width: geo.size.width * 0.38)
                             sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
                             sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                                 .frame(maxWidth: .infinity)
@@ -57,9 +58,13 @@ struct NativeHUDView: View {
         .onAppear {
             model.start()
             model.pulseRails()
+            UIApplication.shared.isIdleTimerDisabled = true
             MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist)
         }
-        .onDisappear { model.stop() }
+        .onDisappear {
+            model.stop()
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
         .onChangeCompat(of: model.mediaTitle) { _ in
             MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist)
         }
@@ -374,67 +379,74 @@ struct NativeHUDView: View {
     // MARK: - Center dial
 
     private var centerDial: some View {
-        let dialSize: CGFloat = settings.speedStyle == .compact ? 168 : 220
-        let speedFont: CGFloat = settings.speedStyle == .compact ? 64 : 88
-        return VStack(spacing: 6) {
-            Spacer(minLength: 4)
-            if settings.liveLocation == .top, !isBlank(model.place) {
-                locationChip
-            }
-            if settings.powerStyle == .top {
-                Text(String(format: "%+.0f kW", model.powerKW))
-                    .font(.caption.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(model.powerKW >= 0 ? accent : Color.orange)
-            }
-            ZStack {
-                Circle()
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1.5)
-                Circle()
-                    .fill(Color.black)
-                    .padding(3)
-                    .shadow(color: .black.opacity(0.55), radius: 16, x: -8, y: 0)
-                if settings.powerStyle == .ring {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height)
+            let dialSize: CGFloat = settings.speedStyle == .compact
+                ? min(side * 0.78, 240)
+                : min(side * 0.92, 320)
+            let speedFont: CGFloat = settings.speedStyle == .compact
+                ? dialSize * 0.42
+                : dialSize * 0.48
+            VStack(spacing: 6) {
+                Spacer(minLength: 2)
+                if settings.liveLocation == .top, !isBlank(model.place) {
+                    locationChip
+                }
+                if settings.powerStyle == .top {
+                    Text(String(format: "%+.0f kW", model.powerKW))
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(model.powerKW >= 0 ? accent : Color.orange)
+                }
+                ZStack {
                     Circle()
-                        .trim(from: 0, to: min(1, abs(model.powerKW) / 220))
-                        .stroke(
-                            AngularGradient(
-                                colors: settings.speedColor == .multicolor
-                                    ? [.cyan, .green, .yellow, .orange, .red]
-                                    : [accent, accent],
-                                center: .center
-                            ),
-                            style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .padding(7)
-                }
-                VStack(spacing: 2) {
-                    HStack(spacing: 14) {
-                        ForEach(["P", "R", "N", "D"], id: \.self) { g in
-                            Text(g)
-                                .font(.footnote.weight(.bold))
-                                .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: ink, dim: dim))
-                        }
+                        .stroke(Color.white.opacity(0.14), lineWidth: 2)
+                    Circle()
+                        .fill(Color.black)
+                        .padding(4)
+                        .shadow(color: .black.opacity(0.55), radius: 16, x: -8, y: 0)
+                    if settings.powerStyle == .ring {
+                        Circle()
+                            .trim(from: 0, to: min(1, abs(model.powerKW) / 220))
+                            .stroke(
+                                AngularGradient(
+                                    colors: settings.speedColor == .multicolor
+                                        ? [.cyan, .green, .yellow, .orange, .red]
+                                        : [accent, accent],
+                                    center: .center
+                                ),
+                                style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(-90))
+                            .padding(8)
                     }
-                    .padding(.bottom, 2)
-                    Text("\(Int(abs(model.speed).rounded()))")
-                        .font(.system(size: speedFont, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(ink)
-                        .minimumScaleFactor(0.45)
-                        .lineLimit(1)
-                    Text("km/h")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(muted)
+                    VStack(spacing: 0) {
+                        HStack(spacing: dialSize * 0.07) {
+                            ForEach(["P", "R", "N", "D"], id: \.self) { g in
+                                Text(g)
+                                    .font(.system(size: max(14, dialSize * 0.07), weight: .bold))
+                                    .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: ink, dim: dim))
+                            }
+                        }
+                        .padding(.bottom, 4)
+                        Text("\(Int(abs(model.speed).rounded()))")
+                            .font(.system(size: speedFont, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(ink)
+                            .minimumScaleFactor(0.5)
+                            .lineLimit(1)
+                        Text("km/h")
+                            .font(.system(size: max(12, dialSize * 0.055), weight: .medium))
+                            .foregroundStyle(muted)
+                    }
                 }
+                .frame(width: dialSize, height: dialSize)
+                if settings.liveLocation == .bottom, !isBlank(model.place) {
+                    locationChip
+                }
+                Spacer(minLength: 2)
             }
-            .frame(width: dialSize, height: dialSize)
-            if settings.liveLocation == .bottom, !isBlank(model.place) {
-                locationChip
-            }
-            Spacer(minLength: 4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             LinearGradient(
                 colors: [.black, .black, Color.black.opacity(0.12)],
