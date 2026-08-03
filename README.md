@@ -13,7 +13,7 @@ PC’ye Node/EXE **kurulmaz**. BeamNG modu + iPhone Safari.
 ## Dosyalar
 - `beamng-mod/eymen_html_cluster/` — kaynak mod  
 - `dist/eymen_html_cluster.zip` — kurulum zip  
-- `dist/EYMEN-BeamNG-Cluster.apk` — eski Android seçeneği (isteğe bağlı)  
+- `dist/EYMEN-BeamNG-Cluster.apk` — Android native kadran (v4.0, WebView yok). OutGauge 4444 + MotionSim 4445 → telefon IP  
 
 ## Lisans
 MIT
