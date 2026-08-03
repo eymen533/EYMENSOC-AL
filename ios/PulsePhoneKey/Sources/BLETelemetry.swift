@@ -43,6 +43,7 @@ final class BLETelemetry {
     private let pollActions: [() -> Data] = [
         TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetDriveAndLocation,
+        TeslaBLESession.actionGetLocation,
         TeslaBLESession.actionGetDrive,
         TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetMedia,
@@ -52,6 +53,7 @@ final class BLETelemetry {
         TeslaBLESession.actionGetTire,
         TeslaBLESession.actionGetClimate,
         TeslaBLESession.actionGetClosures,
+        TeslaBLESession.actionGetLocation,
     ]
 
     func attach(

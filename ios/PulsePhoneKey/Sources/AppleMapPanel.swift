@@ -52,9 +52,9 @@ struct AppleMapPanel: View {
                 Color(red: 0.12, green: 0.13, blue: 0.14)
                 Text("Araç GPS bekleniyor")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.65))
+                    .foregroundStyle(.white.opacity(0.85))
                     .padding(10)
-                    .background(Capsule().fill(.black.opacity(0.45)))
+                    .background(Capsule().fill(.black.opacity(0.5)))
             }
         }
         .onAppear { fetchRouteIfNeeded(force: true) }

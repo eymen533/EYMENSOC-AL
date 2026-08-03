@@ -24,14 +24,22 @@ struct NativeHUDView: View {
         night ? .black : Color(red: 0.97, green: 0.97, blue: 0.98)
     }
     private var chipFill: Color {
-        night ? Color.black.opacity(0.72) : Color.white.opacity(0.88)
+        night ? Color.black.opacity(0.72) : Color.black.opacity(0.45)
     }
+    /// Soft blend into dial — always dark so day mode never paints white bars.
+    private var fadeIntoDial: Color { Color.black }
+
+    private var leftBleed: Bool { model.leftSlide == 3 || model.leftSlide == 4 }
+    private var rightBleed: Bool { model.rightSlide == 3 || model.rightSlide == 4 }
+    private var anyBleed: Bool { leftBleed || rightBleed }
 
     var body: some View {
         GeometryReader { geo in
             let wide = geo.size.width >= geo.size.height
             ZStack(alignment: .top) {
-                canvas.ignoresSafeArea()
+                // Full-bleed visual first — no empty white strips.
+                fullBleedBackdrop
+                    .ignoresSafeArea()
 
                 if mapExpanded {
                     fullscreenMap(geo: geo)
@@ -42,10 +50,10 @@ struct NativeHUDView: View {
                 }
 
                 topBar
-                    .frame(height: 36)
+                    .frame(height: 40)
             }
         }
-        .preferredColorScheme(night ? .dark : .light)
+        .preferredColorScheme(anyBleed ? .dark : (night ? .dark : .light))
         .statusBarHidden(true)
         .onAppear {
             model.start()
@@ -71,6 +79,34 @@ struct NativeHUDView: View {
         }
     }
 
+    /// Prefer map/media as edge-to-edge background (same visual under chrome).
+    @ViewBuilder
+    private var fullBleedBackdrop: some View {
+        let slide = model.leftSlide == 3 || model.rightSlide == 3
+            ? 3
+            : (model.leftSlide == 4 || model.rightSlide == 4 ? 4 : -1)
+        switch slide {
+        case 3:
+            VehicleMapView(
+                lat: model.latitude,
+                lon: model.longitude,
+                heading: model.mapHeading,
+                destination: routeDestination,
+                destLat: model.destLatitude,
+                destLon: model.destLongitude,
+                turnByTurn: true,
+                turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
+                turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
+                turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 }),
+                forceDark: true
+            )
+        case 4:
+            AlbumArtFill(image: art.image, url: art.imageURL, loading: art.loading)
+        default:
+            canvas
+        }
+    }
+
     private enum Side { case left, right }
 
     // MARK: - Triad (Dashla overlap — dial dead-center)
@@ -78,25 +114,22 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        // Equal visual top/bottom: account for top bar + bottom battery band.
-        let topSafe: CGFloat = 40
-        let bottomSafe: CGFloat = 34
-        let contentH = max(160, h - topSafe - bottomSafe)
-        let dialW = min(w * 0.32, contentH - 16)
+        // True vertical center — bleed fills full height (no white top/bottom strips).
+        let dialW = min(w * 0.32, h * 0.72)
         let cx = w * 0.5
-        let cy = topSafe + contentH * 0.5
+        let cy = h * 0.5
         let gap: CGFloat = 12
         let sideW = max(150, (w - dialW) / 2 - gap)
-        // Map + media tuck under dial the same way.
         let bleedW = sideW + dialW * 0.34
-        let panelH = min(dialW * 1.02, contentH)
-        let leftBleed = model.leftSlide == 3 || model.leftSlide == 4
-        let rightBleed = model.rightSlide == 3 || model.rightSlide == 4
+        let panelH = min(dialW * 1.02, h * 0.78)
+        let chromeInk = anyBleed ? Color.white : ink
+        let chromeMuted = anyBleed ? Color.white.opacity(0.7) : muted
         return ZStack {
             HStack(spacing: 0) {
                 Group {
                     if leftBleed {
-                        bleedSurface(slide: model.leftSlide, edge: .trailing, side: .left)
+                        // Backdrop already paints art/map; keep interactive overlay + side fade.
+                        bleedSurface(slide: model.leftSlide, edge: .trailing, side: .left, asOverlay: anyBleed)
                             .frame(maxHeight: .infinity)
                     } else {
                         sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
@@ -109,7 +142,7 @@ struct NativeHUDView: View {
 
                 Group {
                     if rightBleed {
-                        bleedSurface(slide: model.rightSlide, edge: .leading, side: .right)
+                        bleedSurface(slide: model.rightSlide, edge: .leading, side: .right, asOverlay: anyBleed)
                             .frame(maxHeight: .infinity)
                     } else {
                         sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
@@ -118,10 +151,7 @@ struct NativeHUDView: View {
                 }
                 .frame(width: rightBleed ? bleedW : sideW)
             }
-            .frame(height: contentH)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .padding(.top, topSafe)
-            .padding(.bottom, bottomSafe)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                 .position(x: max(16, cx - dialW * 0.5 - 18), y: cy)
@@ -131,50 +161,81 @@ struct NativeHUDView: View {
             dialView(size: dialW)
                 .position(x: cx, y: cy)
 
-            dialStatusStrip(maxWidth: dialW * 1.05)
-                .position(x: cx, y: min(h - bottomSafe * 0.55, cy + dialW * 0.5 + 14))
+            // Route / destination chip under dial when car has nav.
+            if !isBlank(model.destination) {
+                Text(model.destination)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(chromeInk)
+                    .lineLimit(1)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                    .position(x: cx, y: min(h - 36, cy + dialW * 0.5 + 36))
+            }
 
-            batteryChip
-                .position(x: 70, y: h - bottomSafe * 0.45)
+            dialStatusStrip(maxWidth: dialW * 1.05)
+                .position(x: cx, y: min(h - 22, cy + dialW * 0.5 + 14))
+
+            HStack {
+                batteryChip
+                Spacer()
+                Text(odoText)
+                    .font(.caption2.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(chromeMuted)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.black.opacity(0.45)))
+            }
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .padding(.bottom, 12)
         }
     }
 
     @ViewBuilder
-    private func bleedSurface(slide: Int, edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
+    private func bleedSurface(
+        slide: Int,
+        edge: MapEdge,
+        side: Side,
+        verticalFromTop: Bool? = nil,
+        asOverlay: Bool = false
+    ) -> some View {
         if slide == 4 {
-            mediaSurface(edge: edge, side: side, verticalFromTop: verticalFromTop)
+            mediaSurface(edge: edge, side: side, verticalFromTop: verticalFromTop, asOverlay: asOverlay)
         } else {
-            mapSurface(edge: edge, side: side, showTapExpand: true, verticalFromTop: verticalFromTop)
+            mapSurface(edge: edge, side: side, showTapExpand: true, verticalFromTop: verticalFromTop, asOverlay: asOverlay)
         }
     }
 
     private func triadPortrait(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        // Equal top/bottom wings around the dial.
-        let topSafe: CGFloat = 40
-        let bottomSafe: CGFloat = 36
-        let contentH = max(220, h - topSafe - bottomSafe)
+        // Equal top/bottom wings; backdrop already fills screen (no white strips).
         let gap: CGFloat = 8
-        let dialW = min(w * 0.54, contentH * 0.32)
-        let wingH = max(96, (contentH - dialW - gap * 2) / 2)
+        let dialW = min(w * 0.54, h * 0.30)
+        let wingH = max(96, (h - dialW - gap * 2) / 2)
         let bleedExtra = dialW * 0.28
         let cx = w * 0.5
-        let cy = topSafe + wingH + gap + dialW * 0.5
+        let cy = wingH + gap + dialW * 0.5
         let topBleed = model.leftSlide == 3 || model.leftSlide == 4
         let bottomBleed = model.rightSlide == 3 || model.rightSlide == 4
         return ZStack {
             VStack(spacing: gap) {
                 Group {
                     if topBleed {
-                        bleedSurface(slide: model.leftSlide, edge: .trailing, side: .left, verticalFromTop: false)
+                        bleedSurface(
+                            slide: model.leftSlide,
+                            edge: .trailing,
+                            side: .left,
+                            verticalFromTop: false,
+                            asOverlay: anyBleed
+                        )
                     } else {
                         sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                     }
                 }
                 .frame(height: topBleed ? wingH + bleedExtra : wingH)
                 .frame(maxWidth: .infinity)
-                // Extend toward dial from above.
                 .padding(.bottom, topBleed ? -bleedExtra : 0)
                 .zIndex(topBleed ? 0 : 1)
 
@@ -184,7 +245,13 @@ struct NativeHUDView: View {
 
                 Group {
                     if bottomBleed {
-                        bleedSurface(slide: model.rightSlide, edge: .leading, side: .right, verticalFromTop: true)
+                        bleedSurface(
+                            slide: model.rightSlide,
+                            edge: .leading,
+                            side: .right,
+                            verticalFromTop: true,
+                            asOverlay: anyBleed
+                        )
                     } else {
                         sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                     }
@@ -194,19 +261,30 @@ struct NativeHUDView: View {
                 .padding(.top, bottomBleed ? -bleedExtra : 0)
                 .zIndex(bottomBleed ? 0 : 1)
             }
-            .padding(.top, topSafe)
-            .padding(.bottom, bottomSafe)
+            .frame(maxHeight: .infinity)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
                 .zIndex(3)
 
+            if !isBlank(model.destination) {
+                Text(model.destination)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                    .position(x: cx, y: min(h - 40, cy + dialW * 0.5 + 34))
+                    .zIndex(3)
+            }
+
             dialStatusStrip(maxWidth: dialW * 1.05)
-                .position(x: cx, y: min(h - bottomSafe * 0.5, cy + dialW * 0.5 + 14))
+                .position(x: cx, y: min(h - 28, cy + dialW * 0.5 + 14))
                 .zIndex(3)
 
             batteryChip
-                .position(x: 70, y: h - bottomSafe * 0.45)
+                .position(x: 70, y: h - 22)
                 .zIndex(3)
         }
     }
@@ -214,9 +292,9 @@ struct NativeHUDView: View {
     @ViewBuilder
     private func rightPanel(showTapExpand: Bool) -> some View {
         if model.rightSlide == 3 {
-            mapSurface(edge: .leading, side: .right, showTapExpand: showTapExpand, verticalFromTop: nil)
+            mapSurface(edge: .leading, side: .right, showTapExpand: showTapExpand, verticalFromTop: nil, asOverlay: false)
         } else if model.rightSlide == 4 {
-            mediaSurface(edge: .leading, side: .right, verticalFromTop: nil)
+            mediaSurface(edge: .leading, side: .right, verticalFromTop: nil, asOverlay: false)
         } else {
             sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
         }
@@ -343,21 +421,30 @@ struct NativeHUDView: View {
     // MARK: - Top bar
 
     private var topBar: some View {
-        HStack(spacing: 10) {
+        let barInk = anyBleed ? Color.white : ink
+        let barMuted = anyBleed ? Color.white.opacity(0.7) : muted
+        return HStack(spacing: 10) {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(ink)
+                    .foregroundStyle(barInk)
             }
             Text(model.clock.isEmpty ? "--:--" : model.clock)
                 .font(.subheadline.monospacedDigit().weight(.semibold))
-                .foregroundStyle(ink)
+                .foregroundStyle(barInk)
             Text(model.outdoorC == 0 ? "--°C" : "\(model.outdoorC)°C")
                 .font(.subheadline)
-                .foregroundStyle(muted)
+                .foregroundStyle(barMuted)
             Image(systemName: "car.fill")
                 .font(.caption)
-                .foregroundStyle(model.bleOK || model.isLive ? accent : dim)
+                .foregroundStyle(model.bleOK || model.isLive ? accent : barMuted.opacity(0.5))
+            if !isBlank(model.destination) {
+                Text(model.destination)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(barInk)
+                    .lineLimit(1)
+                    .frame(maxWidth: 140, alignment: .leading)
+            }
             Spacer(minLength: 6)
 
             Circle()
@@ -365,7 +452,7 @@ struct NativeHUDView: View {
                 .frame(width: 7, height: 7)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 5)
-                .background(Capsule().fill(night ? Color.white.opacity(0.10) : Color.black.opacity(0.08)))
+                .background(Capsule().fill(Color.black.opacity(0.35)))
 
             HStack(spacing: 5) {
                 Image(systemName: phoneBattIcon)
@@ -373,24 +460,22 @@ struct NativeHUDView: View {
                 Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
                     .font(.caption.monospacedDigit().weight(.semibold))
             }
-            .foregroundStyle(ink)
+            .foregroundStyle(barInk)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(night ? Color.white.opacity(0.10) : Color.black.opacity(0.08)))
+            .background(Capsule().fill(Color.black.opacity(0.35)))
 
             Button { onSettings?() } label: {
                 Image(systemName: "gearshape.fill")
                     .font(.caption)
-                    .foregroundStyle(muted)
+                    .foregroundStyle(barMuted)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
         .background(
             LinearGradient(
-                colors: night
-                    ? [Color.black.opacity(0.92), Color.black.opacity(0.35), .clear]
-                    : [canvas.opacity(0.96), canvas.opacity(0.55), .clear],
+                colors: [Color.black.opacity(0.72), Color.black.opacity(0.28), .clear],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -494,21 +579,29 @@ struct NativeHUDView: View {
 
     // MARK: - Map surface
 
-    private func mapSurface(edge: MapEdge, side: Side, showTapExpand: Bool, verticalFromTop: Bool? = nil) -> some View {
+    private func mapSurface(
+        edge: MapEdge,
+        side: Side,
+        showTapExpand: Bool,
+        verticalFromTop: Bool? = nil,
+        asOverlay: Bool = false
+    ) -> some View {
         ZStack(alignment: .topLeading) {
-            VehicleMapView(
-                lat: model.latitude,
-                lon: model.longitude,
-                heading: model.mapHeading,
-                destination: routeDestination,
-                destLat: model.destLatitude,
-                destLon: model.destLongitude,
-                turnByTurn: true,
-                turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
-                turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
-                turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 }),
-                forceDark: night
-            )
+            if !asOverlay {
+                VehicleMapView(
+                    lat: model.latitude,
+                    lon: model.longitude,
+                    heading: model.mapHeading,
+                    destination: routeDestination,
+                    destLat: model.destLatitude,
+                    destLon: model.destLongitude,
+                    turnByTurn: true,
+                    turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
+                    turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
+                    turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 }),
+                    forceDark: true
+                )
+            }
 
             if !mapExpanded {
                 if let verticalFromTop {
@@ -518,30 +611,29 @@ struct NativeHUDView: View {
                 }
             }
 
+            // Route status when GPS coords missing but destination known.
+            if !mapExpanded, !hasCarGPS, !isBlank(model.destination) {
+                Text(model.destination)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.55)))
+                    .padding(12)
+            } else if !mapExpanded, !hasCarGPS {
+                Text("Araç GPS / rota bekleniyor")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Color.black.opacity(0.5)))
+                    .padding(12)
+            }
+
             if !mapExpanded, model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
                 turnBanner
                     .padding(.leading, edge == .leading ? 20 : 12)
                     .padding(.top, 10)
-            }
-
-            if !mapExpanded {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 8) {
-                            compassBadge
-                            Text(odoText)
-                                .font(.caption2.monospacedDigit().weight(.semibold))
-                                .foregroundStyle(night ? .white.opacity(0.9) : ink.opacity(0.85))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Capsule().fill(chipFill))
-                        }
-                        .padding(12)
-                    }
-                }
-                .allowsHitTesting(false)
             }
 
             if showTapExpand {
@@ -557,9 +649,16 @@ struct NativeHUDView: View {
     }
 
     /// Album art fills the panel and tucks under the dial like the map.
-    private func mediaSurface(edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
+    private func mediaSurface(
+        edge: MapEdge,
+        side: Side,
+        verticalFromTop: Bool? = nil,
+        asOverlay: Bool = false
+    ) -> some View {
         ZStack {
-            AlbumArtFill(image: art.image, url: art.imageURL, loading: art.loading)
+            if !asOverlay {
+                AlbumArtFill(image: art.image, url: art.imageURL, loading: art.loading)
+            }
 
             if let verticalFromTop {
                 dialFadeVertical(fromTop: verticalFromTop)
@@ -568,7 +667,7 @@ struct NativeHUDView: View {
             }
 
             LinearGradient(
-                colors: [.clear, .black.opacity(0.55), .black.opacity(0.82)],
+                colors: [.clear, .black.opacity(0.45), .black.opacity(0.78)],
                 startPoint: .center,
                 endPoint: .bottom
             )
@@ -603,12 +702,12 @@ struct NativeHUDView: View {
         }
     }
 
-    /// Soft blend into dial — opaque on dial side, clear toward outer edge.
+    /// Soft blend into dial — opaque on dial side, clear toward outer edge (never day-white).
     private func dialFade(edge: MapEdge) -> some View {
         let dialSide: UnitPoint = edge == .leading ? .leading : .trailing
         let outerSide: UnitPoint = edge == .leading ? .trailing : .leading
         return LinearGradient(
-            colors: [canvas.opacity(0.92), canvas.opacity(0.28), .clear],
+            colors: [fadeIntoDial.opacity(0.88), fadeIntoDial.opacity(0.25), .clear],
             startPoint: dialSide,
             endPoint: outerSide
         )
@@ -619,13 +718,17 @@ struct NativeHUDView: View {
 
     private func dialFadeVertical(fromTop: Bool) -> some View {
         LinearGradient(
-            colors: [canvas.opacity(0.92), canvas.opacity(0.28), .clear],
+            colors: [fadeIntoDial.opacity(0.88), fadeIntoDial.opacity(0.25), .clear],
             startPoint: fromTop ? .top : .bottom,
             endPoint: fromTop ? .bottom : .top
         )
         .frame(height: 56)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: fromTop ? .top : .bottom)
         .allowsHitTesting(false)
+    }
+
+    private var hasCarGPS: Bool {
+        abs(model.latitude) > 0.0001 || abs(model.longitude) > 0.0001
     }
 
     private var compassBadge: some View {
