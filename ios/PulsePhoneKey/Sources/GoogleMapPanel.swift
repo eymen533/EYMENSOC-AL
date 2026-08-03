@@ -207,6 +207,7 @@ struct VehicleMapView: View {
     var destLat: Double = 0
     var destLon: Double = 0
     var apiKey: String = "" // ignored — kept for call-site compatibility
+    var turnByTurn: Bool = true
     @Binding var turnDistanceM: Int
     @Binding var turnInstruction: String
     @Binding var turnSymbol: String
@@ -222,6 +223,7 @@ struct VehicleMapView: View {
             destLon: destLon,
             autoZoom: settings.autoZoom,
             theme: settings.mapTheme,
+            turnByTurn: turnByTurn,
             turnDistanceM: $turnDistanceM,
             turnInstruction: $turnInstruction,
             turnSymbol: $turnSymbol

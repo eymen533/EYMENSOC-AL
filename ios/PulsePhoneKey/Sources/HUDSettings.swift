@@ -12,9 +12,9 @@ final class HUDSettings: ObservableObject {
         case performance = "Performans"
         var id: String { rawValue }
         /// BLE poll interval seconds
-        var bleInterval: TimeInterval { self == .performance ? 0.10 : 0.45 }
+        var bleInterval: TimeInterval { self == .performance ? 0.14 : 0.5 }
         /// Dash HTTP poll nanoseconds
-        var dashNanos: UInt64 { self == .performance ? 150_000_000 : 800_000_000 }
+        var dashNanos: UInt64 { self == .performance ? 200_000_000 : 900_000_000 }
     }
 
     enum SpeedStyle: String, CaseIterable, Identifiable {
