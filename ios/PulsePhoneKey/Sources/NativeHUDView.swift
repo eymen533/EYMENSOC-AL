@@ -65,37 +65,45 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.42, h * 0.82)
+        // Smaller dial so side panels have room for a full Model Y graphic.
+        let dialW = min(w * 0.34, h * 0.70)
         let cx = w * 0.5
         let cy = h * 0.52
-        // Side panels stay mostly clear of the dial; only a slight tuck under the circle.
-        let clearSide = max(120, (w - dialW) * 0.5)
-        let tuck = dialW * 0.08
-        let sideW = clearSide + tuck
+        let gap: CGFloat = 12
+        // Hard clear zone — content never sits under the dial circle.
+        let sideW = max(130, (w - dialW) / 2 - gap)
+        // Map may peek slightly under the dial; tires/media may not.
+        let mapW = sideW + dialW * 0.22
+        let rightIsMap = model.rightSlide == 3
+        let leftIsMap = model.leftSlide == 3
         return ZStack {
             HStack(spacing: 0) {
-                sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
-                    .frame(width: sideW)
+                Group {
+                    if leftIsMap {
+                        mapSurface(edge: .trailing, showTapExpand: true)
+                    } else {
+                        sideColumn(slide: model.leftSlide, side: .left, showBattery: true)
+                    }
+                }
+                .frame(width: leftIsMap ? mapW : sideW)
+
                 Spacer(minLength: 0)
-                rightPanel(showTapExpand: true)
-                    .frame(width: sideW)
+
+                Group {
+                    if rightIsMap {
+                        mapSurface(edge: .leading, showTapExpand: true)
+                    } else {
+                        sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                    }
+                }
+                .frame(width: rightIsMap ? mapW : sideW)
             }
             .padding(.top, 28)
 
-            RadialGradient(
-                colors: [Color.black.opacity(0.55), Color.black.opacity(0.15), .clear],
-                center: .center,
-                startRadius: dialW * 0.32,
-                endRadius: dialW * 0.62
-            )
-            .frame(width: dialW * 1.2, height: dialW * 1.2)
-            .position(x: cx, y: cy)
-            .allowsHitTesting(false)
-
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
-                .position(x: max(18, cx - dialW * 0.52 - 8), y: cy)
+                .position(x: max(16, cx - dialW * 0.5 - 16), y: cy)
             sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
-                .position(x: min(w - 18, cx + dialW * 0.52 + 8), y: cy)
+                .position(x: min(w - 16, cx + dialW * 0.5 + 16), y: cy)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
@@ -103,30 +111,21 @@ struct NativeHUDView: View {
     }
 
     private func triadPortrait(geo: GeometryProxy) -> some View {
-        // Portrait still centers the dial; panels tuck above/below feel — prefer landscape.
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.72, h * 0.42)
+        let dialW = min(w * 0.58, h * 0.34)
         let cx = w * 0.5
-        let cy = h * 0.42
+        let cy = h * 0.38
         return ZStack {
-            VStack(spacing: 0) {
+            VStack(spacing: 8) {
                 sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
-                    .frame(height: h * 0.28)
+                    .frame(height: max(160, (h - dialW) * 0.42))
+                Spacer(minLength: dialW * 0.15)
                 rightPanel(showTapExpand: true)
                     .frame(maxHeight: .infinity)
             }
-            .padding(.top, 28)
-
-            RadialGradient(
-                colors: [Color.black.opacity(0.75), Color.black.opacity(0.2), .clear],
-                center: .center,
-                startRadius: dialW * 0.25,
-                endRadius: dialW * 0.7
-            )
-            .frame(width: dialW * 1.3, height: dialW * 1.3)
-            .position(x: cx, y: cy)
-            .allowsHitTesting(false)
+            .padding(.top, 36)
+            .padding(.horizontal, 8)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
