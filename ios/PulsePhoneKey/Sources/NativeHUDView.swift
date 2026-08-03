@@ -59,17 +59,20 @@ struct NativeHUDView: View {
             model.start()
             model.pulseRails()
             UIApplication.shared.isIdleTimerDisabled = true
-            MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist)
+            MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist, album: model.mediaAlbum)
         }
         .onDisappear {
             model.stop()
             UIApplication.shared.isIdleTimerDisabled = false
         }
         .onChangeCompat(of: model.mediaTitle) { _ in
-            MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist)
+            MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist, album: model.mediaAlbum)
         }
         .onChangeCompat(of: model.mediaArtist) { _ in
-            MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist)
+            MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist, album: model.mediaAlbum)
+        }
+        .onChangeCompat(of: model.mediaAlbum) { _ in
+            MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist, album: model.mediaAlbum)
         }
     }
 
@@ -328,7 +331,7 @@ struct NativeHUDView: View {
     private var mediaPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             mediaServiceHeader
-            AlbumArtView(image: art.image, size: 128)
+            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: 132)
             Text(displayOrDash(model.mediaTitle))
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(ink)

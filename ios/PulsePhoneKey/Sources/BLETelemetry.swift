@@ -114,6 +114,7 @@ final class BLETelemetry {
                 liveOK = false
             }
             inFlight = max(0, inFlight - 1)
+            lastNotifyAt = Date()
             notify()
         }
     }
@@ -144,6 +145,10 @@ final class BLETelemetry {
 
     private func tick() {
         guard session != nil, peripheral?.state == .connected else { return }
+        // If replies stalled, don't freeze the HUD forever.
+        if inFlight > 0, Date().timeIntervalSince(lastNotifyAt) > 1.4 {
+            inFlight = 0
+        }
         // Pipeline: only pause if writes busy or too many unanswered.
         if writing || !writeQueue.isEmpty { return }
         if inFlight >= maxInFlight { return }

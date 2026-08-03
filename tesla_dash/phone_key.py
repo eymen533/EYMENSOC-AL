@@ -600,6 +600,8 @@ def register_phone_key(server) -> None:
                 "odometer_km": s.get("odometer_km"),
                 "street": s.get("street"),
                 "destination": s.get("destination"),
+                "destination_lat": s.get("destination_lat"),
+                "destination_lon": s.get("destination_lon"),
                 "arrival_time": s.get("arrival_time"),
                 "energy_at_arrival": s.get("energy_at_arrival"),
                 "trip_distance_km": s.get("trip_distance_km"),

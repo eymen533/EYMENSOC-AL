@@ -484,6 +484,8 @@ final class TeslaBLESession {
             case 7:
                 if let s = String(data: f.bytes, encoding: .utf8), !s.isEmpty {
                     snapshot.destination = s
+                } else if f.bytes.isEmpty {
+                    // Empty oneof clear
                 }
             case 8: // minutes to arrival float
                 if let mins = ProtoWire.float32(f.bytes) {
@@ -498,17 +500,22 @@ final class TeslaBLESession {
                 if let e = ProtoWire.float32(f.bytes) {
                     snapshot.energyAtArrival = String(format: "%.0f%%", e)
                 }
-            case 12: // active_route_coordinates LatLong { lat=1, lon=2 }
+            case 12: // active_route_coordinates LatLong { lat=1 float, lon=2 float }
+                var dLat: Double?
+                var dLon: Double?
                 for sf in ProtoWire.parseFields(f.bytes) {
                     switch sf.number {
                     case 1:
-                        if let fl = ProtoWire.float32(sf.bytes) { snapshot.destLatitude = Double(fl) }
-                        else if let d = ProtoWire.double64(sf.bytes) { snapshot.destLatitude = d }
+                        if let v = Self.readCoord(sf) { dLat = v }
                     case 2:
-                        if let fl = ProtoWire.float32(sf.bytes) { snapshot.destLongitude = Double(fl) }
-                        else if let d = ProtoWire.double64(sf.bytes) { snapshot.destLongitude = d }
+                        if let v = Self.readCoord(sf) { dLon = v }
                     default: break
                     }
+                }
+                if let dLat, let dLon, abs(dLat) <= 90, abs(dLon) <= 180,
+                   abs(dLat) > 0.0001 || abs(dLon) > 0.0001 {
+                    snapshot.destLatitude = dLat
+                    snapshot.destLongitude = dLon
                 }
             default: break
             }

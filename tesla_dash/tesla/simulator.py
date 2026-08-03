@@ -85,6 +85,8 @@ class VehicleState:
     media_progress: float = 0.35
     # Trip / navigation panel
     destination: str = "--"
+    destination_lat: float = 0.0
+    destination_lon: float = 0.0
     arrival_time: str = "--"
     energy_at_arrival: str = "--"
     trip_distance_km: str = "--"
@@ -262,6 +264,7 @@ class DemoSimulator:
         turn_right = blink_on and self._turn in {"right", "hazard"}
 
         # Trip panel — remaining route while driving
+        dest_coords = (0.0, 0.0)
         if self._phase == "drive":
             rem_km = max(1.2, 18.0 - (self._route_idx % 18.0) * 0.85)
             eta_min = int(rem_km / max(self._speed, 25.0) * 60)
@@ -273,6 +276,8 @@ class DemoSimulator:
             arrival_time = arrival
             energy_at_arrival = f"{energy_arr}%"
             trip_distance = f"{rem_km:.1f} km"
+            dest_idx = min(len(_ROUTE) - 1, (self._route_idx + 6) % len(_ROUTE))
+            dest_coords = _ROUTE[dest_idx]
         else:
             destination = "--"
             arrival_time = "--"
@@ -325,6 +330,8 @@ class DemoSimulator:
             media_service=track["service"],
             media_progress=round(progress, 3),
             destination=destination,
+            destination_lat=float(dest_coords[0]) if dest_coords else 0.0,
+            destination_lon=float(dest_coords[1]) if dest_coords else 0.0,
             arrival_time=arrival_time,
             energy_at_arrival=energy_at_arrival,
             trip_distance_km=trip_distance,

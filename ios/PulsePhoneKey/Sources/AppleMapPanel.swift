@@ -1,8 +1,8 @@
 import SwiftUI
 import MapKit
+import CoreLocation
 
-/// Apple Maps — live car GPS from BLE. No Google/API key.
-/// MKMapView for iOS 16+ (no MapCameraPosition).
+/// Apple Maps — live car GPS + car nav destination route. No API key.
 struct AppleMapPanel: View {
     var lat: Double
     var lon: Double
@@ -17,12 +17,20 @@ struct AppleMapPanel: View {
     @Binding var turnSymbol: String
 
     @State private var routeCoords: [CLLocationCoordinate2D] = []
+    @State private var resolvedDest: CLLocationCoordinate2D?
     @State private var lastRouteKey = ""
+    @State private var routeBusy = false
 
     private var hasGPS: Bool { abs(lat) > 0.0001 || abs(lon) > 0.0001 }
     private var hasDestCoord: Bool { abs(destLat) > 0.0001 || abs(destLon) > 0.0001 }
     private var coord: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: lat, longitude: lon)
+    }
+    private var destCoord: CLLocationCoordinate2D? {
+        if hasDestCoord {
+            return CLLocationCoordinate2D(latitude: destLat, longitude: destLon)
+        }
+        return resolvedDest
     }
 
     var body: some View {
@@ -32,6 +40,7 @@ struct AppleMapPanel: View {
                     center: coord,
                     heading: heading,
                     route: routeCoords,
+                    destination: destCoord,
                     autoZoom: autoZoom,
                     dark: theme == .dark || theme == .auto
                 )
@@ -44,48 +53,113 @@ struct AppleMapPanel: View {
                     .background(Capsule().fill(.black.opacity(0.45)))
             }
         }
-        .onAppear { fetchRouteIfNeeded() }
-        .onChangeCompat(of: lat) { _ in fetchRouteIfNeeded() }
-        .onChangeCompat(of: lon) { _ in fetchRouteIfNeeded() }
-        .onChangeCompat(of: destination) { _ in fetchRouteIfNeeded() }
-        .onChangeCompat(of: destLat) { _ in fetchRouteIfNeeded() }
-        .onChangeCompat(of: destLon) { _ in fetchRouteIfNeeded() }
+        .onAppear { fetchRouteIfNeeded(force: true) }
+        .onChangeCompat(of: lat) { _ in fetchRouteIfNeeded(force: false) }
+        .onChangeCompat(of: lon) { _ in fetchRouteIfNeeded(force: false) }
+        .onChangeCompat(of: destination) { _ in
+            resolvedDest = nil
+            lastRouteKey = ""
+            fetchRouteIfNeeded(force: true)
+        }
+        .onChangeCompat(of: destLat) { _ in
+            lastRouteKey = ""
+            fetchRouteIfNeeded(force: true)
+        }
+        .onChangeCompat(of: destLon) { _ in
+            lastRouteKey = ""
+            fetchRouteIfNeeded(force: true)
+        }
     }
 
-    private func fetchRouteIfNeeded() {
+    private func fetchRouteIfNeeded(force: Bool) {
         let dest = destination.trimmingCharacters(in: .whitespacesAndNewlines)
         let nameOK = !dest.isEmpty && dest != "—" && dest != "-" && dest != "--"
         guard hasGPS else { return }
         guard hasDestCoord || nameOK else {
             routeCoords = []
+            resolvedDest = nil
             lastRouteKey = ""
             turnDistanceM = 0
             turnInstruction = ""
             turnSymbol = "arrow.up"
             return
         }
+
         let key: String
         if hasDestCoord {
-            // Re-route when car moved ~40m or dest changed.
-            key = String(format: "%.3f,%.3f->%.4f,%.4f", lat, lon, destLat, destLon)
+            key = String(format: "c:%.4f,%.4f->%.5f,%.5f", lat, lon, destLat, destLon)
         } else {
-            key = String(format: "%.3f,%.3f|%@", lat, lon, dest)
+            key = String(format: "n:%.3f,%.3f|%@", lat, lon, dest)
         }
-        guard key != lastRouteKey else { return }
+        if !force, key == lastRouteKey { return }
         lastRouteKey = key
+        if routeBusy { return }
+        routeBusy = true
 
         if hasDestCoord {
-            calculateRoute(to: CLLocationCoordinate2D(latitude: destLat, longitude: destLon))
+            let end = CLLocationCoordinate2D(latitude: destLat, longitude: destLon)
+            resolvedDest = end
+            calculateRoute(to: end)
             return
         }
 
-        let req = MKLocalSearch.Request()
-        req.naturalLanguageQuery = dest
-        req.region = MKCoordinateRegion(center: coord, latitudinalMeters: 120_000, longitudinalMeters: 120_000)
-        MKLocalSearch(request: req).start { response, _ in
-            guard let end = response?.mapItems.first?.placemark.coordinate else { return }
-            self.calculateRoute(to: end)
+        resolveDestination(named: dest) { end in
+            if let end {
+                self.resolvedDest = end
+                self.calculateRoute(to: end)
+            } else {
+                self.routeBusy = false
+                self.routeCoords = []
+            }
         }
+    }
+
+    private func resolveDestination(named dest: String, completion: @escaping (CLLocationCoordinate2D?) -> Void) {
+        let queries = Self.destinationQueries(dest)
+        searchNext(queries: queries, index: 0, completion: completion)
+    }
+
+    private func searchNext(queries: [String], index: Int, completion: @escaping (CLLocationCoordinate2D?) -> Void) {
+        guard index < queries.count else {
+            // Last resort: CLGeocoder
+            let geocoder = CLGeocoder()
+            let region = CLCircularRegion(
+                center: coord,
+                radius: 80_000,
+                identifier: "pulse.nav"
+            )
+            geocoder.geocodeAddressString(queries.first ?? destination, in: region) { marks, _ in
+                DispatchQueue.main.async {
+                    completion(marks?.first?.location?.coordinate)
+                }
+            }
+            return
+        }
+        let q = queries[index]
+        let req = MKLocalSearch.Request()
+        req.naturalLanguageQuery = q
+        req.resultTypes = [.address, .pointOfInterest]
+        req.region = MKCoordinateRegion(center: coord, latitudinalMeters: 150_000, longitudinalMeters: 150_000)
+        MKLocalSearch(request: req).start { response, _ in
+            if let end = response?.mapItems.first?.placemark.coordinate {
+                DispatchQueue.main.async { completion(end) }
+            } else {
+                self.searchNext(queries: queries, index: index + 1, completion: completion)
+            }
+        }
+    }
+
+    private static func destinationQueries(_ dest: String) -> [String] {
+        var out: [String] = [dest]
+        let trimmed = dest
+            .replacingOccurrences(of: #"No[:\s]*\d+"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty, trimmed != dest { out.append(trimmed) }
+        out.append("\(dest), Türkiye")
+        if !trimmed.isEmpty { out.append("\(trimmed), Türkiye") }
+        // Unique preserve order
+        var seen = Set<String>()
+        return out.filter { seen.insert($0.lowercased()).inserted }
     }
 
     private func calculateRoute(to end: CLLocationCoordinate2D) {
@@ -96,20 +170,32 @@ struct AppleMapPanel: View {
         dreq.requestsAlternateRoutes = false
         MKDirections(request: dreq).calculate { result, _ in
             DispatchQueue.main.async {
-                guard let route = result?.routes.first else { return }
-                let poly = route.polyline
-                var coords = Array(
-                    repeating: CLLocationCoordinate2D(),
-                    count: poly.pointCount
-                )
-                poly.getCoordinates(&coords, range: NSRange(location: 0, length: poly.pointCount))
-                self.routeCoords = coords
-                Self.applyTurnGuidance(
-                    route: route,
-                    distanceM: &self.turnDistanceM,
-                    instruction: &self.turnInstruction,
-                    symbol: &self.turnSymbol
-                )
+                self.routeBusy = false
+                if let route = result?.routes.first {
+                    let poly = route.polyline
+                    var coords = Array(
+                        repeating: CLLocationCoordinate2D(),
+                        count: poly.pointCount
+                    )
+                    poly.getCoordinates(&coords, range: NSRange(location: 0, length: poly.pointCount))
+                    self.routeCoords = coords
+                    Self.applyTurnGuidance(
+                        route: route,
+                        distanceM: &self.turnDistanceM,
+                        instruction: &self.turnInstruction,
+                        symbol: &self.turnSymbol
+                    )
+                } else {
+                    // Fallback: straight segment so destination is still visible.
+                    self.routeCoords = [self.coord, end]
+                    self.turnDistanceM = Int(
+                        CLLocation(latitude: self.lat, longitude: self.lon)
+                            .distance(from: CLLocation(latitude: end.latitude, longitude: end.longitude))
+                            .rounded()
+                    )
+                    self.turnInstruction = self.destination
+                    self.turnSymbol = "flag.fill"
+                }
             }
         }
     }
@@ -123,7 +209,7 @@ struct AppleMapPanel: View {
         let steps = route.steps.filter { !$0.instructions.isEmpty }
         let step = steps.dropFirst().first ?? steps.first
         guard let step else {
-            distanceM = 0
+            distanceM = max(0, Int(route.distance.rounded()))
             instruction = ""
             symbol = "arrow.up"
             return
@@ -165,11 +251,16 @@ final class CarMapAnnotation: NSObject, MKAnnotation {
     init(coordinate: CLLocationCoordinate2D) { self.coordinate = coordinate }
 }
 
-/// MKMapView wrapper — follows car GPS smoothly, rotates marker with heading.
+final class DestMapAnnotation: NSObject, MKAnnotation {
+    dynamic var coordinate: CLLocationCoordinate2D
+    init(coordinate: CLLocationCoordinate2D) { self.coordinate = coordinate }
+}
+
 struct AppleMapLegacyRepresentable: UIViewRepresentable {
     var center: CLLocationCoordinate2D
     var heading: Double
     var route: [CLLocationCoordinate2D]
+    var destination: CLLocationCoordinate2D?
     var autoZoom: Bool
     var dark: Bool
 
@@ -193,35 +284,70 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.overrideUserInterfaceStyle = dark ? .dark : .unspecified
         let coord = context.coordinator
         if let car = coord.car {
-            let moved = CLLocation(latitude: car.coordinate.latitude, longitude: car.coordinate.longitude)
-                .distance(from: CLLocation(latitude: center.latitude, longitude: center.longitude))
             car.coordinate = center
             car.heading = heading
             if let view = map.view(for: car) {
                 let angle = CGFloat(heading * .pi / 180)
-                if moved > 1 || abs(view.transform.a - cos(angle)) > 0.02 {
-                    UIView.animate(withDuration: 0.18) {
-                        view.transform = CGAffineTransform(rotationAngle: angle)
-                    }
+                UIView.animate(withDuration: 0.15) {
+                    view.transform = CGAffineTransform(rotationAngle: angle)
                 }
             }
         }
 
+        // Destination pin
+        if let destination {
+            if let dest = coord.dest {
+                dest.coordinate = destination
+            } else {
+                let dest = DestMapAnnotation(coordinate: destination)
+                map.addAnnotation(dest)
+                coord.dest = dest
+            }
+        } else if let dest = coord.dest {
+            map.removeAnnotation(dest)
+            coord.dest = nil
+        }
+
+        // Route overlay
+        let routeKey = "\(route.count)-\(route.first?.latitude ?? 0)-\(route.last?.longitude ?? 0)"
+        if routeKey != coord.lastRouteKey {
+            map.removeOverlays(map.overlays)
+            if route.count > 1 {
+                let poly = MKPolyline(coordinates: route, count: route.count)
+                map.addOverlay(poly)
+            }
+            coord.lastRouteKey = routeKey
+        }
+
         if autoZoom {
-            let cam = MKMapCamera(
-                lookingAtCenter: center,
-                fromDistance: 420,
-                pitch: 52,
-                heading: heading
-            )
-            // Avoid fighting the camera every tiny update.
-            let last = coord.lastCameraCenter
-            let jump = last == nil || CLLocation(latitude: last!.latitude, longitude: last!.longitude)
-                .distance(from: CLLocation(latitude: center.latitude, longitude: center.longitude)) > 4
-            if jump || abs((coord.lastHeading ?? 0) - heading) > 3 {
-                map.setCamera(cam, animated: true)
-                coord.lastCameraCenter = center
-                coord.lastHeading = heading
+            if route.count > 1 {
+                // Show car + route like the in-car map.
+                let padding = UIEdgeInsets(top: 40, left: 36, bottom: 40, right: 36)
+                map.setVisibleMapRect(
+                    MKPolyline(coordinates: route, count: route.count).boundingMapRect,
+                    edgePadding: padding,
+                    animated: true
+                )
+                // Keep a mild heading camera when close.
+                if route.count < 8 {
+                    let cam = MKMapCamera(lookingAtCenter: center, fromDistance: 500, pitch: 45, heading: heading)
+                    map.setCamera(cam, animated: true)
+                }
+            } else {
+                let cam = MKMapCamera(
+                    lookingAtCenter: center,
+                    fromDistance: 420,
+                    pitch: 52,
+                    heading: heading
+                )
+                let last = coord.lastCameraCenter
+                let jump = last == nil || CLLocation(latitude: last!.latitude, longitude: last!.longitude)
+                    .distance(from: CLLocation(latitude: center.latitude, longitude: center.longitude)) > 4
+                if jump || abs((coord.lastHeading ?? 0) - heading) > 3 {
+                    map.setCamera(cam, animated: true)
+                    coord.lastCameraCenter = center
+                    coord.lastHeading = heading
+                }
             }
         } else {
             let region = MKCoordinateRegion(
@@ -231,26 +357,16 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             )
             map.setRegion(region, animated: true)
         }
-
-        // Route overlay — only rebuild when count/identity changes.
-        let routeKey = route.count
-        if routeKey != coord.lastRouteCount {
-            map.removeOverlays(map.overlays)
-            if route.count > 1 {
-                let poly = MKPolyline(coordinates: route, count: route.count)
-                map.addOverlay(poly)
-            }
-            coord.lastRouteCount = routeKey
-        }
     }
 
     func makeCoordinator() -> Coord { Coord() }
 
     final class Coord: NSObject, MKMapViewDelegate {
         var car: CarMapAnnotation?
+        var dest: DestMapAnnotation?
         var lastCameraCenter: CLLocationCoordinate2D?
         var lastHeading: Double?
-        var lastRouteCount = -1
+        var lastRouteKey = ""
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let p = overlay as? MKPolyline {
@@ -266,6 +382,17 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             if annotation is MKUserLocation { return nil }
+            if annotation is DestMapAnnotation {
+                let id = "pulse.dest"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: id)
+                    ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: id)
+                view.annotation = annotation
+                if let marker = view as? MKMarkerAnnotationView {
+                    marker.markerTintColor = .systemRed
+                    marker.glyphImage = UIImage(systemName: "flag.fill")
+                }
+                return view
+            }
             let id = "pulse.car"
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: id)
                 ?? MKAnnotationView(annotation: annotation, reuseIdentifier: id)

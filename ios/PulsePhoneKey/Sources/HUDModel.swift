@@ -187,7 +187,7 @@ final class HUDModel: ObservableObject {
         mediaPlaying = s.mediaPlaying
         mediaVolume = s.mediaVolume
         mediaProgress = s.mediaProgress
-        MediaArtworkStore.shared.resolve(title: mediaTitle, artist: mediaArtist)
+        MediaArtworkStore.shared.resolve(title: mediaTitle, artist: mediaArtist, album: mediaAlbum)
     }
 
     func start() {
@@ -454,7 +454,7 @@ final class HUDModel: ObservableObject {
             if let ma = obj["media_artist"] as? String { mediaArtist = ma }
             if let ms = obj["media_service"] as? String { mediaService = ms }
             if let mp = num(obj["media_progress"]) { mediaProgress = mp }
-            MediaArtworkStore.shared.resolve(title: mediaTitle, artist: mediaArtist)
+            MediaArtworkStore.shared.resolve(title: mediaTitle, artist: mediaArtist, album: mediaAlbum)
             if let t = num(obj["tire_fl"]) { psiFL = Int(t.rounded()) }
             if let t = num(obj["tire_fr"]) { psiFR = Int(t.rounded()) }
             if let t = num(obj["tire_rl"]) { psiRL = Int(t.rounded()) }

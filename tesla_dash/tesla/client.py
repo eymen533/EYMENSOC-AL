@@ -307,6 +307,16 @@ class TeslaClient:
         minutes_arr = drive.get("active_route_minutes_to_arrival")
         miles_arr = drive.get("active_route_miles_to_arrival")
         energy_arr = drive.get("active_route_energy_at_arrival")
+        dest_lat = float(
+            drive.get("active_route_latitude")
+            or vehicle.get("active_route_latitude")
+            or 0
+        )
+        dest_lon = float(
+            drive.get("active_route_longitude")
+            or vehicle.get("active_route_longitude")
+            or 0
+        )
 
         if dest:
             destination = str(dest)
@@ -406,6 +416,8 @@ class TeslaClient:
             media_service=str(service or "Media"),
             media_progress=media_progress if not playing else max(0.05, media_progress),
             destination=destination,
+            destination_lat=dest_lat,
+            destination_lon=dest_lon,
             arrival_time=arrival_time,
             energy_at_arrival=energy_at_arrival,
             trip_distance_km=trip_distance_km,
