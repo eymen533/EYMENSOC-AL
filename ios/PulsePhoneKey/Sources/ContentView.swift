@@ -102,7 +102,7 @@ struct ContentView: View {
 
                 VStack(spacing: 18) {
                     Spacer()
-                    Text("PULSE 28")
+                    Text("PULSE 29")
                         .font(.system(size: 52, weight: .black, design: .rounded))
                         .foregroundStyle(.white)
                     Text(BLEPairer.buildId)
@@ -113,7 +113,7 @@ struct ContentView: View {
                         .background(
                             Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05))
                         )
-                    Text("Yeni app · com.teslapulse.phonekey28")
+                    Text("Harita/medya kadranın altına tuck · Pulse28 app")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.6))
                     Text("Eski Pulse (23) ayrı ikon — bunu aç: Pulse28")

@@ -29,19 +29,20 @@ struct NativeHUDView: View {
     /// Soft blend into dial — always dark so day mode never paints white bars.
     private var fadeIntoDial: Color { Color.black }
 
-    /// Media may full-bleed; map stays inside its panel only.
+    /// Map / media tuck under dial on their side only (never across the other panel).
     private var leftBleed: Bool { model.leftSlide == 4 }
     private var rightBleed: Bool { model.rightSlide == 4 }
     private var leftMap: Bool { model.leftSlide == 3 }
     private var rightMap: Bool { model.rightSlide == 3 }
-    private var anyBleed: Bool { leftBleed || rightBleed }
+    private var leftWing: Bool { leftMap || leftBleed }
+    private var rightWing: Bool { rightMap || rightBleed }
+    private var anyBleed: Bool { leftWing || rightWing }
 
     var body: some View {
         GeometryReader { geo in
             let wide = geo.size.width >= geo.size.height
             ZStack(alignment: .top) {
-                // Full-bleed visual first — no empty white strips.
-                fullBleedBackdrop
+                canvas
                     .ignoresSafeArea()
 
                 if mapExpanded {
@@ -83,16 +84,6 @@ struct NativeHUDView: View {
         }
     }
 
-    /// Backdrop: solid canvas, or album art when media is selected — never full-screen map.
-    @ViewBuilder
-    private var fullBleedBackdrop: some View {
-        if model.leftSlide == 4 || model.rightSlide == 4 {
-            AlbumArtFill(image: art.image, url: art.imageURL, loading: art.loading)
-        } else {
-            canvas
-        }
-    }
-
     private enum Side { case left, right }
 
     // MARK: - Triad (Dashla overlap — dial dead-center)
@@ -100,62 +91,58 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        // True vertical center — bleed fills full height (no white top/bottom strips).
         let dialW = min(w * 0.32, h * 0.72)
         let cx = w * 0.5
         let cy = h * 0.5
-        let gap: CGFloat = 12
+        let gap: CGFloat = 8
         let sideW = max(150, (w - dialW) / 2 - gap)
-        let bleedW = sideW + dialW * 0.34
+        // Extend under dial (Dashla tuck) without crossing into the other half.
+        let bleedW = sideW + dialW * 0.42
         let panelH = min(dialW * 1.02, h * 0.78)
+        let wingH = min(h * 0.92, max(panelH, dialW * 1.15))
         let chromeInk = anyBleed ? Color.white : ink
         let chromeMuted = anyBleed ? Color.white.opacity(0.7) : muted
+
         return ZStack {
-            HStack(spacing: 0) {
-                Group {
-                    if leftMap {
-                        panelMap(edge: .trailing, side: .left)
-                            .frame(height: panelH)
-                    } else if leftBleed {
-                        bleedSurface(slide: model.leftSlide, edge: .trailing, side: .left, asOverlay: anyBleed)
-                            .frame(maxHeight: .infinity)
-                    } else {
-                        sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
-                            .frame(height: panelH)
-                    }
+            // LEFT wing — map/media tuck under dial; other panels stay opaque cards.
+            Group {
+                if leftMap {
+                    panelMap(edge: .trailing, side: .left)
+                } else if leftBleed {
+                    panelMedia(edge: .trailing, side: .left)
+                } else {
+                    sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
-                .frame(width: leftBleed ? bleedW : sideW)
-                .zIndex(leftMap ? 0 : 2)
-
-                Spacer(minLength: 0)
-                    .allowsHitTesting(false)
-
-                Group {
-                    if rightMap {
-                        panelMap(edge: .leading, side: .right)
-                            .frame(height: panelH)
-                    } else if rightBleed {
-                        bleedSurface(slide: model.rightSlide, edge: .leading, side: .right, asOverlay: anyBleed)
-                            .frame(maxHeight: .infinity)
-                    } else {
-                        sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
-                            .frame(height: panelH)
-                    }
-                }
-                .frame(width: rightBleed ? bleedW : sideW)
-                .zIndex(rightMap ? 0 : 2)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(width: leftWing ? bleedW : sideW, height: leftWing ? wingH : panelH)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .zIndex(leftWing ? 0 : 2)
+
+            // RIGHT wing
+            Group {
+                if rightMap {
+                    panelMap(edge: .leading, side: .right)
+                } else if rightBleed {
+                    panelMedia(edge: .leading, side: .right)
+                } else {
+                    sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                }
+            }
+            .frame(width: rightWing ? bleedW : sideW, height: rightWing ? wingH : panelH)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .zIndex(rightWing ? 0 : 2)
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                 .position(x: max(16, cx - dialW * 0.5 - 18), y: cy)
+                .zIndex(4)
             sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
                 .position(x: min(w - 16, cx + dialW * 0.5 + 18), y: cy)
+                .zIndex(4)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
+                .zIndex(5)
 
-            // Route / destination chip under dial when car has nav.
             if !isBlank(model.destination) {
                 Text(model.destination)
                     .font(.caption.weight(.semibold))
@@ -165,10 +152,12 @@ struct NativeHUDView: View {
                     .padding(.vertical, 5)
                     .background(Capsule().fill(Color.black.opacity(0.55)))
                     .position(x: cx, y: min(h - 36, cy + dialW * 0.5 + 36))
+                    .zIndex(5)
             }
 
             dialStatusStrip(maxWidth: dialW * 1.05)
                 .position(x: cx, y: min(h - 22, cy + dialW * 0.5 + 14))
+                .zIndex(5)
 
             HStack {
                 batteryChip
@@ -183,18 +172,37 @@ struct NativeHUDView: View {
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .padding(.bottom, 12)
+            .zIndex(5)
         }
     }
 
-    /// Map confined to one panel — UIKit clipsToBounds + opaque mask.
-    private func panelMap(edge: MapEdge, side: Side) -> some View {
-        mapSurface(edge: edge, side: side, showTapExpand: true, asOverlay: false)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .clipped()
-            // Extra opaque mask so MapKit metal layer can't paint siblings.
-            .mask(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    /// Map confined to one side — tucks under dial, clipped so it can't paint the other panel.
+    private func panelMap(edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
+        mapSurface(
+            edge: edge,
+            side: side,
+            showTapExpand: true,
+            verticalFromTop: verticalFromTop,
+            asOverlay: false
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipped()
+        .mask(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    /// Album art same tuck as map — under dial on the selected side only.
+    private func panelMedia(edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
+        mediaSurface(
+            edge: edge,
+            side: side,
+            verticalFromTop: verticalFromTop,
+            asOverlay: false
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipped()
+        .mask(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     @ViewBuilder
@@ -206,71 +214,59 @@ struct NativeHUDView: View {
         asOverlay: Bool = false
     ) -> some View {
         if slide == 4 {
-            mediaSurface(edge: edge, side: side, verticalFromTop: verticalFromTop, asOverlay: asOverlay)
+            panelMedia(edge: edge, side: side, verticalFromTop: verticalFromTop)
+        } else if slide == 3 {
+            panelMap(edge: edge, side: side, verticalFromTop: verticalFromTop)
         } else {
-            mapSurface(edge: edge, side: side, showTapExpand: true, verticalFromTop: verticalFromTop, asOverlay: asOverlay)
+            mediaSurface(edge: edge, side: side, verticalFromTop: verticalFromTop, asOverlay: asOverlay)
         }
     }
 
     private func triadPortrait(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        // Equal top/bottom wings; backdrop already fills screen (no white strips).
         let gap: CGFloat = 8
         let dialW = min(w * 0.54, h * 0.30)
         let wingH = max(96, (h - dialW - gap * 2) / 2)
-        let bleedExtra = dialW * 0.28
+        // Tuck under dial vertically.
+        let bleedExtra = dialW * 0.38
         let cx = w * 0.5
         let cy = wingH + gap + dialW * 0.5
-        let topBleed = model.leftSlide == 4
-        let bottomBleed = model.rightSlide == 4
-        let topMap = model.leftSlide == 3
-        let bottomMap = model.rightSlide == 3
+        let topWing = model.leftSlide == 3 || model.leftSlide == 4
+        let bottomWing = model.rightSlide == 3 || model.rightSlide == 4
         return ZStack {
             VStack(spacing: gap) {
                 Group {
-                    if topMap {
-                        panelMap(edge: .trailing, side: .left)
-                    } else if topBleed {
-                        bleedSurface(
-                            slide: model.leftSlide,
-                            edge: .trailing,
-                            side: .left,
-                            verticalFromTop: false,
-                            asOverlay: anyBleed
-                        )
+                    if model.leftSlide == 3 {
+                        panelMap(edge: .trailing, side: .left, verticalFromTop: false)
+                    } else if model.leftSlide == 4 {
+                        panelMedia(edge: .trailing, side: .left, verticalFromTop: false)
                     } else {
                         sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                     }
                 }
-                .frame(height: topBleed ? wingH + bleedExtra : wingH)
+                .frame(height: topWing ? wingH + bleedExtra : wingH)
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, topBleed ? -bleedExtra : 0)
-                .zIndex(topBleed || topMap ? 0 : 1)
+                .padding(.bottom, topWing ? -bleedExtra : 0)
+                .zIndex(topWing ? 0 : 1)
 
                 Color.clear
                     .frame(height: dialW)
                     .zIndex(2)
 
                 Group {
-                    if bottomMap {
-                        panelMap(edge: .leading, side: .right)
-                    } else if bottomBleed {
-                        bleedSurface(
-                            slide: model.rightSlide,
-                            edge: .leading,
-                            side: .right,
-                            verticalFromTop: true,
-                            asOverlay: anyBleed
-                        )
+                    if model.rightSlide == 3 {
+                        panelMap(edge: .leading, side: .right, verticalFromTop: true)
+                    } else if model.rightSlide == 4 {
+                        panelMedia(edge: .leading, side: .right, verticalFromTop: true)
                     } else {
                         sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                     }
                 }
-                .frame(height: bottomBleed ? wingH + bleedExtra : wingH)
+                .frame(height: bottomWing ? wingH + bleedExtra : wingH)
                 .frame(maxWidth: .infinity)
-                .padding(.top, bottomBleed ? -bleedExtra : 0)
-                .zIndex(bottomBleed || bottomMap ? 0 : 1)
+                .padding(.top, bottomWing ? -bleedExtra : 0)
+                .zIndex(bottomWing ? 0 : 1)
             }
             .frame(maxHeight: .infinity)
 
