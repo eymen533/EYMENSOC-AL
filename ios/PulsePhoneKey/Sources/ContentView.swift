@@ -250,13 +250,20 @@ struct ContentView: View {
                 Section("BLE telemetri (asıl kaynak)") {
                     Text(ble.bleStatus)
                         .font(.footnote)
+                    Text(ble.bleLiveOK
+                        ? "Durum: BLE LIVE — hız/GPS anlık geliyor."
+                        : (ble.linkUp
+                           ? "Durum: GATT bağlı ama oturum henüz LIVE değil (handshake)."
+                           : "Durum: araç bağlantısı yok."))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(ble.bleLiveOK ? Color.green : .secondary)
                     Text(alreadyPaired
                         ? "Phone Key bu VIN için kayıtlı. Araca her bindiğinde add-key yok — otomatik BLE bağlanır. Key Card konsolda olmalı."
                         : "İlk seferde Pair Vehicle: add-key + Key Card. Sonrasında otomatik bağlanır.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if alreadyPaired {
-                        Button("Eşleşmeyi unut (yeniden peynir gerekir)", role: .destructive) {
+                        Button("Eşleşmeyi unut (yeniden pair gerekir)", role: .destructive) {
                             KeyStore.clearPaired(vin: vinNorm)
                             pairEpoch &+= 1
                         }

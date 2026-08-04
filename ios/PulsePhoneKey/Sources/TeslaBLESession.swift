@@ -57,12 +57,19 @@ final class TeslaBLESession {
     private(set) var lastRequestUUID: Data = Data()
     private(set) var lastRequestDomain: Domain = .infotainment
     private(set) var lastWasAES = false
+    /// Per-domain pending handshake UUIDs — avoids VCSEC/infotainment challenge mixups.
+    private var pendingHandshakeUUID: [Domain: Data] = [:]
+    private var lastHandshakeUUID: [Domain: Data] = [:]
+    /// Consecutive session-tag failures (triggers full domain reset).
+    private var sessionTagFails = 0
 
     var snapshot = Snapshot()
     var infotainmentReady: Bool { isReady(.infotainment) }
     /// True after at least one decrypted VehicleData payload.
     private(set) var hasVehicleData = false
     var statusText: String = "BLE session yok"
+    /// True when last commit failed due to HMAC challenge/tag mismatch.
+    private(set) var lastSessionTagInvalid = false
 
     func isReady(_ domain: Domain) -> Bool {
         guard let s = domains[domain] else { return false }
@@ -83,6 +90,9 @@ final class TeslaBLESession {
         lastRequestUUID = uuid
         lastRequestDomain = domain
         lastWasAES = false
+        lastSessionTagInvalid = false
+        pendingHandshakeUUID[domain] = uuid
+        lastHandshakeUUID[domain] = uuid
         // SessionInfoRequest { public_key = 1 }
         let sir = ProtoWire.fieldBytes(1, publicKey)
         // RoutableMessage
@@ -92,8 +102,25 @@ final class TeslaBLESession {
         msg.append(ProtoWire.fieldBytes(6, toDest)) // to_destination
         msg.append(ProtoWire.fieldBytes(7, fromDest)) // from_destination
         msg.append(ProtoWire.fieldBytes(14, sir)) // session_info_request
+        // Tesla echoes this into response request_uuid (field 50) — that is the HMAC challenge.
         msg.append(ProtoWire.fieldBytes(51, uuid)) // uuid
         return (uuid, ProtoWire.prependLength(msg))
+    }
+
+    /// Drop crypto state for a domain so the next handshake can rebuild cleanly.
+    func resetDomain(_ domain: Domain) {
+        domains[domain] = DomainState()
+        pendingHandshakeUUID[domain] = nil
+        if domain == .infotainment {
+            hasVehicleData = false
+        }
+    }
+
+    func resetAllDomains() {
+        resetDomain(.vcsec)
+        resetDomain(.infotainment)
+        sessionTagFails = 0
+        statusText = "Oturum sifirlandi — handshake…"
     }
 
     @discardableResult
@@ -150,12 +177,21 @@ final class TeslaBLESession {
         }
 
         if let info = sessionInfoBytes {
+            // Challenge MUST be the UUID of the SessionInfoRequest that elicited this reply.
+            // Prefer response.request_uuid (field 50); fall back to the pending UUID for this domain.
+            let challenge: Data = {
+                if let requestUUID, requestUUID.count == 16 { return requestUUID }
+                if let pending = pendingHandshakeUUID[fromDomain], pending.count == 16 { return pending }
+                if let last = lastHandshakeUUID[fromDomain], last.count == 16 { return last }
+                return lastRequestUUID
+            }()
             _ = commitSessionInfo(
                 info,
                 tag: sessionInfoTag,
                 domain: fromDomain,
-                challenge: lastRequestUUID
+                challenge: challenge
             )
+            pendingHandshakeUUID[fromDomain] = nil
         }
 
         if fault != 0 {
@@ -256,12 +292,26 @@ final class TeslaBLESession {
             meta.append(challenge)
             meta.append(Tag.end.rawValue)
             let expected = Data(HMAC<SHA256>.authenticationCode(for: meta + infoBytes, using: sik))
-            guard constantTimeEqual(expected, tag) else {
+            // Vehicle may send full 32-byte HMAC or a truncated tag — compare prefix when shorter.
+            let ok: Bool = {
+                if expected.count == tag.count { return constantTimeEqual(expected, tag) }
+                if tag.count > 0, tag.count < expected.count {
+                    return constantTimeEqual(Data(expected.prefix(tag.count)), tag)
+                }
+                return false
+            }()
+            guard ok else {
+                lastSessionTagInvalid = true
+                sessionTagFails += 1
                 statusText = "Session tag gecersiz"
+                // Stale / mismatched challenge — clear this domain so we can re-handshake cleanly.
+                domains[domain] = DomainState()
                 return false
             }
         }
 
+        lastSessionTagInvalid = false
+        sessionTagFails = 0
         var state = domains[domain] ?? DomainState()
         let sameEpoch = state.epoch == epoch && !state.epoch.isEmpty
         if sameEpoch, clock < state.lastClock {

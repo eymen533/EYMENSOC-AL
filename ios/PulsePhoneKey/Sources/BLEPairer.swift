@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-35"
+    static let buildId = "xcode-ble-36"
 
     enum Step: String {
         case idle = "Hazir"
@@ -122,7 +122,7 @@ final class BLEPairer: NSObject, ObservableObject {
         }
     }
 
-    /// Daha önce peynir / Phone Key kabul edilmiş VIN — add-key YOK, sadece bağlan + telemetri.
+    /// Daha önce pair / Phone Key kabul edilmiş VIN — add-key YOK, sadece bağlan + telemetri.
     func resumeSession(vin: String) {
         onMain {
             let v = vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -446,7 +446,16 @@ final class BLEPairer: NSObject, ObservableObject {
             status = "Phone Key + BLE LIVE ✓"
         } else if telemetry.phase == .waitingKey {
             waitingForCard = true
+            linkLabel = "Kart bekle"
             status = "Arac kart bekliyor — KONSOLA Key Card"
+        } else if telemetry.phase == .handshake || telemetry.phase == .error {
+            // GATT may be up, but session is NOT live — don't look "connected".
+            linkLabel = linkUp ? "GATT · oturum kuruluyor" : "Baglanti yok"
+            if telemetry.status.contains("tag") {
+                status = telemetry.status
+            }
+        } else if linkUp {
+            linkLabel = "GATT bagli · telemetri…"
         }
     }
 
@@ -540,7 +549,8 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         linkUp = true
-        linkLabel = "BLE bagli · \(peripheral.name ?? "Tesla")"
+        // GATT only — not yet authenticated session / LIVE.
+        linkLabel = "GATT bagli · oturum…"
         reconnectAttempts = 0
         logLine("GATT OK")
         let skipAddKey = !forceRePair && (resumeTelemetryOnly || pairWriteDone || paired || KeyStore.isPaired(vin: vin))
@@ -549,7 +559,7 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
             resumeTelemetryOnly = true
             pairWriteDone = true
             readyForDashboard = true
-            status = "BLE bagli — telemetri yenileniyor…"
+            status = "GATT bagli — BLE oturum handshake…"
             peripheral.discoverServices(nil)
             return
         }

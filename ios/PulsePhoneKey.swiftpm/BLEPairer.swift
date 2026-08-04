@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-35"
+    static let buildId = "xcode-ble-36"
 
     enum Step: String {
         case idle = "Hazir"
@@ -122,7 +122,7 @@ final class BLEPairer: NSObject, ObservableObject {
         }
     }
 
-    /// Daha önce peynir / Phone Key kabul edilmiş VIN — add-key YOK, sadece bağlan + telemetri.
+    /// Daha önce pair / Phone Key kabul edilmiş VIN — add-key YOK, sadece bağlan + telemetri.
     func resumeSession(vin: String) {
         onMain {
             let v = vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()

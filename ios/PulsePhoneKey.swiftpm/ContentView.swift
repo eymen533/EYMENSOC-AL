@@ -256,7 +256,7 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if alreadyPaired {
-                        Button("Eşleşmeyi unut (yeniden peynir gerekir)", role: .destructive) {
+                        Button("Eşleşmeyi unut (yeniden pair gerekir)", role: .destructive) {
                             KeyStore.clearPaired(vin: vinNorm)
                             pairEpoch &+= 1
                         }

@@ -1,6 +1,7 @@
 import Foundation
 import CoreBluetooth
 import CryptoKit
+import UIKit
 
 /// Polls vehicle telemetry on an open Tesla BLE GATT link.
 /// Stable pipeline — avoids flooding that freezes the GATT link after a while.
@@ -21,6 +22,16 @@ final class BLETelemetry {
     /// Fired on main when snapshot / phase changes (throttled).
     var onUpdate: (() -> Void)?
 
+    /// iPhone 8 Plus daha zayıf GPU/CPU ile MapKit + SwiftUI yeniden çizimini zorlayabiliyor.
+    /// Bu yüzden BLE verisini okumaya devam ederken UI push frekansını cihazda hafif düşürüyoruz.
+    private let uiPushIntervalSeconds: TimeInterval = {
+        let model = UIDevice.current.model
+        if model.contains("iPhone 8 Plus") || model.contains("iPhone 8") {
+            return 0.08 // ~12.5 Hz UI güncelleme
+        }
+        return 0.05 // ~20 Hz UI güncelleme (Anlık)
+    }()
+
     private var session: TeslaBLESession?
     private var vin = ""
     private weak var peripheral: CBPeripheral?
@@ -36,6 +47,9 @@ final class BLETelemetry {
     private var pollIndex = 0
     private var handshakeTries = 0
     private var useWithoutResponse = false
+    /// Avoid overlapping handshakes for different domains (UUID challenge race).
+    private var handshakeCooldownUntil = Date.distantPast
+    private var lastTagFailAt = Date.distantPast
     /// Anlık ≈ 0.05s — max live feel; still single in-flight write.
     var pollIntervalSeconds: TimeInterval = 0.05
     private let maxInFlight = 1
@@ -105,13 +119,17 @@ final class BLETelemetry {
             guard let session else { continue }
             _ = session.handleIncoming(frame)
             status = session.statusText
-            if session.infotainmentReady {
+            if session.lastSessionTagInvalid {
+                // Challenge/UUID mismatch — wipe crypto and retry handshake shortly.
+                handleSessionTagFailure(session)
+            } else if session.infotainmentReady {
                 phase = .live
                 if session.hasVehicleData {
                     liveOK = true
                     status = "BLE LIVE"
                     snapshot = session.snapshot
                 } else {
+                    liveOK = false
                     status = "BLE oturum OK — araç verisi…"
                 }
             } else if session.statusText.contains("whitelist") || session.statusText.contains("kart") {
@@ -121,6 +139,22 @@ final class BLETelemetry {
             inFlight = max(0, inFlight - 1)
             lastNotifyAt = Date()
             notify(force: false)
+        }
+    }
+
+    private func handleSessionTagFailure(_ session: TeslaBLESession) {
+        liveOK = false
+        phase = .handshake
+        status = "Session tag gecersiz — yeniden handshake…"
+        let now = Date()
+        // Don't thrash — at most one full reset every 1.2s.
+        if now.timeIntervalSince(lastTagFailAt) > 1.2 {
+            lastTagFailAt = now
+            session.resetAllDomains()
+            writeQueue.removeAll()
+            writing = false
+            inFlight = 0
+            handshakeCooldownUntil = now.addingTimeInterval(0.35)
         }
     }
 
@@ -167,11 +201,17 @@ final class BLETelemetry {
         guard let session else { return }
 
         if !session.infotainmentReady {
+            if Date() < handshakeCooldownUntil { return }
             handshakeTries += 1
-            if handshakeTries % 4 == 0 {
+            // Wake VCSEC occasionally, but NEVER overlap with infotainment handshake
+            // (mixed UUIDs caused "Session tag gecersiz").
+            if handshakeTries % 6 == 0, inFlight == 0, writeQueue.isEmpty {
                 enqueueCommand(domain: .vcsec, command: TeslaBLESession.actionWake(), preferHandshakeFirst: true)
+                handshakeCooldownUntil = Date().addingTimeInterval(0.45)
+                return
             }
             sendHandshake()
+            handshakeCooldownUntil = Date().addingTimeInterval(0.25)
             return
         }
 
@@ -257,7 +297,7 @@ final class BLETelemetry {
     private func notify(force: Bool) {
         let now = Date()
         // Throttle UI to ~20Hz — keeps MapKit alive while feeling instant.
-        if !force, now.timeIntervalSince(lastUIPush) < 0.05 { return }
+        if !force, now.timeIntervalSince(lastUIPush) < uiPushIntervalSeconds { return }
         lastUIPush = now
         if Thread.isMainThread {
             onUpdate?()

@@ -281,7 +281,7 @@ struct PairingFlowView: View {
             Text("Phone Key added")
                 .font(.title.bold())
                 .foregroundStyle(.white)
-            Text("Anahtar kaydedildi. Bundan sonra araca her bindiğinde otomatik bağlanır — tekrar peynir gerekmez.")
+            Text("Anahtar kaydedildi. Bundan sonra araca her bindiğinde otomatik bağlanır — tekrar pair gerekmez.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.65))
                 .multilineTextAlignment(.center)
