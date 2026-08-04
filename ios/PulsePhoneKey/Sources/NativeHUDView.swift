@@ -49,8 +49,7 @@ struct NativeHUDView: View {
                 }
 
                 topBar
-                    .frame(height: 44)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity)
                     .zIndex(20)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -95,7 +94,7 @@ struct NativeHUDView: View {
         let cy = h * 0.5
         let sideW = max(140, (w - dialW) / 2)
         // Modest tuck under dial — enough depth, no double-map collision.
-        let tuck = dialW * 0.36
+        let tuck = dialW * 0.28
         let leftW = sideW + (leftWing ? tuck : 0)
         let rightW = sideW + (rightWing ? tuck : 0)
         let chromeInk = Color.white
@@ -115,6 +114,7 @@ struct NativeHUDView: View {
                 }
             }
             .frame(width: leftW, height: h)
+            .clipShape(Rectangle())
             .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .zIndex(leftWing ? 0 : 1)
@@ -130,6 +130,7 @@ struct NativeHUDView: View {
                 }
             }
             .frame(width: rightW, height: h)
+            .clipShape(Rectangle())
             .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             .zIndex(rightWing ? 0 : 1)
@@ -236,10 +237,11 @@ struct NativeHUDView: View {
         let w = geo.size.width
         let h = geo.size.height
         let dialW = min(w * 0.42, h * 0.24, 188)
-        let tuck = dialW * 0.34
-        let wingH = max(96, (h - dialW) / 2)
+        let tuck = dialW * 0.26
+        let topChrome: CGFloat = 52
+        let wingH = max(96, (h - dialW - topChrome) / 2)
         let cx = w * 0.5
-        let cy = h * 0.5
+        let cy = topChrome + wingH + dialW * 0.5
         let topWing = model.leftSlide == 3 || model.leftSlide == 4
         let bottomWing = model.rightSlide == 3 || model.rightSlide == 4
         let topH = wingH + (topWing ? tuck : 0)
@@ -259,8 +261,10 @@ struct NativeHUDView: View {
                 }
             }
             .frame(width: w, height: topH)
+            .clipShape(Rectangle())
             .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.top, topChrome)
             .zIndex(topWing ? 0 : 1)
 
             Group {
@@ -273,6 +277,7 @@ struct NativeHUDView: View {
                 }
             }
             .frame(width: w, height: bottomH)
+            .clipShape(Rectangle())
             .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .zIndex(bottomWing ? 0 : 1)
@@ -502,13 +507,11 @@ struct NativeHUDView: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
-        .background(
-            LinearGradient(
-                colors: [Color.black.opacity(0.72), Color.black.opacity(0.28), .clear],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        .padding(.top, 6)
+        .padding(.bottom, 10)
+        .frame(maxWidth: .infinity, alignment: .top)
+        // Solid black — map must never show through top chrome.
+        .background(Color.black)
     }
 
     private var phoneBattIcon: String {
@@ -558,9 +561,10 @@ struct NativeHUDView: View {
         // Keep content clear of the vertical selection rail (~34pt near dial).
         let railClear: CGFloat = 36
         return ZStack(alignment: .bottomLeading) {
-            // Opaque — blocks MapKit bleed from the other panel.
+            // Full opaque black — blocks MapKit bleed into this panel (including corners).
+            Color.black
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(dialFill)
+                .fill(Color(red: 0.08, green: 0.08, blue: 0.09))
             Group {
                 switch slide {
                 case 1: tiresPanel(side: side)
