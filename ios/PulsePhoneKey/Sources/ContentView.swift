@@ -284,9 +284,9 @@ struct ContentView: View {
                     .pickerStyle(.segmented)
                     Text({
                         switch hudSettings.dialStyle {
-                        case .circle: return "Yuvarlak: klasik halka, 3D önde."
-                        case .square: return "Kare: köşeli çerçeve, 3D önde."
-                        case .bare: return "Sade: çerçeve yok — sadece hız/vites, 3D gölge."
+                        case .circle: return "Yuvarlak: kompakt, ekstrüde bevel — kanatlar geride 3D."
+                        case .square: return "Kare: kompakt, ekstrüde bevel — kanatlar geride 3D."
+                        case .bare: return "Sade: çerçeve yok — hız/vites yüzer, derin gölge."
                         }
                     }())
                         .font(.footnote)

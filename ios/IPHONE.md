@@ -24,4 +24,4 @@ open -a Xcode ios/PulsePhoneKey/PulsePhoneKey.xcodeproj
 2. Scheme / ürün: **Pulse28**
 3. Run
 4. Ana ekranda **Pulse28** ikonunu aç (eski Pulse değil)
-5. Sarı kapsül: **xcode-ble-32**
+5. Sarı kapsül: **xcode-ble-33**
