@@ -24,13 +24,13 @@ struct NativeHUDView: View {
     /// Soft blend into dial — always dark so day mode never paints white bars.
     private var fadeIntoDial: Color { Color.black }
 
-    /// Map / media tuck under dial on their side only (never across the other panel).
-    private var leftBleed: Bool { model.leftSlide == 4 }
-    private var rightBleed: Bool { model.rightSlide == 4 }
+    /// Only the map tucks under the dial. Album art stays compact (no oversize bleed).
+    private var leftBleed: Bool { false }
+    private var rightBleed: Bool { false }
     private var leftMap: Bool { model.leftSlide == 3 }
     private var rightMap: Bool { model.rightSlide == 3 }
-    private var leftWing: Bool { leftMap || leftBleed }
-    private var rightWing: Bool { rightMap || rightBleed }
+    private var leftWing: Bool { leftMap }
+    private var rightWing: Bool { rightMap }
     private var anyBleed: Bool { leftWing || rightWing }
 
     var body: some View {
@@ -103,12 +103,10 @@ struct NativeHUDView: View {
         return ZStack {
             Color.black
 
-            // Left wing — clipped to its frame; extends under dial only.
+            // Left wing — map tucks under dial; music uses compact side column.
             Group {
                 if leftMap {
                     panelMap(edge: .trailing, side: .left)
-                } else if leftBleed {
-                    panelMedia(edge: .trailing, side: .left)
                 } else {
                     sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
@@ -119,12 +117,10 @@ struct NativeHUDView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .zIndex(leftWing ? 0 : 1)
 
-            // Right wing — clipped; never stacks another map over the left bleed.
+            // Right wing — map only; music stays normal panel size.
             Group {
                 if rightMap {
                     panelMap(edge: .leading, side: .right)
-                } else if rightBleed {
-                    panelMedia(edge: .leading, side: .right)
                 } else {
                     sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                 }
@@ -242,8 +238,8 @@ struct NativeHUDView: View {
         let wingH = max(96, (h - dialW - topChrome) / 2)
         let cx = w * 0.5
         let cy = topChrome + wingH + dialW * 0.5
-        let topWing = model.leftSlide == 3 || model.leftSlide == 4
-        let bottomWing = model.rightSlide == 3 || model.rightSlide == 4
+        let topWing = model.leftSlide == 3
+        let bottomWing = model.rightSlide == 3
         let topH = wingH + (topWing ? tuck : 0)
         let bottomH = wingH + (bottomWing ? tuck : 0)
 
@@ -254,8 +250,6 @@ struct NativeHUDView: View {
             Group {
                 if model.leftSlide == 3 {
                     panelMap(edge: .trailing, side: .left, verticalFromTop: false)
-                } else if model.leftSlide == 4 {
-                    panelMedia(edge: .trailing, side: .left, verticalFromTop: false)
                 } else {
                     sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
@@ -270,8 +264,6 @@ struct NativeHUDView: View {
             Group {
                 if model.rightSlide == 3 {
                     panelMap(edge: .leading, side: .right, verticalFromTop: true)
-                } else if model.rightSlide == 4 {
-                    panelMedia(edge: .leading, side: .right, verticalFromTop: true)
                 } else {
                     sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                 }
@@ -1206,7 +1198,8 @@ struct NativeHUDView: View {
 
     private var mediaPanel: some View {
         GeometryReader { geo in
-            let artSize = min(112, max(72, min(geo.size.width * 0.72, geo.size.height * 0.42)))
+            // Compact album — oldest normal size (no full-bleed tuck).
+            let artSize = min(72, max(52, min(geo.size.width * 0.48, geo.size.height * 0.28)))
             VStack(alignment: .center, spacing: 10) {
                 mediaServiceHeader
                 AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: artSize)

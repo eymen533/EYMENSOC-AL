@@ -89,7 +89,7 @@ struct AppleMapPanel: View {
         }
         let moved = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
             .distance(from: CLLocation(latitude: lat, longitude: lon))
-        if moved > 90 {
+        if moved > 45 {
             fetchRouteIfNeeded(force: true)
         }
     }
@@ -198,8 +198,9 @@ struct AppleMapPanel: View {
     }
 
     private func calculateRoute(to end: CLLocationCoordinate2D) {
+        let origin = coord
         let dreq = MKDirections.Request()
-        dreq.source = MKMapItem(placemark: MKPlacemark(coordinate: coord))
+        dreq.source = MKMapItem(placemark: MKPlacemark(coordinate: origin))
         dreq.destination = MKMapItem(placemark: MKPlacemark(coordinate: end))
         dreq.transportType = .automobile
         dreq.requestsAlternateRoutes = false
@@ -210,7 +211,20 @@ struct AppleMapPanel: View {
                     let poly = route.polyline
                     var coords = Array(repeating: CLLocationCoordinate2D(), count: poly.pointCount)
                     poly.getCoordinates(&coords, range: NSRange(location: 0, length: poly.pointCount))
+                    // Apple snaps to road network — stitch from live car GPS so the line starts on the car.
+                    if let first = coords.first {
+                        let gap = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
+                            .distance(from: CLLocation(latitude: first.latitude, longitude: first.longitude))
+                        if gap > 12 {
+                            coords.insert(origin, at: 0)
+                        } else {
+                            coords[0] = origin
+                        }
+                    } else {
+                        coords = [origin, end]
+                    }
                     self.routeCoords = coords
+                    self.lastRerouteOrigin = origin
                     Self.applyTurnGuidance(
                         route: route,
                         distanceM: &self.turnDistanceM,
@@ -218,9 +232,10 @@ struct AppleMapPanel: View {
                         symbol: &self.turnSymbol
                     )
                 } else {
-                    self.routeCoords = [self.coord, end]
+                    self.routeCoords = [origin, end]
+                    self.lastRerouteOrigin = origin
                     self.turnDistanceM = Int(
-                        CLLocation(latitude: self.lat, longitude: self.lon)
+                        CLLocation(latitude: origin.latitude, longitude: origin.longitude)
                             .distance(from: CLLocation(latitude: end.latitude, longitude: end.longitude))
                             .rounded()
                     )
@@ -366,8 +381,10 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         if let car = c.car {
             car.coordinate = center
             car.heading = heading
+            // Camera is already heading-up — keep the arrow pointing to the top of the screen.
+            // Rotating the annotation by heading again made the car look sideways.
             if let view = map.view(for: car) {
-                view.transform = CGAffineTransform(rotationAngle: CGFloat(heading * .pi / 180))
+                view.transform = .identity
             }
         }
 
@@ -408,11 +425,14 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
 
         let distance: CLLocationDistance = turnByTurn ? 220 : 520
         let pitch: CGFloat = turnByTurn ? 58 : 48
+        // Normalize heading so camera faces travel direction (0…360).
+        var camHeading = heading.truncatingRemainder(dividingBy: 360)
+        if camHeading < 0 { camHeading += 360 }
         let cam = MKMapCamera(
             lookingAtCenter: center,
             fromDistance: distance,
             pitch: pitch,
-            heading: heading
+            heading: camHeading
         )
         map.setCamera(cam, animated: moved > 1)
         c.lastCameraCenter = center
@@ -463,9 +483,8 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             let cfg = UIImage.SymbolConfiguration(pointSize: 26, weight: .bold)
             view.image = UIImage(systemName: "location.north.fill", withConfiguration: cfg)?
                 .withTintColor(.systemRed, renderingMode: .alwaysOriginal)
-            if let car = annotation as? CarMapAnnotation {
-                view.transform = CGAffineTransform(rotationAngle: CGFloat(car.heading * .pi / 180))
-            }
+            // Heading-up camera: arrow stays screen-up (travel direction).
+            view.transform = .identity
             return view
         }
     }

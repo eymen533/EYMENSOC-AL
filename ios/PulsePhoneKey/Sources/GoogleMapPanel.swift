@@ -327,7 +327,8 @@ struct GoogleMapPanel: UIViewRepresentable {
                 marker.setPosition(pos);
                 marker.setMap(map);
                 const icon = Object.assign({}, marker.getIcon() || {});
-                icon.rotation = p.heading || 0;
+                // Map heading-up already orients travel direction — don't also rotate the icon.
+                icon.rotation = 0;
                 marker.setIcon(icon);
                 if(!p.autoZoom || blankDest(p.destination) && !p.hasDestCoord){
                   map.setCenter(pos);

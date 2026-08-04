@@ -808,7 +808,12 @@ final class TeslaBLESession {
             case 115:
                 if let v = Self.readCoord(f) { lonGeo = v }
             case 103:
-                headingVal = Double(f.varint)
+                // Tesla heading is degrees; accept varint or float wire forms.
+                if f.wire == 0 {
+                    headingVal = Double(f.varint)
+                } else if let v = Self.readCoord(f) {
+                    headingVal = v
+                }
             case 116:
                 if let v = Self.readCoord(f) { headingVal = v }
             case 113:
@@ -819,14 +824,18 @@ final class TeslaBLESession {
             }
         }
 
-        // Prefer native (car nav map), then plain, then raw geo.
-        let lat = latNative ?? latPlain ?? latGeo
-        let lon = lonNative ?? lonPlain ?? lonGeo
+        // Prefer WGS84 GPS for Apple Maps (plain / geo). Native can be a local datum.
+        let lat = latPlain ?? latGeo ?? latNative
+        let lon = lonPlain ?? lonGeo ?? lonNative
         if let lat, let lon, abs(lat) <= 90, abs(lon) <= 180, (abs(lat) > 0.0001 || abs(lon) > 0.0001) {
             snapshot.latitude = lat
             snapshot.longitude = lon
         }
-        if let headingVal { snapshot.heading = headingVal }
+        if let headingVal {
+            var h = headingVal.truncatingRemainder(dividingBy: 360)
+            if h < 0 { h += 360 }
+            snapshot.heading = h
+        }
         if let placeVal { snapshot.place = placeVal }
     }
 
