@@ -449,16 +449,14 @@ struct ContentView: View {
 
     private func connectAndOpenHUD() {
         save()
-        if alreadyPaired, vinNorm.count == 17, !ble.bleLiveOK {
-            ble.resumeSession(vin: vinNorm)
-        }
         openHUD()
     }
 
     private func openHUD() {
         let paired = alreadyPaired || ble.linkUp || ble.paired || ble.readyForDashboard || ble.waitingForCard || ble.bleLiveOK
         hud.configure(vin: vinNorm, paired: paired)
-        if alreadyPaired, !ble.linkUp, !ble.bleLiveOK, vinNorm.count == 17 {
+        // Single resume call — duplicate resumeSession was tearing down in-flight reconnects.
+        if alreadyPaired, !ble.bleLiveOK, vinNorm.count == 17 {
             ble.resumeSession(vin: vinNorm)
         }
         ble.ensureTelemetry()
