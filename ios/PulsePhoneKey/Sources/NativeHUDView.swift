@@ -197,8 +197,6 @@ struct NativeHUDView: View {
                     }
                 }
                 .frame(width: leftW, height: h)
-                .clipShape(Rectangle())
-                .clipped()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .zIndex(leftMap ? 0 : 1)
 
@@ -210,10 +208,19 @@ struct NativeHUDView: View {
                     }
                 }
                 .frame(width: rightW, height: h)
-                .clipShape(Rectangle())
-                .clipped()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                 .zIndex(rightMap ? 0 : 1)
+
+                // MKMapView ignores SwiftUI .mask — paint over the hard vertical seam.
+                if leftMap != rightMap {
+                    mapHardEdgeCover(
+                        edge: leftMap ? .trailing : .leading,
+                        seamX: leftMap ? leftW : (w - rightW),
+                        height: h,
+                        cluster: cluster
+                    )
+                    .zIndex(3)
+                }
 
                 // Dial plate — translucent over map tuck so soft blur reads through.
                 Circle()
@@ -285,9 +292,10 @@ struct NativeHUDView: View {
         .ignoresSafeArea()
     }
 
-    /// Map on one side — tucks under dial with soft blur + cluster color blend.
+    /// Map on one side — soft blend into cluster (no hard vertical slab).
     private func panelMap(edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
         let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
+
         return ZStack {
             mapSurface(
                 edge: edge,
@@ -297,15 +305,111 @@ struct NativeHUDView: View {
                 asOverlay: false
             )
 
-            // Soft blur under the dial (UIKit blur of the map behind).
+            // Soft darkening under dial edge (reads as light blur / depth).
             mapDialBlurBand(edge: edge, verticalFromTop: verticalFromTop)
 
-            // Color unity with the vertical cluster panel — fade map into black at dial edge.
+            // Extra cluster tint for color unity with the dark panel.
             mapClusterUnityWash(edge: edge, verticalFromTop: verticalFromTop, cluster: cluster)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
-        .background(Color(red: 0.93, green: 0.94, blue: 0.95))
+        // Transparent — cluster behind shows through the soft fade (no paper slab).
+        .background(Color.clear)
+    }
+
+    /// Covers MKMapView’s hard rect edge with a soft cluster→clear wash (sibling overlay).
+    private func mapHardEdgeCover(
+        edge: MapEdge,
+        seamX: CGFloat,
+        height: CGFloat,
+        cluster: Color
+    ) -> some View {
+        let band: CGFloat = 150
+        return HStack(spacing: 0) {
+            if edge == .trailing {
+                // Left map: seam is on the right of the wing — wash straddles seamX.
+                Spacer(minLength: 0)
+                    .frame(width: max(0, seamX - band * 0.35))
+                LinearGradient(
+                    colors: [
+                        .clear,
+                        cluster.opacity(0.15),
+                        cluster.opacity(0.55),
+                        cluster.opacity(0.92),
+                        cluster
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: band, height: height)
+                Spacer(minLength: 0)
+            } else {
+                // Right map: seam is on the left of the wing.
+                Spacer(minLength: 0)
+                    .frame(width: max(0, seamX - band * 0.65))
+                LinearGradient(
+                    colors: [
+                        cluster,
+                        cluster.opacity(0.92),
+                        cluster.opacity(0.55),
+                        cluster.opacity(0.15),
+                        .clear
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: band, height: height)
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .allowsHitTesting(false)
+    }
+
+    /// Portrait: soft cover over hard horizontal map wing edge.
+    private func mapHardEdgeCoverPortrait(
+        fromTop: Bool,
+        seamY: CGFloat,
+        width: CGFloat,
+        cluster: Color
+    ) -> some View {
+        let band: CGFloat = 130
+        return VStack(spacing: 0) {
+            if fromTop {
+                Spacer(minLength: 0)
+                    .frame(height: max(0, seamY - band * 0.35))
+                LinearGradient(
+                    colors: [
+                        .clear,
+                        cluster.opacity(0.15),
+                        cluster.opacity(0.55),
+                        cluster.opacity(0.92),
+                        cluster
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(width: width, height: band)
+                Spacer(minLength: 0)
+            } else {
+                Spacer(minLength: 0)
+                    .frame(height: max(0, seamY - band * 0.65))
+                LinearGradient(
+                    colors: [
+                        cluster,
+                        cluster.opacity(0.92),
+                        cluster.opacity(0.55),
+                        cluster.opacity(0.15),
+                        .clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(width: width, height: band)
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .allowsHitTesting(false)
     }
 
     /// Blur strip on the dial-facing edge of a single-wing map.
@@ -367,14 +471,14 @@ struct NativeHUDView: View {
     /// Soft tint so light map blends into the dark vertical panel / dial.
     @ViewBuilder
     private func mapClusterUnityWash(edge: MapEdge, verticalFromTop: Bool?, cluster: Color) -> some View {
-        let wash: CGFloat = 96
+        let wash: CGFloat = 140
         if let fromTop = verticalFromTop {
             VStack(spacing: 0) {
                 if !fromTop { Spacer(minLength: 0) }
                 LinearGradient(
                     colors: fromTop
-                        ? [.clear, cluster.opacity(0.25), cluster.opacity(0.72)]
-                        : [cluster.opacity(0.72), cluster.opacity(0.25), .clear],
+                        ? [.clear, cluster.opacity(0.25), cluster.opacity(0.75)]
+                        : [cluster.opacity(0.75), cluster.opacity(0.25), .clear],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -387,8 +491,8 @@ struct NativeHUDView: View {
                 if edge == .trailing { Spacer(minLength: 0) }
                 LinearGradient(
                     colors: edge == .leading
-                        ? [cluster.opacity(0.78), cluster.opacity(0.28), .clear]
-                        : [.clear, cluster.opacity(0.28), cluster.opacity(0.78)],
+                        ? [cluster.opacity(0.82), cluster.opacity(0.35), cluster.opacity(0.08), .clear]
+                        : [.clear, cluster.opacity(0.08), cluster.opacity(0.35), cluster.opacity(0.82)],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -456,8 +560,6 @@ struct NativeHUDView: View {
                 }
             }
             .frame(width: w, height: topH)
-            .clipShape(Rectangle())
-            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .padding(.top, topChrome)
             .zIndex(topWing ? 0 : 1)
@@ -470,10 +572,19 @@ struct NativeHUDView: View {
                 }
             }
             .frame(width: w, height: bottomH)
-            .clipShape(Rectangle())
-            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .zIndex(bottomWing ? 0 : 1)
+
+            // Soft cover over hard horizontal map seams (portrait).
+            if topWing != bottomWing {
+                mapHardEdgeCoverPortrait(
+                    fromTop: topWing,
+                    seamY: topWing ? (topChrome + topH) : (h - bottomH),
+                    width: w,
+                    cluster: cluster
+                )
+                .zIndex(3)
+            }
 
             Circle()
                 .fill(cluster.opacity(topWing || bottomWing ? 0.82 : 1))
@@ -1555,16 +1666,5 @@ struct NativeHUDView: View {
 
     private func displayOrDash(_ s: String) -> String {
         isBlank(s) ? "--" : s
-    }
-
-    /// Soft blur strip for map→dial edge (SwiftUI material — always in scope).
-    private struct SoftMapBlurBand: View {
-        var body: some View {
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
-                .overlay(Color.black.opacity(0.12))
-                .allowsHitTesting(false)
-        }
     }
 }
