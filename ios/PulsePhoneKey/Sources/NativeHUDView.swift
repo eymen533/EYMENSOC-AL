@@ -312,27 +312,42 @@ struct NativeHUDView: View {
     @ViewBuilder
     private func mapDialBlurBand(edge: MapEdge, verticalFromTop: Bool?) -> some View {
         let band: CGFloat = 78
+        // Inline soft wash — no nested type (avoids SoftMapBlur* scope build errors).
+        let wash = ZStack {
+            Color.black.opacity(0.18)
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.06),
+                    Color.black.opacity(0.28),
+                    Color.black.opacity(0.45)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        .allowsHitTesting(false)
+
         if let fromTop = verticalFromTop {
             VStack(spacing: 0) {
                 if !fromTop { Spacer(minLength: 0) }
-            SoftMapBlurBand()
-                .frame(height: band)
-                .mask(
-                    LinearGradient(
-                        colors: fromTop
-                            ? [.clear, .white.opacity(0.55), .white]
-                            : [.white, .white.opacity(0.55), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
+                wash
+                    .frame(height: band)
+                    .mask(
+                        LinearGradient(
+                            colors: fromTop
+                                ? [.clear, .white.opacity(0.55), .white]
+                                : [.white, .white.opacity(0.55), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
                 if fromTop { Spacer(minLength: 0) }
             }
             .allowsHitTesting(false)
         } else {
             HStack(spacing: 0) {
                 if edge == .trailing { Spacer(minLength: 0) }
-                SoftMapBlur()
+                wash
                     .frame(width: band)
                     .mask(
                         LinearGradient(
@@ -1541,18 +1556,15 @@ struct NativeHUDView: View {
     private func displayOrDash(_ s: String) -> String {
         isBlank(s) ? "--" : s
     }
-}
 
-/// Blurs whatever is behind it (the map wing under the dial).
-private struct SoftMapBlur: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIVisualEffectView {
-        let v = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
-        v.isUserInteractionEnabled = false
-        v.backgroundColor = UIColor.black.withAlphaComponent(0.08)
-        return v
-    }
-
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
-        uiView.effect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+    /// Soft blur strip for map→dial edge (SwiftUI material — always in scope).
+    private struct SoftMapBlurBand: View {
+        var body: some View {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+                .overlay(Color.black.opacity(0.12))
+                .allowsHitTesting(false)
+        }
     }
 }
