@@ -70,6 +70,8 @@ final class TeslaBLESession {
     var statusText: String = "BLE session yok"
     /// True when last commit failed due to HMAC challenge/tag mismatch.
     private(set) var lastSessionTagInvalid = false
+    /// True when last AES response decrypt failed (counter/epoch drift).
+    private(set) var lastDecryptFailed = false
 
     func isReady(_ domain: Domain) -> Bool {
         guard let s = domains[domain] else { return false }
@@ -91,6 +93,7 @@ final class TeslaBLESession {
         lastRequestDomain = domain
         lastWasAES = false
         lastSessionTagInvalid = false
+        lastDecryptFailed = false
         pendingHandshakeUUID[domain] = uuid
         lastHandshakeUUID[domain] = uuid
         // SessionInfoRequest { public_key = 1 }
@@ -220,9 +223,11 @@ final class TeslaBLESession {
                 )
                 payload = plain
             } catch {
+                lastDecryptFailed = true
                 statusText = "Decrypt fail"
                 return false
             }
+            lastDecryptFailed = false
         }
 
         if fromDomain == .infotainment {

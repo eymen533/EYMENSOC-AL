@@ -12,20 +12,15 @@ struct NativeHUDView: View {
 
     @State private var mapExpanded = false
 
-    private var night: Bool { model.night }
-    private var ink: Color { night ? .white : Color(red: 0.08, green: 0.09, blue: 0.11) }
-    private var muted: Color { night ? Color.white.opacity(0.55) : Color.black.opacity(0.45) }
-    private var dim: Color { night ? Color.white.opacity(0.22) : Color.black.opacity(0.18) }
+    /// Always black cluster — vehicle day/night theme is ignored (white glare).
+    private var night: Bool { true }
+    private var ink: Color { .white }
+    private var muted: Color { Color.white.opacity(0.55) }
+    private var dim: Color { Color.white.opacity(0.22) }
     private var accent: Color { Color(red: 0.20, green: 0.72, blue: 0.62) }
-    private var canvas: Color {
-        night ? .black : Color(red: 0.90, green: 0.91, blue: 0.93)
-    }
-    private var dialFill: Color {
-        night ? .black : Color(red: 0.97, green: 0.97, blue: 0.98)
-    }
-    private var chipFill: Color {
-        night ? Color.black.opacity(0.72) : Color.black.opacity(0.45)
-    }
+    private var canvas: Color { .black }
+    private var dialFill: Color { Color(red: 0.08, green: 0.08, blue: 0.09) }
+    private var chipFill: Color { Color.black.opacity(0.72) }
     /// Soft blend into dial — always dark so day mode never paints white bars.
     private var fadeIntoDial: Color { Color.black }
 
@@ -61,11 +56,13 @@ struct NativeHUDView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .ignoresSafeArea()
-        .preferredColorScheme(anyBleed ? .dark : (night ? .dark : .light))
+        .preferredColorScheme(.dark)
         .statusBarHidden(true)
         .onAppear {
             model.start()
             model.pulseRails()
+            model.night = true
+            settings.mapTheme = .dark
             PhoneLocationStore.shared.start()
             UIApplication.shared.isIdleTimerDisabled = true
             MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist, album: model.mediaAlbum)
@@ -83,9 +80,7 @@ struct NativeHUDView: View {
         .onChangeCompat(of: model.mediaAlbum) { _ in
             MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist, album: model.mediaAlbum)
         }
-        .onChangeCompat(of: model.night) { n in
-            settings.mapTheme = n ? .dark : .light
-        }
+        // Vehicle day/night ignored — cluster stays black.
     }
 
     private enum Side { case left, right }
@@ -95,19 +90,20 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        // Dial size back to the previous (more prominent) feel.
         let dialW = min(w * 0.30, h * 0.72, 268)
         let cx = w * 0.5
         let cy = h * 0.5
-        let gap: CGFloat = 2
+        let gap: CGFloat = 0
         let sideW = max(140, (w - dialW) / 2 - gap)
-        // Tuck under dial so map/art read as background plane.
-        let bleedW = sideW + dialW * 0.52
-        let chromeInk = anyBleed ? Color.white : ink
-        let chromeMuted = anyBleed ? Color.white.opacity(0.7) : muted
+        // Deep tuck under dial — album/map read as full rear plane (no white seams).
+        let bleedW = sideW + dialW * 0.62
+        let chromeInk = Color.white
+        let chromeMuted = Color.white.opacity(0.7)
 
         return ZStack {
-            // Left plane — full height, pushed back in 3D.
+            Color.black.ignoresSafeArea()
+
+            // Left plane — full height, behind dial.
             Group {
                 if leftMap {
                     panelMap(edge: .trailing, side: .left)
@@ -120,21 +116,9 @@ struct NativeHUDView: View {
             .frame(width: leftWing ? bleedW : sideW, height: h)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .zIndex(leftWing ? 0 : 2)
-            .scaleEffect(0.90)
-            .opacity(0.82)
-            .brightness(-0.12)
-            .saturation(0.75)
-            .rotation3DEffect(.degrees(11), axis: (x: 0, y: 1, z: 0), anchor: .leading, perspective: 0.55)
-            .overlay(
-                LinearGradient(
-                    colors: [.clear, Color.black.opacity(0.45)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .allowsHitTesting(false)
-            )
+            .opacity(leftWing ? 0.92 : 1.0)
 
-            // Right plane — full height, pushed back in 3D.
+            // Right plane — full height, behind dial.
             Group {
                 if rightMap {
                     panelMap(edge: .leading, side: .right)
@@ -147,34 +131,28 @@ struct NativeHUDView: View {
             .frame(width: rightWing ? bleedW : sideW, height: h)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             .zIndex(rightWing ? 0 : 2)
-            .scaleEffect(0.90)
-            .opacity(0.82)
-            .brightness(-0.12)
-            .saturation(0.75)
-            .rotation3DEffect(.degrees(-11), axis: (x: 0, y: 1, z: 0), anchor: .trailing, perspective: 0.55)
-            .overlay(
+            .opacity(rightWing ? 0.92 : 1.0)
+
+            // Soft black veil at dial seam — kills glare/white edges.
+            HStack(spacing: 0) {
                 LinearGradient(
-                    colors: [Color.black.opacity(0.45), .clear],
+                    colors: [.clear, Color.black.opacity(0.55)],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
-                .allowsHitTesting(false)
-            )
-
-            // Depth well — dark halo so dial separation is obvious.
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [Color.black.opacity(0.55), Color.black.opacity(0.18), .clear],
-                        center: .center,
-                        startRadius: dialW * 0.2,
-                        endRadius: dialW * 0.85
-                    )
+                .frame(width: dialW * 0.42)
+                Spacer(minLength: 0)
+                LinearGradient(
+                    colors: [Color.black.opacity(0.55), .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
                 )
-                .frame(width: dialW * 1.55, height: dialW * 1.55)
-                .position(x: cx, y: cy)
-                .allowsHitTesting(false)
-                .zIndex(5)
+                .frame(width: dialW * 0.42)
+            }
+            .frame(width: dialW * 1.15, height: h)
+            .position(x: cx, y: cy)
+            .allowsHitTesting(false)
+            .zIndex(5)
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                 .position(x: max(16, cx - dialW * 0.5 - 14), y: cy)
@@ -183,9 +161,8 @@ struct NativeHUDView: View {
                 .position(x: min(w - 16, cx + dialW * 0.5 + 14), y: cy)
                 .zIndex(7)
 
-            // Dial floats above wings (clearly forward).
+            // Dial in front of album/map wings.
             dialView(size: dialW)
-                .rotation3DEffect(.degrees(-6), axis: (x: 1, y: 0, z: 0), perspective: 0.45)
                 .position(x: cx, y: cy)
                 .zIndex(10)
 
@@ -294,10 +271,7 @@ struct NativeHUDView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, topWing ? -bleedExtra : 0)
                 .zIndex(topWing ? 0 : 1)
-                .scaleEffect(0.93)
-                .opacity(0.86)
-                .brightness(-0.10)
-                .rotation3DEffect(.degrees(-8), axis: (x: 1, y: 0, z: 0), anchor: .top, perspective: 0.5)
+                .opacity(topWing ? 0.94 : 1.0)
 
                 Color.clear
                     .frame(height: dialW)
@@ -316,29 +290,26 @@ struct NativeHUDView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, bottomWing ? -bleedExtra : 0)
                 .zIndex(bottomWing ? 0 : 1)
-                .scaleEffect(0.93)
-                .opacity(0.86)
-                .brightness(-0.10)
-                .rotation3DEffect(.degrees(8), axis: (x: 1, y: 0, z: 0), anchor: .bottom, perspective: 0.5)
+                .opacity(bottomWing ? 0.94 : 1.0)
             }
             .frame(maxHeight: .infinity)
+            .background(Color.black)
 
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [Color.black.opacity(0.5), Color.black.opacity(0.15), .clear],
+                        colors: [Color.black.opacity(0.65), Color.black.opacity(0.2), .clear],
                         center: .center,
-                        startRadius: dialW * 0.15,
-                        endRadius: dialW * 0.9
+                        startRadius: dialW * 0.12,
+                        endRadius: dialW * 0.95
                     )
                 )
-                .frame(width: dialW * 1.6, height: dialW * 1.6)
+                .frame(width: dialW * 1.7, height: dialW * 1.7)
                 .position(x: cx, y: cy)
                 .allowsHitTesting(false)
                 .zIndex(7)
 
             dialView(size: dialW)
-                .rotation3DEffect(.degrees(-5), axis: (x: 1, y: 0, z: 0), perspective: 0.4)
                 .position(x: cx, y: cy)
                 .zIndex(10)
 
@@ -851,10 +822,8 @@ struct NativeHUDView: View {
         let dialInk: Color = bareLit ? .white : ink
         let dialMuted: Color = bareLit ? Color.white.opacity(0.72) : muted
         let dialDim: Color = bareLit ? Color.white.opacity(0.30) : dim
-        // Raised plate — never pure black so bevel/shadows stay visible at night.
-        let plate: Color = night
-            ? Color(red: 0.14, green: 0.15, blue: 0.17)
-            : Color(red: 0.97, green: 0.97, blue: 0.98)
+        // Raised dark plate — always black cluster (no day-silver).
+        let plate: Color = Color(red: 0.12, green: 0.13, blue: 0.15)
         let squareR = size * 0.16
 
         let content = VStack(spacing: compact ? 0 : 2) {

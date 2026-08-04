@@ -200,10 +200,9 @@ final class HUDModel: ObservableObject {
         }
         turnLeft = s.turnLeft
         turnRight = s.turnRight
-        if let n = s.nightMode {
-            night = n
-            HUDSettings.shared.mapTheme = n ? .dark : .light
-        }
+        // Cluster is always black — ignore vehicle day/night theme (causes white bars).
+        night = true
+        HUDSettings.shared.mapTheme = .dark
         if abs(s.latitude) > 0.0001 || abs(s.longitude) > 0.0001 {
             latitude = s.latitude
             longitude = s.longitude
@@ -530,11 +529,9 @@ final class HUDModel: ObservableObject {
             if let v = obj["light_fog"] as? Bool { lightFog = v }
             if let v = obj["turn_left"] as? Bool { turnLeft = v }
             if let v = obj["turn_right"] as? Bool { turnRight = v }
-            if let theme = obj["ui_theme"] as? String {
-                let n = theme.lowercased() != "day"
-                night = n
-                HUDSettings.shared.mapTheme = n ? .dark : .light
-            }
+            // Always black cluster — do not follow dash ui_theme day/night.
+            night = true
+            HUDSettings.shared.mapTheme = .dark
             return true
         } catch {
             feedOK = false

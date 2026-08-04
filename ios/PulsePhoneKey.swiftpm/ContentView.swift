@@ -250,6 +250,13 @@ struct ContentView: View {
                 Section("BLE telemetri (asıl kaynak)") {
                     Text(ble.bleStatus)
                         .font(.footnote)
+                    Text(ble.bleLiveOK
+                        ? "Durum: BLE LIVE — hız/GPS anlık geliyor."
+                        : (ble.linkUp
+                           ? "Durum: GATT bağlı ama oturum henüz LIVE değil (handshake)."
+                           : "Durum: araç bağlantısı yok."))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(ble.bleLiveOK ? Color.green : .secondary)
                     Text(alreadyPaired
                         ? "Phone Key bu VIN için kayıtlı. Araca her bindiğinde add-key yok — otomatik BLE bağlanır. Key Card konsolda olmalı."
                         : "İlk seferde Pair Vehicle: add-key + Key Card. Sonrasında otomatik bağlanır.")
@@ -269,7 +276,7 @@ struct ContentView: View {
                     .pickerStyle(.segmented)
                     Text({
                         switch hudSettings.refreshMode {
-                        case .instant: return "Anlık: maksimum BLE hızı (~20 Hz), en canlı hız/GPS."
+                        case .instant: return "Anlık: hızlı BLE yazma + drive/GPS ağırlıklı poll."
                         case .performance: return "Performans: hızlı BLE, dengeli pil."
                         case .low: return "Düşük: daha az pil, daha seyrek güncelleme."
                         }
@@ -284,9 +291,9 @@ struct ContentView: View {
                     .pickerStyle(.segmented)
                     Text({
                         switch hudSettings.dialStyle {
-                        case .circle: return "Yuvarlak: klasik halka, 3D önde."
-                        case .square: return "Kare: köşeli çerçeve, 3D önde."
-                        case .bare: return "Sade: çerçeve yok — sadece hız/vites, 3D gölge."
+                        case .circle: return "Yuvarlak: makul boyut, ekstrüde bevel — kanatlar geride 3D."
+                        case .square: return "Kare: makul boyut, ekstrüde bevel — kanatlar geride 3D."
+                        case .bare: return "Sade: çerçeve yok — hız/vites yüzer, derin gölge."
                         }
                     }())
                         .font(.footnote)
@@ -327,10 +334,9 @@ struct ContentView: View {
                             .autocorrectionDisabled()
                     }
                     Toggle("Auto Zoom (rota sığdır)", isOn: $hudSettings.autoZoom)
-                    Picker("Theme", selection: $hudSettings.mapTheme) {
-                        ForEach(HUDSettings.MapTheme.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
+                    Text("Cluster her zaman siyah — araç gece/gündüz teması yok sayılır.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 Section("Dash (yedek)") {
                     TextField("Dash URL", text: $dashURL)

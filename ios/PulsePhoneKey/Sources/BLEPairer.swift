@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-37"
+    static let buildId = "xcode-ble-38"
 
     enum Step: String {
         case idle = "Hazir"
@@ -441,6 +441,16 @@ final class BLEPairer: NSObject, ObservableObject {
             self.logLine("telemetry attach")
             tele.onUpdate = { [weak self] in
                 self?.syncTelemetryPublished()
+            }
+            tele.onNeedGATTReconnect = { [weak self] in
+                guard let self else { return }
+                self.logLine("GATT bounce (stall)")
+                self.status = "Veri yok — GATT yenileniyor…"
+                if let p = self.peripheral {
+                    self.central?.cancelPeripheralConnection(p)
+                } else {
+                    self.keepAliveReconnect()
+                }
             }
             tele.attach(vin: self.vin, privateKey: key, peripheral: p, writeChar: wc)
             self.linkLabel = "BLE telemetri…"

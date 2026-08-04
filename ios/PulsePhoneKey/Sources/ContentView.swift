@@ -334,10 +334,9 @@ struct ContentView: View {
                             .autocorrectionDisabled()
                     }
                     Toggle("Auto Zoom (rota sığdır)", isOn: $hudSettings.autoZoom)
-                    Picker("Theme", selection: $hudSettings.mapTheme) {
-                        ForEach(HUDSettings.MapTheme.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
+                    Text("Cluster her zaman siyah — araç gece/gündüz teması yok sayılır.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 Section("Dash (yedek)") {
                     TextField("Dash URL", text: $dashURL)

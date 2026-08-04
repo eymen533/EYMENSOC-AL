@@ -476,10 +476,8 @@ struct VehicleMapView: View {
     private var mapHeading: Double { hasCarGPS ? heading : phone.heading }
 
     private var effectiveTheme: HUDSettings.MapTheme {
-        if let forceDark {
-            return forceDark ? .dark : .light
-        }
-        return settings.mapTheme
+        // Always dark — vehicle day theme caused white glare behind dial.
+        .dark
     }
 
     private var isDark: Bool { effectiveTheme != .light }
