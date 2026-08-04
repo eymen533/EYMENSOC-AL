@@ -1,6 +1,7 @@
 import Foundation
 import CoreBluetooth
 import CryptoKit
+import UIKit
 
 /// Polls vehicle telemetry on an open Tesla BLE GATT link.
 /// Stable pipeline — avoids flooding that freezes the GATT link after a while.
@@ -20,6 +21,16 @@ final class BLETelemetry {
 
     /// Fired on main when snapshot / phase changes (throttled).
     var onUpdate: (() -> Void)?
+
+    /// iPhone 8 Plus daha zayıf GPU/CPU ile MapKit + SwiftUI yeniden çizimini zorlayabiliyor.
+    /// Bu yüzden BLE verisini okumaya devam ederken UI push frekansını cihazda hafif düşürüyoruz.
+    private let uiPushIntervalSeconds: TimeInterval = {
+        let model = UIDevice.current.model
+        if model.contains("iPhone 8 Plus") || model.contains("iPhone 8") {
+            return 0.08 // ~12.5 Hz UI güncelleme
+        }
+        return 0.05 // ~20 Hz UI güncelleme (Anlık)
+    }()
 
     private var session: TeslaBLESession?
     private var vin = ""
@@ -257,7 +268,7 @@ final class BLETelemetry {
     private func notify(force: Bool) {
         let now = Date()
         // Throttle UI to ~20Hz — keeps MapKit alive while feeling instant.
-        if !force, now.timeIntervalSince(lastUIPush) < 0.05 { return }
+        if !force, now.timeIntervalSince(lastUIPush) < uiPushIntervalSeconds { return }
         lastUIPush = now
         if Thread.isMainThread {
             onUpdate?()
