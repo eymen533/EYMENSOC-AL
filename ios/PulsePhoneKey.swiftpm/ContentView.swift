@@ -102,7 +102,7 @@ struct ContentView: View {
 
                 VStack(spacing: 18) {
                     Spacer()
-                    Text("PULSE 29")
+                    Text("PULSE 30")
                         .font(.system(size: 52, weight: .black, design: .rounded))
                         .foregroundStyle(.white)
                     Text(BLEPairer.buildId)
@@ -113,10 +113,10 @@ struct ContentView: View {
                         .background(
                             Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05))
                         )
-                    Text("Harita/medya kadranın altına tuck · Pulse28 app")
+                    Text("Tam ekran kanat · 3D kadran · Ayarlar→Şekil")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.6))
-                    Text("Eski Pulse (23) ayrı ikon — bunu aç: Pulse28")
+                    Text("Pulse28 ikonunu aç")
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(Color(red: 1.0, green: 0.55, blue: 0.2))
                         .multilineTextAlignment(.center)
@@ -272,6 +272,21 @@ struct ContentView: View {
                         case .instant: return "Anlık: maksimum BLE hızı (~20 Hz), en canlı hız/GPS."
                         case .performance: return "Performans: hızlı BLE, dengeli pil."
                         case .low: return "Düşük: daha az pil, daha seyrek güncelleme."
+                        }
+                    }())
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Kadran") {
+                    Picker("Şekil", selection: $hudSettings.dialStyle) {
+                        ForEach(HUDSettings.DialStyle.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    Text({
+                        switch hudSettings.dialStyle {
+                        case .circle: return "Yuvarlak: klasik halka, 3D önde."
+                        case .square: return "Kare: köşeli çerçeve, 3D önde."
+                        case .bare: return "Sade: çerçeve yok — sadece hız/vites, 3D gölge."
                         }
                     }())
                         .font(.footnote)

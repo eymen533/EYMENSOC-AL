@@ -69,8 +69,18 @@ final class HUDSettings: ObservableObject {
         var id: String { rawValue }
     }
 
+    enum DialStyle: String, CaseIterable, Identifiable {
+        case circle = "Yuvarlak"
+        case square = "Kare"
+        case bare = "Sade"
+        var id: String { rawValue }
+    }
+
     @Published var refreshMode: RefreshMode {
         didSet { UserDefaults.standard.set(refreshMode.rawValue, forKey: "pulse_refresh_mode") }
+    }
+    @Published var dialStyle: DialStyle {
+        didSet { UserDefaults.standard.set(dialStyle.rawValue, forKey: "pulse_dial_style") }
     }
     @Published var speedStyle: SpeedStyle {
         didSet { UserDefaults.standard.set(speedStyle.rawValue, forKey: "pulse_speed_style") }
@@ -100,6 +110,7 @@ final class HUDSettings: ObservableObject {
     private init() {
         let d = UserDefaults.standard
         refreshMode = RefreshMode(rawValue: d.string(forKey: "pulse_refresh_mode") ?? "") ?? .instant
+        dialStyle = DialStyle(rawValue: d.string(forKey: "pulse_dial_style") ?? "") ?? .circle
         speedStyle = SpeedStyle(rawValue: d.string(forKey: "pulse_speed_style") ?? "") ?? .classic
         speedColor = SpeedColor(rawValue: d.string(forKey: "pulse_speed_color") ?? "") ?? .multicolor
         powerStyle = PowerStyle(rawValue: d.string(forKey: "pulse_power_style") ?? "") ?? .ring
