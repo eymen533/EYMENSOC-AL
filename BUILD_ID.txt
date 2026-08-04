@@ -1,4 +1,4 @@
-xcode-ble-31
+xcode-ble-32
 branch: cursor/hud-day-night-doors-02d8
 bundle: com.teslapulse.phonekey28
 display: Pulse28
