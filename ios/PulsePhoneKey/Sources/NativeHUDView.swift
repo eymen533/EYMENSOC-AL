@@ -935,7 +935,6 @@ struct NativeHUDView: View {
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
                 .transaction { $0.animation = nil }
-                .contentTransition(.identity)
                 .shadow(color: .black.opacity(0.85), radius: style == .bare ? 12 : 5, y: style == .bare ? 7 : 3)
                 .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
             Text("km/h")
