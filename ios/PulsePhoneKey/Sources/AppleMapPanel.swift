@@ -357,9 +357,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.showsCompass = false
         map.showsTraffic = false
         map.showsPointsOfInterest = true
-        map.showsBuildings = false
-        map.delegate = context.coordinator
-        // Force light tiles even when the HUD prefers dark chrome.
+        map.showsBuildings = true
         map.overrideUserInterfaceStyle = dark ? .dark : .light
         if #available(iOS 16.0, *) {
             let cfg = MKStandardMapConfiguration(emphasisStyle: .default)
@@ -405,7 +403,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.layer.masksToBounds = true
         map.overrideUserInterfaceStyle = dark ? .dark : .light
         map.backgroundColor = dark ? .black : paper
-        map.showsBuildings = false
+        map.showsBuildings = true
         if #available(iOS 16.0, *) {
             let cfg = MKStandardMapConfiguration(emphasisStyle: .default)
             cfg.pointOfInterestFilter = .includingAll
@@ -460,9 +458,9 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             return
         }
 
-        let distance: CLLocationDistance = turnByTurn ? 240 : 540
-        // Lower pitch = flatter, brighter look (steep 3D looked almost black).
-        let pitch: CGFloat = turnByTurn ? 28 : 18
+        let distance: CLLocationDistance = turnByTurn ? 280 : 560
+        // Modest pitch — light map stays bright while still reading as 3D.
+        let pitch: CGFloat = turnByTurn ? 42 : 28
         // Normalize heading so camera faces travel direction (0…360).
         var camHeading = heading.truncatingRemainder(dividingBy: 360)
         if camHeading < 0 { camHeading += 360 }
