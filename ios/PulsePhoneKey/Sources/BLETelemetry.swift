@@ -27,7 +27,7 @@ final class BLETelemetry {
     private(set) var attachedPeripheralId: UUID?
 
     /// Push HUD ASAP when speed changes; otherwise light throttle.
-    private let uiPushIntervalSeconds: TimeInterval = 0.03
+    private let uiPushIntervalSeconds: TimeInterval = 0.018
 
     private var session: TeslaBLESession?
     private var vin = ""
@@ -43,6 +43,7 @@ final class BLETelemetry {
     private var lastUIPush = Date.distantPast
     private var lastLiveDataAt = Date.distantPast
     private var lastPublishedSpeed: Double = -1
+    private var lastPublishedSpeedInt: Int = -1
     private var pollIndex = 0
     private var handshakeTries = 0
     /// Always withResponse — withoutResponse desynced counters and killed data after a while.
@@ -51,36 +52,10 @@ final class BLETelemetry {
     private var lastTagFailAt = Date.distantPast
     private var stallRecoveryAt = Date.distantPast
     private var stallRecoveries = 0
-    var pollIntervalSeconds: TimeInterval = 0.04
+    var pollIntervalSeconds: TimeInterval = 0.035
     private let maxInFlight = 1
 
-    /// Drive-heavy mix — speed updates most ticks; GPS/media less often.
-    private let pollActions: [() -> Data] = [
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDriveAndLocation,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDriveAndLocation,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetMedia,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDriveAndLocation,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetCharge,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDriveAndLocation,
-        TeslaBLESession.actionGetTire,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetClimate,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetDrive,
-        TeslaBLESession.actionGetClosures,
-        TeslaBLESession.actionGetDriveAndLocation,
-    ]
+    /// Nearly pure Drive poll — speed tracks the car like the dash.
 
     func attach(
         vin: String,
@@ -102,6 +77,7 @@ final class BLETelemetry {
         stallRecoveries = 0
         liveOK = false
         lastPublishedSpeed = -1
+        lastPublishedSpeedInt = -1
         phase = .handshake
         status = "BLE handshake…"
         lastNotifyAt = Date()
@@ -149,13 +125,19 @@ final class BLETelemetry {
                     stallRecoveries = 0
                     status = "BLE LIVE"
                     let next = session.snapshot
-                    if lastPublishedSpeed >= 0, abs(next.speedKmh - lastPublishedSpeed) >= 0.4 {
+                    let speedInt = Int(abs(next.speedKmh).rounded())
+                    if lastPublishedSpeedInt >= 0, speedInt != lastPublishedSpeedInt {
+                        speedMoved = true
+                    } else if lastPublishedSpeed >= 0, abs(next.speedKmh - lastPublishedSpeed) >= 0.2 {
                         speedMoved = true
                     }
                     lastPublishedSpeed = next.speedKmh
+                    lastPublishedSpeedInt = speedInt
                     snapshot = next
                     lastLiveDataAt = Date()
                     gotLiveFrame = true
+                    // Always push live vehicle frames promptly (dash-like).
+                    if !speedMoved { speedMoved = true }
                 } else if !liveOK {
                     status = "BLE oturum OK — araç verisi…"
                 }
@@ -217,7 +199,7 @@ final class BLETelemetry {
     }
 
     func applyPollInterval(_ seconds: TimeInterval) {
-        pollIntervalSeconds = max(0.035, min(3.0, seconds))
+        pollIntervalSeconds = max(0.03, min(3.0, seconds))
         if pollTimer != nil { startPolling() }
     }
 
@@ -287,9 +269,21 @@ final class BLETelemetry {
             return
         }
 
-        let action = pollActions[pollIndex % pollActions.count]()
-        pollIndex += 1
+        let action = nextPollAction()
         enqueueCommand(domain: .infotainment, command: action)
+    }
+
+    /// Drive almost every tick — rare secondary fields so speed matches the car.
+    private func nextPollAction() -> Data {
+        pollIndex += 1
+        let i = pollIndex
+        if i % 14 == 0 { return TeslaBLESession.actionGetDriveAndLocation() }
+        if i % 22 == 0 { return TeslaBLESession.actionGetMedia() }
+        if i % 28 == 0 { return TeslaBLESession.actionGetCharge() }
+        if i % 34 == 0 { return TeslaBLESession.actionGetTire() }
+        if i % 40 == 0 { return TeslaBLESession.actionGetClimate() }
+        if i % 46 == 0 { return TeslaBLESession.actionGetClosures() }
+        return TeslaBLESession.actionGetDrive()
     }
 
     private func sendHandshake() {

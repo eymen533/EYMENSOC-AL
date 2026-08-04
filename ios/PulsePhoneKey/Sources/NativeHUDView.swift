@@ -31,6 +31,7 @@ struct NativeHUDView: View {
     private var rightMap: Bool { model.rightSlide == 3 }
     private var leftWing: Bool { leftMap }
     private var rightWing: Bool { rightMap }
+    private var bothMap: Bool { leftMap && rightMap }
     private var anyBleed: Bool { leftWing || rightWing }
 
     var body: some View {
@@ -81,7 +82,26 @@ struct NativeHUDView: View {
 
     private enum Side { case left, right }
 
-    // MARK: - Triad (map only on the selected side; tucks under dial)
+    // MARK: - Full-bleed map (Dashla: both sides = Harita)
+
+    private var fullBleedMap: some View {
+        VehicleMapView(
+            lat: model.latitude,
+            lon: model.longitude,
+            heading: model.mapHeading,
+            destination: routeDestination,
+            destLat: model.destLatitude,
+            destLon: model.destLongitude,
+            apiKey: model.googleMapsKey,
+            turnByTurn: true,
+            turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
+            turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
+            turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 })
+        )
+        .allowsHitTesting(false)
+    }
+
+    // MARK: - Triad
 
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
@@ -90,49 +110,117 @@ struct NativeHUDView: View {
         let cx = w * 0.5
         let cy = h * 0.5
         let sideW = max(140, (w - dialW) / 2)
-        let tuck = dialW * 0.30
+        let tuck = dialW * 0.32
         let leftW = sideW + (leftMap ? tuck : 0)
         let rightW = sideW + (rightMap ? tuck : 0)
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
         let chromeMuted = Color.white.opacity(0.78)
+        // Shared cluster ink — panels + dial same family (Dashla bütünlük).
+        let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
 
         return ZStack {
-            Color.black
+            if bothMap {
+                // Dashla: both Harita → map is the whole stage + soft blur under dial.
+                fullBleedMap
+                    .frame(width: w, height: h)
+                    .clipped()
+                    .zIndex(0)
 
-            // Left side — map only when left slide is Harita.
-            Group {
-                if leftMap {
-                    panelMap(edge: .trailing, side: .left)
-                } else {
-                    sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
+                // Soft blur bloom behind dial (map still readable at edges).
+                fullBleedMap
+                    .frame(width: w, height: h)
+                    .blur(radius: 16)
+                    .opacity(0.72)
+                    .mask(
+                        RadialGradient(
+                            colors: [
+                                Color.white,
+                                Color.white.opacity(0.75),
+                                Color.white.opacity(0.15),
+                                .clear
+                            ],
+                            center: .center,
+                            startRadius: dialW * 0.15,
+                            endRadius: dialW * 1.15
+                        )
+                    )
+                    .allowsHitTesting(false)
+                    .zIndex(1)
+
+                // Soft dark plate under dial — keeps cluster black (no white glare).
+                Circle()
+                    .fill(Color.black.opacity(0.42))
+                    .frame(width: dialW * 1.18, height: dialW * 1.18)
+                    .position(x: cx, y: cy)
+                    .allowsHitTesting(false)
+                    .zIndex(3)
+
+                // Swipe zones (no opaque panels).
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(width: sideW, height: h * 0.8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .gesture(sideSwipe(side: .left))
+                    .onTapGesture { model.flashLeftRail() }
+                    .zIndex(2)
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(width: sideW, height: h * 0.8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                    .gesture(sideSwipe(side: .right))
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = true }
+                    }
+                    .zIndex(2)
+            } else {
+                cluster.zIndex(0)
+
+                // Soft unity wash so non-map side matches dial black.
+                if leftMap != rightMap {
+                    LinearGradient(
+                        colors: leftMap
+                            ? [.clear, cluster.opacity(0.35), cluster]
+                            : [cluster, cluster.opacity(0.35), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .allowsHitTesting(false)
+                    .zIndex(0)
                 }
-            }
-            .frame(width: leftW, height: h)
-            .clipShape(Rectangle())
-            .clipped()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .zIndex(leftMap ? 0 : 1)
 
-            // Right side — map only when right slide is Harita.
-            Group {
-                if rightMap {
-                    panelMap(edge: .leading, side: .right)
-                } else {
-                    sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                Group {
+                    if leftMap {
+                        panelMap(edge: .trailing, side: .left)
+                    } else {
+                        sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
+                    }
                 }
-            }
-            .frame(width: rightW, height: h)
-            .clipShape(Rectangle())
-            .clipped()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-            .zIndex(rightMap ? 0 : 1)
+                .frame(width: leftW, height: h)
+                .clipShape(Rectangle())
+                .clipped()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .zIndex(leftMap ? 0 : 1)
 
-            // Opaque plate under dial — hides wing seam.
-            Circle()
-                .fill(Color.black)
-                .frame(width: dialW * 1.06, height: dialW * 1.06)
-                .position(x: cx, y: cy)
-                .zIndex(4)
+                Group {
+                    if rightMap {
+                        panelMap(edge: .leading, side: .right)
+                    } else {
+                        sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                    }
+                }
+                .frame(width: rightW, height: h)
+                .clipShape(Rectangle())
+                .clipped()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .zIndex(rightMap ? 0 : 1)
+
+                // Dial plate — same cluster black (seamless with panels).
+                Circle()
+                    .fill(cluster)
+                    .frame(width: dialW * 1.06, height: dialW * 1.06)
+                    .position(x: cx, y: cy)
+                    .zIndex(4)
+            }
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                 .position(x: max(16, cx - dialW * 0.5 - 14), y: cy)
@@ -145,13 +233,12 @@ struct NativeHUDView: View {
                 .position(x: cx, y: cy)
                 .zIndex(10)
 
-            // Turn cues sit on the map side (readable), not across whole screen.
             if showTurn {
                 turnBanner
                     .frame(maxWidth: min(300, sideW * 0.95), alignment: .leading)
                     .position(
-                        x: rightMap && !leftMap
-                            ? (w - rightW * 0.5)
+                        x: bothMap || (rightMap && !leftMap)
+                            ? (bothMap ? w * 0.22 : (w - rightW * 0.5))
                             : (leftW * 0.5),
                         y: max(72, cy - dialW * 0.38)
                     )
@@ -189,8 +276,7 @@ struct NativeHUDView: View {
             .padding(.bottom, 8)
             .zIndex(8)
 
-            // Dashla chrome — no solid top bar; texts float into left panel / map.
-            dashlaChrome(leftMap: leftMap, rightMap: rightMap)
+            dashlaChrome(leftMap: leftMap || bothMap, rightMap: rightMap || bothMap)
                 .zIndex(20)
         }
         .frame(width: w, height: h)
@@ -593,10 +679,10 @@ struct NativeHUDView: View {
         // Keep content clear of the vertical selection rail (~34pt near dial).
         let railClear: CGFloat = 36
         return ZStack(alignment: .bottomLeading) {
-            // Full opaque black — blocks MapKit bleed into this panel (including corners).
-            Color.black
+            // Same cluster black as dial — Dashla bütünlük.
+            Color(red: 0.07, green: 0.07, blue: 0.08)
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(red: 0.08, green: 0.08, blue: 0.09))
+                .fill(Color(red: 0.07, green: 0.07, blue: 0.08))
             Group {
                 switch slide {
                 case 1: tiresPanel(side: side)
@@ -848,6 +934,8 @@ struct NativeHUDView: View {
                 .foregroundStyle(dialInk)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
+                .transaction { $0.animation = nil }
+                .contentTransition(.identity)
                 .shadow(color: .black.opacity(0.85), radius: style == .bare ? 12 : 5, y: style == .bare ? 7 : 3)
                 .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
             Text("km/h")
