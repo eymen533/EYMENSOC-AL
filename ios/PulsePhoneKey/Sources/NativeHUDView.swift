@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Dashla-style HUD — each side is its own panel; map stays inside the selected panel.
+/// Dashla-style HUD — each Harita panel is its own map, tucked under the dial with soft blur.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     @ObservedObject private var settings = HUDSettings.shared
@@ -89,8 +89,11 @@ struct NativeHUDView: View {
         let dialW = min(w * 0.34, h * 0.78, 300)
         let cx = w * 0.5
         let cy = h * 0.5
-        // Equal side panels — map stays inside its panel (no tuck / no under-dial layer).
         let sideW = max(140, (w - dialW) / 2)
+        // Map only: extend under the dial; non-map panels stay flush with dial edge.
+        let tuck = dialW * 0.55
+        let leftW = sideW + (leftMap ? tuck : 0)
+        let rightW = sideW + (rightMap ? tuck : 0)
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
         let chromeMuted = Color.white.opacity(0.78)
         let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
@@ -106,10 +109,10 @@ struct NativeHUDView: View {
                     sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
             }
-            .frame(width: sideW, height: h)
+            .frame(width: leftW, height: h)
             .clipShape(Rectangle())
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .zIndex(1)
+            .zIndex(leftMap ? 0 : 1)
 
             Group {
                 if rightMap {
@@ -119,14 +122,20 @@ struct NativeHUDView: View {
                     sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                 }
             }
-            .frame(width: sideW, height: h)
+            .frame(width: rightW, height: h)
             .clipShape(Rectangle())
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-            .zIndex(1)
+            .zIndex(rightMap ? 0 : 1)
 
-            // Solid dial plate — no map bleeding under the dial.
+            // Soft frost bloom under dial (no second MKMapView).
+            if leftMap || rightMap {
+                underDialFrost(dialW: dialW, cx: cx, cy: cy)
+                    .zIndex(3)
+            }
+
+            // Dial plate — slightly translucent so tucked+blurred map reads through.
             Circle()
-                .fill(cluster)
+                .fill(cluster.opacity(leftMap || rightMap ? 0.78 : 1))
                 .frame(width: dialW * 1.06, height: dialW * 1.06)
                 .position(x: cx, y: cy)
                 .zIndex(4)
@@ -146,7 +155,7 @@ struct NativeHUDView: View {
                 turnBanner
                     .frame(maxWidth: min(300, sideW * 0.95), alignment: .leading)
                     .position(
-                        x: rightMap && !leftMap ? (w - sideW * 0.5) : (sideW * 0.5),
+                        x: rightMap && !leftMap ? (w - rightW * 0.5) : (leftW * 0.5),
                         y: max(72, cy - dialW * 0.38)
                     )
                     .zIndex(12)
@@ -191,18 +200,97 @@ struct NativeHUDView: View {
         .ignoresSafeArea()
     }
 
-    /// One map per panel — clipped to panel bounds, no under-dial bleed layer.
+    /// Map panel — tucks under dial; dial-facing edge gets soft Material blur.
     private func panelMap(edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
-        mapSurface(
-            edge: edge,
-            side: side,
-            showTapExpand: true,
-            verticalFromTop: verticalFromTop,
-            asOverlay: false
-        )
+        ZStack {
+            mapSurface(
+                edge: edge,
+                side: side,
+                showTapExpand: true,
+                verticalFromTop: verticalFromTop,
+                asOverlay: false
+            )
+
+            // Soft blur of the map itself on the dial-facing edge (Material frosts content below).
+            mapUnderDialBlur(edge: edge, verticalFromTop: verticalFromTop)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .background(Color(red: 0.93, green: 0.94, blue: 0.95))
+    }
+
+    /// Frost strip on the dial-facing edge — light blur, no second map instance.
+    @ViewBuilder
+    private func mapUnderDialBlur(edge: MapEdge, verticalFromTop: Bool?) -> some View {
+        let band: CGFloat = 96
+        let frost = Rectangle()
+            .fill(.ultraThinMaterial)
+            .environment(\.colorScheme, .light)
+            .overlay(Color.black.opacity(0.14))
+            .allowsHitTesting(false)
+
+        if let fromTop = verticalFromTop {
+            VStack(spacing: 0) {
+                if !fromTop { Spacer(minLength: 0) }
+                frost
+                    .frame(height: band)
+                    .mask(
+                        LinearGradient(
+                            colors: fromTop
+                                ? [.clear, .white.opacity(0.45), .white]
+                                : [.white, .white.opacity(0.45), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                if fromTop { Spacer(minLength: 0) }
+            }
+            .allowsHitTesting(false)
+        } else {
+            HStack(spacing: 0) {
+                if edge == .trailing { Spacer(minLength: 0) }
+                frost
+                    .frame(width: band)
+                    .mask(
+                        LinearGradient(
+                            colors: edge == .leading
+                                ? [.white, .white.opacity(0.45), .clear]
+                                : [.clear, .white.opacity(0.45), .white],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                if edge == .leading { Spacer(minLength: 0) }
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    /// Soft radial frost behind the dial plate.
+    private func underDialFrost(dialW: CGFloat, cx: CGFloat, cy: CGFloat) -> some View {
+        Circle()
+            .fill(.ultraThinMaterial)
+            .environment(\.colorScheme, .dark)
+            .frame(width: dialW * 1.35, height: dialW * 1.35)
+            .mask(
+                RadialGradient(
+                    colors: [
+                        Color.white.opacity(0.85),
+                        Color.white.opacity(0.4),
+                        .clear
+                    ],
+                    center: .center,
+                    startRadius: dialW * 0.2,
+                    endRadius: dialW * 0.68
+                )
+            )
+            .overlay(
+                Circle()
+                    .fill(Color.black.opacity(0.22))
+                    .frame(width: dialW * 1.12, height: dialW * 1.12)
+            )
+            .position(x: cx, y: cy)
+            .allowsHitTesting(false)
     }
 
     /// Album art same full-height tuck as map.
@@ -239,12 +327,16 @@ struct NativeHUDView: View {
         let w = geo.size.width
         let h = geo.size.height
         let dialW = min(w * 0.46, h * 0.26, 200)
+        let tuck = dialW * 0.55
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
         let topChrome: CGFloat = 10
-        // Equal top/bottom panels — map stays inside wing (no tuck layer).
         let wingH = max(96, (h - dialW - topChrome) / 2)
         let cx = w * 0.5
         let cy = topChrome + wingH + dialW * 0.5
+        let topWing = leftMap
+        let bottomWing = rightMap
+        let topH = wingH + (topWing ? tuck : 0)
+        let bottomH = wingH + (bottomWing ? tuck : 0)
         let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
 
         return ZStack {
@@ -263,11 +355,11 @@ struct NativeHUDView: View {
                     )
                 }
             }
-            .frame(width: w, height: wingH)
+            .frame(width: w, height: topH)
             .clipShape(Rectangle())
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .padding(.top, topChrome)
-            .zIndex(1)
+            .zIndex(topWing ? 0 : 1)
 
             Group {
                 if rightMap {
@@ -282,13 +374,18 @@ struct NativeHUDView: View {
                     )
                 }
             }
-            .frame(width: w, height: wingH)
+            .frame(width: w, height: bottomH)
             .clipShape(Rectangle())
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .zIndex(1)
+            .zIndex(bottomWing ? 0 : 1)
+
+            if topWing || bottomWing {
+                underDialFrost(dialW: dialW, cx: cx, cy: cy)
+                    .zIndex(3)
+            }
 
             Circle()
-                .fill(cluster)
+                .fill(cluster.opacity(topWing || bottomWing ? 0.78 : 1))
                 .frame(width: dialW * 1.08, height: dialW * 1.08)
                 .position(x: cx, y: cy)
                 .zIndex(4)
@@ -300,9 +397,9 @@ struct NativeHUDView: View {
             if showTurn {
                 turnBanner
                     .padding(.horizontal, 14)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: leftMap ? .top : .bottom)
-                    .padding(.top, leftMap ? topChrome + 8 : 0)
-                    .padding(.bottom, rightMap && !leftMap ? 48 : 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: topWing ? .top : .bottom)
+                    .padding(.top, topWing ? topChrome + 8 : 0)
+                    .padding(.bottom, bottomWing && !topWing ? 48 : 0)
                     .zIndex(12)
             }
 
