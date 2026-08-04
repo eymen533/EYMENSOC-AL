@@ -315,17 +315,17 @@ struct NativeHUDView: View {
         if let fromTop = verticalFromTop {
             VStack(spacing: 0) {
                 if !fromTop { Spacer(minLength: 0) }
-                SoftMapBlur()
-                    .frame(height: band)
-                    .mask(
-                        LinearGradient(
-                            colors: fromTop
-                                ? [.clear, .white.opacity(0.55), .white]
-                                : [.white, .white.opacity(0.55), .clear],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+            SoftMapBlurBand()
+                .frame(height: band)
+                .mask(
+                    LinearGradient(
+                        colors: fromTop
+                            ? [.clear, .white.opacity(0.55), .white]
+                            : [.white, .white.opacity(0.55), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
+                )
                 if fromTop { Spacer(minLength: 0) }
             }
             .allowsHitTesting(false)
@@ -1540,5 +1540,19 @@ struct NativeHUDView: View {
 
     private func displayOrDash(_ s: String) -> String {
         isBlank(s) ? "--" : s
+    }
+}
+
+/// Blurs whatever is behind it (the map wing under the dial).
+private struct SoftMapBlur: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        let v = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+        v.isUserInteractionEnabled = false
+        v.backgroundColor = UIColor.black.withAlphaComponent(0.08)
+        return v
+    }
+
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+        uiView.effect = UIBlurEffect(style: .systemUltraThinMaterialDark)
     }
 }
