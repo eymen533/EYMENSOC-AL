@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Dashla-style HUD — map only on the selected side; tucks under center dial.
+/// Dashla-style HUD — each side is its own panel; map stays inside the selected panel.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     @ObservedObject private var settings = HUDSettings.shared
@@ -24,14 +24,13 @@ struct NativeHUDView: View {
     /// Soft blend into dial — always dark so day mode never paints white bars.
     private var fadeIntoDial: Color { Color.black }
 
-    /// Only the map tucks under the dial. Album art stays compact (no oversize bleed).
+    /// Album art stays compact (no oversize bleed). Map stays inside its panel.
     private var leftBleed: Bool { false }
     private var rightBleed: Bool { false }
     private var leftMap: Bool { model.leftSlide == 3 }
     private var rightMap: Bool { model.rightSlide == 3 }
     private var leftWing: Bool { leftMap }
     private var rightWing: Bool { rightMap }
-    private var bothMap: Bool { leftMap && rightMap }
     private var anyBleed: Bool { leftWing || rightWing }
 
     var body: some View {
@@ -82,53 +81,6 @@ struct NativeHUDView: View {
 
     private enum Side { case left, right }
 
-    // MARK: - Full-bleed map (Dashla: both sides = Harita)
-
-    private var fullBleedMap: some View {
-        VehicleMapView(
-            lat: model.latitude,
-            lon: model.longitude,
-            heading: model.mapHeading,
-            destination: routeDestination,
-            destLat: model.destLatitude,
-            destLon: model.destLongitude,
-            apiKey: model.googleMapsKey,
-            turnByTurn: true,
-            turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
-            turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
-            turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 })
-        )
-        .allowsHitTesting(false)
-    }
-
-    /// Soft frost under dial — one map only (never a second MKMapView).
-    private func softDialBloom(dialW: CGFloat, cx: CGFloat, cy: CGFloat) -> some View {
-        ZStack {
-            Circle()
-                .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
-                .frame(width: dialW * 1.55, height: dialW * 1.55)
-                .mask(
-                    RadialGradient(
-                        colors: [
-                            Color.white,
-                            Color.white.opacity(0.65),
-                            Color.white.opacity(0.12),
-                            .clear
-                        ],
-                        center: .center,
-                        startRadius: dialW * 0.12,
-                        endRadius: dialW * 0.78
-                    )
-                )
-            Circle()
-                .fill(Color.black.opacity(0.40))
-                .frame(width: dialW * 1.18, height: dialW * 1.18)
-        }
-        .position(x: cx, y: cy)
-        .allowsHitTesting(false)
-    }
-
     // MARK: - Triad
 
     private func triadLandscape(geo: GeometryProxy) -> some View {
@@ -137,100 +89,47 @@ struct NativeHUDView: View {
         let dialW = min(w * 0.34, h * 0.78, 300)
         let cx = w * 0.5
         let cy = h * 0.5
+        // Equal side panels — map stays inside its panel (no tuck / no under-dial layer).
         let sideW = max(140, (w - dialW) / 2)
-        // Extend map well under the dial (past midline) for Dashla tuck.
-        let tuck = dialW * 0.58
-        let leftW = sideW + (leftMap ? tuck : 0)
-        let rightW = sideW + (rightMap ? tuck : 0)
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
         let chromeMuted = Color.white.opacity(0.78)
-        // Shared cluster ink — panels + dial same family (Dashla bütünlük).
         let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
 
         return ZStack {
-            if bothMap {
-                // Single continuous map — no second map layer / no vertical trench.
-                fullBleedMap
-                    .frame(width: w, height: h)
-                    .clipped()
-                    .zIndex(0)
+            cluster.zIndex(0)
 
-                softDialBloom(dialW: dialW, cx: cx, cy: cy)
-                    .zIndex(1)
-
-                // Swipe zones (no opaque panels).
-                Color.clear
-                    .contentShape(Rectangle())
-                    .frame(width: sideW, height: h * 0.8)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .gesture(sideSwipe(side: .left))
-                    .onTapGesture { model.flashLeftRail() }
-                    .zIndex(2)
-                Color.clear
-                    .contentShape(Rectangle())
-                    .frame(width: sideW, height: h * 0.8)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                    .gesture(sideSwipe(side: .right))
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = true }
-                    }
-                    .zIndex(2)
-            } else {
-                cluster.zIndex(0)
-
-                // Soft unity wash so non-map side matches dial black.
-                if leftMap != rightMap {
-                    LinearGradient(
-                        colors: leftMap
-                            ? [.clear, cluster.opacity(0.35), cluster]
-                            : [cluster, cluster.opacity(0.35), .clear],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .allowsHitTesting(false)
-                    .zIndex(0)
+            Group {
+                if leftMap {
+                    panelMap(edge: .trailing, side: .left)
+                        .id("hud-map-left")
+                } else {
+                    sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
-
-                Group {
-                    if leftMap {
-                        panelMap(edge: .trailing, side: .left)
-                    } else {
-                        sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
-                    }
-                }
-                .frame(width: leftW, height: h)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .zIndex(leftMap ? 0 : 1)
-
-                Group {
-                    if rightMap {
-                        panelMap(edge: .leading, side: .right)
-                    } else {
-                        sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
-                    }
-                }
-                .frame(width: rightW, height: h)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                .zIndex(rightMap ? 0 : 1)
-
-                // MKMapView ignores SwiftUI .mask — paint over the hard vertical seam.
-                if leftMap != rightMap {
-                    mapHardEdgeCover(
-                        edge: leftMap ? .trailing : .leading,
-                        seamX: leftMap ? leftW : (w - rightW),
-                        height: h,
-                        cluster: cluster
-                    )
-                    .zIndex(3)
-                }
-
-                // Dial plate — translucent over map tuck so soft blur reads through.
-                Circle()
-                    .fill(cluster.opacity(leftMap || rightMap ? 0.82 : 1))
-                    .frame(width: dialW * 1.06, height: dialW * 1.06)
-                    .position(x: cx, y: cy)
-                    .zIndex(4)
             }
+            .frame(width: sideW, height: h)
+            .clipShape(Rectangle())
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .zIndex(1)
+
+            Group {
+                if rightMap {
+                    panelMap(edge: .leading, side: .right)
+                        .id("hud-map-right")
+                } else {
+                    sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                }
+            }
+            .frame(width: sideW, height: h)
+            .clipShape(Rectangle())
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .zIndex(1)
+
+            // Solid dial plate — no map bleeding under the dial.
+            Circle()
+                .fill(cluster)
+                .frame(width: dialW * 1.06, height: dialW * 1.06)
+                .position(x: cx, y: cy)
+                .zIndex(4)
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                 .position(x: max(16, cx - dialW * 0.5 - 14), y: cy)
@@ -247,9 +146,7 @@ struct NativeHUDView: View {
                 turnBanner
                     .frame(maxWidth: min(300, sideW * 0.95), alignment: .leading)
                     .position(
-                        x: bothMap || (rightMap && !leftMap)
-                            ? (bothMap ? w * 0.22 : (w - rightW * 0.5))
-                            : (leftW * 0.5),
+                        x: rightMap && !leftMap ? (w - sideW * 0.5) : (sideW * 0.5),
                         y: max(72, cy - dialW * 0.38)
                     )
                     .zIndex(12)
@@ -286,7 +183,7 @@ struct NativeHUDView: View {
             .padding(.bottom, 8)
             .zIndex(8)
 
-            dashlaChrome(leftMap: leftMap || bothMap, rightMap: rightMap || bothMap)
+            dashlaChrome(leftMap: leftMap, rightMap: rightMap)
                 .zIndex(20)
         }
         .frame(width: w, height: h)
@@ -294,215 +191,18 @@ struct NativeHUDView: View {
         .ignoresSafeArea()
     }
 
-    /// Map on one side — soft blend into cluster (no hard vertical slab).
+    /// One map per panel — clipped to panel bounds, no under-dial bleed layer.
     private func panelMap(edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
-        let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
-
-        return ZStack {
-            mapSurface(
-                edge: edge,
-                side: side,
-                showTapExpand: true,
-                verticalFromTop: verticalFromTop,
-                asOverlay: false
-            )
-
-            // Soft darkening under dial edge (reads as light blur / depth).
-            mapDialBlurBand(edge: edge, verticalFromTop: verticalFromTop)
-
-            // Extra cluster tint for color unity with the dark panel.
-            mapClusterUnityWash(edge: edge, verticalFromTop: verticalFromTop, cluster: cluster)
-        }
+        mapSurface(
+            edge: edge,
+            side: side,
+            showTapExpand: true,
+            verticalFromTop: verticalFromTop,
+            asOverlay: false
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Transparent — cluster behind shows through the soft fade (no paper slab).
-        .background(Color.clear)
-    }
-
-    /// Covers MKMapView’s hard rect edge with a soft cluster→clear wash (sibling overlay).
-    private func mapHardEdgeCover(
-        edge: MapEdge,
-        seamX: CGFloat,
-        height: CGFloat,
-        cluster: Color
-    ) -> some View {
-        let band: CGFloat = 150
-        return HStack(spacing: 0) {
-            if edge == .trailing {
-                // Left map: seam is on the right of the wing — wash straddles seamX.
-                Spacer(minLength: 0)
-                    .frame(width: max(0, seamX - band * 0.35))
-                LinearGradient(
-                    colors: [
-                        .clear,
-                        cluster.opacity(0.15),
-                        cluster.opacity(0.55),
-                        cluster.opacity(0.92),
-                        cluster
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: band, height: height)
-                Spacer(minLength: 0)
-            } else {
-                // Right map: seam is on the left of the wing.
-                Spacer(minLength: 0)
-                    .frame(width: max(0, seamX - band * 0.65))
-                LinearGradient(
-                    colors: [
-                        cluster,
-                        cluster.opacity(0.92),
-                        cluster.opacity(0.55),
-                        cluster.opacity(0.15),
-                        .clear
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: band, height: height)
-                Spacer(minLength: 0)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .allowsHitTesting(false)
-    }
-
-    /// Portrait: soft cover over hard horizontal map wing edge.
-    private func mapHardEdgeCoverPortrait(
-        fromTop: Bool,
-        seamY: CGFloat,
-        width: CGFloat,
-        cluster: Color
-    ) -> some View {
-        let band: CGFloat = 130
-        return VStack(spacing: 0) {
-            if fromTop {
-                Spacer(minLength: 0)
-                    .frame(height: max(0, seamY - band * 0.35))
-                LinearGradient(
-                    colors: [
-                        .clear,
-                        cluster.opacity(0.15),
-                        cluster.opacity(0.55),
-                        cluster.opacity(0.92),
-                        cluster
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(width: width, height: band)
-                Spacer(minLength: 0)
-            } else {
-                Spacer(minLength: 0)
-                    .frame(height: max(0, seamY - band * 0.65))
-                LinearGradient(
-                    colors: [
-                        cluster,
-                        cluster.opacity(0.92),
-                        cluster.opacity(0.55),
-                        cluster.opacity(0.15),
-                        .clear
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(width: width, height: band)
-                Spacer(minLength: 0)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .allowsHitTesting(false)
-    }
-
-    /// Blur strip on the dial-facing edge of a single-wing map.
-    @ViewBuilder
-    private func mapDialBlurBand(edge: MapEdge, verticalFromTop: Bool?) -> some View {
-        let band: CGFloat = 78
-        // Inline soft wash — no nested type (avoids SoftMapBlur* scope build errors).
-        let wash = ZStack {
-            Color.black.opacity(0.18)
-            LinearGradient(
-                colors: [
-                    Color.white.opacity(0.06),
-                    Color.black.opacity(0.28),
-                    Color.black.opacity(0.45)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
-        .allowsHitTesting(false)
-
-        if let fromTop = verticalFromTop {
-            VStack(spacing: 0) {
-                if !fromTop { Spacer(minLength: 0) }
-                wash
-                    .frame(height: band)
-                    .mask(
-                        LinearGradient(
-                            colors: fromTop
-                                ? [.clear, .white.opacity(0.55), .white]
-                                : [.white, .white.opacity(0.55), .clear],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                if fromTop { Spacer(minLength: 0) }
-            }
-            .allowsHitTesting(false)
-        } else {
-            HStack(spacing: 0) {
-                if edge == .trailing { Spacer(minLength: 0) }
-                wash
-                    .frame(width: band)
-                    .mask(
-                        LinearGradient(
-                            colors: edge == .leading
-                                ? [.white, .white.opacity(0.55), .clear]
-                                : [.clear, .white.opacity(0.55), .white],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                if edge == .leading { Spacer(minLength: 0) }
-            }
-            .allowsHitTesting(false)
-        }
-    }
-
-    /// Soft tint so light map blends into the dark vertical panel / dial.
-    @ViewBuilder
-    private func mapClusterUnityWash(edge: MapEdge, verticalFromTop: Bool?, cluster: Color) -> some View {
-        let wash: CGFloat = 140
-        if let fromTop = verticalFromTop {
-            VStack(spacing: 0) {
-                if !fromTop { Spacer(minLength: 0) }
-                LinearGradient(
-                    colors: fromTop
-                        ? [.clear, cluster.opacity(0.25), cluster.opacity(0.75)]
-                        : [cluster.opacity(0.75), cluster.opacity(0.25), .clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: wash)
-                if fromTop { Spacer(minLength: 0) }
-            }
-            .allowsHitTesting(false)
-        } else {
-            HStack(spacing: 0) {
-                if edge == .trailing { Spacer(minLength: 0) }
-                LinearGradient(
-                    colors: edge == .leading
-                        ? [cluster.opacity(0.82), cluster.opacity(0.35), cluster.opacity(0.08), .clear]
-                        : [.clear, cluster.opacity(0.08), cluster.opacity(0.35), cluster.opacity(0.82)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: wash)
-                if edge == .leading { Spacer(minLength: 0) }
-            }
-            .allowsHitTesting(false)
-        }
+        .clipped()
+        .background(Color(red: 0.93, green: 0.94, blue: 0.95))
     }
 
     /// Album art same full-height tuck as map.
@@ -539,99 +239,59 @@ struct NativeHUDView: View {
         let w = geo.size.width
         let h = geo.size.height
         let dialW = min(w * 0.46, h * 0.26, 200)
-        let tuck = dialW * 0.52
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
         let topChrome: CGFloat = 10
+        // Equal top/bottom panels — map stays inside wing (no tuck layer).
         let wingH = max(96, (h - dialW - topChrome) / 2)
         let cx = w * 0.5
         let cy = topChrome + wingH + dialW * 0.5
-        let topWing = leftMap
-        let bottomWing = rightMap
-        let topH = wingH + (topWing ? tuck : 0)
-        let bottomH = wingH + (bottomWing ? tuck : 0)
         let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
 
         return ZStack {
-            if bothMap {
-                // Portrait both-Harita: one continuous map (no top/bottom map layers).
-                fullBleedMap
-                    .frame(width: w, height: h)
-                    .clipped()
-                    .zIndex(0)
+            cluster
 
-                softDialBloom(dialW: dialW, cx: cx, cy: cy)
-                    .zIndex(1)
-
-                Color.clear
-                    .contentShape(Rectangle())
-                    .frame(width: w, height: wingH)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, topChrome)
-                    .gesture(sideSwipe(side: .left))
-                    .onTapGesture { model.flashLeftRail() }
-                    .zIndex(2)
-                Color.clear
-                    .contentShape(Rectangle())
-                    .frame(width: w, height: wingH)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .gesture(sideSwipe(side: .right))
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = true }
-                    }
-                    .zIndex(2)
-            } else {
-                cluster
-
-                Group {
-                    if leftMap {
-                        panelMap(edge: .trailing, side: .left, verticalFromTop: false)
-                    } else {
-                        sideColumn(
-                            slide: model.leftSlide,
-                            side: .left,
-                            showBattery: false,
-                            portraitAligned: true
-                        )
-                    }
-                }
-                .frame(width: w, height: topH)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top, topChrome)
-                .zIndex(topWing ? 0 : 1)
-
-                Group {
-                    if rightMap {
-                        panelMap(edge: .leading, side: .right, verticalFromTop: true)
-                    } else {
-                        sideColumn(
-                            slide: model.rightSlide,
-                            side: .right,
-                            showBattery: false,
-                            portraitAligned: true
-                        )
-                    }
-                }
-                .frame(width: w, height: bottomH)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .zIndex(bottomWing ? 0 : 1)
-
-                // Soft cover over hard horizontal map seams (portrait single-wing).
-                if topWing != bottomWing {
-                    mapHardEdgeCoverPortrait(
-                        fromTop: topWing,
-                        seamY: topWing ? (topChrome + topH) : (h - bottomH),
-                        width: w,
-                        cluster: cluster
+            Group {
+                if leftMap {
+                    panelMap(edge: .trailing, side: .left, verticalFromTop: false)
+                        .id("hud-map-top")
+                } else {
+                    sideColumn(
+                        slide: model.leftSlide,
+                        side: .left,
+                        showBattery: false,
+                        portraitAligned: true
                     )
-                    .zIndex(3)
                 }
-
-                Circle()
-                    .fill(cluster.opacity(topWing || bottomWing ? 0.82 : 1))
-                    .frame(width: dialW * 1.08, height: dialW * 1.08)
-                    .position(x: cx, y: cy)
-                    .zIndex(4)
             }
+            .frame(width: w, height: wingH)
+            .clipShape(Rectangle())
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.top, topChrome)
+            .zIndex(1)
+
+            Group {
+                if rightMap {
+                    panelMap(edge: .leading, side: .right, verticalFromTop: true)
+                        .id("hud-map-bottom")
+                } else {
+                    sideColumn(
+                        slide: model.rightSlide,
+                        side: .right,
+                        showBattery: false,
+                        portraitAligned: true
+                    )
+                }
+            }
+            .frame(width: w, height: wingH)
+            .clipShape(Rectangle())
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .zIndex(1)
+
+            Circle()
+                .fill(cluster)
+                .frame(width: dialW * 1.08, height: dialW * 1.08)
+                .position(x: cx, y: cy)
+                .zIndex(4)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
@@ -640,9 +300,9 @@ struct NativeHUDView: View {
             if showTurn {
                 turnBanner
                     .padding(.horizontal, 14)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: topWing ? .top : .bottom)
-                    .padding(.top, topWing ? topChrome + 8 : 0)
-                    .padding(.bottom, bottomWing && !topWing ? 48 : 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: leftMap ? .top : .bottom)
+                    .padding(.top, leftMap ? topChrome + 8 : 0)
+                    .padding(.bottom, rightMap && !leftMap ? 48 : 0)
                     .zIndex(12)
             }
 
@@ -666,7 +326,7 @@ struct NativeHUDView: View {
                 .position(x: 74, y: h - 22)
                 .zIndex(8)
 
-            dashlaChrome(leftMap: leftMap || bothMap, rightMap: rightMap || bothMap)
+            dashlaChrome(leftMap: leftMap, rightMap: rightMap)
                 .zIndex(20)
         }
         .frame(width: w, height: h)
@@ -1013,14 +673,6 @@ struct NativeHUDView: View {
                     turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
                     turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 })
                 )
-            }
-
-            if !mapExpanded {
-                if let verticalFromTop {
-                    dialFadeVertical(fromTop: verticalFromTop)
-                } else {
-                    dialFade(edge: edge)
-                }
             }
 
             // Route status when GPS coords missing but destination known.
