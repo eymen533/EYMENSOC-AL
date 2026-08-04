@@ -1,4 +1,4 @@
-# Pulse28 (`xcode-ble-50`)
+# Pulse28 (`xcode-ble-51`)
 
 Bundle id: `com.teslapulse.phonekey28` — **yeni app**, eski Pulse(23) ile karışmaz.
 
@@ -7,7 +7,7 @@ cd ~
 curl -fsSL https://raw.githubusercontent.com/eymen533/EYMENSOC-AL/cursor/hud-day-night-doors-02d8/install-pulse28.sh | bash
 ```
 
-Ana ekranda **Pulse28** ikonunu aç. Sarı: **xcode-ble-50**.
+Ana ekranda **Pulse28** ikonunu aç. Sarı: **xcode-ble-51**.
 
 ## Özellikler → Kadran
 - **Yuvarlak** — makul boyut, bevel + gölge (3D önde)

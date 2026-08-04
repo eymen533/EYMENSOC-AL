@@ -110,7 +110,8 @@ struct NativeHUDView: View {
         let cx = w * 0.5
         let cy = h * 0.5
         let sideW = max(140, (w - dialW) / 2)
-        let tuck = dialW * 0.32
+        // Extend map well under the dial (past midline) for Dashla tuck.
+        let tuck = dialW * 0.58
         let leftW = sideW + (leftMap ? tuck : 0)
         let rightW = sideW + (rightMap ? tuck : 0)
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
@@ -214,9 +215,9 @@ struct NativeHUDView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                 .zIndex(rightMap ? 0 : 1)
 
-                // Dial plate — same cluster black (seamless with panels).
+                // Dial plate — translucent over map tuck so soft blur reads through.
                 Circle()
-                    .fill(cluster)
+                    .fill(cluster.opacity(leftMap || rightMap ? 0.82 : 1))
                     .frame(width: dialW * 1.06, height: dialW * 1.06)
                     .position(x: cx, y: cy)
                     .zIndex(4)
@@ -284,18 +285,103 @@ struct NativeHUDView: View {
         .ignoresSafeArea()
     }
 
-    /// Map on one side — full height, tucks under dial.
+    /// Map on one side — tucks under dial with soft blur + cluster color blend.
     private func panelMap(edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
-        mapSurface(
-            edge: edge,
-            side: side,
-            showTapExpand: true,
-            verticalFromTop: verticalFromTop,
-            asOverlay: false
-        )
+        let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
+        return ZStack {
+            mapSurface(
+                edge: edge,
+                side: side,
+                showTapExpand: true,
+                verticalFromTop: verticalFromTop,
+                asOverlay: false
+            )
+
+            // Soft blur under the dial (UIKit blur of the map behind).
+            mapDialBlurBand(edge: edge, verticalFromTop: verticalFromTop)
+
+            // Color unity with the vertical cluster panel — fade map into black at dial edge.
+            mapClusterUnityWash(edge: edge, verticalFromTop: verticalFromTop, cluster: cluster)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .background(Color(red: 0.93, green: 0.94, blue: 0.95))
+    }
+
+    /// Blur strip on the dial-facing edge of a single-wing map.
+    @ViewBuilder
+    private func mapDialBlurBand(edge: MapEdge, verticalFromTop: Bool?) -> some View {
+        let band: CGFloat = 78
+        if let fromTop = verticalFromTop {
+            VStack(spacing: 0) {
+                if !fromTop { Spacer(minLength: 0) }
+                SoftMapBlur()
+                    .frame(height: band)
+                    .mask(
+                        LinearGradient(
+                            colors: fromTop
+                                ? [.clear, .white.opacity(0.55), .white]
+                                : [.white, .white.opacity(0.55), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                if fromTop { Spacer(minLength: 0) }
+            }
+            .allowsHitTesting(false)
+        } else {
+            HStack(spacing: 0) {
+                if edge == .trailing { Spacer(minLength: 0) }
+                SoftMapBlur()
+                    .frame(width: band)
+                    .mask(
+                        LinearGradient(
+                            colors: edge == .leading
+                                ? [.white, .white.opacity(0.55), .clear]
+                                : [.clear, .white.opacity(0.55), .white],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                if edge == .leading { Spacer(minLength: 0) }
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    /// Soft tint so light map blends into the dark vertical panel / dial.
+    @ViewBuilder
+    private func mapClusterUnityWash(edge: MapEdge, verticalFromTop: Bool?, cluster: Color) -> some View {
+        let wash: CGFloat = 96
+        if let fromTop = verticalFromTop {
+            VStack(spacing: 0) {
+                if !fromTop { Spacer(minLength: 0) }
+                LinearGradient(
+                    colors: fromTop
+                        ? [.clear, cluster.opacity(0.25), cluster.opacity(0.72)]
+                        : [cluster.opacity(0.72), cluster.opacity(0.25), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: wash)
+                if fromTop { Spacer(minLength: 0) }
+            }
+            .allowsHitTesting(false)
+        } else {
+            HStack(spacing: 0) {
+                if edge == .trailing { Spacer(minLength: 0) }
+                LinearGradient(
+                    colors: edge == .leading
+                        ? [cluster.opacity(0.78), cluster.opacity(0.28), .clear]
+                        : [.clear, cluster.opacity(0.28), cluster.opacity(0.78)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: wash)
+                if edge == .leading { Spacer(minLength: 0) }
+            }
+            .allowsHitTesting(false)
+        }
     }
 
     /// Album art same full-height tuck as map.
@@ -332,7 +418,7 @@ struct NativeHUDView: View {
         let w = geo.size.width
         let h = geo.size.height
         let dialW = min(w * 0.46, h * 0.26, 200)
-        let tuck = dialW * 0.26
+        let tuck = dialW * 0.52
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
         let topChrome: CGFloat = 10
         let wingH = max(96, (h - dialW - topChrome) / 2)
@@ -342,9 +428,10 @@ struct NativeHUDView: View {
         let bottomWing = rightMap
         let topH = wingH + (topWing ? tuck : 0)
         let bottomH = wingH + (bottomWing ? tuck : 0)
+        let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
 
         return ZStack {
-            Color.black
+            cluster
 
             Group {
                 if leftMap {
@@ -374,7 +461,7 @@ struct NativeHUDView: View {
             .zIndex(bottomWing ? 0 : 1)
 
             Circle()
-                .fill(Color.black)
+                .fill(cluster.opacity(topWing || bottomWing ? 0.82 : 1))
                 .frame(width: dialW * 1.08, height: dialW * 1.08)
                 .position(x: cx, y: cy)
                 .zIndex(4)
@@ -849,27 +936,27 @@ struct NativeHUDView: View {
         }
     }
 
-    /// Soft blend into dial — keep light map readable (was over-dark).
+    /// Soft blend into dial — wider, gentler for color unity with cluster panel.
     private func dialFade(edge: MapEdge) -> some View {
         let dialSide: UnitPoint = edge == .leading ? .leading : .trailing
         let outerSide: UnitPoint = edge == .leading ? .trailing : .leading
         return LinearGradient(
-            colors: [fadeIntoDial.opacity(0.38), fadeIntoDial.opacity(0.08), .clear],
+            colors: [fadeIntoDial.opacity(0.22), fadeIntoDial.opacity(0.06), .clear],
             startPoint: dialSide,
             endPoint: outerSide
         )
-        .frame(width: 40)
+        .frame(width: 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edge == .leading ? .leading : .trailing)
         .allowsHitTesting(false)
     }
 
     private func dialFadeVertical(fromTop: Bool) -> some View {
         LinearGradient(
-            colors: [fadeIntoDial.opacity(0.38), fadeIntoDial.opacity(0.08), .clear],
+            colors: [fadeIntoDial.opacity(0.22), fadeIntoDial.opacity(0.06), .clear],
             startPoint: fromTop ? .top : .bottom,
             endPoint: fromTop ? .bottom : .top
         )
-        .frame(height: 32)
+        .frame(height: 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: fromTop ? .top : .bottom)
         .allowsHitTesting(false)
     }
