@@ -189,8 +189,8 @@ struct NativeHUDView: View {
             .padding(.bottom, 8)
             .zIndex(8)
 
-            floatingChrome
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            // Dashla chrome — no solid top bar; texts float into left panel / map.
+            dashlaChrome(leftMap: leftMap, rightMap: rightMap)
                 .zIndex(20)
         }
         .frame(width: w, height: h)
@@ -248,7 +248,7 @@ struct NativeHUDView: View {
         let dialW = min(w * 0.46, h * 0.26, 200)
         let tuck = dialW * 0.26
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
-        let topChrome: CGFloat = 52
+        let topChrome: CGFloat = 10
         let wingH = max(96, (h - dialW - topChrome) / 2)
         let cx = w * 0.5
         let cy = topChrome + wingH + dialW * 0.5
@@ -326,8 +326,7 @@ struct NativeHUDView: View {
                 .position(x: 74, y: h - 22)
                 .zIndex(8)
 
-            floatingChrome
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            dashlaChrome(leftMap: leftMap, rightMap: rightMap)
                 .zIndex(20)
         }
         .frame(width: w, height: h)
@@ -379,7 +378,7 @@ struct NativeHUDView: View {
                     .zIndex(12)
             }
 
-            floatingChrome
+            dashlaChrome(leftMap: false, rightMap: true)
                 .zIndex(20)
         }
     }
@@ -471,71 +470,80 @@ struct NativeHUDView: View {
 
     private func psi(_ v: Int) -> String { v > 0 ? "\(v)" : "--" }
 
-    // MARK: - Floating chrome (no solid top bar)
+    // MARK: - Dashla chrome (no solid top bar — texts float into panels/map)
 
-    private var floatingChrome: some View {
-        let barInk = Color.white
-        let barMuted = Color.white.opacity(0.78)
-        return HStack(spacing: 10) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(barInk)
-                    .shadow(color: .black.opacity(0.7), radius: 3, y: 1)
-            }
-            Text(model.clock.isEmpty ? "--:--" : model.clock)
-                .font(.body.monospacedDigit().weight(.semibold))
-                .foregroundStyle(barInk)
-                .shadow(color: .black.opacity(0.75), radius: 3, y: 1)
-            Text(BLEPairer.buildId)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(.black)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05)))
-            Text(model.outdoorC == 0 ? "--°C" : "\(model.outdoorC)°C")
-                .font(.body)
-                .foregroundStyle(barMuted)
-                .shadow(color: .black.opacity(0.7), radius: 3, y: 1)
-            Image(systemName: "car.fill")
-                .font(.subheadline)
-                .foregroundStyle(model.bleOK || model.isLive ? accent : barMuted.opacity(0.5))
-                .shadow(color: .black.opacity(0.6), radius: 2, y: 1)
+    private func dashlaChrome(leftMap: Bool, rightMap: Bool) -> some View {
+        let inkOnDark = Color.white
+        let mutedOnDark = Color.white.opacity(0.78)
+        // Over light map: dark pills so text stays readable.
+        let mapInk = Color.white
+        let mapMuted = Color.white.opacity(0.9)
 
-            Spacer(minLength: 6)
-
-            Circle()
-                .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.7))
-                .frame(width: 8, height: 8)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Capsule().fill(Color.black.opacity(0.4)))
-
-            HStack(spacing: 5) {
-                Image(systemName: phoneBattIcon)
-                    .font(.caption)
-                Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
+        return HStack(alignment: .top, spacing: 0) {
+            // Left cluster — sits on left panel (or map if left is Harita).
+            HStack(spacing: 8) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(inkOnDark)
+                }
+                Text(model.clock.isEmpty ? "--:--" : model.clock)
                     .font(.subheadline.monospacedDigit().weight(.semibold))
-            }
-            .foregroundStyle(barInk)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(Color.black.opacity(0.4)))
-
-            Button { onSettings?() } label: {
-                Image(systemName: "gearshape.fill")
+                    .foregroundStyle(inkOnDark)
+                Text(BLEPairer.buildId)
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05)))
+                Text(model.outdoorC == 0 ? "--°C" : "\(model.outdoorC)°C")
                     .font(.subheadline)
-                    .foregroundStyle(barMuted)
-                    .shadow(color: .black.opacity(0.7), radius: 2, y: 1)
+                    .foregroundStyle(mutedOnDark)
+                Image(systemName: "car.fill")
+                    .font(.caption)
+                    .foregroundStyle(model.bleOK || model.isLive ? accent : mutedOnDark.opacity(0.55))
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, leftMap ? 8 : 0)
+            .padding(.vertical, leftMap ? 5 : 0)
+            .background(
+                Group {
+                    if leftMap {
+                        Capsule().fill(Color.black.opacity(0.45))
+                    }
+                }
+            )
+            .shadow(color: .black.opacity(leftMap ? 0 : 0.55), radius: 3, y: 1)
+
+            Spacer(minLength: 8)
+
+            // Right cluster — floats on map side (Dashla style).
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.75))
+                    .frame(width: 7, height: 7)
+                HStack(spacing: 4) {
+                    Image(systemName: phoneBattIcon)
+                        .font(.caption2)
+                    Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                }
+                .foregroundStyle(mapInk)
+                Button { onSettings?() } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.caption)
+                        .foregroundStyle(mapMuted)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Color.black.opacity(rightMap ? 0.42 : 0.35)))
         }
         .padding(.horizontal, 14)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
-        .frame(maxWidth: .infinity, alignment: .top)
-        // Slim chrome strip — map stays side-only beneath (not full-bleed).
-        .background(Color.black.opacity(0.92))
+        .padding(.top, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // Critical: no full-width black bar.
+        .background(Color.clear)
     }
 
     private var phoneBattIcon: String {
