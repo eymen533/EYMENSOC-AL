@@ -602,7 +602,7 @@ struct NativeHUDView: View {
                 switch slide {
                 case 1: tiresPanel(side: side)
                 case 2: tripPanel
-                case 3: mapInfoPlaceholder
+                case 3: mapInfoPanel
                 case 4: mediaPanel
                 default: simplePanel
                 }
