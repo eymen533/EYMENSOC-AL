@@ -101,6 +101,34 @@ struct NativeHUDView: View {
         .allowsHitTesting(false)
     }
 
+    /// Soft frost under dial — one map only (never a second MKMapView).
+    private func softDialBloom(dialW: CGFloat, cx: CGFloat, cy: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+                .frame(width: dialW * 1.55, height: dialW * 1.55)
+                .mask(
+                    RadialGradient(
+                        colors: [
+                            Color.white,
+                            Color.white.opacity(0.65),
+                            Color.white.opacity(0.12),
+                            .clear
+                        ],
+                        center: .center,
+                        startRadius: dialW * 0.12,
+                        endRadius: dialW * 0.78
+                    )
+                )
+            Circle()
+                .fill(Color.black.opacity(0.40))
+                .frame(width: dialW * 1.18, height: dialW * 1.18)
+        }
+        .position(x: cx, y: cy)
+        .allowsHitTesting(false)
+    }
+
     // MARK: - Triad
 
     private func triadLandscape(geo: GeometryProxy) -> some View {
@@ -121,40 +149,14 @@ struct NativeHUDView: View {
 
         return ZStack {
             if bothMap {
-                // Dashla: both Harita → map is the whole stage + soft blur under dial.
+                // Single continuous map — no second map layer / no vertical trench.
                 fullBleedMap
                     .frame(width: w, height: h)
                     .clipped()
                     .zIndex(0)
 
-                // Soft blur bloom behind dial (map still readable at edges).
-                fullBleedMap
-                    .frame(width: w, height: h)
-                    .blur(radius: 16)
-                    .opacity(0.72)
-                    .mask(
-                        RadialGradient(
-                            colors: [
-                                Color.white,
-                                Color.white.opacity(0.75),
-                                Color.white.opacity(0.15),
-                                .clear
-                            ],
-                            center: .center,
-                            startRadius: dialW * 0.15,
-                            endRadius: dialW * 1.15
-                        )
-                    )
-                    .allowsHitTesting(false)
+                softDialBloom(dialW: dialW, cx: cx, cy: cy)
                     .zIndex(1)
-
-                // Soft dark plate under dial — keeps cluster black (no white glare).
-                Circle()
-                    .fill(Color.black.opacity(0.42))
-                    .frame(width: dialW * 1.18, height: dialW * 1.18)
-                    .position(x: cx, y: cy)
-                    .allowsHitTesting(false)
-                    .zIndex(3)
 
                 // Swipe zones (no opaque panels).
                 Color.clear
@@ -550,47 +552,86 @@ struct NativeHUDView: View {
         let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
 
         return ZStack {
-            cluster
+            if bothMap {
+                // Portrait both-Harita: one continuous map (no top/bottom map layers).
+                fullBleedMap
+                    .frame(width: w, height: h)
+                    .clipped()
+                    .zIndex(0)
 
-            Group {
-                if leftMap {
-                    panelMap(edge: .trailing, side: .left, verticalFromTop: false)
-                } else {
-                    sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
+                softDialBloom(dialW: dialW, cx: cx, cy: cy)
+                    .zIndex(1)
+
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(width: w, height: wingH)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, topChrome)
+                    .gesture(sideSwipe(side: .left))
+                    .onTapGesture { model.flashLeftRail() }
+                    .zIndex(2)
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(width: w, height: wingH)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .gesture(sideSwipe(side: .right))
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = true }
+                    }
+                    .zIndex(2)
+            } else {
+                cluster
+
+                Group {
+                    if leftMap {
+                        panelMap(edge: .trailing, side: .left, verticalFromTop: false)
+                    } else {
+                        sideColumn(
+                            slide: model.leftSlide,
+                            side: .left,
+                            showBattery: false,
+                            portraitAligned: true
+                        )
+                    }
                 }
-            }
-            .frame(width: w, height: topH)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.top, topChrome)
-            .zIndex(topWing ? 0 : 1)
+                .frame(width: w, height: topH)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, topChrome)
+                .zIndex(topWing ? 0 : 1)
 
-            Group {
-                if rightMap {
-                    panelMap(edge: .leading, side: .right, verticalFromTop: true)
-                } else {
-                    sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                Group {
+                    if rightMap {
+                        panelMap(edge: .leading, side: .right, verticalFromTop: true)
+                    } else {
+                        sideColumn(
+                            slide: model.rightSlide,
+                            side: .right,
+                            showBattery: false,
+                            portraitAligned: true
+                        )
+                    }
                 }
-            }
-            .frame(width: w, height: bottomH)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .zIndex(bottomWing ? 0 : 1)
+                .frame(width: w, height: bottomH)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .zIndex(bottomWing ? 0 : 1)
 
-            // Soft cover over hard horizontal map seams (portrait).
-            if topWing != bottomWing {
-                mapHardEdgeCoverPortrait(
-                    fromTop: topWing,
-                    seamY: topWing ? (topChrome + topH) : (h - bottomH),
-                    width: w,
-                    cluster: cluster
-                )
-                .zIndex(3)
-            }
+                // Soft cover over hard horizontal map seams (portrait single-wing).
+                if topWing != bottomWing {
+                    mapHardEdgeCoverPortrait(
+                        fromTop: topWing,
+                        seamY: topWing ? (topChrome + topH) : (h - bottomH),
+                        width: w,
+                        cluster: cluster
+                    )
+                    .zIndex(3)
+                }
 
-            Circle()
-                .fill(cluster.opacity(topWing || bottomWing ? 0.82 : 1))
-                .frame(width: dialW * 1.08, height: dialW * 1.08)
-                .position(x: cx, y: cy)
-                .zIndex(4)
+                Circle()
+                    .fill(cluster.opacity(topWing || bottomWing ? 0.82 : 1))
+                    .frame(width: dialW * 1.08, height: dialW * 1.08)
+                    .position(x: cx, y: cy)
+                    .zIndex(4)
+            }
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
@@ -625,7 +666,7 @@ struct NativeHUDView: View {
                 .position(x: 74, y: h - 22)
                 .zIndex(8)
 
-            dashlaChrome(leftMap: leftMap, rightMap: rightMap)
+            dashlaChrome(leftMap: leftMap || bothMap, rightMap: rightMap || bothMap)
                 .zIndex(20)
         }
         .frame(width: w, height: h)
@@ -888,14 +929,19 @@ struct NativeHUDView: View {
 
     // MARK: - Side columns
 
-    private func sideColumn(slide: Int, side: Side, showBattery: Bool) -> some View {
-        // Keep content clear of the vertical selection rail (~34pt near dial).
-        let railClear: CGFloat = 36
+    private func sideColumn(
+        slide: Int,
+        side: Side,
+        showBattery: Bool,
+        portraitAligned: Bool = false
+    ) -> some View {
+        // Landscape: clear the vertical selection rail (~34pt near dial).
+        // Portrait: same padding on top & bottom so identical slides line up.
+        let lead: CGFloat = portraitAligned ? 18 : (side == .right ? 36 : 10)
+        let trail: CGFloat = portraitAligned ? 18 : (side == .left ? 36 : 10)
         return ZStack(alignment: .bottomLeading) {
-            // Same cluster black as dial — Dashla bütünlük.
+            // Flat cluster — no inset card / rounded layer.
             Color(red: 0.07, green: 0.07, blue: 0.08)
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(red: 0.07, green: 0.07, blue: 0.08))
             Group {
                 switch slide {
                 case 1: tiresPanel(side: side)
@@ -905,8 +951,8 @@ struct NativeHUDView: View {
                 default: simplePanel
                 }
             }
-            .padding(.leading, side == .right ? railClear : 10)
-            .padding(.trailing, side == .left ? railClear : 10)
+            .padding(.leading, lead)
+            .padding(.trailing, trail)
             .padding(.top, 8)
             .padding(.bottom, showBattery ? 44 : 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
