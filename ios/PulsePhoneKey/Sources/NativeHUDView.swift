@@ -51,8 +51,8 @@ struct NativeHUDView: View {
                 // Turn guidance below top bar (not clipped inside map wing / under chrome).
                 if !mapExpanded, model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
                     turnBanner
-                        .padding(.top, 52)
-                        .padding(.horizontal, 16)
+                        .padding(.top, 58)
+                        .padding(.horizontal, 18)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                         .zIndex(19)
                         .allowsHitTesting(false)
@@ -99,7 +99,7 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.34, h * 0.78, 300)
+        let dialW = min(w * 0.36, h * 0.80, 312)
         let cx = w * 0.5
         let cy = h * 0.5
         let sideW = max(140, (w - dialW) / 2)
@@ -206,7 +206,7 @@ struct NativeHUDView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
-        .background(Color.black)
+        .background(Color(red: 0.93, green: 0.94, blue: 0.95))
     }
 
     /// Album art same full-height tuck as map.
@@ -476,10 +476,10 @@ struct NativeHUDView: View {
                 .foregroundStyle(model.bleOK || model.isLive ? accent : barMuted.opacity(0.5))
             if !isBlank(model.destination) {
                 Text(model.destination)
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(barInk)
                     .lineLimit(1)
-                    .frame(maxWidth: 140, alignment: .leading)
+                    .frame(maxWidth: 160, alignment: .leading)
             }
             Spacer(minLength: 6)
 
@@ -733,27 +733,27 @@ struct NativeHUDView: View {
         }
     }
 
-    /// Soft blend into dial — opaque on dial side, clear toward outer edge (never day-white).
+    /// Soft blend into dial — keep light map readable (was over-dark).
     private func dialFade(edge: MapEdge) -> some View {
         let dialSide: UnitPoint = edge == .leading ? .leading : .trailing
         let outerSide: UnitPoint = edge == .leading ? .trailing : .leading
         return LinearGradient(
-            colors: [fadeIntoDial.opacity(0.75), fadeIntoDial.opacity(0.15), .clear],
+            colors: [fadeIntoDial.opacity(0.38), fadeIntoDial.opacity(0.08), .clear],
             startPoint: dialSide,
             endPoint: outerSide
         )
-        .frame(width: 48)
+        .frame(width: 40)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edge == .leading ? .leading : .trailing)
         .allowsHitTesting(false)
     }
 
     private func dialFadeVertical(fromTop: Bool) -> some View {
         LinearGradient(
-            colors: [fadeIntoDial.opacity(0.75), fadeIntoDial.opacity(0.15), .clear],
+            colors: [fadeIntoDial.opacity(0.38), fadeIntoDial.opacity(0.08), .clear],
             startPoint: fromTop ? .top : .bottom,
             endPoint: fromTop ? .bottom : .top
         )
-        .frame(height: 40)
+        .frame(height: 32)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: fromTop ? .top : .bottom)
         .allowsHitTesting(false)
     }
@@ -788,8 +788,8 @@ struct NativeHUDView: View {
 
     private func dialView(size: CGFloat, compact: Bool = false) -> some View {
         let style = settings.dialStyle
-        // Slightly smaller + light weight = thin but readable numerals on a larger dial.
-        let speedFont = compact ? size * 0.34 : size * 0.38
+        // Slightly smaller relative size + light weight = thin but readable on a larger dial.
+        let speedFont = compact ? size * 0.36 : size * 0.40
         let ringW: CGFloat = compact ? 2.5 : 3.2
         let accel = CGFloat(min(1, max(0, model.powerKW) / 180.0))
         let regen = CGFloat(min(1, max(0, -model.powerKW) / 70.0))
@@ -797,7 +797,7 @@ struct NativeHUDView: View {
         // Bare over map/media: light type so it reads as floating 3D.
         let bareLit = style == .bare && (anyBleed || night)
         let dialInk: Color = bareLit ? .white : ink
-        let dialMuted: Color = bareLit ? Color.white.opacity(0.72) : muted
+        let dialMuted: Color = bareLit ? Color.white.opacity(0.78) : muted
         let dialDim: Color = bareLit ? Color.white.opacity(0.30) : dim
         // Raised dark plate — always black cluster (no day-silver).
         let plate: Color = Color(red: 0.12, green: 0.13, blue: 0.15)
@@ -807,7 +807,7 @@ struct NativeHUDView: View {
             HStack(spacing: size * 0.055) {
                 ForEach(["P", "R", "N", "D"], id: \.self) { g in
                     Text(g)
-                        .font(.system(size: max(10, size * 0.058), weight: .semibold))
+                        .font(.system(size: max(12, size * 0.066), weight: .semibold))
                         .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: dialInk, dim: dialDim))
                         .shadow(color: .black.opacity(0.7), radius: 3, y: 2)
                 }
@@ -821,12 +821,12 @@ struct NativeHUDView: View {
                 .shadow(color: .black.opacity(0.85), radius: style == .bare ? 12 : 5, y: style == .bare ? 7 : 3)
                 .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
             Text("km/h")
-                .font(.system(size: max(9, size * 0.046), weight: .regular))
+                .font(.system(size: max(11, size * 0.055), weight: .medium))
                 .foregroundStyle(dialMuted)
                 .shadow(color: .black.opacity(0.6), radius: 3, y: 2)
             if !compact, settings.liveLocation != .off, !isBlank(model.place) {
                 Text(model.place)
-                    .font(.system(size: max(9, size * 0.042)))
+                    .font(.system(size: max(11, size * 0.052), weight: .medium))
                     .foregroundStyle(dialMuted)
                     .lineLimit(1)
                     .padding(.top, 2)
@@ -1094,11 +1094,11 @@ struct NativeHUDView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
             Text(linkLabel)
-                .font(.caption)
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(model.bleOK ? accent : muted)
                 .multilineTextAlignment(.center)
             Text(model.telemetrySource.uppercased())
-                .font(.caption2.weight(.bold))
+                .font(.caption.weight(.bold))
                 .foregroundStyle(model.isLive ? accent : muted)
         }
         .frame(maxWidth: 220)
@@ -1119,11 +1119,11 @@ struct NativeHUDView: View {
     private func tripRow(_ k: String, _ v: String) -> some View {
         VStack(alignment: .center, spacing: 4) {
             Text(k)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(muted)
                 .multilineTextAlignment(.center)
             Text(v)
-                .font(.title3.weight(.medium))
+                .font(.title2.weight(.medium))
                 .foregroundStyle(ink)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -1208,13 +1208,13 @@ struct NativeHUDView: View {
                 mediaServiceHeader
                 albumArtWithReflection(size: artSize)
                 Text(displayOrDash(model.mediaTitle))
-                    .font(.subheadline.weight(.semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(ink)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(0.8)
                 Text(displayOrDash(model.mediaArtist))
-                    .font(.caption)
+                    .font(.body)
                     .foregroundStyle(muted)
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
@@ -1259,7 +1259,7 @@ struct NativeHUDView: View {
                     .foregroundStyle(.white)
             }
             Text(displayOrDash(model.mediaService))
-                .font(.subheadline.weight(.semibold))
+                .font(.body.weight(.semibold))
                 .foregroundStyle(anyBleed || night ? Color.white : ink)
                 .lineLimit(1)
         }
@@ -1283,31 +1283,31 @@ struct NativeHUDView: View {
     }
 
     private var turnBanner: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Image(systemName: model.turnSymbol.isEmpty ? "arrow.turn.up.right" : model.turnSymbol)
-                .font(.title2.weight(.bold))
+                .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(.white)
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: 2) {
+                .frame(width: 34)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(turnDistanceText)
-                    .font(.title2.weight(.bold).monospacedDigit())
+                    .font(.title.weight(.bold).monospacedDigit())
                     .foregroundStyle(.white)
                 if !model.turnInstruction.isEmpty {
                     Text(model.turnInstruction)
-                        .font(.caption)
-                        .foregroundStyle(Color.white.opacity(0.75))
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Color.white.opacity(0.88))
                         .lineLimit(2)
                 }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.black.opacity(0.78))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.black.opacity(0.82))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.14), lineWidth: 1)
                 )
         )
         .allowsHitTesting(false)

@@ -49,12 +49,12 @@ struct AppleMapPanel: View {
                     dark: theme != .light
                 )
             } else {
-                Color(red: 0.12, green: 0.13, blue: 0.14)
+                Color(red: 0.93, green: 0.94, blue: 0.95)
                 Text(nameOK ? "Hedef araniyor…" : "Konum bekleniyor")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.black.opacity(0.55))
                     .padding(10)
-                    .background(Capsule().fill(.black.opacity(0.5)))
+                    .background(Capsule().fill(.white.opacity(0.85)))
             }
         }
         .onAppear { fetchRouteIfNeeded(force: true) }
@@ -333,7 +333,9 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UIView {
         let host = ClipHost(frame: .zero)
-        host.backgroundColor = dark ? UIColor.black : UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 1)
+        let paper = UIColor(red: 0.93, green: 0.94, blue: 0.95, alpha: 1)
+        host.backgroundColor = dark ? UIColor.black : paper
+        host.overrideUserInterfaceStyle = dark ? .dark : .light
 
         let map = MKMapView(frame: .zero)
         map.translatesAutoresizingMaskIntoConstraints = false
@@ -341,13 +343,21 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.isOpaque = true
         map.showsCompass = false
         map.showsTraffic = false
-        map.showsPointsOfInterest = false
-        map.showsBuildings = false
+        map.showsPointsOfInterest = true
+        map.showsBuildings = true
         map.delegate = context.coordinator
+        // Force light tiles even when the HUD prefers dark chrome.
         map.overrideUserInterfaceStyle = dark ? .dark : .light
+        if #available(iOS 16.0, *) {
+            let cfg = MKStandardMapConfiguration(emphasisStyle: .default)
+            cfg.pointOfInterestFilter = .includingAll
+            map.preferredConfiguration = cfg
+        } else {
+            map.mapType = .standard
+        }
         map.clipsToBounds = true
         map.layer.masksToBounds = true
-        map.backgroundColor = dark ? UIColor.black : UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 1)
+        map.backgroundColor = dark ? UIColor.black : paper
 
         host.addSubview(map)
         NSLayoutConstraint.activate([
@@ -368,7 +378,9 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
     func updateUIView(_ host: UIView, context: Context) {
         host.clipsToBounds = true
         host.layer.masksToBounds = true
-        host.backgroundColor = dark ? .black : UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 1)
+        let paper = UIColor(red: 0.93, green: 0.94, blue: 0.95, alpha: 1)
+        host.backgroundColor = dark ? .black : paper
+        host.overrideUserInterfaceStyle = dark ? .dark : .light
         guard let map = context.coordinator.mapView ?? host.subviews.compactMap({ $0 as? MKMapView }).first else {
             return
         }
@@ -376,7 +388,14 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.clipsToBounds = true
         map.layer.masksToBounds = true
         map.overrideUserInterfaceStyle = dark ? .dark : .light
-        map.backgroundColor = dark ? .black : UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 1)
+        map.backgroundColor = dark ? .black : paper
+        if #available(iOS 16.0, *) {
+            let cfg = MKStandardMapConfiguration(emphasisStyle: .default)
+            cfg.pointOfInterestFilter = .includingAll
+            map.preferredConfiguration = cfg
+        } else {
+            map.mapType = .standard
+        }
         let c = context.coordinator
 
         if let car = c.car {

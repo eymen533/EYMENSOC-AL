@@ -146,7 +146,7 @@ struct GoogleMapPanel: UIViewRepresentable {
         private static func html(apiKey: String, dark: Bool) -> String {
             let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
             let keyJS = key.isEmpty ? "" : key
-            let bg = dark ? "#1a1c1e" : "#dbd9d4"
+            let bg = dark ? "#1a1c1e" : "#f2f0eb"
             let msgColor = dark ? "rgba(255,255,255,.55)" : "rgba(0,0,0,.45)"
             let styles: String
             if dark {
@@ -165,14 +165,17 @@ struct GoogleMapPanel: UIViewRepresentable {
             } else {
                 styles = """
                 [
-                  {elementType:'geometry', stylers:[{color:'#e8e6e1'}]},
-                  {elementType:'labels.text.fill', stylers:[{color:'#5a5a5a'}]},
-                  {elementType:'labels.text.stroke', stylers:[{color:'#f5f3ef'}]},
+                  {elementType:'geometry', stylers:[{color:'#f2f0eb'}]},
+                  {elementType:'labels.text.fill', stylers:[{color:'#3d3d3d'}]},
+                  {elementType:'labels.text.stroke', stylers:[{color:'#ffffff'}]},
                   {featureType:'road', elementType:'geometry', stylers:[{color:'#ffffff'}]},
-                  {featureType:'road', elementType:'geometry.stroke', stylers:[{color:'#d0cec9'}]},
-                  {featureType:'poi', stylers:[{visibility:'off'}]},
+                  {featureType:'road', elementType:'geometry.stroke', stylers:[{color:'#cfcbc4'}]},
+                  {featureType:'road.highway', elementType:'geometry', stylers:[{color:'#f7e7a1'}]},
+                  {featureType:'poi', stylers:[{visibility:'simplified'}]},
                   {featureType:'transit', stylers:[{visibility:'off'}]},
-                  {featureType:'water', elementType:'geometry', stylers:[{color:'#c9d6e0'}]}
+                  {featureType:'water', elementType:'geometry', stylers:[{color:'#a8c8e0'}]},
+                  {featureType:'landscape.man_made', elementType:'geometry', stylers:[{color:'#ebe8e2'}]},
+                  {featureType:'landscape.natural', elementType:'geometry', stylers:[{color:'#e4efd8'}]}
                 ]
                 """
             }

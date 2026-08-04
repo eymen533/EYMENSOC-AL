@@ -122,7 +122,7 @@ final class HUDSettings: ObservableObject {
         default: mapsProvider = .apple
         }
         autoZoom = d.object(forKey: "pulse_maps_auto_zoom") as? Bool ?? true
-        mapTheme = MapTheme(rawValue: d.string(forKey: "pulse_map_theme") ?? "") ?? .dark
+        mapTheme = MapTheme(rawValue: d.string(forKey: "pulse_map_theme") ?? "") ?? .light
         gearMulticolor = d.object(forKey: "pulse_gear_multicolor") as? Bool ?? true
     }
 
