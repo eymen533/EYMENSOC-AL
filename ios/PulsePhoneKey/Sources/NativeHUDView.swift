@@ -95,8 +95,8 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        // Compact dial — wings remain the wide background planes.
-        let dialW = min(w * 0.22, h * 0.56, 210)
+        // Dial size back to the previous (more prominent) feel.
+        let dialW = min(w * 0.30, h * 0.72, 268)
         let cx = w * 0.5
         let cy = h * 0.5
         let gap: CGFloat = 2
@@ -270,8 +270,8 @@ struct NativeHUDView: View {
         let w = geo.size.width
         let h = geo.size.height
         let gap: CGFloat = 8
-        // Compact dial — top/bottom wings stay primary.
-        let dialW = min(w * 0.34, h * 0.18, 152)
+        // Dial size back to the previous (more prominent) feel.
+        let dialW = min(w * 0.42, h * 0.24, 188)
         let wingH = max(96, (h - dialW - gap * 2) / 2)
         // Tuck under dial vertically.
         let bleedExtra = dialW * 0.48

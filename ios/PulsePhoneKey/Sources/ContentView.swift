@@ -284,8 +284,8 @@ struct ContentView: View {
                     .pickerStyle(.segmented)
                     Text({
                         switch hudSettings.dialStyle {
-                        case .circle: return "Yuvarlak: kompakt, ekstrüde bevel — kanatlar geride 3D."
-                        case .square: return "Kare: kompakt, ekstrüde bevel — kanatlar geride 3D."
+                        case .circle: return "Yuvarlak: makul boyut, ekstrüde bevel — kanatlar geride 3D."
+                        case .square: return "Kare: makul boyut, ekstrüde bevel — kanatlar geride 3D."
                         case .bare: return "Sade: çerçeve yok — hız/vites yüzer, derin gölge."
                         }
                     }())
