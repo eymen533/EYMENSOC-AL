@@ -525,7 +525,8 @@ struct VehicleMapView: View {
                 )
             }
         }
-        .background(isDark ? Color.black : Color(red: 0.90, green: 0.91, blue: 0.93))
+        .background(isDark ? Color.black : Color(red: 0.95, green: 0.96, blue: 0.97))
+        .preferredColorScheme(isDark ? .dark : .light)
         .clipped()
         .onAppear { phone.start() }
     }

@@ -311,7 +311,9 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
     var dark: Bool
 
     /// Hard clip host — MKMapView metal layer otherwise bleeds under siblings / top bar.
+    /// Forces light trait collection so Apple Maps tiles stay bright inside a dark HUD.
     final class ClipHost: UIView {
+        var forceLightStyle = true
         override init(frame: CGRect) {
             super.init(frame: frame)
             clipsToBounds = true
@@ -319,6 +321,13 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             isOpaque = true
         }
         required init?(coder: NSCoder) { fatalError("init(coder:)") }
+        override var traitCollection: UITraitCollection {
+            guard forceLightStyle else { return super.traitCollection }
+            return UITraitCollection(traitsFrom: [
+                super.traitCollection,
+                UITraitCollection(userInterfaceStyle: .light)
+            ])
+        }
         override func layoutSubviews() {
             super.layoutSubviews()
             clipsToBounds = true
@@ -327,13 +336,17 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             subviews.forEach {
                 $0.clipsToBounds = true
                 $0.layer.masksToBounds = true
+                if forceLightStyle {
+                    $0.overrideUserInterfaceStyle = .light
+                }
             }
         }
     }
 
     func makeUIView(context: Context) -> UIView {
         let host = ClipHost(frame: .zero)
-        let paper = UIColor(red: 0.93, green: 0.94, blue: 0.95, alpha: 1)
+        let paper = UIColor(red: 0.95, green: 0.96, blue: 0.97, alpha: 1)
+        host.forceLightStyle = !dark
         host.backgroundColor = dark ? UIColor.black : paper
         host.overrideUserInterfaceStyle = dark ? .dark : .light
 
@@ -344,7 +357,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.showsCompass = false
         map.showsTraffic = false
         map.showsPointsOfInterest = true
-        map.showsBuildings = true
+        map.showsBuildings = false
         map.delegate = context.coordinator
         // Force light tiles even when the HUD prefers dark chrome.
         map.overrideUserInterfaceStyle = dark ? .dark : .light
@@ -378,7 +391,10 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
     func updateUIView(_ host: UIView, context: Context) {
         host.clipsToBounds = true
         host.layer.masksToBounds = true
-        let paper = UIColor(red: 0.93, green: 0.94, blue: 0.95, alpha: 1)
+        let paper = UIColor(red: 0.95, green: 0.96, blue: 0.97, alpha: 1)
+        if let clip = host as? ClipHost {
+            clip.forceLightStyle = !dark
+        }
         host.backgroundColor = dark ? .black : paper
         host.overrideUserInterfaceStyle = dark ? .dark : .light
         guard let map = context.coordinator.mapView ?? host.subviews.compactMap({ $0 as? MKMapView }).first else {
@@ -389,6 +405,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.layer.masksToBounds = true
         map.overrideUserInterfaceStyle = dark ? .dark : .light
         map.backgroundColor = dark ? .black : paper
+        map.showsBuildings = false
         if #available(iOS 16.0, *) {
             let cfg = MKStandardMapConfiguration(emphasisStyle: .default)
             cfg.pointOfInterestFilter = .includingAll
@@ -443,8 +460,9 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             return
         }
 
-        let distance: CLLocationDistance = turnByTurn ? 220 : 520
-        let pitch: CGFloat = turnByTurn ? 58 : 48
+        let distance: CLLocationDistance = turnByTurn ? 240 : 540
+        // Lower pitch = flatter, brighter look (steep 3D looked almost black).
+        let pitch: CGFloat = turnByTurn ? 28 : 18
         // Normalize heading so camera faces travel direction (0…360).
         var camHeading = heading.truncatingRemainder(dividingBy: 360)
         if camHeading < 0 { camHeading += 360 }

@@ -48,16 +48,7 @@ struct NativeHUDView: View {
                     triadPortrait(geo: geo)
                 }
 
-                // Turn guidance below top bar (not clipped inside map wing / under chrome).
-                if !mapExpanded, model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
-                    turnBanner
-                        .padding(.top, 58)
-                        .padding(.horizontal, 18)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .zIndex(19)
-                        .allowsHitTesting(false)
-                }
-
+                // Turn guidance lives inside topBar (always above the map).
                 topBar
                     .frame(maxWidth: .infinity)
                     .zIndex(20)
@@ -72,6 +63,7 @@ struct NativeHUDView: View {
             model.pulseRails()
             model.night = true
             settings.mapTheme = .light
+            UserDefaults.standard.set(HUDSettings.MapTheme.light.rawValue, forKey: "pulse_map_theme")
             PhoneLocationStore.shared.start()
             UIApplication.shared.isIdleTimerDisabled = true
             MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist, album: model.mediaAlbum)
@@ -99,7 +91,7 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.36, h * 0.80, 312)
+        let dialW = min(w * 0.37, h * 0.82, 320)
         let cx = w * 0.5
         let cy = h * 0.5
         let sideW = max(140, (w - dialW) / 2)
@@ -244,7 +236,8 @@ struct NativeHUDView: View {
         let h = geo.size.height
         let dialW = min(w * 0.46, h * 0.27, 208)
         let tuck = dialW * 0.26
-        let topChrome: CGFloat = 52
+        let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
+        let topChrome: CGFloat = showTurn ? 118 : 56
         let wingH = max(96, (h - dialW - topChrome) / 2)
         let cx = w * 0.5
         let cy = topChrome + wingH + dialW * 0.5
@@ -453,64 +446,73 @@ struct NativeHUDView: View {
     private var topBar: some View {
         let barInk = anyBleed ? Color.white : ink
         let barMuted = anyBleed ? Color.white.opacity(0.7) : muted
-        return HStack(spacing: 10) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.body.weight(.semibold))
+        let showTurn = !mapExpanded && (model.turnDistanceM > 0 || !model.turnInstruction.isEmpty)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(barInk)
+                }
+                Text(model.clock.isEmpty ? "--:--" : model.clock)
+                    .font(.body.monospacedDigit().weight(.semibold))
                     .foregroundStyle(barInk)
-            }
-            Text(model.clock.isEmpty ? "--:--" : model.clock)
-                .font(.subheadline.monospacedDigit().weight(.semibold))
-                .foregroundStyle(barInk)
-            Text(BLEPairer.buildId)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(.black)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05)))
-            Text(model.outdoorC == 0 ? "--°C" : "\(model.outdoorC)°C")
-                .font(.subheadline)
-                .foregroundStyle(barMuted)
-            Image(systemName: "car.fill")
-                .font(.caption)
-                .foregroundStyle(model.bleOK || model.isLive ? accent : barMuted.opacity(0.5))
-            if !isBlank(model.destination) {
-                Text(model.destination)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(barInk)
-                    .lineLimit(1)
-                    .frame(maxWidth: 160, alignment: .leading)
-            }
-            Spacer(minLength: 6)
+                Text(BLEPairer.buildId)
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05)))
+                Text(model.outdoorC == 0 ? "--°C" : "\(model.outdoorC)°C")
+                    .font(.body)
+                    .foregroundStyle(barMuted)
+                Image(systemName: "car.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(model.bleOK || model.isLive ? accent : barMuted.opacity(0.5))
+                if !isBlank(model.destination) {
+                    Text(model.destination)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(barInk)
+                        .lineLimit(1)
+                        .frame(maxWidth: 180, alignment: .leading)
+                }
+                Spacer(minLength: 6)
 
-            Circle()
-                .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.7))
-                .frame(width: 7, height: 7)
+                Circle()
+                    .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.7))
+                    .frame(width: 8, height: 8)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.35)))
+
+                HStack(spacing: 5) {
+                    Image(systemName: phoneBattIcon)
+                        .font(.caption)
+                    Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
+                        .font(.subheadline.monospacedDigit().weight(.semibold))
+                }
+                .foregroundStyle(barInk)
                 .padding(.horizontal, 8)
-                .padding(.vertical, 5)
+                .padding(.vertical, 4)
                 .background(Capsule().fill(Color.black.opacity(0.35)))
 
-            HStack(spacing: 5) {
-                Image(systemName: phoneBattIcon)
-                    .font(.caption2)
-                Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
-                    .font(.caption.monospacedDigit().weight(.semibold))
+                Button { onSettings?() } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(barMuted)
+                }
+                .buttonStyle(.plain)
             }
-            .foregroundStyle(barInk)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(Color.black.opacity(0.35)))
 
-            Button { onSettings?() } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.caption)
-                    .foregroundStyle(barMuted)
+            // Sağa / sola dön — chrome içinde, haritanın üstünde kaybolmaz.
+            if showTurn {
+                turnBanner
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
         .padding(.top, 6)
-        .padding(.bottom, 10)
+        .padding(.bottom, showTurn ? 12 : 10)
         .frame(maxWidth: .infinity, alignment: .top)
         // Solid black — map must never show through top chrome.
         .background(Color.black)
@@ -1203,19 +1205,19 @@ struct NativeHUDView: View {
     private var mediaPanel: some View {
         GeometryReader { geo in
             // Compact album — small cover, title/artist below, light floor reflection.
-            let artSize = min(68, max(48, min(geo.size.width * 0.42, geo.size.height * 0.24)))
-            VStack(alignment: .center, spacing: 8) {
+            let artSize = min(64, max(48, min(geo.size.width * 0.40, geo.size.height * 0.22)))
+            VStack(alignment: .center, spacing: 10) {
                 mediaServiceHeader
                 albumArtWithReflection(size: artSize)
                 Text(displayOrDash(model.mediaTitle))
-                    .font(.title3.weight(.semibold))
+                    .font(.title2.weight(.semibold))
                     .foregroundStyle(ink)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
                 Text(displayOrDash(model.mediaArtist))
-                    .font(.body)
-                    .foregroundStyle(muted)
+                    .font(.title3)
+                    .foregroundStyle(Color.white.opacity(0.72))
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
             }
@@ -1225,19 +1227,20 @@ struct NativeHUDView: View {
     }
 
     private func albumArtWithReflection(size: CGFloat) -> some View {
-        let reflectH = size * 0.18
+        // ~10% height mirror under the cover.
+        let reflectH = size * 0.12
         return VStack(spacing: 0) {
             AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
             AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
                 .scaleEffect(x: 1, y: -1)
                 .frame(height: reflectH, alignment: .top)
                 .clipped()
-                .opacity(0.28)
+                .opacity(0.32)
                 .mask(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.55),
-                            Color.white.opacity(0.12),
+                            Color.white.opacity(0.50),
+                            Color.white.opacity(0.08),
                             .clear
                         ],
                         startPoint: .top,
