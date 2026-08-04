@@ -93,17 +93,18 @@ struct NativeHUDView: View {
         let dialW = min(w * 0.30, h * 0.72, 268)
         let cx = w * 0.5
         let cy = h * 0.5
-        let gap: CGFloat = 0
-        let sideW = max(140, (w - dialW) / 2 - gap)
-        // Deep tuck under dial — album/map read as full rear plane (no white seams).
-        let bleedW = sideW + dialW * 0.62
+        let sideW = max(140, (w - dialW) / 2)
+        // Modest tuck under dial — enough depth, no double-map collision.
+        let tuck = dialW * 0.36
+        let leftW = sideW + (leftWing ? tuck : 0)
+        let rightW = sideW + (rightWing ? tuck : 0)
         let chromeInk = Color.white
         let chromeMuted = Color.white.opacity(0.7)
 
         return ZStack {
-            Color.black.ignoresSafeArea()
+            Color.black
 
-            // Left plane — full height, behind dial.
+            // Left wing — clipped to its frame; extends under dial only.
             Group {
                 if leftMap {
                     panelMap(edge: .trailing, side: .left)
@@ -113,12 +114,12 @@ struct NativeHUDView: View {
                     sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
             }
-            .frame(width: leftWing ? bleedW : sideW, height: h)
+            .frame(width: leftW, height: h)
+            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .zIndex(leftWing ? 0 : 2)
-            .opacity(leftWing ? 0.92 : 1.0)
+            .zIndex(leftWing ? 0 : 1)
 
-            // Right plane — full height, behind dial.
+            // Right wing — clipped; never stacks another map over the left bleed.
             Group {
                 if rightMap {
                     panelMap(edge: .leading, side: .right)
@@ -128,31 +129,17 @@ struct NativeHUDView: View {
                     sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                 }
             }
-            .frame(width: rightWing ? bleedW : sideW, height: h)
+            .frame(width: rightW, height: h)
+            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-            .zIndex(rightWing ? 0 : 2)
-            .opacity(rightWing ? 0.92 : 1.0)
+            .zIndex(rightWing ? 0 : 1)
 
-            // Soft black veil at dial seam — kills glare/white edges.
-            HStack(spacing: 0) {
-                LinearGradient(
-                    colors: [.clear, Color.black.opacity(0.55)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: dialW * 0.42)
-                Spacer(minLength: 0)
-                LinearGradient(
-                    colors: [Color.black.opacity(0.55), .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: dialW * 0.42)
-            }
-            .frame(width: dialW * 1.15, height: h)
-            .position(x: cx, y: cy)
-            .allowsHitTesting(false)
-            .zIndex(5)
+            // Opaque plate under dial hides any wing seam (no ghost layers).
+            Circle()
+                .fill(Color.black)
+                .frame(width: dialW * 1.06, height: dialW * 1.06)
+                .position(x: cx, y: cy)
+                .zIndex(4)
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                 .position(x: max(16, cx - dialW * 0.5 - 14), y: cy)
@@ -161,7 +148,6 @@ struct NativeHUDView: View {
                 .position(x: min(w - 16, cx + dialW * 0.5 + 14), y: cy)
                 .zIndex(7)
 
-            // Dial in front of album/map wings.
             dialView(size: dialW)
                 .position(x: cx, y: cy)
                 .zIndex(10)
@@ -175,12 +161,12 @@ struct NativeHUDView: View {
                     .padding(.vertical, 5)
                     .background(Capsule().fill(Color.black.opacity(0.55)))
                     .position(x: cx, y: min(h - 28, cy + dialW * 0.5 + 28))
-                    .zIndex(6)
+                    .zIndex(8)
             }
 
             dialStatusStrip(maxWidth: dialW * 1.05)
                 .position(x: cx, y: min(h - 18, cy + dialW * 0.5 + 10))
-                .zIndex(6)
+                .zIndex(8)
 
             HStack {
                 batteryChip
@@ -195,9 +181,10 @@ struct NativeHUDView: View {
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .padding(.bottom, 6)
-            .zIndex(6)
+            .zIndex(8)
         }
         .frame(width: w, height: h)
+        .clipped()
         .ignoresSafeArea()
     }
 
@@ -212,6 +199,7 @@ struct NativeHUDView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
+        .background(Color.black)
     }
 
     /// Album art same full-height tuck as map.
@@ -224,6 +212,7 @@ struct NativeHUDView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
+        .background(Color.black)
     }
 
     @ViewBuilder
@@ -246,68 +235,54 @@ struct NativeHUDView: View {
     private func triadPortrait(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let gap: CGFloat = 8
-        // Dial size back to the previous (more prominent) feel.
         let dialW = min(w * 0.42, h * 0.24, 188)
-        let wingH = max(96, (h - dialW - gap * 2) / 2)
-        // Tuck under dial vertically.
-        let bleedExtra = dialW * 0.48
+        let tuck = dialW * 0.34
+        let wingH = max(96, (h - dialW) / 2)
         let cx = w * 0.5
-        let cy = wingH + gap + dialW * 0.5
+        let cy = h * 0.5
         let topWing = model.leftSlide == 3 || model.leftSlide == 4
         let bottomWing = model.rightSlide == 3 || model.rightSlide == 4
+        let topH = wingH + (topWing ? tuck : 0)
+        let bottomH = wingH + (bottomWing ? tuck : 0)
+
+        // ZStack + alignment tuck (no negative padding — that doubled MapKit layers).
         return ZStack {
-            VStack(spacing: gap) {
-                Group {
-                    if model.leftSlide == 3 {
-                        panelMap(edge: .trailing, side: .left, verticalFromTop: false)
-                    } else if model.leftSlide == 4 {
-                        panelMedia(edge: .trailing, side: .left, verticalFromTop: false)
-                    } else {
-                        sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
-                    }
-                }
-                .frame(height: topWing ? wingH + bleedExtra : wingH)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, topWing ? -bleedExtra : 0)
-                .zIndex(topWing ? 0 : 1)
-                .opacity(topWing ? 0.94 : 1.0)
+            Color.black
 
-                Color.clear
-                    .frame(height: dialW)
-                    .zIndex(2)
-
-                Group {
-                    if model.rightSlide == 3 {
-                        panelMap(edge: .leading, side: .right, verticalFromTop: true)
-                    } else if model.rightSlide == 4 {
-                        panelMedia(edge: .leading, side: .right, verticalFromTop: true)
-                    } else {
-                        sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
-                    }
+            Group {
+                if model.leftSlide == 3 {
+                    panelMap(edge: .trailing, side: .left, verticalFromTop: false)
+                } else if model.leftSlide == 4 {
+                    panelMedia(edge: .trailing, side: .left, verticalFromTop: false)
+                } else {
+                    sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
-                .frame(height: bottomWing ? wingH + bleedExtra : wingH)
-                .frame(maxWidth: .infinity)
-                .padding(.top, bottomWing ? -bleedExtra : 0)
-                .zIndex(bottomWing ? 0 : 1)
-                .opacity(bottomWing ? 0.94 : 1.0)
             }
-            .frame(maxHeight: .infinity)
-            .background(Color.black)
+            .frame(width: w, height: topH)
+            .clipped()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .zIndex(topWing ? 0 : 1)
 
+            Group {
+                if model.rightSlide == 3 {
+                    panelMap(edge: .leading, side: .right, verticalFromTop: true)
+                } else if model.rightSlide == 4 {
+                    panelMedia(edge: .leading, side: .right, verticalFromTop: true)
+                } else {
+                    sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                }
+            }
+            .frame(width: w, height: bottomH)
+            .clipped()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .zIndex(bottomWing ? 0 : 1)
+
+            // Opaque under-dial plate — kills seam / ghost map layers.
             Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [Color.black.opacity(0.65), Color.black.opacity(0.2), .clear],
-                        center: .center,
-                        startRadius: dialW * 0.12,
-                        endRadius: dialW * 0.95
-                    )
-                )
-                .frame(width: dialW * 1.7, height: dialW * 1.7)
+                .fill(Color.black)
+                .frame(width: dialW * 1.08, height: dialW * 1.08)
                 .position(x: cx, y: cy)
-                .allowsHitTesting(false)
-                .zIndex(7)
+                .zIndex(4)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
@@ -322,17 +297,19 @@ struct NativeHUDView: View {
                     .padding(.vertical, 5)
                     .background(Capsule().fill(Color.black.opacity(0.55)))
                     .position(x: cx, y: min(h - 40, cy + dialW * 0.5 + 34))
-                    .zIndex(3)
+                    .zIndex(8)
             }
 
             dialStatusStrip(maxWidth: dialW * 1.05)
                 .position(x: cx, y: min(h - 28, cy + dialW * 0.5 + 14))
-                .zIndex(3)
+                .zIndex(8)
 
             batteryChip
                 .position(x: 70, y: h - 22)
-                .zIndex(3)
+                .zIndex(8)
         }
+        .frame(width: w, height: h)
+        .clipped()
     }
 
     @ViewBuilder
@@ -762,22 +739,22 @@ struct NativeHUDView: View {
         let dialSide: UnitPoint = edge == .leading ? .leading : .trailing
         let outerSide: UnitPoint = edge == .leading ? .trailing : .leading
         return LinearGradient(
-            colors: [fadeIntoDial.opacity(0.88), fadeIntoDial.opacity(0.25), .clear],
+            colors: [fadeIntoDial.opacity(0.75), fadeIntoDial.opacity(0.15), .clear],
             startPoint: dialSide,
             endPoint: outerSide
         )
-        .frame(width: 64)
+        .frame(width: 48)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edge == .leading ? .leading : .trailing)
         .allowsHitTesting(false)
     }
 
     private func dialFadeVertical(fromTop: Bool) -> some View {
         LinearGradient(
-            colors: [fadeIntoDial.opacity(0.88), fadeIntoDial.opacity(0.25), .clear],
+            colors: [fadeIntoDial.opacity(0.75), fadeIntoDial.opacity(0.15), .clear],
             startPoint: fromTop ? .top : .bottom,
             endPoint: fromTop ? .bottom : .top
         )
-        .frame(height: 56)
+        .frame(height: 40)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: fromTop ? .top : .bottom)
         .allowsHitTesting(false)
     }
