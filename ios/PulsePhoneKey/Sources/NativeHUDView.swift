@@ -532,9 +532,10 @@ struct NativeHUDView: View {
         }
         .padding(.horizontal, 14)
         .padding(.top, 8)
-        .padding(.bottom, 6)
-        // Transparent — map shows through; no solid black bar.
-        .background(Color.clear)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity, alignment: .top)
+        // Slim chrome strip — map stays side-only beneath (not full-bleed).
+        .background(Color.black.opacity(0.92))
     }
 
     private var phoneBattIcon: String {
