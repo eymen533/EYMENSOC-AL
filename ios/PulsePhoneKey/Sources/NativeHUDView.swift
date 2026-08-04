@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Dashla-style HUD — map tucks under center dial; both sides pick map/tires/trip/music.
+/// Dashla-style HUD — map only on the selected side; tucks under center dial.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     @ObservedObject private var settings = HUDSettings.shared
@@ -81,26 +81,7 @@ struct NativeHUDView: View {
 
     private enum Side { case left, right }
 
-    // MARK: - Single full-bleed map (Dashla)
-
-    private var fullBleedMap: some View {
-        VehicleMapView(
-            lat: model.latitude,
-            lon: model.longitude,
-            heading: model.mapHeading,
-            destination: routeDestination,
-            destLat: model.destLatitude,
-            destLon: model.destLongitude,
-            apiKey: model.googleMapsKey,
-            turnByTurn: true,
-            turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
-            turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
-            turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 })
-        )
-        .allowsHitTesting(false)
-    }
-
-    // MARK: - Triad (map full-bleed; dial + panels float)
+    // MARK: - Triad (map only on the selected side; tucks under dial)
 
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
@@ -108,89 +89,72 @@ struct NativeHUDView: View {
         let dialW = min(w * 0.34, h * 0.78, 300)
         let cx = w * 0.5
         let cy = h * 0.5
-        let sideW = max(150, (w - dialW) * 0.42)
+        let sideW = max(140, (w - dialW) / 2)
+        let tuck = dialW * 0.30
+        let leftW = sideW + (leftMap ? tuck : 0)
+        let rightW = sideW + (rightMap ? tuck : 0)
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
         let chromeMuted = Color.white.opacity(0.78)
 
         return ZStack {
-            // 1) One map covers the whole screen and tucks under dial/panels.
-            fullBleedMap
-                .frame(width: w, height: h)
-                .clipped()
-                .zIndex(0)
+            Color.black
 
-            // Soft left readability wash (media/tires stay legible).
-            HStack(spacing: 0) {
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.62),
-                        Color.black.opacity(0.28),
-                        Color.black.opacity(0.05),
-                        .clear
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: sideW + dialW * 0.22)
-                Spacer(minLength: 0)
-            }
-            .allowsHitTesting(false)
-            .zIndex(1)
-
-            // Left content floats over map (map slide = empty → map shows through).
+            // Left side — map only when left slide is Harita.
             Group {
-                if !leftMap {
-                    floatingSideColumn(slide: model.leftSlide, side: .left)
+                if leftMap {
+                    panelMap(edge: .trailing, side: .left)
                 } else {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .gesture(sideSwipe(side: .left))
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = true }
-                        }
+                    sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
             }
-            .frame(width: sideW, height: h * 0.78)
+            .frame(width: leftW, height: h)
+            .clipShape(Rectangle())
+            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding(.leading, 10)
-            .padding(.top, 44)
-            .zIndex(2)
+            .zIndex(leftMap ? 0 : 1)
 
-            // Right content — usually map (empty); other slides float lightly.
+            // Right side — map only when right slide is Harita.
             Group {
-                if !rightMap {
-                    floatingSideColumn(slide: model.rightSlide, side: .right)
+                if rightMap {
+                    panelMap(edge: .leading, side: .right)
                 } else {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .gesture(sideSwipe(side: .right))
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = true }
-                        }
+                    sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                 }
             }
-            .frame(width: sideW * 0.92, height: h * 0.72)
+            .frame(width: rightW, height: h)
+            .clipShape(Rectangle())
+            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-            .padding(.trailing, 8)
-            .padding(.top, 44)
-            .zIndex(2)
+            .zIndex(rightMap ? 0 : 1)
+
+            // Opaque plate under dial — hides wing seam.
+            Circle()
+                .fill(Color.black)
+                .frame(width: dialW * 1.06, height: dialW * 1.06)
+                .position(x: cx, y: cy)
+                .zIndex(4)
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
-                .position(x: max(18, cx - dialW * 0.5 - 14), y: cy)
+                .position(x: max(16, cx - dialW * 0.5 - 14), y: cy)
                 .zIndex(7)
             sideRail(selected: model.rightSlide, visible: model.rightRailVisible) { model.setRight($0) }
-                .position(x: min(w - 18, cx + dialW * 0.5 + 14), y: cy)
+                .position(x: min(w - 16, cx + dialW * 0.5 + 14), y: cy)
                 .zIndex(7)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
                 .zIndex(10)
 
-            // Turn cues — readable zone on the map (left of dial, mid height).
+            // Turn cues sit on the map side (readable), not across whole screen.
             if showTurn {
                 turnBanner
-                    .frame(maxWidth: min(320, sideW + 40), alignment: .leading)
-                    .position(x: 16 + min(160, sideW * 0.48), y: max(96, cy - dialW * 0.42))
+                    .frame(maxWidth: min(300, sideW * 0.95), alignment: .leading)
+                    .position(
+                        x: rightMap && !leftMap
+                            ? (w - rightW * 0.5)
+                            : (leftW * 0.5),
+                        y: max(72, cy - dialW * 0.38)
+                    )
                     .zIndex(12)
             }
 
@@ -225,7 +189,6 @@ struct NativeHUDView: View {
             .padding(.bottom, 8)
             .zIndex(8)
 
-            // Floating chrome — no solid top bar.
             floatingChrome
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .zIndex(20)
@@ -283,62 +246,52 @@ struct NativeHUDView: View {
         let w = geo.size.width
         let h = geo.size.height
         let dialW = min(w * 0.46, h * 0.26, 200)
+        let tuck = dialW * 0.26
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
+        let topChrome: CGFloat = 52
+        let wingH = max(96, (h - dialW - topChrome) / 2)
         let cx = w * 0.5
-        let cy = h * 0.48
-        let panelH = max(110, (h - dialW) * 0.28)
+        let cy = topChrome + wingH + dialW * 0.5
+        let topWing = leftMap
+        let bottomWing = rightMap
+        let topH = wingH + (topWing ? tuck : 0)
+        let bottomH = wingH + (bottomWing ? tuck : 0)
 
         return ZStack {
-            fullBleedMap
-                .frame(width: w, height: h)
-                .clipped()
-                .zIndex(0)
-
-            VStack(spacing: 0) {
-                LinearGradient(
-                    colors: [Color.black.opacity(0.55), Color.black.opacity(0.15), .clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: panelH + 36)
-                Spacer(minLength: 0)
-                LinearGradient(
-                    colors: [.clear, Color.black.opacity(0.18), Color.black.opacity(0.5)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: panelH + 28)
-            }
-            .allowsHitTesting(false)
-            .zIndex(1)
+            Color.black
 
             Group {
-                if !leftMap {
-                    floatingSideColumn(slide: model.leftSlide, side: .left)
+                if leftMap {
+                    panelMap(edge: .trailing, side: .left, verticalFromTop: false)
                 } else {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = true }
-                        }
+                    sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
             }
-            .frame(width: w - 24, height: panelH)
+            .frame(width: w, height: topH)
+            .clipShape(Rectangle())
+            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.top, 48)
-            .zIndex(2)
+            .padding(.top, topChrome)
+            .zIndex(topWing ? 0 : 1)
 
             Group {
-                if !rightMap {
-                    floatingSideColumn(slide: model.rightSlide, side: .right)
+                if rightMap {
+                    panelMap(edge: .leading, side: .right, verticalFromTop: true)
                 } else {
-                    Color.clear
+                    sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                 }
             }
-            .frame(width: w - 24, height: panelH)
+            .frame(width: w, height: bottomH)
+            .clipShape(Rectangle())
+            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .padding(.bottom, 36)
-            .zIndex(2)
+            .zIndex(bottomWing ? 0 : 1)
+
+            Circle()
+                .fill(Color.black)
+                .frame(width: dialW * 1.08, height: dialW * 1.08)
+                .position(x: cx, y: cy)
+                .zIndex(4)
 
             dialView(size: dialW)
                 .position(x: cx, y: cy)
@@ -346,10 +299,10 @@ struct NativeHUDView: View {
 
             if showTurn {
                 turnBanner
-                    .padding(.horizontal, 16)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(.top, 52)
-                    .padding(.leading, 8)
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: topWing ? .top : .bottom)
+                    .padding(.top, topWing ? topChrome + 8 : 0)
+                    .padding(.bottom, bottomWing && !topWing ? 48 : 0)
                     .zIndex(12)
             }
 
@@ -398,7 +351,7 @@ struct NativeHUDView: View {
     private func fullscreenMap(geo: GeometryProxy) -> some View {
         let dialSize = min(188, geo.size.width * 0.28)
         return ZStack(alignment: .top) {
-            fullBleedMap
+            mapSurface(edge: .leading, side: .right, showTapExpand: false)
                 .ignoresSafeArea()
 
             Button {
@@ -590,35 +543,6 @@ struct NativeHUDView: View {
         if p >= 45 { return "battery.75" }
         if p >= 20 { return "battery.50" }
         return "battery.25"
-    }
-
-    /// Side content floating over the full-bleed map (translucent, not opaque black).
-    private func floatingSideColumn(slide: Int, side: Side) -> some View {
-        let railClear: CGFloat = 28
-        return ZStack {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.black.opacity(0.42))
-            Group {
-                switch slide {
-                case 1: tiresPanel(side: side)
-                case 2: tripPanel
-                case 3: mapInfoPanel
-                case 4: mediaPanel
-                default: simplePanel
-                }
-            }
-            .padding(.leading, side == .right ? railClear : 10)
-            .padding(.trailing, side == .left ? railClear : 10)
-            .padding(.vertical, 10)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
-        .contentShape(Rectangle())
-        .gesture(sideSwipe(side: side))
-        .onTapGesture {
-            if side == .left { model.flashLeftRail() }
-            else { model.flashRightRail() }
-        }
     }
 
     // MARK: - Rails
