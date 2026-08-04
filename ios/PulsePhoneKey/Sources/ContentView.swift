@@ -334,7 +334,7 @@ struct ContentView: View {
                             .autocorrectionDisabled()
                     }
                     Toggle("Auto Zoom (rota sığdır)", isOn: $hudSettings.autoZoom)
-                    Text("Cluster her zaman siyah — araç gece/gündüz teması yok sayılır.")
+                    Text("Cluster siyah kalır; harita açık/aydınlık tema ile okunur.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

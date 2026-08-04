@@ -333,7 +333,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UIView {
         let host = ClipHost(frame: .zero)
-        host.backgroundColor = UIColor.black
+        host.backgroundColor = dark ? UIColor.black : UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 1)
 
         let map = MKMapView(frame: .zero)
         map.translatesAutoresizingMaskIntoConstraints = false
@@ -344,10 +344,10 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.showsPointsOfInterest = false
         map.showsBuildings = false
         map.delegate = context.coordinator
-        map.overrideUserInterfaceStyle = .dark
+        map.overrideUserInterfaceStyle = dark ? .dark : .light
         map.clipsToBounds = true
         map.layer.masksToBounds = true
-        map.backgroundColor = UIColor.black
+        map.backgroundColor = dark ? UIColor.black : UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 1)
 
         host.addSubview(map)
         NSLayoutConstraint.activate([
@@ -368,14 +368,15 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
     func updateUIView(_ host: UIView, context: Context) {
         host.clipsToBounds = true
         host.layer.masksToBounds = true
-        host.backgroundColor = .black
+        host.backgroundColor = dark ? .black : UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 1)
         guard let map = context.coordinator.mapView ?? host.subviews.compactMap({ $0 as? MKMapView }).first else {
             return
         }
         context.coordinator.mapView = map
         map.clipsToBounds = true
         map.layer.masksToBounds = true
-        map.overrideUserInterfaceStyle = .dark
+        map.overrideUserInterfaceStyle = dark ? .dark : .light
+        map.backgroundColor = dark ? .black : UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 1)
         let c = context.coordinator
 
         if let car = c.car {

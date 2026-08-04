@@ -201,8 +201,9 @@ final class HUDModel: ObservableObject {
         turnLeft = s.turnLeft
         turnRight = s.turnRight
         // Cluster is always black — ignore vehicle day/night theme (causes white bars).
+        // Map tiles stay light for readability.
         night = true
-        HUDSettings.shared.mapTheme = .dark
+        HUDSettings.shared.mapTheme = .light
         if abs(s.latitude) > 0.0001 || abs(s.longitude) > 0.0001 {
             latitude = s.latitude
             longitude = s.longitude
@@ -530,8 +531,9 @@ final class HUDModel: ObservableObject {
             if let v = obj["turn_left"] as? Bool { turnLeft = v }
             if let v = obj["turn_right"] as? Bool { turnRight = v }
             // Always black cluster — do not follow dash ui_theme day/night.
+            // Map stays light for road readability.
             night = true
-            HUDSettings.shared.mapTheme = .dark
+            HUDSettings.shared.mapTheme = .light
             return true
         } catch {
             feedOK = false

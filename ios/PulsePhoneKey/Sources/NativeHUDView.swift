@@ -48,6 +48,16 @@ struct NativeHUDView: View {
                     triadPortrait(geo: geo)
                 }
 
+                // Turn guidance below top bar (not clipped inside map wing / under chrome).
+                if !mapExpanded, model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
+                    turnBanner
+                        .padding(.top, 52)
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .zIndex(19)
+                        .allowsHitTesting(false)
+                }
+
                 topBar
                     .frame(maxWidth: .infinity)
                     .zIndex(20)
@@ -61,7 +71,7 @@ struct NativeHUDView: View {
             model.start()
             model.pulseRails()
             model.night = true
-            settings.mapTheme = .dark
+            settings.mapTheme = .light
             PhoneLocationStore.shared.start()
             UIApplication.shared.isIdleTimerDisabled = true
             MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist, album: model.mediaAlbum)
@@ -89,7 +99,7 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.30, h * 0.72, 268)
+        let dialW = min(w * 0.34, h * 0.78, 300)
         let cx = w * 0.5
         let cy = h * 0.5
         let sideW = max(140, (w - dialW) / 2)
@@ -232,7 +242,7 @@ struct NativeHUDView: View {
     private func triadPortrait(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.42, h * 0.24, 188)
+        let dialW = min(w * 0.46, h * 0.27, 208)
         let tuck = dialW * 0.26
         let topChrome: CGFloat = 52
         let wingH = max(96, (h - dialW - topChrome) / 2)
@@ -626,8 +636,7 @@ struct NativeHUDView: View {
                     turnByTurn: true,
                     turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
                     turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
-                    turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 }),
-                    forceDark: true
+                    turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 })
                 )
             }
 
@@ -656,12 +665,6 @@ struct NativeHUDView: View {
                     .padding(.vertical, 8)
                     .background(Capsule().fill(Color.black.opacity(0.5)))
                     .padding(12)
-            }
-
-            if !mapExpanded, model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
-                turnBanner
-                    .padding(.leading, edge == .leading ? 20 : 12)
-                    .padding(.top, 10)
             }
 
             if showTapExpand {
@@ -785,7 +788,8 @@ struct NativeHUDView: View {
 
     private func dialView(size: CGFloat, compact: Bool = false) -> some View {
         let style = settings.dialStyle
-        let speedFont = compact ? size * 0.38 : size * 0.44
+        // Slightly smaller + light weight = thin but readable numerals on a larger dial.
+        let speedFont = compact ? size * 0.34 : size * 0.38
         let ringW: CGFloat = compact ? 2.5 : 3.2
         let accel = CGFloat(min(1, max(0, model.powerKW) / 180.0))
         let regen = CGFloat(min(1, max(0, -model.powerKW) / 70.0))
@@ -803,13 +807,13 @@ struct NativeHUDView: View {
             HStack(spacing: size * 0.055) {
                 ForEach(["P", "R", "N", "D"], id: \.self) { g in
                     Text(g)
-                        .font(.system(size: max(10, size * 0.062), weight: .bold))
+                        .font(.system(size: max(10, size * 0.058), weight: .semibold))
                         .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: dialInk, dim: dialDim))
                         .shadow(color: .black.opacity(0.7), radius: 3, y: 2)
                 }
             }
             Text("\(Int(abs(model.speed).rounded()))")
-                .font(.system(size: speedFont, weight: .bold, design: .rounded))
+                .font(.system(size: speedFont, weight: .medium, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(dialInk)
                 .minimumScaleFactor(0.5)
@@ -817,7 +821,7 @@ struct NativeHUDView: View {
                 .shadow(color: .black.opacity(0.85), radius: style == .bare ? 12 : 5, y: style == .bare ? 7 : 3)
                 .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
             Text("km/h")
-                .font(.system(size: max(9, size * 0.048), weight: .medium))
+                .font(.system(size: max(9, size * 0.046), weight: .regular))
                 .foregroundStyle(dialMuted)
                 .shadow(color: .black.opacity(0.6), radius: 3, y: 2)
             if !compact, settings.liveLocation != .off, !isBlank(model.place) {
@@ -1198,25 +1202,49 @@ struct NativeHUDView: View {
 
     private var mediaPanel: some View {
         GeometryReader { geo in
-            // Compact album — oldest normal size (no full-bleed tuck).
-            let artSize = min(72, max(52, min(geo.size.width * 0.48, geo.size.height * 0.28)))
-            VStack(alignment: .center, spacing: 10) {
+            // Compact album — small cover, title/artist below, light floor reflection.
+            let artSize = min(68, max(48, min(geo.size.width * 0.42, geo.size.height * 0.24)))
+            VStack(alignment: .center, spacing: 8) {
                 mediaServiceHeader
-                AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: artSize)
+                albumArtWithReflection(size: artSize)
                 Text(displayOrDash(model.mediaTitle))
-                    .font(.title3.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .minimumScaleFactor(0.75)
                 Text(displayOrDash(model.mediaArtist))
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundStyle(muted)
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
             }
             .frame(maxWidth: min(200, geo.size.width))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        }
+    }
+
+    private func albumArtWithReflection(size: CGFloat) -> some View {
+        let reflectH = size * 0.18
+        return VStack(spacing: 0) {
+            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
+            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
+                .scaleEffect(x: 1, y: -1)
+                .frame(height: reflectH, alignment: .top)
+                .clipped()
+                .opacity(0.28)
+                .mask(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.55),
+                            Color.white.opacity(0.12),
+                            .clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .allowsHitTesting(false)
         }
     }
 
@@ -1258,23 +1286,30 @@ struct NativeHUDView: View {
         HStack(spacing: 12) {
             Image(systemName: model.turnSymbol.isEmpty ? "arrow.turn.up.right" : model.turnSymbol)
                 .font(.title2.weight(.bold))
-                .foregroundStyle(ink)
+                .foregroundStyle(.white)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(turnDistanceText)
                     .font(.title2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(ink)
+                    .foregroundStyle(.white)
                 if !model.turnInstruction.isEmpty {
                     Text(model.turnInstruction)
                         .font(.caption)
-                        .foregroundStyle(muted)
-                        .lineLimit(1)
+                        .foregroundStyle(Color.white.opacity(0.75))
+                        .lineLimit(2)
                 }
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(chipFill))
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.black.opacity(0.78))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+        )
         .allowsHitTesting(false)
     }
 

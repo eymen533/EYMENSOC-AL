@@ -477,8 +477,8 @@ struct VehicleMapView: View {
     private var mapHeading: Double { hasCarGPS ? heading : phone.heading }
 
     private var effectiveTheme: HUDSettings.MapTheme {
-        // Always dark — vehicle day theme caused white glare behind dial.
-        .dark
+        // Light map tiles — cluster chrome stays black separately.
+        .light
     }
 
     private var isDark: Bool { effectiveTheme != .light }
