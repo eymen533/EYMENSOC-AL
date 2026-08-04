@@ -54,9 +54,13 @@ struct NativeHUDView: View {
                 }
 
                 topBar
-                    .frame(height: 40)
+                    .frame(height: 44)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .zIndex(20)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .ignoresSafeArea()
         .preferredColorScheme(anyBleed ? .dark : (night ? .dark : .light))
         .statusBarHidden(true)
         .onAppear {
@@ -91,18 +95,19 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        // Larger dial forward; wings fill full height (no top/bottom black bars).
-        let dialW = min(w * 0.40, h * 0.88)
+        // Bigger dial in front; side panels always full height (no top/bottom black bars).
+        let dialW = min(w * 0.46, h * 0.94)
         let cx = w * 0.5
         let cy = h * 0.5
-        let gap: CGFloat = 4
-        let sideW = max(140, (w - dialW) / 2 - gap)
-        let bleedW = sideW + dialW * 0.48
-        let panelH = min(dialW * 0.95, h * 0.72)
+        let gap: CGFloat = 2
+        let sideW = max(132, (w - dialW) / 2 - gap)
+        // Tuck deep under the dial so map/art read as background plane.
+        let bleedW = sideW + dialW * 0.55
         let chromeInk = anyBleed ? Color.white : ink
         let chromeMuted = anyBleed ? Color.white.opacity(0.7) : muted
 
         return ZStack {
+            // Left plane — full screen height (portrait-style fill).
             Group {
                 if leftMap {
                     panelMap(edge: .trailing, side: .left)
@@ -112,12 +117,14 @@ struct NativeHUDView: View {
                     sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
             }
-            .frame(width: leftWing ? bleedW : sideW, height: leftWing ? h : panelH)
+            .frame(width: leftWing ? bleedW : sideW, height: h)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .zIndex(leftWing ? 0 : 2)
-            .scaleEffect(leftWing ? 0.985 : 1.0)
-            .opacity(leftWing ? 0.95 : 1.0)
+            .scaleEffect(leftWing ? 0.972 : 0.992)
+            .opacity(leftWing ? 0.92 : 1.0)
+            .brightness(leftWing ? -0.04 : 0)
 
+            // Right plane — full screen height.
             Group {
                 if rightMap {
                     panelMap(edge: .leading, side: .right)
@@ -127,11 +134,12 @@ struct NativeHUDView: View {
                     sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                 }
             }
-            .frame(width: rightWing ? bleedW : sideW, height: rightWing ? h : panelH)
+            .frame(width: rightWing ? bleedW : sideW, height: h)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             .zIndex(rightWing ? 0 : 2)
-            .scaleEffect(rightWing ? 0.985 : 1.0)
-            .opacity(rightWing ? 0.95 : 1.0)
+            .scaleEffect(rightWing ? 0.972 : 0.992)
+            .opacity(rightWing ? 0.92 : 1.0)
+            .brightness(rightWing ? -0.04 : 0)
 
             sideRail(selected: model.leftSlide, visible: model.leftRailVisible) { model.setLeft($0) }
                 .position(x: max(16, cx - dialW * 0.5 - 14), y: cy)
@@ -140,6 +148,7 @@ struct NativeHUDView: View {
                 .position(x: min(w - 16, cx + dialW * 0.5 + 14), y: cy)
                 .zIndex(4)
 
+            // Dial floats above background planes.
             dialView(size: dialW)
                 .position(x: cx, y: cy)
                 .zIndex(6)
@@ -172,9 +181,10 @@ struct NativeHUDView: View {
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .padding(.bottom, 8)
+            .padding(.bottom, 6)
             .zIndex(6)
         }
+        .frame(width: w, height: h)
         .ignoresSafeArea()
     }
 
@@ -771,36 +781,41 @@ struct NativeHUDView: View {
 
     private func dialView(size: CGFloat, compact: Bool = false) -> some View {
         let style = settings.dialStyle
-        let speedFont = compact ? size * 0.40 : size * 0.48
+        let speedFont = compact ? size * 0.40 : size * 0.50
         let ringW: CGFloat = compact ? 2.5 : 3.5
         let accel = CGFloat(min(1, max(0, model.powerKW) / 180.0))
         let regen = CGFloat(min(1, max(0, -model.powerKW) / 70.0))
         let showRing = style != .bare && settings.powerStyle != .off
+        // Bare over map/media: light type so it reads as floating 3D.
+        let bareLit = style == .bare && (anyBleed || night)
+        let dialInk: Color = bareLit ? .white : ink
+        let dialMuted: Color = bareLit ? Color.white.opacity(0.7) : muted
+        let dialDim: Color = bareLit ? Color.white.opacity(0.28) : dim
 
         let content = VStack(spacing: compact ? 0 : 2) {
             HStack(spacing: size * 0.06) {
                 ForEach(["P", "R", "N", "D"], id: \.self) { g in
                     Text(g)
                         .font(.system(size: max(11, size * 0.065), weight: .bold))
-                        .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: ink, dim: dim))
-                        .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
+                        .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: dialInk, dim: dialDim))
+                        .shadow(color: .black.opacity(0.55), radius: style == .bare ? 4 : 2, y: 1)
                 }
             }
             Text("\(Int(abs(model.speed).rounded()))")
                 .font(.system(size: speedFont, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(ink)
+                .foregroundStyle(dialInk)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
-                .shadow(color: .black.opacity(0.55), radius: style == .bare ? 10 : 4, y: style == .bare ? 6 : 2)
+                .shadow(color: .black.opacity(0.65), radius: style == .bare ? 14 : 6, y: style == .bare ? 8 : 3)
             Text("km/h")
                 .font(.system(size: max(10, size * 0.05), weight: .medium))
-                .foregroundStyle(muted)
-                .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                .foregroundStyle(dialMuted)
+                .shadow(color: .black.opacity(0.5), radius: style == .bare ? 6 : 2, y: 2)
             if !compact, settings.liveLocation != .off, !isBlank(model.place) {
                 Text(model.place)
                     .font(.system(size: max(9, size * 0.045)))
-                    .foregroundStyle(muted)
+                    .foregroundStyle(dialMuted)
                     .lineLimit(1)
                     .padding(.top, 2)
             }
@@ -808,13 +823,41 @@ struct NativeHUDView: View {
         .padding(.horizontal, 8)
 
         return ZStack {
-            // Shell / frame by style
+            // Soft ground shadow so dial feels lifted off map/art.
+            if !compact {
+                Ellipse()
+                    .fill(Color.black.opacity(0.42))
+                    .frame(width: size * 0.78, height: size * 0.18)
+                    .blur(radius: 10)
+                    .offset(y: size * 0.42)
+                    .allowsHitTesting(false)
+            }
+
+            // Shell / frame by style (Özellikler → Kadran)
             switch style {
             case .circle:
                 Circle()
-                    .fill(dialFill.opacity(0.94))
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                dialFill.opacity(0.98),
+                                dialFill.opacity(0.90),
+                                Color.black.opacity(night ? 0.55 : 0.12)
+                            ],
+                            center: .center,
+                            startRadius: size * 0.08,
+                            endRadius: size * 0.55
+                        )
+                    )
                 Circle()
-                    .stroke(ink.opacity(0.18), lineWidth: compact ? 1.5 : 2.5)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(night ? 0.28 : 0.55), ink.opacity(0.12)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: compact ? 1.5 : 2.8
+                    )
                 if showRing {
                     Circle()
                         .trim(from: 0, to: accel)
@@ -838,9 +881,22 @@ struct NativeHUDView: View {
                 }
             case .square:
                 RoundedRectangle(cornerRadius: size * 0.14, style: .continuous)
-                    .fill(dialFill.opacity(0.94))
+                    .fill(
+                        LinearGradient(
+                            colors: [dialFill.opacity(0.98), dialFill.opacity(0.88)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                 RoundedRectangle(cornerRadius: size * 0.14, style: .continuous)
-                    .stroke(ink.opacity(0.2), lineWidth: compact ? 1.5 : 2.5)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(night ? 0.3 : 0.5), ink.opacity(0.15)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: compact ? 1.5 : 2.5
+                    )
                 if showRing {
                     Circle()
                         .trim(from: 0, to: accel)
@@ -863,18 +919,18 @@ struct NativeHUDView: View {
                         .animation(.easeOut(duration: 0.12), value: regen)
                 }
             case .bare:
-                // No frame — floating 3D type only.
+                // No frame — only speed/gear with deep drop shadow.
                 Color.clear
             }
 
             content
         }
         .frame(width: size, height: size)
-        // Multi-layer shadow = dial sits forward of map/media.
-        .shadow(color: .black.opacity(0.55), radius: compact ? 12 : 28, x: 0, y: compact ? 6 : 16)
-        .shadow(color: .black.opacity(0.35), radius: compact ? 4 : 10, x: 0, y: compact ? 2 : 4)
-        .shadow(color: Color(red: 0.2, green: 0.7, blue: 0.6).opacity(style == .bare ? 0.25 : 0.12), radius: 18, y: 0)
-        .scaleEffect(compact ? 1.0 : 1.04)
+        // Multi-layer shadow = dial sits clearly in front of map/media.
+        .shadow(color: .black.opacity(0.65), radius: compact ? 14 : 34, x: 0, y: compact ? 8 : 18)
+        .shadow(color: .black.opacity(0.40), radius: compact ? 5 : 12, x: 0, y: compact ? 3 : 6)
+        .shadow(color: Color.black.opacity(0.25), radius: compact ? 2 : 4, x: 0, y: 1)
+        .scaleEffect(compact ? 1.0 : 1.06)
     }
 
     /// Doors + lights under the dial (only when relevant).
