@@ -276,7 +276,7 @@ struct ContentView: View {
                     .pickerStyle(.segmented)
                     Text({
                         switch hudSettings.refreshMode {
-                        case .instant: return "Anlık: maksimum BLE hızı (~20 Hz), en canlı hız/GPS."
+                        case .instant: return "Anlık: hızlı BLE yazma + drive/GPS ağırlıklı poll."
                         case .performance: return "Performans: hızlı BLE, dengeli pil."
                         case .low: return "Düşük: daha az pil, daha seyrek güncelleme."
                         }

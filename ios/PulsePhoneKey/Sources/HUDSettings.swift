@@ -15,9 +15,9 @@ final class HUDSettings: ObservableObject {
         /// BLE poll interval seconds — Anlık is max throughput.
         var bleInterval: TimeInterval {
             switch self {
-            case .instant: return 0.05
-            case .performance: return 0.07
-            case .low: return 0.35
+            case .instant: return 0.045
+            case .performance: return 0.06
+            case .low: return 0.28
             }
         }
         /// Dash HTTP poll nanoseconds

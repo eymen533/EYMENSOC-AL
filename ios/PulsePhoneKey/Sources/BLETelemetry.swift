@@ -4,7 +4,7 @@ import CryptoKit
 import UIKit
 
 /// Polls vehicle telemetry on an open Tesla BLE GATT link.
-/// Stable pipeline — avoids flooding that freezes the GATT link after a while.
+/// Tuned for stable LIVE + fast drive/GPS updates (iPhone 8 Plus friendly).
 final class BLETelemetry {
     enum Phase: String {
         case idle = "idle"
@@ -22,15 +22,11 @@ final class BLETelemetry {
     /// Fired on main when snapshot / phase changes (throttled).
     var onUpdate: (() -> Void)?
 
-    /// iPhone 8 Plus daha zayıf GPU/CPU ile MapKit + SwiftUI yeniden çizimini zorlayabiliyor.
-    /// Bu yüzden BLE verisini okumaya devam ederken UI push frekansını cihazda hafif düşürüyoruz.
-    private let uiPushIntervalSeconds: TimeInterval = {
-        let model = UIDevice.current.model
-        if model.contains("iPhone 8 Plus") || model.contains("iPhone 8") {
-            return 0.08 // ~12.5 Hz UI güncelleme
-        }
-        return 0.05 // ~20 Hz UI güncelleme (Anlık)
-    }()
+    /// Attached peripheral identity — used to detect stale sessions after reconnect.
+    private(set) var attachedPeripheralId: UUID?
+
+    /// UI push: keep responsive without redraw-spamming MapKit on older phones.
+    private let uiPushIntervalSeconds: TimeInterval = 0.06
 
     private var session: TeslaBLESession?
     private var vin = ""
@@ -44,16 +40,19 @@ final class BLETelemetry {
     private var inFlight = 0
     private var lastNotifyAt = Date.distantPast
     private var lastUIPush = Date.distantPast
+    private var lastLiveDataAt = Date.distantPast
     private var pollIndex = 0
     private var handshakeTries = 0
+    /// Handshake uses withResponse; live telemetry prefers withoutResponse for speed.
     private var useWithoutResponse = false
-    /// Avoid overlapping handshakes for different domains (UUID challenge race).
     private var handshakeCooldownUntil = Date.distantPast
     private var lastTagFailAt = Date.distantPast
-    /// Anlık ≈ 0.05s — max live feel; still single in-flight write.
+    private var stallRecoveryAt = Date.distantPast
+    /// Anlık default — actual cadence also limited by round-trip.
     var pollIntervalSeconds: TimeInterval = 0.05
     private let maxInFlight = 1
 
+    /// Heavy bias to drive+location so speed/GPS feel instant.
     private let pollActions: [() -> Data] = [
         TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetDriveAndLocation,
@@ -61,16 +60,20 @@ final class BLETelemetry {
         TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetLocation,
         TeslaBLESession.actionGetDriveAndLocation,
+        TeslaBLESession.actionGetDriveAndLocation,
+        TeslaBLESession.actionGetDrive,
+        TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetMedia,
+        TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetCharge,
         TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetTire,
         TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetClimate,
+        TeslaBLESession.actionGetDriveAndLocation,
         TeslaBLESession.actionGetClosures,
         TeslaBLESession.actionGetDriveAndLocation,
-        TeslaBLESession.actionGetLocation,
     ]
 
     func attach(
@@ -83,8 +86,9 @@ final class BLETelemetry {
         self.vin = vin.uppercased()
         self.peripheral = peripheral
         self.writeChar = writeChar
+        self.attachedPeripheralId = peripheral.identifier
         self.session = TeslaBLESession(vin: vin, privateKey: privateKey)
-        // Prefer withResponse for stability — withoutResponse floods freeze many phones.
+        // Handshake reliability first; flip to withoutResponse after LIVE.
         self.useWithoutResponse = false
         rxBuffer.reset()
         writeQueue.removeAll()
@@ -94,6 +98,8 @@ final class BLETelemetry {
         liveOK = false
         phase = .handshake
         status = "BLE handshake…"
+        lastNotifyAt = Date()
+        lastLiveDataAt = .distantPast
         notify(force: true)
         startPolling()
         sendHandshake()
@@ -105,6 +111,7 @@ final class BLETelemetry {
         session = nil
         peripheral = nil
         writeChar = nil
+        attachedPeripheralId = nil
         writeQueue.removeAll()
         writing = false
         inFlight = 0
@@ -120,17 +127,18 @@ final class BLETelemetry {
             _ = session.handleIncoming(frame)
             status = session.statusText
             if session.lastSessionTagInvalid {
-                // Challenge/UUID mismatch — wipe crypto and retry handshake shortly.
                 handleSessionTagFailure(session)
             } else if session.infotainmentReady {
                 phase = .live
+                enableFastWritesIfPossible()
                 if session.hasVehicleData {
                     liveOK = true
                     status = "BLE LIVE"
                     snapshot = session.snapshot
+                    lastLiveDataAt = Date()
                 } else {
-                    liveOK = false
-                    status = "BLE oturum OK — araç verisi…"
+                    // Session up but waiting for first VehicleData.
+                    if !liveOK { status = "BLE oturum OK — araç verisi…" }
                 }
             } else if session.statusText.contains("whitelist") || session.statusText.contains("kart") {
                 phase = .waitingKey
@@ -142,19 +150,27 @@ final class BLETelemetry {
         }
     }
 
+    private func enableFastWritesIfPossible() {
+        guard let writeChar else { return }
+        // Once authenticated, withoutResponse dramatically raises poll throughput.
+        if writeChar.properties.contains(.writeWithoutResponse) {
+            useWithoutResponse = true
+        }
+    }
+
     private func handleSessionTagFailure(_ session: TeslaBLESession) {
         liveOK = false
         phase = .handshake
+        useWithoutResponse = false
         status = "Session tag gecersiz — yeniden handshake…"
         let now = Date()
-        // Don't thrash — at most one full reset every 1.2s.
-        if now.timeIntervalSince(lastTagFailAt) > 1.2 {
+        if now.timeIntervalSince(lastTagFailAt) > 1.5 {
             lastTagFailAt = now
             session.resetAllDomains()
             writeQueue.removeAll()
             writing = false
             inFlight = 0
-            handshakeCooldownUntil = now.addingTimeInterval(0.35)
+            handshakeCooldownUntil = now.addingTimeInterval(0.4)
         }
     }
 
@@ -169,7 +185,7 @@ final class BLETelemetry {
     func mediaPlay() { enqueueCommand(domain: .infotainment, command: TeslaBLESession.actionMediaPlay()) }
 
     func applyPollInterval(_ seconds: TimeInterval) {
-        pollIntervalSeconds = max(0.045, min(3.0, seconds))
+        pollIntervalSeconds = max(0.04, min(3.0, seconds))
         if pollTimer != nil { startPolling() }
     }
 
@@ -183,35 +199,49 @@ final class BLETelemetry {
     }
 
     private func tick() {
-        guard session != nil, peripheral?.state == .connected else { return }
+        guard let session, let peripheral, peripheral.state == .connected else { return }
 
-        // Recover stuck write / unanswered requests (prevents permanent freeze).
-        if writing, Date().timeIntervalSince(writeStarted) > 1.0 {
+        // Recover stuck write / unanswered requests.
+        if writing, Date().timeIntervalSince(writeStarted) > 1.2 {
+            writing = false
+            if useWithoutResponse { writeQueue.removeAll() }
+        }
+        if inFlight > 0, Date().timeIntervalSince(lastNotifyAt) > 2.0 {
+            inFlight = 0
             writing = false
             writeQueue.removeAll()
         }
-        if inFlight > 0, Date().timeIntervalSince(lastNotifyAt) > 1.6 {
-            inFlight = 0
+
+        // LIVE stall → soft re-handshake (don't tear GATT).
+        if liveOK, Date().timeIntervalSince(lastLiveDataAt) > 3.5,
+           Date().timeIntervalSince(stallRecoveryAt) > 4.0 {
+            stallRecoveryAt = Date()
+            liveOK = false
+            phase = .handshake
+            useWithoutResponse = false
+            session.resetDomain(.infotainment)
+            status = "Veri durdu — oturum yenileniyor…"
             writeQueue.removeAll()
             writing = false
+            inFlight = 0
+            handshakeCooldownUntil = Date()
+            notify(force: true)
         }
 
         if writing || !writeQueue.isEmpty { return }
         if inFlight >= maxInFlight { return }
-        guard let session else { return }
 
         if !session.infotainmentReady {
             if Date() < handshakeCooldownUntil { return }
             handshakeTries += 1
-            // Wake VCSEC occasionally, but NEVER overlap with infotainment handshake
-            // (mixed UUIDs caused "Session tag gecersiz").
-            if handshakeTries % 6 == 0, inFlight == 0, writeQueue.isEmpty {
+            // Wake VCSEC occasionally, never overlap with infotainment handshake.
+            if handshakeTries % 8 == 0, inFlight == 0, writeQueue.isEmpty {
                 enqueueCommand(domain: .vcsec, command: TeslaBLESession.actionWake(), preferHandshakeFirst: true)
-                handshakeCooldownUntil = Date().addingTimeInterval(0.45)
+                handshakeCooldownUntil = Date().addingTimeInterval(0.5)
                 return
             }
             sendHandshake()
-            handshakeCooldownUntil = Date().addingTimeInterval(0.25)
+            handshakeCooldownUntil = Date().addingTimeInterval(0.3)
             return
         }
 
@@ -222,6 +252,7 @@ final class BLETelemetry {
 
     private func sendHandshake() {
         guard let session else { return }
+        useWithoutResponse = false
         let (_, frame) = session.handshakeRequest(domain: .infotainment)
         status = "BLE handshake…"
         if phase != .waitingKey { phase = .handshake }
@@ -236,6 +267,7 @@ final class BLETelemetry {
     ) {
         guard let session else { return }
         if preferHandshakeFirst {
+            useWithoutResponse = false
             let (_, hs) = session.handshakeRequest(domain: domain)
             enqueueFrame(hs)
             return
@@ -244,6 +276,7 @@ final class BLETelemetry {
             let frame = try session.encryptCommand(domain: domain, command: command)
             enqueueFrame(frame)
         } catch {
+            useWithoutResponse = false
             let (_, hs) = session.handshakeRequest(domain: domain)
             enqueueFrame(hs)
         }
@@ -275,8 +308,11 @@ final class BLETelemetry {
         peripheral.writeValue(chunk, for: writeChar, type: type)
         if useWithoutResponse {
             writing = false
+            // Small yield so iOS BLE TX buffer doesn't overflow on 8 Plus.
             if !writeQueue.isEmpty {
-                DispatchQueue.main.async { [weak self] in self?.pumpWrite() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.004) { [weak self] in
+                    self?.pumpWrite()
+                }
             }
         }
     }
@@ -284,6 +320,8 @@ final class BLETelemetry {
     func didWrite(error: Error?) {
         writing = false
         if let error {
+            // Fallback to reliable writes if withoutResponse path misbehaves.
+            useWithoutResponse = false
             status = "BLE yazma: \(error.localizedDescription)"
             phase = .error
             writeQueue.removeAll()
@@ -296,7 +334,6 @@ final class BLETelemetry {
 
     private func notify(force: Bool) {
         let now = Date()
-        // Throttle UI to ~20Hz — keeps MapKit alive while feeling instant.
         if !force, now.timeIntervalSince(lastUIPush) < uiPushIntervalSeconds { return }
         lastUIPush = now
         if Thread.isMainThread {

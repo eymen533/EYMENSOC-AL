@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-36"
+    static let buildId = "xcode-ble-37"
 
     enum Step: String {
         case idle = "Hazir"
@@ -77,7 +77,7 @@ final class BLEPairer: NSObject, ObservableObject {
             let maxAttempts = self.resumeTelemetryOnly || self.pairWriteDone || KeyStore.isPaired(vin: self.vin) ? 40 : 8
             if let p = self.peripheral, p.state == .connected {
                 self.linkUp = true
-                self.linkLabel = "BLE bagli"
+                self.linkLabel = self.bleLiveOK ? "BLE LIVE" : "GATT bagli · oturum…"
                 return
             }
             if let p = self.peripheral, self.reconnectAttempts < maxAttempts {
@@ -85,7 +85,7 @@ final class BLEPairer: NSObject, ObservableObject {
                 self.logLine("reconnect #\(self.reconnectAttempts)")
                 self.linkLabel = "Yeniden baglan…"
                 self.status = "BLE yeniden baglaniliyor…"
-                self.central?.connect(p, options: nil)
+                self.central?.connect(p, options: Self.connectOptions)
                 return
             }
             // Known peripheral exhausted — rescan (already paired / resume).
@@ -171,7 +171,7 @@ final class BLEPairer: NSObject, ObservableObject {
                     self.status = "Kayitli araca baglaniyor…"
                     self.linkLabel = "Yeniden baglan…"
                     self.logLine("retrieve \(id.uuidString.prefix(8))")
-                    central.connect(p, options: nil)
+                    central.connect(p, options: Self.connectOptions)
                     self.timer?.invalidate()
                     self.timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                         self?.tickResumeConnect()
@@ -257,8 +257,17 @@ final class BLEPairer: NSObject, ObservableObject {
             self.step = .connecting
             self.status = "Baglaniyor: \(p.name ?? id.uuidString.prefix(8).description)…"
             self.logLine("CONNECT \(p.name ?? "?")")
-            self.central?.connect(p, options: nil)
+            self.central?.connect(p, options: Self.connectOptions)
         }
+    }
+
+    private static var connectOptions: [String: Any] {
+        // Ask iOS to bring the link up promptly after a drop.
+        [
+            CBConnectPeripheralOptionNotifyOnConnectionKey: true,
+            CBConnectPeripheralOptionNotifyOnDisconnectionKey: true,
+            CBConnectPeripheralOptionNotifyOnNotificationKey: true,
+        ]
     }
 
     private func persistPairSuccess(peripheralId: UUID? = nil) {
@@ -393,9 +402,9 @@ final class BLEPairer: NSObject, ObservableObject {
         let mode = UserDefaults.standard.string(forKey: "pulse_refresh_mode") ?? "Anlık"
         let interval: TimeInterval
         switch mode {
-        case "Düşük": interval = 0.35
-        case "Performans": interval = 0.07
-        default: interval = 0.05 // Anlık
+        case "Düşük": interval = 0.28
+        case "Performans": interval = 0.06
+        default: interval = 0.045 // Anlık — withoutResponse live path
         }
         telemetry?.applyPollInterval(interval)
         logLine("refresh \(mode) \(interval)s")
@@ -414,11 +423,17 @@ final class BLEPairer: NSObject, ObservableObject {
             keepAliveReconnect()
             return
         }
-        if telemetry.phase != .idle && telemetry.phase != .error && !force {
+        let staleAttach = telemetry.attachedPeripheralId != peripheral.identifier
+        let needsAttach = force
+            || staleAttach
+            || telemetry.phase == .idle
+            || telemetry.phase == .error
+            || (telemetry.phase == .live && !telemetry.liveOK)
+        if !needsAttach {
             linkLabel = telemetry.liveOK ? "BLE LIVE" : "BLE telemetri…"
             return
         }
-        let delay: TimeInterval = force ? 0.15 : 0.35
+        let delay: TimeInterval = force || staleAttach ? 0.08 : 0.2
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self, let tele = self.telemetry else { return }
             guard let p = self.peripheral, let wc = self.writeChar, let key = self.privateKey,
@@ -434,7 +449,12 @@ final class BLEPairer: NSObject, ObservableObject {
     }
 
     private func syncTelemetryPublished() {
-        guard let telemetry else { return }
+        guard let telemetry else {
+            bleLiveOK = false
+            bleStatus = "BLE telemetri kapali"
+            if !linkUp { linkLabel = "Baglanti yok" }
+            return
+        }
         bleLiveOK = telemetry.liveOK
         bleStatus = telemetry.status
         bleSnapshot = telemetry.snapshot
@@ -446,7 +466,16 @@ final class BLEPairer: NSObject, ObservableObject {
             status = "Phone Key + BLE LIVE ✓"
         } else if telemetry.phase == .waitingKey {
             waitingForCard = true
+            linkLabel = "Kart bekle"
             status = "Arac kart bekliyor — KONSOLA Key Card"
+        } else if telemetry.phase == .handshake || telemetry.phase == .error {
+            // GATT may be up, but session is NOT live — don't look "connected".
+            linkLabel = linkUp ? "GATT · oturum kuruluyor" : "Baglanti yok"
+            if telemetry.status.contains("tag") || telemetry.status.contains("durdu") {
+                status = telemetry.status
+            }
+        } else if linkUp {
+            linkLabel = "GATT bagli · telemetri…"
         }
     }
 
@@ -504,7 +533,7 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         if central.state == .poweredOn, step == .scanning {
             startScan()
         } else if central.state == .poweredOn, step == .connecting, resumeTelemetryOnly, let p = peripheral {
-            central.connect(p, options: nil)
+            central.connect(p, options: Self.connectOptions)
         } else if central.state == .unauthorized {
             fail("Bluetooth izni yok (Capabilities)")
         } else if central.state == .poweredOff, step == .scanning {
@@ -540,7 +569,8 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         linkUp = true
-        linkLabel = "BLE bagli · \(peripheral.name ?? "Tesla")"
+        // GATT only — not yet authenticated session / LIVE.
+        linkLabel = "GATT bagli · oturum…"
         reconnectAttempts = 0
         logLine("GATT OK")
         let skipAddKey = !forceRePair && (resumeTelemetryOnly || pairWriteDone || paired || KeyStore.isPaired(vin: vin))
@@ -549,7 +579,7 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
             resumeTelemetryOnly = true
             pairWriteDone = true
             readyForDashboard = true
-            status = "BLE bagli — telemetri yenileniyor…"
+            status = "GATT bagli — BLE oturum handshake…"
             peripheral.discoverServices(nil)
             return
         }
@@ -575,12 +605,16 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         linkUp = false
+        bleLiveOK = false
         linkLabel = "Baglanti koptu"
         logLine("disconnect \(error?.localizedDescription ?? "")")
+        // Tear telemetry so reconnect always re-attaches (was stuck in .live without attach).
+        telemetry?.detach()
+        syncTelemetryPublished()
         if resumeTelemetryOnly || pairWriteDone || paired || KeyStore.isPaired(vin: vin) {
             status = "BLE koptu — yeniden baglaniliyor…"
             readyForDashboard = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                 self?.keepAliveReconnect()
             }
             return
@@ -621,7 +655,8 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         }
         logLine("chars OK")
         if resumeTelemetryOnly || pairWriteDone || (!forceRePair && KeyStore.isPaired(vin: vin)) {
-            startTelemetryIfPossible()
+            // Always force attach after (re)discovery — reconnect used to skip attach.
+            startTelemetryIfPossible(force: true)
             if step != .done { step = .waitingCard }
             readyForDashboard = true
             return
@@ -647,25 +682,26 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         guard let data = characteristic.value else { return }
-        let hex = data.map { String(format: "%02x", $0) }.joined()
-        logLine("RX \(hex.prefix(40))")
 
         let teleActive = telemetry.map { $0.phase != .idle } ?? false
         if pairWriteDone || resumeTelemetryOnly || teleActive {
+            // Throttled UI updates happen inside telemetry.onUpdate — don't double-publish here.
             telemetry?.onNotify(data)
-            syncTelemetryPublished()
-        }
-
-        if hex.contains("0801") || hex.contains("2202") {
-            waitingForCard = true
-            readyForDashboard = true
-            if step != .done { step = .waitingCard }
-            status = "Arac kart bekliyor — KONSOLA Key Card"
-        }
-        if hex.contains("1a08") || hex.contains("5f0d") {
-            persistPairSuccess(peripheralId: peripheral.identifier)
-            step = .done
-            status = "Phone Key eklendi ✓ — Dashboard / BLE LIVE"
+        } else {
+            // Pairing path only: sparse RX logs.
+            let hex = data.map { String(format: "%02x", $0) }.joined()
+            logLine("RX \(hex.prefix(40))")
+            if hex.contains("0801") || hex.contains("2202") {
+                waitingForCard = true
+                readyForDashboard = true
+                if step != .done { step = .waitingCard }
+                status = "Arac kart bekliyor — KONSOLA Key Card"
+            }
+            if hex.contains("1a08") || hex.contains("5f0d") {
+                persistPairSuccess(peripheralId: peripheral.identifier)
+                step = .done
+                status = "Phone Key eklendi ✓ — Dashboard / BLE LIVE"
+            }
         }
     }
 }
