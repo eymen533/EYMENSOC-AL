@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-67"
+    static let buildId = "xcode-ble-68"
 
     enum Step: String {
         case idle = "Hazir"
@@ -498,6 +498,12 @@ final class BLEPairer: NSObject, ObservableObject {
             }
             tele.onNeedGATTReconnect = { [weak self] in
                 guard let self else { return }
+                let now = Date()
+                guard now.timeIntervalSince(self.lastGATTBounceAt) > 10 else {
+                    self.logLine("GATT bounce skipped (cooldown)")
+                    return
+                }
+                self.lastGATTBounceAt = now
                 self.logLine("GATT bounce (stall)")
                 self.status = "Veri yok — GATT yenileniyor…"
                 if let p = self.peripheral {

@@ -614,7 +614,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
                 .distance(from: CLLocation(latitude: center.latitude, longitude: center.longitude))
         }()
         let headingDelta = abs((c.lastHeading ?? 0) - heading)
-        if now.timeIntervalSince(c.lastCameraAt) < 0.28, moved < 2.5, headingDelta < 4 {
+        if now.timeIntervalSince(c.lastCameraAt) < 0.16, moved < 1.2, headingDelta < 3 {
             return
         }
 

@@ -157,13 +157,13 @@ struct NativeHUDView: View {
                 .zIndex(10)
 
             if showTurn {
-                // Keep guidance inside the map panel — never over the dial.
+                // Below top chrome (phone battery %) — don't overlap.
                 let bannerX: CGFloat = {
                     if leftMap && rightMap { return sideW * 0.48 }
                     if rightMap && !leftMap { return w - sideW * 0.48 }
                     return sideW * 0.48
                 }()
-                let bannerY = max(58, min(cy - dialW * 0.55, h * 0.22))
+                let bannerY = max(102, min(cy - dialW * 0.42, h * 0.30))
                 turnBanner
                     .frame(maxWidth: min(280, sideW * 0.92), alignment: .leading)
                     .position(x: bannerX, y: bannerY)
@@ -409,7 +409,7 @@ struct NativeHUDView: View {
                     .frame(maxWidth: min(w - 28, 320), alignment: .leading)
                     .padding(.horizontal, 14)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: topWing ? .topLeading : .bottomLeading)
-                    .padding(.top, topWing ? topChrome + 10 : 0)
+                    .padding(.top, topWing ? topChrome + 52 : 0)
                     .padding(.bottom, bottomWing && !topWing ? 56 : 0)
                     .zIndex(8)
             }
@@ -480,7 +480,7 @@ struct NativeHUDView: View {
 
             if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
                 turnBanner
-                    .padding(.top, 56)
+                    .padding(.top, 96)
                     .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .zIndex(12)
@@ -704,9 +704,9 @@ struct NativeHUDView: View {
         portraitAligned: Bool = false
     ) -> some View {
         // Landscape: clear the vertical selection rail (~34pt near dial).
-        // Portrait: same padding on top & bottom so identical slides line up.
-        let lead: CGFloat = portraitAligned ? 18 : (side == .right ? 36 : 10)
-        let trail: CGFloat = portraitAligned ? 18 : (side == .left ? 36 : 10)
+        // Keep outer/inner padding balanced so content sits mid-wing (not flush to screen edge).
+        let lead: CGFloat = portraitAligned ? 18 : (side == .right ? 36 : 20)
+        let trail: CGFloat = portraitAligned ? 18 : (side == .left ? 36 : 20)
         return ZStack(alignment: .bottomLeading) {
             // Flat cluster — no inset card / rounded layer.
             Color(red: 0.07, green: 0.07, blue: 0.08)
@@ -894,6 +894,7 @@ struct NativeHUDView: View {
     }
 
     /// Album art fills the panel and tucks under the dial like the map.
+    /// Album art panel — cover + reflection + title/artist/controls, centered in the wing.
     private func mediaSurface(
         edge: MapEdge,
         side: Side,
@@ -901,9 +902,7 @@ struct NativeHUDView: View {
         asOverlay: Bool = false
     ) -> some View {
         ZStack {
-            if !asOverlay {
-                AlbumArtFill(image: art.image, url: art.imageURL, loading: art.loading)
-            }
+            Color(red: 0.05, green: 0.05, blue: 0.06)
 
             if let verticalFromTop {
                 dialFadeVertical(fromTop: verticalFromTop)
@@ -911,33 +910,34 @@ struct NativeHUDView: View {
                 dialFade(edge: edge)
             }
 
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.45), .black.opacity(0.78)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-            .allowsHitTesting(false)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Spacer(minLength: 0)
-                mediaServiceHeader
-                Text(displayOrDash(model.mediaTitle))
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                    .shadow(color: .black.opacity(0.45), radius: 4, y: 1)
-                Text(displayOrDash(model.mediaArtist))
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.75))
-                    .lineLimit(1)
-                    .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
-                mediaTransportControls
-                    .padding(.top, 2)
+            GeometryReader { geo in
+                let artSize = min(132, max(96, min(geo.size.width * 0.58, geo.size.height * 0.36)))
+                VStack(alignment: .center, spacing: 8) {
+                    Spacer(minLength: 8)
+                    if !asOverlay {
+                        albumArtWithReflection(size: artSize)
+                    }
+                    mediaServiceHeader
+                    Text(displayOrDash(model.mediaTitle))
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                    Text(displayOrDash(model.mediaArtist))
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.78))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(1)
+                    mediaTransportControls
+                    Spacer(minLength: 10)
+                }
+                .frame(maxWidth: min(260, geo.size.width * 0.9))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                // Sit mid-wing: a bit away from the outer screen edge, toward the dial.
+                .padding(.leading, side == .left ? 10 : 18)
+                .padding(.trailing, side == .left ? 18 : 10)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 18)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         }
         .clipped()
         .contentShape(Rectangle())
@@ -1436,26 +1436,29 @@ struct NativeHUDView: View {
 
     private var mediaPanel: some View {
         GeometryReader { geo in
-            // Larger cover; reflection ~25% height under art.
-            let artSize = min(128, max(92, min(geo.size.width * 0.62, geo.size.height * 0.38)))
-            VStack(alignment: .center, spacing: 8) {
+            // Cover sized for the wing; reflection ~33% under art.
+            let artSize = min(118, max(88, min(geo.size.width * 0.55, geo.size.height * 0.34)))
+            VStack(alignment: .center, spacing: 6) {
                 mediaServiceHeader
                 albumArtWithReflection(size: artSize)
                 Text(displayOrDash(model.mediaTitle))
-                    .font(.title2.weight(.semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(ink)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
+                    .padding(.top, 2)
                 Text(displayOrDash(model.mediaArtist))
-                    .font(.title3)
+                    .font(.subheadline)
                     .foregroundStyle(Color.white.opacity(0.72))
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
                 mediaTransportControls
             }
-            .frame(maxWidth: min(260, geo.size.width))
+            // Center in the wing (between screen edge and dial), not hugging the outer edge.
+            .frame(maxWidth: min(240, geo.size.width * 0.88))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .padding(.horizontal, 10)
         }
     }
 
@@ -1493,26 +1496,29 @@ struct NativeHUDView: View {
     }
 
     private func albumArtWithReflection(size: CGFloat) -> some View {
-        // ~25% height mirror under the cover.
-        let reflectH = size * 0.25
+        // ~33% height mirror — visible “floor” reflection under the cover.
+        let reflectH = size * 0.33
         return VStack(spacing: 0) {
             AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
                 .scaleEffect(x: 1, y: -1)
                 .frame(height: reflectH, alignment: .top)
                 .clipped()
-                .opacity(0.25)
+                .opacity(0.42)
                 .mask(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.55),
-                            Color.white.opacity(0.12),
+                            Color.white.opacity(0.85),
+                            Color.white.opacity(0.35),
+                            Color.white.opacity(0.08),
                             .clear
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
+                .blur(radius: 0.4)
                 .allowsHitTesting(false)
         }
     }

@@ -464,10 +464,12 @@ final class PhoneLocationStore: NSObject, ObservableObject {
         }
         started = true
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.distanceFilter = 4
-        manager.headingFilter = 3
+        // Snappy phone GPS for HUD map — car BLE location is slower.
+        manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+        manager.distanceFilter = 1.5
+        manager.headingFilter = 2
         manager.activityType = .automotiveNavigation
+        manager.pausesLocationUpdatesAutomatically = false
         requestAndStart()
     }
 
@@ -564,10 +566,13 @@ struct VehicleMapView: View {
 
     private var hasCarGPS: Bool { abs(lat) > 0.0001 || abs(lon) > 0.0001 }
 
-    /// Prefer car GPS; otherwise phone location so the map always shows.
-    private var mapLat: Double { hasCarGPS ? lat : phone.latitude }
-    private var mapLon: Double { hasCarGPS ? lon : phone.longitude }
-    private var mapHeading: Double { hasCarGPS ? heading : phone.heading }
+    /// Prefer phone GPS for live map position (faster than BLE); keep car as fallback.
+    private var mapLat: Double { phone.hasFix ? phone.latitude : lat }
+    private var mapLon: Double { phone.hasFix ? phone.longitude : lon }
+    private var mapHeading: Double {
+        if phone.hasFix, phone.heading >= 0 { return phone.heading }
+        return heading
+    }
 
     private var effectiveTheme: HUDSettings.MapTheme {
         // Light map tiles — cluster chrome stays black separately.
