@@ -572,11 +572,19 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         }
         let c = context.coordinator
 
+        // Feed smooth follow targets — camera ticks on CADisplayLink (no jump/setCamera stutter).
+        c.wantCenter = center
+        c.wantHeading = heading
+        c.followAutoZoom = autoZoom
+        c.followTurnByTurn = turnByTurn
+        c.ensureDisplayLink()
+
         if let car = c.car {
-            car.coordinate = center
-            car.heading = heading
-            // Camera is already heading-up — keep the arrow pointing to the top of the screen.
-            // Rotating the annotation by heading again made the car look sideways.
+            // Instant snap only before smooth loop boots; otherwise tick owns the car.
+            if c.smoothLat == nil {
+                car.coordinate = center
+                car.heading = heading
+            }
             if let view = map.view(for: car) {
                 view.transform = .identity
             }
@@ -603,37 +611,11 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             }
             c.lastRouteKey = routeKey
         }
+    }
 
-        // User pinch/pan — don't fight with forced camera until grace expires.
-        guard autoZoom, Date() >= c.userControlUntil else { return }
-
-        let now = Date()
-        let moved: CLLocationDistance = {
-            guard let last = c.lastCameraCenter else { return 999 }
-            return CLLocation(latitude: last.latitude, longitude: last.longitude)
-                .distance(from: CLLocation(latitude: center.latitude, longitude: center.longitude))
-        }()
-        let headingDelta = abs((c.lastHeading ?? 0) - heading)
-        if now.timeIntervalSince(c.lastCameraAt) < 0.16, moved < 1.2, headingDelta < 3 {
-            return
-        }
-
-        let distance: CLLocationDistance = turnByTurn ? 320 : 560
-        // Modest pitch — light map stays bright while still reading as 3D.
-        let pitch: CGFloat = turnByTurn ? 38 : 28
-        // Normalize heading so camera faces travel direction (0…360).
-        var camHeading = heading.truncatingRemainder(dividingBy: 360)
-        if camHeading < 0 { camHeading += 360 }
-        let cam = MKMapCamera(
-            lookingAtCenter: center,
-            fromDistance: distance,
-            pitch: pitch,
-            heading: camHeading
-        )
-        map.setCamera(cam, animated: moved > 1)
-        c.lastCameraCenter = center
-        c.lastHeading = heading
-        c.lastCameraAt = now
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coord) {
+        coordinator.displayLink?.invalidate()
+        coordinator.displayLink = nil
     }
 
     static func applyImagery(_ imagery: HUDSettings.MapImagery, to map: MKMapView, dark: Bool) {
@@ -677,6 +659,71 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         var onUserTap: (() -> Void)?
         var onVerticalNudge: ((Int) -> Void)?
         private var verticalConsumed = false
+
+        // Smooth follow (CADisplayLink) — avoids tick-tick camera jumps.
+        var wantCenter: CLLocationCoordinate2D?
+        var wantHeading: Double = 0
+        var followAutoZoom = true
+        var followTurnByTurn = true
+        var smoothLat: Double?
+        var smoothLon: Double?
+        var smoothHeading: Double?
+        var displayLink: CADisplayLink?
+
+        func ensureDisplayLink() {
+            guard displayLink == nil else { return }
+            let link = CADisplayLink(target: self, selector: #selector(tickCamera))
+            link.add(to: .main, forMode: .common)
+            displayLink = link
+        }
+
+        @objc private func tickCamera() {
+            guard let want = wantCenter, let map = mapView else { return }
+            guard followAutoZoom, Date() >= userControlUntil else { return }
+
+            if smoothLat == nil || smoothLon == nil {
+                smoothLat = want.latitude
+                smoothLon = want.longitude
+                smoothHeading = wantHeading
+            } else {
+                let err = CLLocation(latitude: smoothLat!, longitude: smoothLon!)
+                    .distance(from: CLLocation(latitude: want.latitude, longitude: want.longitude))
+                let a = err > 40 ? 0.40 : (err > 14 ? 0.26 : 0.16)
+                smoothLat! += (want.latitude - smoothLat!) * a
+                smoothLon! += (want.longitude - smoothLon!) * a
+                var d = (wantHeading - (smoothHeading ?? wantHeading)).truncatingRemainder(dividingBy: 360)
+                if d > 180 { d -= 360 }
+                if d < -180 { d += 360 }
+                smoothHeading = (smoothHeading ?? wantHeading) + d * min(0.32, a + 0.08)
+                var h = smoothHeading!.truncatingRemainder(dividingBy: 360)
+                if h < 0 { h += 360 }
+                smoothHeading = h
+            }
+
+            let center = CLLocationCoordinate2D(latitude: smoothLat!, longitude: smoothLon!)
+            if let car {
+                car.coordinate = center
+                car.heading = smoothHeading ?? wantHeading
+                if let view = map.view(for: car) {
+                    view.transform = .identity
+                }
+            }
+
+            let distance: CLLocationDistance = followTurnByTurn ? 320 : 560
+            let pitch: CGFloat = followTurnByTurn ? 38 : 28
+            var camHeading = (smoothHeading ?? wantHeading).truncatingRemainder(dividingBy: 360)
+            if camHeading < 0 { camHeading += 360 }
+            let cam = MKMapCamera(
+                lookingAtCenter: center,
+                fromDistance: distance,
+                pitch: pitch,
+                heading: camHeading
+            )
+            map.camera = cam
+            lastCameraCenter = center
+            lastHeading = camHeading
+            lastCameraAt = Date()
+        }
 
         @objc func handleTap(_ gr: UITapGestureRecognizer) {
             guard gr.state == .ended else { return }

@@ -185,7 +185,7 @@ struct GoogleMapPanel: UIViewRepresentable {
                 }
             }()
             let ukey = String(
-                format: "%.5f,%.5f,%.0f,%@,%.5f,%.5f,%d,%@,%d",
+                format: "%.6f,%.6f,%.1f,%@,%.5f,%.5f,%d,%@,%d",
                 lat, lon, heading, destination, destLat, destLon,
                 autoZoom ? 1 : 0, mapType, showsTraffic ? 1 : 0
             )
@@ -416,22 +416,57 @@ struct GoogleMapPanel: UIViewRepresentable {
               const pos = { lat: p.lat, lng: p.lon };
               const follow = p.autoZoom && Date.now() > userControlUntil;
               if(p.hasGPS){
-                marker.setPosition(pos);
+                targetPos = pos;
+                targetHeading = p.heading || 0;
+                wantFollow = follow && blankDest(p.destination) && !p.hasDestCoord;
                 marker.setMap(map);
-                const icon = Object.assign({}, marker.getIcon() || {});
-                icon.rotation = 0;
-                marker.setIcon(icon);
-                if(follow && blankDest(p.destination) && !p.hasDestCoord){
-                  map.setCenter(pos);
-                  map.setZoom(17);
-                  if(map.setTilt) map.setTilt(45);
-                  if(map.setHeading) map.setHeading(p.heading || 0);
+                if(!smoothBoot){
+                  smoothPos = { lat: pos.lat, lng: pos.lng };
+                  smoothHeading = targetHeading;
+                  smoothBoot = true;
+                  marker.setPosition(smoothPos);
+                  if(wantFollow){
+                    map.setCenter(smoothPos);
+                    map.setZoom(17);
+                    if(map.setTilt) map.setTilt(45);
+                    if(map.setHeading) map.setHeading(smoothHeading);
+                  }
                 }
               } else {
                 marker.setMap(null);
+                smoothBoot = false;
               }
               drawRoute(pos, p);
             };
+            function shortestDelta(a,b){
+              let d = (b - a) % 360;
+              if(d > 180) d -= 360;
+              if(d < -180) d += 360;
+              return d;
+            }
+            function tickSmooth(){
+              if(smoothBoot && targetPos){
+                const a = 0.16;
+                smoothPos.lat += (targetPos.lat - smoothPos.lat) * a;
+                smoothPos.lng += (targetPos.lng - smoothPos.lng) * a;
+                smoothHeading += shortestDelta(smoothHeading, targetHeading) * Math.min(0.28, a + 0.08);
+                if(smoothHeading < 0) smoothHeading += 360;
+                if(smoothHeading >= 360) smoothHeading -= 360;
+                marker.setPosition(smoothPos);
+                const icon = Object.assign({}, marker.getIcon() || {});
+                icon.rotation = 0;
+                marker.setIcon(icon);
+                if(wantFollow && Date.now() > userControlUntil){
+                  map.setCenter(smoothPos);
+                  if(map.setHeading) map.setHeading(smoothHeading);
+                  if(map.setTilt) map.setTilt(45);
+                }
+              }
+              requestAnimationFrame(tickSmooth);
+            }
+            let targetPos = null, smoothPos = {lat:0,lng:0}, smoothHeading = 0, targetHeading = 0;
+            let smoothBoot = false, wantFollow = false;
+            requestAnimationFrame(tickSmooth);
             </script>
             \(keyJS.isEmpty
                 ? "<script>document.getElementById('msg').textContent='Ayarlar → Google Maps API key';</script>"
@@ -444,10 +479,12 @@ struct GoogleMapPanel: UIViewRepresentable {
 }
 
 /// Phone GPS — Dashla-style map works even when the car is not connected.
+/// Publishes dead-reckoned + lerped coords so the map path isn't "tick-tick" jumps.
 @MainActor
 final class PhoneLocationStore: NSObject, ObservableObject {
     static let shared = PhoneLocationStore()
 
+    /// Smoothed position for the map (not raw GPS samples).
     @Published var latitude: Double = 0
     @Published var longitude: Double = 0
     @Published var heading: Double = 0
@@ -456,6 +493,16 @@ final class PhoneLocationStore: NSObject, ObservableObject {
 
     private let manager = CLLocationManager()
     private var started = false
+    private var rawLat = 0.0
+    private var rawLon = 0.0
+    private var rawHeading = -1.0
+    private var speedMps = 0.0
+    private var lastFixAt = Date.distantPast
+    private var tick: AnyCancellable?
+    private var displayLat = 0.0
+    private var displayLon = 0.0
+    private var displayHeading = 0.0
+    private var displayBooted = false
 
     func start() {
         if started {
@@ -464,10 +511,10 @@ final class PhoneLocationStore: NSObject, ObservableObject {
         }
         started = true
         manager.delegate = self
-        // Snappy phone GPS for HUD map — car BLE location is slower.
         manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
-        manager.distanceFilter = 1.5
-        manager.headingFilter = 2
+        // Every fix — we smooth in software instead of waiting for 1.5 m jumps.
+        manager.distanceFilter = kCLDistanceFilterNone
+        manager.headingFilter = 1
         manager.activityType = .automotiveNavigation
         manager.pausesLocationUpdatesAutomatically = false
         requestAndStart()
@@ -480,6 +527,7 @@ final class PhoneLocationStore: NSObject, ObservableObject {
             if CLLocationManager.headingAvailable() {
                 manager.startUpdatingHeading()
             }
+            ensureTick()
         case .notDetermined:
             manager.requestWhenInUseAuthorization()
         default:
@@ -498,11 +546,107 @@ final class PhoneLocationStore: NSObject, ObservableObject {
             if CLLocationManager.headingAvailable() {
                 manager.startUpdatingHeading()
             }
+            ensureTick()
         case .denied, .restricted:
             status = "Konum izni yok (Ayarlar)"
         @unknown default:
             status = "Konum bilinmiyor"
         }
+    }
+
+    private func ingest(_ loc: CLLocation) {
+        // Drop useless / wild samples.
+        guard loc.horizontalAccuracy >= 0, loc.horizontalAccuracy <= 55 else { return }
+        rawLat = loc.coordinate.latitude
+        rawLon = loc.coordinate.longitude
+        lastFixAt = Date()
+        if loc.speed >= 0 { speedMps = loc.speed }
+        if loc.course >= 0 { rawHeading = loc.course }
+        if !hasFix {
+            displayLat = rawLat
+            displayLon = rawLon
+            displayHeading = rawHeading >= 0 ? rawHeading : 0
+            displayBooted = true
+            publishDisplay(force: true)
+            hasFix = true
+            status = "Telefon GPS"
+        }
+        ensureTick()
+    }
+
+    private func ingestHeading(_ h: Double) {
+        guard h >= 0 else { return }
+        // Prefer course-over-ground while moving; compass when nearly stopped.
+        if speedMps < 1.2 {
+            rawHeading = h
+        }
+        ensureTick()
+    }
+
+    private func ensureTick() {
+        guard tick == nil else { return }
+        tick = Timer.publish(every: 1.0 / 20.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in self?.tickSmooth() }
+    }
+
+    private func tickSmooth() {
+        guard hasFix else { return }
+        let age = min(1.15, max(0, Date().timeIntervalSince(lastFixAt)))
+        // Dead-reckon briefly between GPS samples (greatly reduces stutter).
+        var predLat = rawLat
+        var predLon = rawLon
+        if rawHeading >= 0, speedMps > 0.4, age > 0 {
+            let dist = speedMps * age
+            let rad = rawHeading * .pi / 180
+            let dLat = (dist * cos(rad)) / 111_320.0
+            let cosLat = max(0.2, cos(predLat * .pi / 180))
+            let dLon = (dist * sin(rad)) / (111_320.0 * cosLat)
+            predLat += dLat
+            predLon += dLon
+        }
+        let targetH = rawHeading >= 0 ? rawHeading : displayHeading
+        if !displayBooted {
+            displayLat = predLat
+            displayLon = predLon
+            displayHeading = targetH
+            displayBooted = true
+            publishDisplay(force: true)
+            return
+        }
+        // Faster catch-up when prediction is far (tunnel exit / first fixes).
+        let errM = CLLocation(latitude: displayLat, longitude: displayLon)
+            .distance(from: CLLocation(latitude: predLat, longitude: predLon))
+        let a = errM > 35 ? 0.45 : (errM > 12 ? 0.28 : 0.18)
+        displayLat += (predLat - displayLat) * a
+        displayLon += (predLon - displayLon) * a
+        displayHeading = lerpHeading(displayHeading, targetH, t: min(0.35, a + 0.08))
+        publishDisplay(force: false)
+    }
+
+    private func publishDisplay(force: Bool) {
+        let moved = CLLocation(latitude: latitude, longitude: longitude)
+            .distance(from: CLLocation(latitude: displayLat, longitude: displayLon))
+        let hDelta = abs(shortestHeadingDelta(heading, displayHeading))
+        guard force || moved >= 0.35 || hDelta >= 0.9 || !hasFix else { return }
+        latitude = displayLat
+        longitude = displayLon
+        heading = displayHeading
+    }
+
+    private func lerpHeading(_ from: Double, _ to: Double, t: Double) -> Double {
+        let d = shortestHeadingDelta(from, to)
+        var out = from + d * t
+        out = out.truncatingRemainder(dividingBy: 360)
+        if out < 0 { out += 360 }
+        return out
+    }
+
+    private func shortestHeadingDelta(_ from: Double, _ to: Double) -> Double {
+        var d = (to - from).truncatingRemainder(dividingBy: 360)
+        if d > 180 { d -= 360 }
+        if d < -180 { d += 360 }
+        return d
     }
 }
 
@@ -516,21 +660,14 @@ extension PhoneLocationStore: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
         Task { @MainActor in
-            self.latitude = loc.coordinate.latitude
-            self.longitude = loc.coordinate.longitude
-            self.hasFix = true
-            self.status = "Telefon GPS"
-            if loc.course >= 0 {
-                self.heading = loc.course
-            }
+            self.ingest(loc)
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
         let h = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
-        guard h >= 0 else { return }
         Task { @MainActor in
-            self.heading = h
+            self.ingestHeading(h)
         }
     }
 

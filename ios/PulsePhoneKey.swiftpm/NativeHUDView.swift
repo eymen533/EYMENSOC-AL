@@ -190,10 +190,10 @@ struct NativeHUDView: View {
                 batteryChip
                 Spacer()
                 Text(odoText)
-                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .font(.body.monospacedDigit().weight(.semibold))
                     .foregroundStyle(chromeMuted)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                     .background(Capsule().fill(Color.black.opacity(0.45)))
             }
             .padding(.horizontal, 16)
@@ -431,7 +431,16 @@ struct NativeHUDView: View {
                 .zIndex(8)
 
             batteryChip
-                .position(x: 74, y: h - 22)
+                .position(x: 90, y: h - 28)
+                .zIndex(8)
+
+            Text(odoText)
+                .font(.body.monospacedDigit().weight(.semibold))
+                .foregroundStyle(Color.white.opacity(0.78))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(Color.black.opacity(0.45)))
+                .position(x: w - 90, y: h - 28)
                 .zIndex(8)
 
             dashlaChrome(leftMap: leftMap, rightMap: rightMap)
@@ -480,9 +489,9 @@ struct NativeHUDView: View {
 
             if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
                 turnBanner
-                    .padding(.top, 96)
+                    .padding(.bottom, 28)
                     .padding(.horizontal, 16)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .zIndex(12)
             }
 
@@ -596,7 +605,7 @@ struct NativeHUDView: View {
                         .foregroundStyle(inkOnDark)
                 }
                 Text(model.clock.isEmpty ? "--:--" : model.clock)
-                    .font(.subheadline.monospacedDigit().weight(.semibold))
+                    .font(.title3.monospacedDigit().weight(.semibold))
                     .foregroundStyle(inkOnDark)
                 Text(BLEPairer.buildId)
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -605,14 +614,14 @@ struct NativeHUDView: View {
                     .padding(.vertical, 2)
                     .background(Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05)))
                 Text(model.outdoorValid ? "\(model.outdoorC)°C" : "--°C")
-                    .font(.subheadline)
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(mutedOnDark)
                 Image(systemName: "car.fill")
-                    .font(.caption)
+                    .font(.body)
                     .foregroundStyle(model.bleOK || model.isLive ? accent : mutedOnDark.opacity(0.55))
             }
-            .padding(.horizontal, leftMap ? 8 : 0)
-            .padding(.vertical, leftMap ? 5 : 0)
+            .padding(.horizontal, leftMap ? 10 : 0)
+            .padding(.vertical, leftMap ? 6 : 0)
             .background(
                 Group {
                     if leftMap {
@@ -624,27 +633,41 @@ struct NativeHUDView: View {
 
             Spacer(minLength: 8)
 
+            // Live place — center of the top chrome (was inside the dial).
+            if settings.liveLocation != .off, !isBlank(model.place) {
+                Text(model.place)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color.black.opacity(0.48)))
+            }
+
+            Spacer(minLength: 8)
+
             // Right cluster — floats on map side (Dashla style).
             HStack(spacing: 8) {
                 Circle()
                     .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.75))
-                    .frame(width: 7, height: 7)
-                HStack(spacing: 4) {
+                    .frame(width: 8, height: 8)
+                HStack(spacing: 5) {
                     Image(systemName: phoneBattIcon)
-                        .font(.caption2)
+                        .font(.subheadline)
                     Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
-                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .font(.body.monospacedDigit().weight(.semibold))
                 }
                 .foregroundStyle(mapInk)
                 Button { onSettings?() } label: {
                     Image(systemName: "gearshape.fill")
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(mapMuted)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
             .background(Capsule().fill(Color.black.opacity(rightMap ? 0.42 : 0.35)))
         }
         .padding(.horizontal, 14)
@@ -911,7 +934,7 @@ struct NativeHUDView: View {
             }
 
             GeometryReader { geo in
-                let artSize = min(132, max(96, min(geo.size.width * 0.58, geo.size.height * 0.36)))
+                let artSize = min(158, max(115, min(geo.size.width * 0.70, geo.size.height * 0.43)))
                 VStack(alignment: .center, spacing: 8) {
                     Spacer(minLength: 8)
                     if !asOverlay {
@@ -1037,13 +1060,6 @@ struct NativeHUDView: View {
                 .font(.system(size: max(11, size * 0.048), weight: .regular))
                 .foregroundStyle(dialMuted)
                 .shadow(color: .black.opacity(0.6), radius: 3, y: 2)
-            if !compact, settings.liveLocation != .off, !isBlank(model.place) {
-                Text(model.place)
-                    .font(.system(size: max(11, size * 0.048), weight: .medium))
-                    .foregroundStyle(dialMuted)
-                    .lineLimit(1)
-                    .padding(.top, 2)
-            }
         }
         .padding(.horizontal, 8)
 
@@ -1300,13 +1316,17 @@ struct NativeHUDView: View {
     // MARK: - Panels
 
     private var batteryChip: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: model.charging ? "bolt.fill" : "battery.100")
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(Color(red: 0.25, green: 0.78, blue: 0.40))
             Text(battText)
-                .font(.caption.monospacedDigit().weight(.semibold))
+                .font(.title3.monospacedDigit().weight(.semibold))
                 .foregroundStyle(ink)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(Capsule().fill(Color.black.opacity(0.50)))
     }
 
     private var battText: String {
@@ -1433,7 +1453,7 @@ struct NativeHUDView: View {
     private var mediaPanel: some View {
         GeometryReader { geo in
             // Cover sized for the wing; reflection ~33% under art.
-            let artSize = min(118, max(88, min(geo.size.width * 0.55, geo.size.height * 0.34)))
+            let artSize = min(142, max(106, min(geo.size.width * 0.66, geo.size.height * 0.41)))
             VStack(alignment: .center, spacing: 6) {
                 mediaServiceHeader
                 albumArtWithReflection(size: artSize)
