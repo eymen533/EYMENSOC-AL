@@ -458,9 +458,9 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             return
         }
 
-        let distance: CLLocationDistance = turnByTurn ? 280 : 560
+        let distance: CLLocationDistance = turnByTurn ? 320 : 560
         // Modest pitch — light map stays bright while still reading as 3D.
-        let pitch: CGFloat = turnByTurn ? 42 : 28
+        let pitch: CGFloat = turnByTurn ? 38 : 28
         // Normalize heading so camera faces travel direction (0…360).
         var camHeading = heading.truncatingRemainder(dividingBy: 360)
         if camHeading < 0 { camHeading += 360 }
