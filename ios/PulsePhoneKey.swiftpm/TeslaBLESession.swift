@@ -59,7 +59,7 @@ final class TeslaBLESession {
     private(set) var lastWasAES = false
     /// Recent AES request tags — late/duplicate notifies still decrypt after next poll.
     private var recentRequestTags: [Data] = []
-    private let maxRecentRequestTags = 8
+    private let maxRecentRequestTags = 16
     /// Per-domain pending handshake UUIDs — avoids VCSEC/infotainment challenge mixups.
     private var pendingHandshakeUUID: [Domain: Data] = [:]
     private var lastHandshakeUUID: [Domain: Data] = [:]
@@ -69,6 +69,9 @@ final class TeslaBLESession {
     private var routeInactiveStreak = 0
     /// Consecutive AES decrypt misses (orphan replies) — soft, no session wipe.
     private(set) var consecutiveDecryptMisses = 0
+    private var lastActionErrorReason = ""
+    private var loggedChargeFields = false
+    private var loggedClimateFields = false
 
     var snapshot = Snapshot()
     var infotainmentReady: Bool { isReady(.infotainment) }
@@ -125,6 +128,10 @@ final class TeslaBLESession {
         pendingHandshakeUUID[domain] = nil
         if domain == .infotainment {
             hasVehicleData = false
+            loggedChargeFields = false
+            loggedClimateFields = false
+            lastActionErrorReason = ""
+            consecutiveDecryptMisses = 0
         }
     }
 
@@ -241,7 +248,9 @@ final class TeslaBLESession {
                 // Late/duplicate notify for an older request — ignore without killing the session.
                 consecutiveDecryptMisses += 1
                 lastDecryptWasOrphan = true
-                lastDecryptFailed = consecutiveDecryptMisses >= 6
+                // Large Charge/Climate replies often arrive late — need more misses
+                // before declaring hard decrypt failure / soft handshake.
+                lastDecryptFailed = consecutiveDecryptMisses >= 14
                 statusText = lastDecryptFailed
                     ? "Decrypt fail"
                     : "BLE LIVE"
@@ -250,9 +259,17 @@ final class TeslaBLESession {
         }
 
         if fromDomain == .infotainment {
+            let beforeBat = snapshot.batteryPercent
+            let beforeTempValid = snapshot.outdoorValid
             parseInfotainmentResponse(payload)
             hasVehicleData = true
             statusText = "BLE LIVE"
+            if snapshot.batteryPercent > 0.5, beforeBat < 0.5 {
+                statusText = "BLE LIVE"
+            }
+            if snapshot.outdoorValid, !beforeTempValid {
+                statusText = "BLE LIVE"
+            }
             return true
         }
         return sessionInfoBytes != nil || requestUUID != nil
@@ -527,8 +544,10 @@ final class TeslaBLESession {
     static func actionGetDriveBundle() -> Data { Data(hex: "120a0a0812001a0022003a00") }
     static func actionGetCharge() -> Data { Data(hex: "12040a021200") }
     static func actionGetTire() -> Data { Data(hex: "12040a027200") }
-    /// GetMediaState (15) + GetMediaDetailState (16) — source string / album.
-    static func actionGetMedia() -> Data { Data(hex: "12070a057a00820100") }
+    /// GetMediaState only (15) — do not combine with media-detail (Tesla rejects multi-category).
+    static func actionGetMedia() -> Data { Data(hex: "12040a027a00") }
+    /// GetMediaDetailState (16).
+    static func actionGetMediaDetail() -> Data { Data(hex: "12040a028200") }
     static func actionGetLocation() -> Data { Data(hex: "12040a023a00") }
     static func actionGetClimate() -> Data { Data(hex: "12040a021a00") }
     /// GetClosuresState (8) — doors / frunk / trunk / locked / display.
@@ -559,18 +578,32 @@ final class TeslaBLESession {
 
     private func parseInfotainmentResponse(_ data: Data) {
         // car_server.Response: field 1 = ActionStatus, field 2 = vehicleData
+        var actionOK = true
+        var reason = ""
         for f in ProtoWire.parseFields(data) {
             if f.number == 1 {
-                // result=OK is varint 0 on field 1 of ActionStatus — non-zero = error / denied.
-                for sf in ProtoWire.parseFields(f.bytes) where sf.number == 1 {
-                    if sf.varint != 0 {
-                        // Multi-category GetVehicleData often fails here; keep Drive LIVE.
-                        break
+                for sf in ProtoWire.parseFields(f.bytes) {
+                    if sf.number == 1, sf.varint != 0 {
+                        actionOK = false
+                    }
+                    if sf.number == 2 {
+                        for rf in ProtoWire.parseFields(sf.bytes) where rf.number == 1 {
+                            if let s = String(data: rf.bytes, encoding: .utf8), !s.isEmpty {
+                                reason = s
+                            }
+                        }
                     }
                 }
             }
             if f.number == 2 {
                 parseVehicleData(f.bytes)
+            }
+        }
+        if !actionOK {
+            let key = reason.isEmpty ? "error" : reason
+            if lastActionErrorReason != key {
+                lastActionErrorReason = key
+                statusText = reason.isEmpty ? "BLE komut reddi" : "BLE: \(reason)"
             }
         }
     }
@@ -713,42 +746,58 @@ final class TeslaBLESession {
     }
 
     private func parseCharge(_ data: Data) {
+        var fieldNums: [UInt64] = []
         for f in ProtoWire.parseFields(data) {
+            fieldNums.append(f.number)
             switch f.number {
-            case 1: // charging_state
-                break
-            case 4: // some firmwares use short ChargeState ids
-                if f.varint > 0, f.varint <= 100 { snapshot.batteryPercent = Double(f.varint) }
-            case 5:
-                if let mi = ProtoWire.float32(f.bytes), mi > 0.5 {
-                    snapshot.rangeKm = Int((Double(mi) * 1.60934).rounded())
+            case 1: // charging_state (nested oneof)
+                for sf in ProtoWire.parseFields(f.bytes) {
+                    if sf.number == 5 { snapshot.charging = true }
+                    if sf.number == 2 || sf.number == 3 || sf.number == 7 {
+                        snapshot.charging = false
+                    }
                 }
-            case 30:
-                if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
             case 111, 112, 113: // battery_range / est / ideal (miles)
-                if let mi = ProtoWire.float32(f.bytes), mi > 0.5 {
+                if let mi = floatFromField(f), mi > 0.5 {
                     let km = Int((Double(mi) * 1.60934).rounded())
                     if km > snapshot.rangeKm { snapshot.rangeKm = km }
                 }
-            case 114: // battery_level
-                if f.varint > 0 {
-                    snapshot.batteryPercent = Double(f.varint)
-                } else if let fl = ProtoWire.float32(f.bytes), fl > 0.5 {
-                    snapshot.batteryPercent = Double(fl)
-                }
-            case 115: // usable_battery_level
-                if f.varint > 0 {
-                    snapshot.batteryPercent = Double(f.varint)
-                } else if let fl = ProtoWire.float32(f.bytes), fl > 0.5 {
-                    snapshot.batteryPercent = Double(fl)
+            case 114, 115: // battery_level / usable (int32)
+                if let pct = intFromField(f), pct > 0, pct <= 100 {
+                    snapshot.batteryPercent = Double(pct)
                 }
             case 122: // charger_power
-                if f.varint > 0 { snapshot.charging = true }
+                if let p = intFromField(f), p > 0 { snapshot.charging = true }
             case 127: // charge_port_door_open
-                snapshot.chargePortOpen = f.varint != 0
-            default: break
+                if f.wire == 0 { snapshot.chargePortOpen = f.varint != 0 }
+            default:
+                break
             }
         }
+        if !loggedChargeFields {
+            loggedChargeFields = true
+            let bat = Int(snapshot.batteryPercent.rounded())
+            let nums = fieldNums.prefix(24).map(String.init).joined(separator: ",")
+            if bat <= 0 {
+                statusText = "BLE Charge fields[\(nums)] bat=0"
+            }
+        }
+    }
+
+    private func floatFromField(_ f: ProtoWire.Field) -> Float? {
+        if f.wire == 5, let fl = ProtoWire.float32(f.bytes) { return fl }
+        if f.bytes.count >= 4, let fl = ProtoWire.float32(f.bytes) { return fl }
+        return nil
+    }
+
+    private func intFromField(_ f: ProtoWire.Field) -> Int? {
+        if f.wire == 0 {
+            return Int(Int32(truncatingIfNeeded: f.varint))
+        }
+        if f.wire == 5, let fl = ProtoWire.float32(f.bytes) {
+            return Int(fl.rounded())
+        }
+        return nil
     }
 
     private func parseClosures(_ data: Data) {
@@ -958,19 +1007,28 @@ final class TeslaBLESession {
     }
 
     private func parseClimate(_ data: Data) {
+        var fieldNums: [UInt64] = []
         for f in ProtoWire.parseFields(data) {
+            fieldNums.append(f.number)
             switch f.number {
             case 102: // outside_temp_celsius
-                if let t = ProtoWire.float32(f.bytes) {
+                if let t = floatFromField(f) {
                     snapshot.outdoorC = Int(t.rounded())
                     snapshot.outdoorValid = true
                 }
             case 101: // inside_temp — fallback display if outside missing
-                if !snapshot.outdoorValid, let t = ProtoWire.float32(f.bytes) {
+                if !snapshot.outdoorValid, let t = floatFromField(f) {
                     snapshot.outdoorC = Int(t.rounded())
                     snapshot.outdoorValid = true
                 }
             default: break
+            }
+        }
+        if !loggedClimateFields {
+            loggedClimateFields = true
+            let nums = fieldNums.prefix(16).map(String.init).joined(separator: ",")
+            if !snapshot.outdoorValid {
+                statusText = "BLE Climate fields[\(nums)]"
             }
         }
     }

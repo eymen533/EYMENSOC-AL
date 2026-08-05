@@ -146,6 +146,11 @@ final class BLETelemetry {
                             "BLE LIVE · bat=\(bat)% rng=\(rng)km route=\(dest ? "on" : "off") temp=\(tempMark)"
                         )
                     }
+                    // Surface Charge/Climate parse hints (empty fields / denied).
+                    let st = session.statusText
+                    if st.contains("Charge fields") || st.contains("Climate fields") || st.hasPrefix("BLE:") {
+                        PulseDiagLog.shared.warn(st)
+                    }
                     status = "BLE LIVE"
                     let next = session.snapshot
                     let speedInt = Int(abs(next.speedKmh).rounded())
@@ -197,11 +202,14 @@ final class BLETelemetry {
         writeQueue.removeAll()
         writing = false
         inFlight = 0
-        handshakeCooldownUntil = now.addingTimeInterval(0.2)
-        stallRecoveries += 1
+        handshakeCooldownUntil = now.addingTimeInterval(0.35)
+        // Don't count soft decrypt as a hard stall unless live data is already stale.
+        if Date().timeIntervalSince(lastLiveDataAt) > 6 {
+            stallRecoveries += 1
+        }
         notify(force: true)
 
-        if stallRecoveries >= 8 {
+        if stallRecoveries >= 10 {
             stallRecoveries = 0
             liveOK = false
             status = "Oturum kilitlendi — GATT yenileniyor…"
@@ -248,15 +256,15 @@ final class BLETelemetry {
             writing = false
             writeQueue.removeAll()
         }
-        if inFlight > 0, Date().timeIntervalSince(lastNotifyAt) > 1.8 {
+        if inFlight > 0, Date().timeIntervalSince(lastNotifyAt) > 3.2 {
             inFlight = 0
             writing = false
             writeQueue.removeAll()
         }
 
         // LIVE stall → soft re-handshake; GATT bounce only after repeated stalls.
-        if liveOK, Date().timeIntervalSince(lastLiveDataAt) > 7.5,
-           Date().timeIntervalSince(stallRecoveryAt) > 7.0 {
+        if liveOK, Date().timeIntervalSince(lastLiveDataAt) > 10.0,
+           Date().timeIntervalSince(stallRecoveryAt) > 9.0 {
             stallRecoveryAt = Date()
             stallRecoveries += 1
             liveOK = false
@@ -305,16 +313,18 @@ final class BLETelemetry {
     }
 
     /// One StateCategory per request — Tesla rejects multi-category GetVehicleData.
+    /// Drive-heavy; Charge/Climate less often so large replies don't desync AES tags.
     private func nextPollAction() -> Data {
         pollIndex += 1
         let i = pollIndex
-        // Charge / climate / location must be standalone (bundle returned Drive-only → bat=0).
-        if i % 3 == 1 { return TeslaBLESession.actionGetCharge() }
-        if i % 5 == 2 { return TeslaBLESession.actionGetClimate() }
-        if i % 7 == 3 { return TeslaBLESession.actionGetLocation() }
-        if i % 13 == 0 { return TeslaBLESession.actionGetClosures() }
-        if i % 19 == 0 { return TeslaBLESession.actionGetMedia() }
-        if i % 31 == 0 { return TeslaBLESession.actionGetTire() }
+        // ~1/10 ticks → Charge (was every 3rd; large replies → decrypt orphan → stall).
+        if i % 10 == 3 { return TeslaBLESession.actionGetCharge() }
+        if i % 12 == 5 { return TeslaBLESession.actionGetClimate() }
+        if i % 8 == 2 { return TeslaBLESession.actionGetLocation() }
+        if i % 15 == 0 { return TeslaBLESession.actionGetClosures() }
+        if i % 22 == 0 { return TeslaBLESession.actionGetMedia() }
+        if i % 28 == 0 { return TeslaBLESession.actionGetMediaDetail() }
+        if i % 35 == 0 { return TeslaBLESession.actionGetTire() }
         return TeslaBLESession.actionGetDrive()
     }
 
