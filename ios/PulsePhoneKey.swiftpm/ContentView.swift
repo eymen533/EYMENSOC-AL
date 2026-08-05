@@ -5,7 +5,11 @@ struct ContentView: View {
     @StateObject private var ble = BLEPairer()
     @StateObject private var hud = HUDModel()
     @ObservedObject private var hudSettings = HUDSettings.shared
-    @State private var vin = Self.loadStoredVIN()
+    @ObservedObject private var diagLog = PulseDiagLog.shared
+    @State private var showVINScanner = false
+    @State private var showRePairConfirm = false
+    @State private var vin = KeyStore.loadSavedVIN()
+    @State private var logCopiedFlash = false
     @State private var dashURL = UserDefaults.standard.string(forKey: "pulse_dash_url")
         ?? "https://mon-holds-cloud-grateful.trycloudflare.com"
     @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
@@ -51,10 +55,26 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             settingsSheet
         }
+        .sheet(isPresented: $showVINScanner) {
+            VINScannerSheet(vin: $vin)
+        }
+        .confirmationDialog(
+            "Yeniden eşleştirme Key Card ister. Genelde gerekmez — sadece anahtar silindiyse.",
+            isPresented: $showRePairConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Yeniden eşleştir", role: .destructive) {
+                save()
+                showPairFlow = true
+            }
+            Button("Vazgeç", role: .cancel) {}
+        }
         .onChangeCompat(of: ble.paired) { on in
             if on {
                 hud.bleOK = true
+                KeyStore.saveVIN(vinNorm)
                 pairEpoch &+= 1
+                PulseDiagLog.shared.info("Pair OK — VIN saklandı (cihazda), tekrar pair gerekmez")
             }
         }
         .onChangeCompat(of: ble.linkUp) { on in
@@ -83,9 +103,15 @@ struct ContentView: View {
             hud.bleMediaSkip = { delta in pairer.mediaSkip(delta) }
             // Dashla-style: start phone GPS early so map works without car.
             PhoneLocationStore.shared.start()
-            // Bir kez eşleşmişse arka planda otomatik bağlanmayı başlat.
-            if alreadyPaired, !ble.linkUp, !ble.bleLiveOK, vinNorm.count == 17 {
+            // Restore on-device VIN (never from source). Then auto-resume if paired once.
+            if vinNorm.count != 17, let recovered = KeyStore.anyPairedVIN() {
+                vin = recovered
+                KeyStore.saveVIN(recovered)
+                PulseDiagLog.shared.info("VIN cihazdan geri yüklendi")
+            }
+            if alreadyPaired, vinNorm.count == 17, !ble.linkUp, !ble.bleLiveOK {
                 ble.resumeSession(vin: vinNorm)
+                PulseDiagLog.shared.ble("Auto-resume after prior pair")
             }
         }
     }
@@ -164,10 +190,9 @@ struct ContentView: View {
                         }
 
                         Button {
-                            save()
-                            showPairFlow = true
+                            showRePairConfirm = true
                         } label: {
-                            Text("Yeniden eşleştir")
+                            Text("Yeniden eşleştir (gerekirse)")
                                 .font(.subheadline.weight(.medium))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
@@ -223,11 +248,19 @@ struct ContentView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 14) {
-                        Button {
-                            save()
-                            showPairFlow = true
-                        } label: {
-                            Label("Pair", systemImage: "plus.viewfinder")
+                        if alreadyPaired {
+                            Button {
+                                showRePairConfirm = true
+                            } label: {
+                                Label("Pair", systemImage: "plus.viewfinder")
+                            }
+                        } else {
+                            Button {
+                                save()
+                                showPairFlow = true
+                            } label: {
+                                Label("Pair", systemImage: "plus.viewfinder")
+                            }
                         }
                         Button { showSettings = true } label: {
                             Image(systemName: "gearshape")
@@ -243,9 +276,30 @@ struct ContentView: View {
     private var settingsSheet: some View {
         NavigationStack {
             Form {
-                Section("VIN") {
-                    TextField("VIN", text: $vin)
-                        .textInputAutocapitalization(.characters)
+                Section("VIN (sadece bu telefonda saklanır)") {
+                    HStack(spacing: 10) {
+                        TextField("17 karakter VIN", text: $vin)
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                            .font(.system(.body, design: .monospaced))
+                        Button {
+                            showVINScanner = true
+                        } label: {
+                            Image(systemName: "camera.viewfinder")
+                        }
+                        .accessibilityLabel("Kameradan VIN oku")
+                    }
+                    Text(alreadyPaired
+                        ? "Bu VIN için Phone Key kayıtlı. Tekrar pair gerekmez — Cluster ile bağlanır."
+                        : "VIN kodu uygulama kaynak koduna yazılmaz; sen girince veya kameradan okutunca telefonda kalır.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if vinNorm.count == 17 {
+                        Button("VIN’i bu telefona kaydet") {
+                            KeyStore.saveVIN(vinNorm)
+                            save()
+                        }
+                    }
                 }
                 Section("BLE telemetri (asıl kaynak)") {
                     Text(ble.bleStatus)
@@ -334,9 +388,41 @@ struct ContentView: View {
                             .autocorrectionDisabled()
                     }
                     Toggle("Auto Zoom (rota sığdır)", isOn: $hudSettings.autoZoom)
-                    Text("Cluster her zaman siyah — araç gece/gündüz teması yok sayılır.")
+                    Text("Cluster siyah kalır; harita açık/aydınlık tema ile okunur.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+                Section("Hata / bağlantı logları") {
+                    Text("Kopma veya garip davranış olunca buradaki logları kopyalayıp paylaş — teşhis için.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    NavigationLink {
+                        DiagLogViewer()
+                    } label: {
+                        HStack {
+                            Image(systemName: "doc.text.magnifyingglass")
+                            Text("Logları aç")
+                            Spacer()
+                            Text("\(diagLog.entries.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Button("Logları panoya kopyala") {
+                        UIPasteboard.general.string = {
+                            let header = "Pulse28 \(BLEPairer.buildId) · \(ISO8601DateFormatter().string(from: Date()))\n"
+                            return header + diagLog.entries.reversed().map(\.line).joined(separator: "\n")
+                        }()
+                        PulseDiagLog.shared.info("Log copied to clipboard (\(diagLog.entries.count) lines)")
+                        logCopiedFlash = true
+                    }
+                    if logCopiedFlash {
+                        Text("Kopyalandı — buraya yapıştırıp paylaşabilirsin.")
+                            .font(.footnote)
+                            .foregroundStyle(.green)
+                    }
+                    Button("Logları temizle", role: .destructive) {
+                        diagLog.clear()
+                    }
                 }
                 Section("Dash (yedek)") {
                     TextField("Dash URL", text: $dashURL)
@@ -396,27 +482,18 @@ struct ContentView: View {
 
     private var alreadyPaired: Bool {
         _ = pairEpoch
-        return KeyStore.isPaired(vin: vinNorm) || KeyStore.hasPrivateKey(vin: vinNorm)
-    }
-
-    /// Never ship with a baked-in VIN — empty until user pastes from Tesla app.
-    private static func loadStoredVIN() -> String {
-        let key = "pulse_vin"
-        let raw = (UserDefaults.standard.string(forKey: key) ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .uppercased()
-        // Strip previously hardcoded sample VIN if still in defaults.
-        let sample = "XP7YGCEK0PB159959"
-        if raw.isEmpty || raw == sample {
-            UserDefaults.standard.removeObject(forKey: key)
-            return ""
+        let v = vinNorm
+        if KeyStore.isPaired(vin: v) || KeyStore.hasPrivateKey(vin: v) { return true }
+        // VIN alanı boşsa ama cihazda eski pair varsa yine paired say.
+        if let other = KeyStore.anyPairedVIN(), KeyStore.isPaired(vin: other) || KeyStore.hasPrivateKey(vin: other) {
+            return true
         }
-        return raw
+        return false
     }
 
     private func save() {
-        if vinNorm.count == 17 {
-            UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
+        if KeyStore.isValidVIN(vinNorm) {
+            KeyStore.saveVIN(vinNorm)
         } else if vinNorm.isEmpty {
             UserDefaults.standard.removeObject(forKey: "pulse_vin")
         }
@@ -449,16 +526,18 @@ struct ContentView: View {
 
     private func connectAndOpenHUD() {
         save()
-        if alreadyPaired, vinNorm.count == 17, !ble.bleLiveOK {
-            ble.resumeSession(vin: vinNorm)
-        }
         openHUD()
     }
 
     private func openHUD() {
+        // Ensure VIN is recovered before resume.
+        if vinNorm.count != 17, let recovered = KeyStore.anyPairedVIN() {
+            vin = recovered
+        }
+        save()
         let paired = alreadyPaired || ble.linkUp || ble.paired || ble.readyForDashboard || ble.waitingForCard || ble.bleLiveOK
         hud.configure(vin: vinNorm, paired: paired)
-        if alreadyPaired, !ble.linkUp, !ble.bleLiveOK, vinNorm.count == 17 {
+        if paired, vinNorm.count == 17, !ble.bleLiveOK {
             ble.resumeSession(vin: vinNorm)
         }
         ble.ensureTelemetry()
@@ -466,5 +545,64 @@ struct ContentView: View {
             hud.applyBLE(ble.bleSnapshot, linkOK: true)
         }
         screen = .hud
+    }
+}
+
+/// Settings → diagnostic log list with level colors.
+struct DiagLogViewer: View {
+    @ObservedObject private var log = PulseDiagLog.shared
+
+    var body: some View {
+        List {
+            ForEach(log.entries) { e in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(e.level.rawValue)
+                            .font(.caption2.weight(.bold).monospaced())
+                            .foregroundStyle(color(for: e.level))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(color(for: e.level).opacity(0.18)))
+                        Spacer()
+                        Text(time(e.date))
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(e.message)
+                        .font(.footnote.monospaced())
+                        .foregroundStyle(.primary)
+                        .textSelection(.enabled)
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+            }
+        }
+        .navigationTitle("Hata logları")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Kopyala") {
+                    UIPasteboard.general.string =
+                        "Pulse28 \(BLEPairer.buildId)\n"
+                        + log.entries.reversed().map(\.line).joined(separator: "\n")
+                }
+            }
+            ToolbarItem(placement: .destructiveAction) {
+                Button("Temizle", role: .destructive) { log.clear() }
+            }
+        }
+    }
+
+    private func color(for level: PulseDiagLog.Level) -> Color {
+        switch level {
+        case .info: return .secondary
+        case .warn: return .orange
+        case .error: return .red
+        case .ble: return Color(red: 0.25, green: 0.7, blue: 0.95)
+        }
+    }
+
+    private func time(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f.string(from: d)
     }
 }

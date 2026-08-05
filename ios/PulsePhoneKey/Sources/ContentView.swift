@@ -6,7 +6,9 @@ struct ContentView: View {
     @StateObject private var hud = HUDModel()
     @ObservedObject private var hudSettings = HUDSettings.shared
     @ObservedObject private var diagLog = PulseDiagLog.shared
-    @State private var vin = Self.loadStoredVIN()
+    @State private var showVINScanner = false
+    @State private var showRePairConfirm = false
+    @State private var vin = KeyStore.loadSavedVIN()
     @State private var logCopiedFlash = false
     @State private var dashURL = UserDefaults.standard.string(forKey: "pulse_dash_url")
         ?? "https://mon-holds-cloud-grateful.trycloudflare.com"
@@ -53,10 +55,26 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             settingsSheet
         }
+        .sheet(isPresented: $showVINScanner) {
+            VINScannerSheet(vin: $vin)
+        }
+        .confirmationDialog(
+            "Yeniden eşleştirme Key Card ister. Genelde gerekmez — sadece anahtar silindiyse.",
+            isPresented: $showRePairConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Yeniden eşleştir", role: .destructive) {
+                save()
+                showPairFlow = true
+            }
+            Button("Vazgeç", role: .cancel) {}
+        }
         .onChangeCompat(of: ble.paired) { on in
             if on {
                 hud.bleOK = true
+                KeyStore.saveVIN(vinNorm)
                 pairEpoch &+= 1
+                PulseDiagLog.shared.info("Pair OK — VIN saklandı (cihazda), tekrar pair gerekmez")
             }
         }
         .onChangeCompat(of: ble.linkUp) { on in
@@ -85,9 +103,15 @@ struct ContentView: View {
             hud.bleMediaSkip = { delta in pairer.mediaSkip(delta) }
             // Dashla-style: start phone GPS early so map works without car.
             PhoneLocationStore.shared.start()
-            // Bir kez eşleşmişse arka planda otomatik bağlanmayı başlat.
-            if alreadyPaired, !ble.linkUp, !ble.bleLiveOK, vinNorm.count == 17 {
+            // Restore on-device VIN (never from source). Then auto-resume if paired once.
+            if vinNorm.count != 17, let recovered = KeyStore.anyPairedVIN() {
+                vin = recovered
+                KeyStore.saveVIN(recovered)
+                PulseDiagLog.shared.info("VIN cihazdan geri yüklendi")
+            }
+            if alreadyPaired, vinNorm.count == 17, !ble.linkUp, !ble.bleLiveOK {
                 ble.resumeSession(vin: vinNorm)
+                PulseDiagLog.shared.ble("Auto-resume after prior pair")
             }
         }
     }
@@ -166,10 +190,9 @@ struct ContentView: View {
                         }
 
                         Button {
-                            save()
-                            showPairFlow = true
+                            showRePairConfirm = true
                         } label: {
-                            Text("Yeniden eşleştir")
+                            Text("Yeniden eşleştir (gerekirse)")
                                 .font(.subheadline.weight(.medium))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
@@ -225,11 +248,19 @@ struct ContentView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 14) {
-                        Button {
-                            save()
-                            showPairFlow = true
-                        } label: {
-                            Label("Pair", systemImage: "plus.viewfinder")
+                        if alreadyPaired {
+                            Button {
+                                showRePairConfirm = true
+                            } label: {
+                                Label("Pair", systemImage: "plus.viewfinder")
+                            }
+                        } else {
+                            Button {
+                                save()
+                                showPairFlow = true
+                            } label: {
+                                Label("Pair", systemImage: "plus.viewfinder")
+                            }
                         }
                         Button { showSettings = true } label: {
                             Image(systemName: "gearshape")
@@ -245,9 +276,30 @@ struct ContentView: View {
     private var settingsSheet: some View {
         NavigationStack {
             Form {
-                Section("VIN") {
-                    TextField("VIN", text: $vin)
-                        .textInputAutocapitalization(.characters)
+                Section("VIN (sadece bu telefonda saklanır)") {
+                    HStack(spacing: 10) {
+                        TextField("17 karakter VIN", text: $vin)
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                            .font(.system(.body, design: .monospaced))
+                        Button {
+                            showVINScanner = true
+                        } label: {
+                            Image(systemName: "camera.viewfinder")
+                        }
+                        .accessibilityLabel("Kameradan VIN oku")
+                    }
+                    Text(alreadyPaired
+                        ? "Bu VIN için Phone Key kayıtlı. Tekrar pair gerekmez — Cluster ile bağlanır."
+                        : "VIN kodu uygulama kaynak koduna yazılmaz; sen girince veya kameradan okutunca telefonda kalır.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if vinNorm.count == 17 {
+                        Button("VIN’i bu telefona kaydet") {
+                            KeyStore.saveVIN(vinNorm)
+                            save()
+                        }
+                    }
                 }
                 Section("BLE telemetri (asıl kaynak)") {
                     Text(ble.bleStatus)
@@ -430,27 +482,18 @@ struct ContentView: View {
 
     private var alreadyPaired: Bool {
         _ = pairEpoch
-        return KeyStore.isPaired(vin: vinNorm) || KeyStore.hasPrivateKey(vin: vinNorm)
-    }
-
-    /// Never ship with a baked-in VIN — empty until user pastes from Tesla app.
-    private static func loadStoredVIN() -> String {
-        let key = "pulse_vin"
-        let raw = (UserDefaults.standard.string(forKey: key) ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .uppercased()
-        // Strip previously hardcoded sample VIN if still in defaults.
-        let sample = "XP7YGCEK0PB159959"
-        if raw.isEmpty || raw == sample {
-            UserDefaults.standard.removeObject(forKey: key)
-            return ""
+        let v = vinNorm
+        if KeyStore.isPaired(vin: v) || KeyStore.hasPrivateKey(vin: v) { return true }
+        // VIN alanı boşsa ama cihazda eski pair varsa yine paired say.
+        if let other = KeyStore.anyPairedVIN(), KeyStore.isPaired(vin: other) || KeyStore.hasPrivateKey(vin: other) {
+            return true
         }
-        return raw
+        return false
     }
 
     private func save() {
-        if vinNorm.count == 17 {
-            UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
+        if KeyStore.isValidVIN(vinNorm) {
+            KeyStore.saveVIN(vinNorm)
         } else if vinNorm.isEmpty {
             UserDefaults.standard.removeObject(forKey: "pulse_vin")
         }
@@ -487,10 +530,14 @@ struct ContentView: View {
     }
 
     private func openHUD() {
+        // Ensure VIN is recovered before resume.
+        if vinNorm.count != 17, let recovered = KeyStore.anyPairedVIN() {
+            vin = recovered
+        }
+        save()
         let paired = alreadyPaired || ble.linkUp || ble.paired || ble.readyForDashboard || ble.waitingForCard || ble.bleLiveOK
         hud.configure(vin: vinNorm, paired: paired)
-        // Single resume call — duplicate resumeSession was tearing down in-flight reconnects.
-        if alreadyPaired, !ble.bleLiveOK, vinNorm.count == 17 {
+        if paired, vinNorm.count == 17, !ble.bleLiveOK {
             ble.resumeSession(vin: vinNorm)
         }
         ble.ensureTelemetry()

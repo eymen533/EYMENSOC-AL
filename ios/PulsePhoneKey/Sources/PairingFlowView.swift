@@ -10,6 +10,7 @@ struct PairingFlowView: View {
 
     @State private var page: Page = .beforeStart
     @State private var err: String?
+    @State private var showVINScanner = false
 
     enum Page { case beforeStart, enterVIN, scanning, placeCard, done }
 
@@ -46,6 +47,9 @@ struct PairingFlowView: View {
                 // Keep user on placeCard until they confirm, unless fully paired
                 if ble.paired { page = .done }
             }
+        }
+        .sheet(isPresented: $showVINScanner) {
+            VINScannerSheet(vin: $vin)
         }
     }
 
@@ -137,9 +141,16 @@ struct PairingFlowView: View {
                                     .foregroundStyle(.white.opacity(0.35))
                             }
                         }
+                        Button {
+                            showVINScanner = true
+                        } label: {
+                            Image(systemName: "camera.viewfinder")
+                                .foregroundStyle(Color(red: 0.45, green: 0.55, blue: 1))
+                        }
+                        .accessibilityLabel("Kameradan VIN oku")
                         Button("Paste") {
                             if let s = UIPasteboard.general.string {
-                                vin = s.filter { $0.isLetter || $0.isNumber }.uppercased()
+                                vin = KeyStore.normalizeVIN(s)
                             }
                         }
                         .font(.subheadline.weight(.semibold))
@@ -150,7 +161,7 @@ struct PairingFlowView: View {
                     .background(Capsule().fill(Color.white.opacity(0.08)))
                     .padding(.horizontal, 20)
 
-                    Text("In the Tesla app, scroll to the bottom and long-press VIN to copy.")
+                    Text("VIN uygulama koduna yazılmaz — sen girince veya kameradan okutunca sadece bu telefonda saklanır. Tesla app’ten kopyala veya kapı eşiğindeki VIN’i tara.")
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.45))
                         .padding(.horizontal, 24)
@@ -170,7 +181,7 @@ struct PairingFlowView: View {
                 }
                 .padding(.bottom, 88)
             }
-            bottomCTA(vinNorm.count == 17 ? "Start pairing" : "Enter VIN to start pairing", enabled: vinNorm.count == 17) {
+            bottomCTA(KeyStore.isValidVIN(vinNorm) ? "Start pairing" : "Enter VIN to start pairing", enabled: KeyStore.isValidVIN(vinNorm)) {
                 startScan()
             }
         }
@@ -299,15 +310,17 @@ struct PairingFlowView: View {
 
     private func startScan() {
         err = nil
-        guard vinNorm.count == 17 else {
-            err = "VIN must be 17 characters"
+        let v = KeyStore.normalizeVIN(vin)
+        guard KeyStore.isValidVIN(v) else {
+            err = "VIN must be 17 characters (I/O/Q yok)"
             return
         }
-        UserDefaults.standard.set(vinNorm, forKey: "pulse_vin")
+        vin = v
+        KeyStore.saveVIN(v)
         do {
-            let key = try KeyStore.loadOrCreatePrivateKey(forVIN: vinNorm)
+            let key = try KeyStore.loadOrCreatePrivateKey(forVIN: v)
             page = .scanning
-            ble.start(vin: vinNorm, publicKey: KeyStore.publicKeyUncompressed(key))
+            ble.start(vin: v, publicKey: KeyStore.publicKeyUncompressed(key))
         } catch {
             err = error.localizedDescription
         }

@@ -22,6 +22,8 @@
 	<string>28</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Aracın VIN kodunu kameradan okumak için kamera izni gerekir.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Tesla Phone Key eslesmesi ve canli cluster telemetrisi icin Bluetooth gerekir.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
