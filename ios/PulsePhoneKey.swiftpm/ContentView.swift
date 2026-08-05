@@ -341,13 +341,28 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
                 Section("Kadran") {
-                    Picker("Şekil", selection: $hudSettings.dialStyle) {
-                        ForEach(HUDSettings.DialStyle.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(HUDSettings.DialStyle.allCases) { style in
+                        Button {
+                            hudSettings.dialStyle = style
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: hudSettings.dialStyle == style ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(hudSettings.dialStyle == style ? Color.cyan : .secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(style.rawValue)
+                                        .foregroundStyle(.primary)
+                                        .font(.body.weight(hudSettings.dialStyle == style ? .semibold : .regular))
+                                    Text(style.blurb)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .pickerStyle(.menu)
-                    Text(hudSettings.dialStyle.blurb)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
                 Section("Dashboard Style") {
                     Picker("Speedometer", selection: $hudSettings.speedStyle) {
