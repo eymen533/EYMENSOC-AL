@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Dashla-style HUD — map tucks under center dial; both sides pick map/tires/trip/music.
+/// Dashla-style HUD — each Harita panel is its own map, tucked under the dial with soft blur.
 struct NativeHUDView: View {
     @ObservedObject var model: HUDModel
     @ObservedObject private var settings = HUDSettings.shared
@@ -24,13 +24,13 @@ struct NativeHUDView: View {
     /// Soft blend into dial — always dark so day mode never paints white bars.
     private var fadeIntoDial: Color { Color.black }
 
-    /// Map / media tuck under dial on their side only (never across the other panel).
-    private var leftBleed: Bool { model.leftSlide == 4 }
-    private var rightBleed: Bool { model.rightSlide == 4 }
+    /// Album art stays compact (no oversize bleed). Map stays inside its panel.
+    private var leftBleed: Bool { false }
+    private var rightBleed: Bool { false }
     private var leftMap: Bool { model.leftSlide == 3 }
     private var rightMap: Bool { model.rightSlide == 3 }
-    private var leftWing: Bool { leftMap || leftBleed }
-    private var rightWing: Bool { rightMap || rightBleed }
+    private var leftWing: Bool { leftMap }
+    private var rightWing: Bool { rightMap }
     private var anyBleed: Bool { leftWing || rightWing }
 
     var body: some View {
@@ -47,10 +47,6 @@ struct NativeHUDView: View {
                 } else {
                     triadPortrait(geo: geo)
                 }
-
-                topBar
-                    .frame(maxWidth: .infinity)
-                    .zIndex(20)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -61,7 +57,8 @@ struct NativeHUDView: View {
             model.start()
             model.pulseRails()
             model.night = true
-            settings.mapTheme = .dark
+            settings.mapTheme = .light
+            UserDefaults.standard.set(HUDSettings.MapTheme.light.rawValue, forKey: "pulse_map_theme")
             PhoneLocationStore.shared.start()
             UIApplication.shared.isIdleTimerDisabled = true
             MediaArtworkStore.shared.resolve(title: model.mediaTitle, artist: model.mediaArtist, album: model.mediaAlbum)
@@ -84,60 +81,61 @@ struct NativeHUDView: View {
 
     private enum Side { case left, right }
 
-    // MARK: - Triad (Dashla overlap — dial dead-center)
+    // MARK: - Triad
 
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.30, h * 0.72, 268)
+        let dialW = min(w * 0.40, h * 0.88, 340)
         let cx = w * 0.5
         let cy = h * 0.5
         let sideW = max(140, (w - dialW) / 2)
-        // Modest tuck under dial — enough depth, no double-map collision.
-        let tuck = dialW * 0.28
-        let leftW = sideW + (leftWing ? tuck : 0)
-        let rightW = sideW + (rightWing ? tuck : 0)
-        let chromeInk = Color.white
-        let chromeMuted = Color.white.opacity(0.7)
+        // Map only: extend under the dial; non-map panels stay flush with dial edge.
+        let tuck = dialW * 0.55
+        let leftW = sideW + (leftMap ? tuck : 0)
+        let rightW = sideW + (rightMap ? tuck : 0)
+        let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
+        let chromeMuted = Color.white.opacity(0.78)
+        let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
 
         return ZStack {
-            Color.black
+            cluster.zIndex(0)
 
-            // Left wing — clipped to its frame; extends under dial only.
             Group {
                 if leftMap {
                     panelMap(edge: .trailing, side: .left)
-                } else if leftBleed {
-                    panelMedia(edge: .trailing, side: .left)
+                        .id("hud-map-left")
                 } else {
                     sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
                 }
             }
             .frame(width: leftW, height: h)
             .clipShape(Rectangle())
-            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .zIndex(leftWing ? 0 : 1)
+            .zIndex(leftMap ? 0 : 1)
 
-            // Right wing — clipped; never stacks another map over the left bleed.
             Group {
                 if rightMap {
                     panelMap(edge: .leading, side: .right)
-                } else if rightBleed {
-                    panelMedia(edge: .leading, side: .right)
+                        .id("hud-map-right")
                 } else {
                     sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
                 }
             }
             .frame(width: rightW, height: h)
             .clipShape(Rectangle())
-            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-            .zIndex(rightWing ? 0 : 1)
+            .zIndex(rightMap ? 0 : 1)
 
-            // Opaque plate under dial hides any wing seam (no ghost layers).
+            // Soft frost bloom under dial (no second MKMapView).
+            if leftMap || rightMap {
+                underDialFrost(dialW: dialW, cx: cx, cy: cy)
+                    .zIndex(3)
+            }
+
+            // Dial plate — slightly translucent so tucked+blurred map reads through.
             Circle()
-                .fill(Color.black)
+                .fill(cluster.opacity(leftMap || rightMap ? 0.78 : 1))
                 .frame(width: dialW * 1.06, height: dialW * 1.06)
                 .position(x: cx, y: cy)
                 .zIndex(4)
@@ -153,27 +151,41 @@ struct NativeHUDView: View {
                 .position(x: cx, y: cy)
                 .zIndex(10)
 
+            if showTurn {
+                // Keep guidance inside the map panel — never over the dial.
+                let bannerX: CGFloat = {
+                    if leftMap && rightMap { return sideW * 0.48 }
+                    if rightMap && !leftMap { return w - sideW * 0.48 }
+                    return sideW * 0.48
+                }()
+                let bannerY = max(58, min(cy - dialW * 0.55, h * 0.22))
+                turnBanner
+                    .frame(maxWidth: min(280, sideW * 0.92), alignment: .leading)
+                    .position(x: bannerX, y: bannerY)
+                    .zIndex(8)
+            }
+
             if !isBlank(model.destination) {
                 Text(model.destination)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(chromeInk)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
                     .lineLimit(1)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                     .background(Capsule().fill(Color.black.opacity(0.55)))
-                    .position(x: cx, y: min(h - 28, cy + dialW * 0.5 + 28))
+                    .position(x: cx, y: min(h - 36, cy + dialW * 0.52 + 22))
                     .zIndex(8)
             }
 
             dialStatusStrip(maxWidth: dialW * 1.05)
-                .position(x: cx, y: min(h - 18, cy + dialW * 0.5 + 10))
+                .position(x: cx, y: min(h - 22, cy + dialW * 0.52 + 6))
                 .zIndex(8)
 
             HStack {
                 batteryChip
                 Spacer()
                 Text(odoText)
-                    .font(.caption2.monospacedDigit().weight(.semibold))
+                    .font(.caption.monospacedDigit().weight(.semibold))
                     .foregroundStyle(chromeMuted)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -181,26 +193,108 @@ struct NativeHUDView: View {
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .padding(.bottom, 6)
+            .padding(.bottom, 8)
             .zIndex(8)
+
+            dashlaChrome(leftMap: leftMap, rightMap: rightMap)
+                .zIndex(20)
         }
         .frame(width: w, height: h)
         .clipped()
         .ignoresSafeArea()
     }
 
-    /// Map on one side — full height, tucks under dial.
+    /// Map panel — tucks under dial; dial-facing edge gets soft Material blur.
     private func panelMap(edge: MapEdge, side: Side, verticalFromTop: Bool? = nil) -> some View {
-        mapSurface(
-            edge: edge,
-            side: side,
-            showTapExpand: true,
-            verticalFromTop: verticalFromTop,
-            asOverlay: false
-        )
+        ZStack {
+            mapSurface(
+                edge: edge,
+                side: side,
+                showTapExpand: true,
+                verticalFromTop: verticalFromTop,
+                asOverlay: false
+            )
+
+            // Soft blur of the map itself on the dial-facing edge (Material frosts content below).
+            mapUnderDialBlur(edge: edge, verticalFromTop: verticalFromTop)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
-        .background(Color.black)
+        .background(Color(red: 0.93, green: 0.94, blue: 0.95))
+    }
+
+    /// Frost strip on the dial-facing edge — light blur, no second map instance.
+    @ViewBuilder
+    private func mapUnderDialBlur(edge: MapEdge, verticalFromTop: Bool?) -> some View {
+        let band: CGFloat = 96
+        let frost = Rectangle()
+            .fill(.ultraThinMaterial)
+            .environment(\.colorScheme, .light)
+            .overlay(Color.black.opacity(0.14))
+            .allowsHitTesting(false)
+
+        if let fromTop = verticalFromTop {
+            VStack(spacing: 0) {
+                if !fromTop { Spacer(minLength: 0) }
+                frost
+                    .frame(height: band)
+                    .mask(
+                        LinearGradient(
+                            colors: fromTop
+                                ? [.clear, .white.opacity(0.45), .white]
+                                : [.white, .white.opacity(0.45), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                if fromTop { Spacer(minLength: 0) }
+            }
+            .allowsHitTesting(false)
+        } else {
+            HStack(spacing: 0) {
+                if edge == .trailing { Spacer(minLength: 0) }
+                frost
+                    .frame(width: band)
+                    .mask(
+                        LinearGradient(
+                            colors: edge == .leading
+                                ? [.white, .white.opacity(0.45), .clear]
+                                : [.clear, .white.opacity(0.45), .white],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                if edge == .leading { Spacer(minLength: 0) }
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    /// Soft radial frost behind the dial plate.
+    private func underDialFrost(dialW: CGFloat, cx: CGFloat, cy: CGFloat) -> some View {
+        Circle()
+            .fill(.ultraThinMaterial)
+            .environment(\.colorScheme, .dark)
+            .frame(width: dialW * 1.35, height: dialW * 1.35)
+            .mask(
+                RadialGradient(
+                    colors: [
+                        Color.white.opacity(0.85),
+                        Color.white.opacity(0.4),
+                        .clear
+                    ],
+                    center: .center,
+                    startRadius: dialW * 0.2,
+                    endRadius: dialW * 0.68
+                )
+            )
+            .overlay(
+                Circle()
+                    .fill(Color.black.opacity(0.22))
+                    .frame(width: dialW * 1.12, height: dialW * 1.12)
+            )
+            .position(x: cx, y: cy)
+            .allowsHitTesting(false)
     }
 
     /// Album art same full-height tuck as map.
@@ -236,55 +330,66 @@ struct NativeHUDView: View {
     private func triadPortrait(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.42, h * 0.24, 188)
-        let tuck = dialW * 0.26
-        let topChrome: CGFloat = 52
+        let dialW = min(w * 0.52, h * 0.30, 230)
+        let tuck = dialW * 0.55
+        let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
+        let topChrome: CGFloat = 10
         let wingH = max(96, (h - dialW - topChrome) / 2)
         let cx = w * 0.5
         let cy = topChrome + wingH + dialW * 0.5
-        let topWing = model.leftSlide == 3 || model.leftSlide == 4
-        let bottomWing = model.rightSlide == 3 || model.rightSlide == 4
+        let topWing = leftMap
+        let bottomWing = rightMap
         let topH = wingH + (topWing ? tuck : 0)
         let bottomH = wingH + (bottomWing ? tuck : 0)
+        let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
 
-        // ZStack + alignment tuck (no negative padding — that doubled MapKit layers).
         return ZStack {
-            Color.black
+            cluster
 
             Group {
-                if model.leftSlide == 3 {
+                if leftMap {
                     panelMap(edge: .trailing, side: .left, verticalFromTop: false)
-                } else if model.leftSlide == 4 {
-                    panelMedia(edge: .trailing, side: .left, verticalFromTop: false)
+                        .id("hud-map-top")
                 } else {
-                    sideColumn(slide: model.leftSlide, side: .left, showBattery: false)
+                    sideColumn(
+                        slide: model.leftSlide,
+                        side: .left,
+                        showBattery: false,
+                        portraitAligned: true
+                    )
                 }
             }
             .frame(width: w, height: topH)
             .clipShape(Rectangle())
-            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .padding(.top, topChrome)
             .zIndex(topWing ? 0 : 1)
 
             Group {
-                if model.rightSlide == 3 {
+                if rightMap {
                     panelMap(edge: .leading, side: .right, verticalFromTop: true)
-                } else if model.rightSlide == 4 {
-                    panelMedia(edge: .leading, side: .right, verticalFromTop: true)
+                        .id("hud-map-bottom")
                 } else {
-                    sideColumn(slide: model.rightSlide, side: .right, showBattery: false)
+                    sideColumn(
+                        slide: model.rightSlide,
+                        side: .right,
+                        showBattery: false,
+                        portraitAligned: true
+                    )
                 }
             }
             .frame(width: w, height: bottomH)
             .clipShape(Rectangle())
-            .clipped()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .zIndex(bottomWing ? 0 : 1)
 
-            // Opaque under-dial plate — kills seam / ghost map layers.
+            if topWing || bottomWing {
+                underDialFrost(dialW: dialW, cx: cx, cy: cy)
+                    .zIndex(3)
+            }
+
             Circle()
-                .fill(Color.black)
+                .fill(cluster.opacity(topWing || bottomWing ? 0.78 : 1))
                 .frame(width: dialW * 1.08, height: dialW * 1.08)
                 .position(x: cx, y: cy)
                 .zIndex(4)
@@ -292,6 +397,16 @@ struct NativeHUDView: View {
             dialView(size: dialW)
                 .position(x: cx, y: cy)
                 .zIndex(10)
+
+            if showTurn {
+                turnBanner
+                    .frame(maxWidth: min(w - 28, 320), alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: topWing ? .topLeading : .bottomLeading)
+                    .padding(.top, topWing ? topChrome + 10 : 0)
+                    .padding(.bottom, bottomWing && !topWing ? 56 : 0)
+                    .zIndex(8)
+            }
 
             if !isBlank(model.destination) {
                 Text(model.destination)
@@ -301,20 +416,24 @@ struct NativeHUDView: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(Capsule().fill(Color.black.opacity(0.55)))
-                    .position(x: cx, y: min(h - 40, cy + dialW * 0.5 + 34))
+                    .position(x: cx, y: min(h - 44, cy + dialW * 0.55 + 24))
                     .zIndex(8)
             }
 
             dialStatusStrip(maxWidth: dialW * 1.05)
-                .position(x: cx, y: min(h - 28, cy + dialW * 0.5 + 14))
+                .position(x: cx, y: min(h - 32, cy + dialW * 0.55 + 8))
                 .zIndex(8)
 
             batteryChip
-                .position(x: 70, y: h - 22)
+                .position(x: 74, y: h - 22)
                 .zIndex(8)
+
+            dashlaChrome(leftMap: leftMap, rightMap: rightMap)
+                .zIndex(20)
         }
         .frame(width: w, height: h)
         .clipped()
+        .ignoresSafeArea()
     }
 
     @ViewBuilder
@@ -345,17 +464,24 @@ struct NativeHUDView: View {
             .padding(.top, 48)
             .padding(.leading, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .zIndex(10)
 
             fullscreenCornerCard
                 .padding(.top, 48)
                 .padding(.trailing, 14)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .zIndex(10)
 
             if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
                 turnBanner
                     .padding(.top, 56)
+                    .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .zIndex(12)
             }
+
+            dashlaChrome(leftMap: false, rightMap: true)
+                .zIndex(20)
         }
     }
 
@@ -446,72 +572,80 @@ struct NativeHUDView: View {
 
     private func psi(_ v: Int) -> String { v > 0 ? "\(v)" : "--" }
 
-    // MARK: - Top bar
+    // MARK: - Dashla chrome (no solid top bar — texts float into panels/map)
 
-    private var topBar: some View {
-        let barInk = anyBleed ? Color.white : ink
-        let barMuted = anyBleed ? Color.white.opacity(0.7) : muted
-        return HStack(spacing: 10) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(barInk)
-            }
-            Text(model.clock.isEmpty ? "--:--" : model.clock)
-                .font(.subheadline.monospacedDigit().weight(.semibold))
-                .foregroundStyle(barInk)
-            Text(BLEPairer.buildId)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(.black)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05)))
-            Text(model.outdoorC == 0 ? "--°C" : "\(model.outdoorC)°C")
-                .font(.subheadline)
-                .foregroundStyle(barMuted)
-            Image(systemName: "car.fill")
-                .font(.caption)
-                .foregroundStyle(model.bleOK || model.isLive ? accent : barMuted.opacity(0.5))
-            if !isBlank(model.destination) {
-                Text(model.destination)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(barInk)
-                    .lineLimit(1)
-                    .frame(maxWidth: 140, alignment: .leading)
-            }
-            Spacer(minLength: 6)
+    private func dashlaChrome(leftMap: Bool, rightMap: Bool) -> some View {
+        let inkOnDark = Color.white
+        let mutedOnDark = Color.white.opacity(0.78)
+        // Over light map: dark pills so text stays readable.
+        let mapInk = Color.white
+        let mapMuted = Color.white.opacity(0.9)
 
-            Circle()
-                .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.7))
-                .frame(width: 7, height: 7)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Capsule().fill(Color.black.opacity(0.35)))
-
-            HStack(spacing: 5) {
-                Image(systemName: phoneBattIcon)
-                    .font(.caption2)
-                Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
-                    .font(.caption.monospacedDigit().weight(.semibold))
-            }
-            .foregroundStyle(barInk)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(Color.black.opacity(0.35)))
-
-            Button { onSettings?() } label: {
-                Image(systemName: "gearshape.fill")
+        return HStack(alignment: .top, spacing: 0) {
+            // Left cluster — sits on left panel (or map if left is Harita).
+            HStack(spacing: 8) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(inkOnDark)
+                }
+                Text(model.clock.isEmpty ? "--:--" : model.clock)
+                    .font(.subheadline.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(inkOnDark)
+                Text(BLEPairer.buildId)
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05)))
+                Text(model.outdoorC == 0 ? "--°C" : "\(model.outdoorC)°C")
+                    .font(.subheadline)
+                    .foregroundStyle(mutedOnDark)
+                Image(systemName: "car.fill")
                     .font(.caption)
-                    .foregroundStyle(barMuted)
+                    .foregroundStyle(model.bleOK || model.isLive ? accent : mutedOnDark.opacity(0.55))
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, leftMap ? 8 : 0)
+            .padding(.vertical, leftMap ? 5 : 0)
+            .background(
+                Group {
+                    if leftMap {
+                        Capsule().fill(Color.black.opacity(0.45))
+                    }
+                }
+            )
+            .shadow(color: .black.opacity(leftMap ? 0 : 0.55), radius: 3, y: 1)
+
+            Spacer(minLength: 8)
+
+            // Right cluster — floats on map side (Dashla style).
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.75))
+                    .frame(width: 7, height: 7)
+                HStack(spacing: 4) {
+                    Image(systemName: phoneBattIcon)
+                        .font(.caption2)
+                    Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                }
+                .foregroundStyle(mapInk)
+                Button { onSettings?() } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.caption)
+                        .foregroundStyle(mapMuted)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Color.black.opacity(rightMap ? 0.42 : 0.35)))
         }
         .padding(.horizontal, 14)
-        .padding(.top, 6)
-        .padding(.bottom, 10)
-        .frame(maxWidth: .infinity, alignment: .top)
-        // Solid black — map must never show through top chrome.
-        .background(Color.black)
+        .padding(.top, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // Critical: no full-width black bar.
+        .background(Color.clear)
     }
 
     private var phoneBattIcon: String {
@@ -557,14 +691,19 @@ struct NativeHUDView: View {
 
     // MARK: - Side columns
 
-    private func sideColumn(slide: Int, side: Side, showBattery: Bool) -> some View {
-        // Keep content clear of the vertical selection rail (~34pt near dial).
-        let railClear: CGFloat = 36
+    private func sideColumn(
+        slide: Int,
+        side: Side,
+        showBattery: Bool,
+        portraitAligned: Bool = false
+    ) -> some View {
+        // Landscape: clear the vertical selection rail (~34pt near dial).
+        // Portrait: same padding on top & bottom so identical slides line up.
+        let lead: CGFloat = portraitAligned ? 18 : (side == .right ? 36 : 10)
+        let trail: CGFloat = portraitAligned ? 18 : (side == .left ? 36 : 10)
         return ZStack(alignment: .bottomLeading) {
-            // Full opaque black — blocks MapKit bleed into this panel (including corners).
-            Color.black
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(red: 0.08, green: 0.08, blue: 0.09))
+            // Flat cluster — no inset card / rounded layer.
+            Color(red: 0.07, green: 0.07, blue: 0.08)
             Group {
                 switch slide {
                 case 1: tiresPanel(side: side)
@@ -574,8 +713,8 @@ struct NativeHUDView: View {
                 default: simplePanel
                 }
             }
-            .padding(.leading, side == .right ? railClear : 10)
-            .padding(.trailing, side == .left ? railClear : 10)
+            .padding(.leading, lead)
+            .padding(.trailing, trail)
             .padding(.top, 8)
             .padding(.bottom, showBattery ? 44 : 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -634,17 +773,8 @@ struct NativeHUDView: View {
                     turnByTurn: true,
                     turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
                     turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
-                    turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 }),
-                    forceDark: true
+                    turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 })
                 )
-            }
-
-            if !mapExpanded {
-                if let verticalFromTop {
-                    dialFadeVertical(fromTop: verticalFromTop)
-                } else {
-                    dialFade(edge: edge)
-                }
             }
 
             // Route status when GPS coords missing but destination known.
@@ -664,12 +794,6 @@ struct NativeHUDView: View {
                     .padding(.vertical, 8)
                     .background(Capsule().fill(Color.black.opacity(0.5)))
                     .padding(12)
-            }
-
-            if !mapExpanded, model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
-                turnBanner
-                    .padding(.leading, edge == .leading ? 20 : 12)
-                    .padding(.top, 10)
             }
 
             if showTapExpand {
@@ -723,11 +847,12 @@ struct NativeHUDView: View {
                     .foregroundStyle(.white.opacity(0.75))
                     .lineLimit(1)
                     .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
+                mediaTransportControls
+                    .padding(.top, 2)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .allowsHitTesting(false)
         }
         .clipped()
         .contentShape(Rectangle())
@@ -738,27 +863,27 @@ struct NativeHUDView: View {
         }
     }
 
-    /// Soft blend into dial — opaque on dial side, clear toward outer edge (never day-white).
+    /// Soft blend into dial — wider, gentler for color unity with cluster panel.
     private func dialFade(edge: MapEdge) -> some View {
         let dialSide: UnitPoint = edge == .leading ? .leading : .trailing
         let outerSide: UnitPoint = edge == .leading ? .trailing : .leading
         return LinearGradient(
-            colors: [fadeIntoDial.opacity(0.75), fadeIntoDial.opacity(0.15), .clear],
+            colors: [fadeIntoDial.opacity(0.22), fadeIntoDial.opacity(0.06), .clear],
             startPoint: dialSide,
             endPoint: outerSide
         )
-        .frame(width: 48)
+        .frame(width: 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edge == .leading ? .leading : .trailing)
         .allowsHitTesting(false)
     }
 
     private func dialFadeVertical(fromTop: Bool) -> some View {
         LinearGradient(
-            colors: [fadeIntoDial.opacity(0.75), fadeIntoDial.opacity(0.15), .clear],
+            colors: [fadeIntoDial.opacity(0.22), fadeIntoDial.opacity(0.06), .clear],
             startPoint: fromTop ? .top : .bottom,
             endPoint: fromTop ? .bottom : .top
         )
-        .frame(height: 40)
+        .frame(height: 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: fromTop ? .top : .bottom)
         .allowsHitTesting(false)
     }
@@ -793,7 +918,8 @@ struct NativeHUDView: View {
 
     private func dialView(size: CGFloat, compact: Bool = false) -> some View {
         let style = settings.dialStyle
-        let speedFont = compact ? size * 0.38 : size * 0.44
+        // Tesla cluster: large thin digits — slight bump for readability.
+        let speedFont = compact ? size * 0.44 : size * 0.52
         let ringW: CGFloat = compact ? 2.5 : 3.2
         let accel = CGFloat(min(1, max(0, model.powerKW) / 180.0))
         let regen = CGFloat(min(1, max(0, -model.powerKW) / 70.0))
@@ -801,7 +927,7 @@ struct NativeHUDView: View {
         // Bare over map/media: light type so it reads as floating 3D.
         let bareLit = style == .bare && (anyBleed || night)
         let dialInk: Color = bareLit ? .white : ink
-        let dialMuted: Color = bareLit ? Color.white.opacity(0.72) : muted
+        let dialMuted: Color = bareLit ? Color.white.opacity(0.78) : muted
         let dialDim: Color = bareLit ? Color.white.opacity(0.30) : dim
         // Raised dark plate — always black cluster (no day-silver).
         let plate: Color = Color(red: 0.12, green: 0.13, blue: 0.15)
@@ -811,26 +937,28 @@ struct NativeHUDView: View {
             HStack(spacing: size * 0.055) {
                 ForEach(["P", "R", "N", "D"], id: \.self) { g in
                     Text(g)
-                        .font(.system(size: max(10, size * 0.062), weight: .bold))
+                        .font(.system(size: max(12, size * 0.066), weight: .semibold))
                         .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: dialInk, dim: dialDim))
                         .shadow(color: .black.opacity(0.7), radius: 3, y: 2)
                 }
             }
             Text("\(Int(abs(model.speed).rounded()))")
-                .font(.system(size: speedFont, weight: .bold, design: .rounded))
+                .font(.system(size: speedFont, weight: .ultraLight, design: .default))
                 .monospacedDigit()
                 .foregroundStyle(dialInk)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
+                .tracking(-speedFont * 0.04)
+                .transaction { $0.animation = nil }
                 .shadow(color: .black.opacity(0.85), radius: style == .bare ? 12 : 5, y: style == .bare ? 7 : 3)
                 .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
             Text("km/h")
-                .font(.system(size: max(9, size * 0.048), weight: .medium))
+                .font(.system(size: max(11, size * 0.048), weight: .regular))
                 .foregroundStyle(dialMuted)
                 .shadow(color: .black.opacity(0.6), radius: 3, y: 2)
             if !compact, settings.liveLocation != .off, !isBlank(model.place) {
                 Text(model.place)
-                    .font(.system(size: max(9, size * 0.042)))
+                    .font(.system(size: max(11, size * 0.048), weight: .medium))
                     .foregroundStyle(dialMuted)
                     .lineLimit(1)
                     .padding(.top, 2)
@@ -1010,19 +1138,25 @@ struct NativeHUDView: View {
     @ViewBuilder
     private func dialStatusStrip(maxWidth: CGFloat) -> some View {
         let doors = model.openDoorLabels
+        let anyDoor = model.doorFL || model.doorFR || model.doorRL || model.doorRR
+            || model.frunkOpen || model.trunkOpen || model.chargePortOpen
         let showLights = model.anyLightOn
         if doors.isEmpty && !showLights && !model.locked {
             EmptyView()
         } else {
-            VStack(spacing: 4) {
-                if !doors.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "door.left.hand.open")
-                            .font(.caption2.weight(.bold))
-                        Text(doors.joined(separator: " · "))
-                            .font(.caption2.weight(.semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
+            VStack(spacing: 6) {
+                if anyDoor {
+                    HStack(spacing: 10) {
+                        doorCarGlyph
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(doors.joined(separator: " · "))
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.75)
+                            Text("Kapı açık")
+                                .font(.caption2)
+                                .foregroundStyle(Color.white.opacity(0.55))
+                        }
                     }
                     .foregroundStyle(Color(red: 1.0, green: 0.55, blue: 0.2))
                 }
@@ -1064,11 +1198,52 @@ struct NativeHUDView: View {
                     .foregroundStyle(muted)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
             .frame(maxWidth: maxWidth)
             .background(Capsule().fill(chipFill))
         }
+    }
+
+    /// Tiny top-down car — open doors glow amber.
+    private var doorCarGlyph: some View {
+        let open = Color(red: 1.0, green: 0.55, blue: 0.18)
+        let shut = Color.white.opacity(0.22)
+        return ZStack {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.white.opacity(0.12))
+                .frame(width: 22, height: 36)
+            // FL
+            Capsule()
+                .fill(model.doorFL ? open : shut)
+                .frame(width: 5, height: 11)
+                .offset(x: -10, y: -7)
+            // FR
+            Capsule()
+                .fill(model.doorFR ? open : shut)
+                .frame(width: 5, height: 11)
+                .offset(x: 10, y: -7)
+            // RL
+            Capsule()
+                .fill(model.doorRL ? open : shut)
+                .frame(width: 5, height: 11)
+                .offset(x: -10, y: 8)
+            // RR
+            Capsule()
+                .fill(model.doorRR ? open : shut)
+                .frame(width: 5, height: 11)
+                .offset(x: 10, y: 8)
+            if model.frunkOpen {
+                Capsule().fill(open).frame(width: 12, height: 4).offset(y: -16)
+            }
+            if model.trunkOpen {
+                Capsule().fill(open).frame(width: 12, height: 4).offset(y: 16)
+            }
+            if model.chargePortOpen {
+                Circle().fill(open).frame(width: 5, height: 5).offset(x: 12, y: -2)
+            }
+        }
+        .frame(width: 34, height: 40)
     }
 
     // MARK: - Panels
@@ -1098,11 +1273,11 @@ struct NativeHUDView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
             Text(linkLabel)
-                .font(.caption)
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(model.bleOK ? accent : muted)
                 .multilineTextAlignment(.center)
             Text(model.telemetrySource.uppercased())
-                .font(.caption2.weight(.bold))
+                .font(.caption.weight(.bold))
                 .foregroundStyle(model.isLive ? accent : muted)
         }
         .frame(maxWidth: 220)
@@ -1123,11 +1298,11 @@ struct NativeHUDView: View {
     private func tripRow(_ k: String, _ v: String) -> some View {
         VStack(alignment: .center, spacing: 4) {
             Text(k)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(muted)
                 .multilineTextAlignment(.center)
             Text(v)
-                .font(.title3.weight(.medium))
+                .font(.title2.weight(.medium))
                 .foregroundStyle(ink)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -1140,11 +1315,11 @@ struct NativeHUDView: View {
         GeometryReader { geo in
             let w = max(1, geo.size.width)
             let h = max(1, geo.size.height)
-            let labelW: CGFloat = min(58, w * 0.24)
-            let gap: CGFloat = 10
-            // Car sits in the middle; PSI labels stay beside it (never on the body).
-            let carW = min(max(44, w - labelW * 2 - gap * 2), h * 0.34)
-            let carH = min(h * 0.88, carW * 2.15)
+            let labelW: CGFloat = min(52, w * 0.20)
+            let gap: CGFloat = 8
+            // Larger Model Y top-down; PSI labels stay beside the body.
+            let carW = min(max(56, w - labelW * 2 - gap * 2), h * 0.46)
+            let carH = min(h * 0.92, carW * 2.15)
             let labelH = carH * 0.62
             HStack(alignment: .center, spacing: gap) {
                 VStack(spacing: 0) {
@@ -1206,24 +1381,84 @@ struct NativeHUDView: View {
 
     private var mediaPanel: some View {
         GeometryReader { geo in
-            let artSize = min(112, max(72, min(geo.size.width * 0.72, geo.size.height * 0.42)))
-            VStack(alignment: .center, spacing: 10) {
+            // Larger cover; reflection ~25% height under art.
+            let artSize = min(128, max(92, min(geo.size.width * 0.62, geo.size.height * 0.38)))
+            VStack(alignment: .center, spacing: 8) {
                 mediaServiceHeader
-                AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: artSize)
+                albumArtWithReflection(size: artSize)
                 Text(displayOrDash(model.mediaTitle))
-                    .font(.title3.weight(.semibold))
+                    .font(.title2.weight(.semibold))
                     .foregroundStyle(ink)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(0.8)
                 Text(displayOrDash(model.mediaArtist))
-                    .font(.subheadline)
-                    .foregroundStyle(muted)
+                    .font(.title3)
+                    .foregroundStyle(Color.white.opacity(0.72))
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
+                mediaTransportControls
             }
-            .frame(maxWidth: min(200, geo.size.width))
+            .frame(maxWidth: min(260, geo.size.width))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        }
+    }
+
+    private var mediaTransportControls: some View {
+        HStack(spacing: 18) {
+            Button { model.skipTrack(-1) } label: {
+                Image(systemName: "backward.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button { model.togglePlay() } label: {
+                Image(systemName: model.mediaPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(Color.white.opacity(0.12)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            Button { model.skipTrack(1) } label: {
+                Image(systemName: "forward.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.top, 2)
+    }
+
+    private func albumArtWithReflection(size: CGFloat) -> some View {
+        // ~25% height mirror under the cover.
+        let reflectH = size * 0.25
+        return VStack(spacing: 0) {
+            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
+            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
+                .scaleEffect(x: 1, y: -1)
+                .frame(height: reflectH, alignment: .top)
+                .clipped()
+                .opacity(0.25)
+                .mask(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.55),
+                            Color.white.opacity(0.12),
+                            .clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .allowsHitTesting(false)
         }
     }
 
@@ -1238,7 +1473,7 @@ struct NativeHUDView: View {
                     .foregroundStyle(.white)
             }
             Text(displayOrDash(model.mediaService))
-                .font(.subheadline.weight(.semibold))
+                .font(.body.weight(.semibold))
                 .foregroundStyle(anyBleed || night ? Color.white : ink)
                 .lineLimit(1)
         }
@@ -1262,26 +1497,33 @@ struct NativeHUDView: View {
     }
 
     private var turnBanner: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Image(systemName: model.turnSymbol.isEmpty ? "arrow.turn.up.right" : model.turnSymbol)
-                .font(.title2.weight(.bold))
-                .foregroundStyle(ink)
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: 2) {
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 34)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(turnDistanceText)
-                    .font(.title2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(ink)
+                    .font(.title.weight(.bold).monospacedDigit())
+                    .foregroundStyle(.white)
                 if !model.turnInstruction.isEmpty {
                     Text(model.turnInstruction)
-                        .font(.caption)
-                        .foregroundStyle(muted)
-                        .lineLimit(1)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Color.white.opacity(0.88))
+                        .lineLimit(2)
                 }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(chipFill))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.black.opacity(0.82))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                )
+        )
         .allowsHitTesting(false)
     }
 

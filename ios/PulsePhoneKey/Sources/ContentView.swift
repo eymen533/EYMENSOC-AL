@@ -5,7 +5,6 @@ struct ContentView: View {
     @StateObject private var ble = BLEPairer()
     @StateObject private var hud = HUDModel()
     @ObservedObject private var hudSettings = HUDSettings.shared
-    @ObservedObject private var diagLog = PulseDiagLog.shared
     @State private var showVINScanner = false
     @State private var showRePairConfirm = false
     @State private var vin = KeyStore.loadSavedVIN()
@@ -21,6 +20,8 @@ struct ContentView: View {
     @State private var showPairFlow = false
     @State private var screen: Screen = .home
     @State private var showSettings = false
+    /// Snapshot only — do not observe PulseDiagLog from the HUD root (Metal crash).
+    @State private var diagEntryCount = 0
     /// Force home UI refresh when KeyStore paired flag changes.
     @State private var pairEpoch = 0
 
@@ -54,6 +55,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showSettings) {
             settingsSheet
+                .onAppear { diagEntryCount = PulseDiagLog.shared.entryCount }
         }
         .sheet(isPresented: $showVINScanner) {
             VINScannerSheet(vin: $vin)
@@ -403,16 +405,18 @@ struct ContentView: View {
                             Image(systemName: "doc.text.magnifyingglass")
                             Text("Logları aç")
                             Spacer()
-                            Text("\(diagLog.entries.count)")
+                            Text("\(diagEntryCount)")
                                 .foregroundStyle(.secondary)
                         }
                     }
                     Button("Logları panoya kopyala") {
+                        let log = PulseDiagLog.shared
                         UIPasteboard.general.string = {
                             let header = "Pulse28 \(BLEPairer.buildId) · \(ISO8601DateFormatter().string(from: Date()))\n"
-                            return header + diagLog.entries.reversed().map(\.line).joined(separator: "\n")
+                            return header + log.entries.reversed().map(\.line).joined(separator: "\n")
                         }()
-                        PulseDiagLog.shared.info("Log copied to clipboard (\(diagLog.entries.count) lines)")
+                        PulseDiagLog.shared.info("Log copied to clipboard (\(log.entryCount) lines)")
+                        diagEntryCount = PulseDiagLog.shared.entryCount
                         logCopiedFlash = true
                     }
                     if logCopiedFlash {
@@ -421,7 +425,8 @@ struct ContentView: View {
                             .foregroundStyle(.green)
                     }
                     Button("Logları temizle", role: .destructive) {
-                        diagLog.clear()
+                        PulseDiagLog.shared.clear()
+                        diagEntryCount = 0
                     }
                 }
                 Section("Dash (yedek)") {

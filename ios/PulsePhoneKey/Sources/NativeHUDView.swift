@@ -1315,11 +1315,11 @@ struct NativeHUDView: View {
         GeometryReader { geo in
             let w = max(1, geo.size.width)
             let h = max(1, geo.size.height)
-            let labelW: CGFloat = min(58, w * 0.24)
-            let gap: CGFloat = 10
-            // Car sits in the middle; PSI labels stay beside it (never on the body).
-            let carW = min(max(44, w - labelW * 2 - gap * 2), h * 0.34)
-            let carH = min(h * 0.88, carW * 2.15)
+            let labelW: CGFloat = min(52, w * 0.20)
+            let gap: CGFloat = 8
+            // Larger Model Y top-down; PSI labels stay beside the body.
+            let carW = min(max(56, w - labelW * 2 - gap * 2), h * 0.46)
+            let carH = min(h * 0.92, carW * 2.15)
             let labelH = carH * 0.62
             HStack(alignment: .center, spacing: gap) {
                 VStack(spacing: 0) {
@@ -1381,9 +1381,9 @@ struct NativeHUDView: View {
 
     private var mediaPanel: some View {
         GeometryReader { geo in
-            // ~50% larger than previous compact cover (was ~48–64).
-            let artSize = min(96, max(72, min(geo.size.width * 0.52, geo.size.height * 0.30)))
-            VStack(alignment: .center, spacing: 10) {
+            // Larger cover; reflection ~25% height under art.
+            let artSize = min(128, max(92, min(geo.size.width * 0.62, geo.size.height * 0.38)))
+            VStack(alignment: .center, spacing: 8) {
                 mediaServiceHeader
                 albumArtWithReflection(size: artSize)
                 Text(displayOrDash(model.mediaTitle))
@@ -1399,59 +1399,59 @@ struct NativeHUDView: View {
                     .lineLimit(1)
                 mediaTransportControls
             }
-            .frame(maxWidth: min(240, geo.size.width))
+            .frame(maxWidth: min(260, geo.size.width))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 
     private var mediaTransportControls: some View {
-        HStack(spacing: 28) {
+        HStack(spacing: 18) {
             Button { model.skipTrack(-1) } label: {
                 Image(systemName: "backward.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .frame(width: 32, height: 32)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
             Button { model.togglePlay() } label: {
                 Image(systemName: model.mediaPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 26, weight: .bold))
+                    .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(Circle().fill(Color.white.opacity(0.14)))
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(Color.white.opacity(0.12)))
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
 
             Button { model.skipTrack(1) } label: {
                 Image(systemName: "forward.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .frame(width: 32, height: 32)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.top, 4)
+        .padding(.top, 2)
     }
 
     private func albumArtWithReflection(size: CGFloat) -> some View {
-        // ~10% height mirror under the cover.
-        let reflectH = size * 0.12
+        // ~25% height mirror under the cover.
+        let reflectH = size * 0.25
         return VStack(spacing: 0) {
             AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
             AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
                 .scaleEffect(x: 1, y: -1)
                 .frame(height: reflectH, alignment: .top)
                 .clipped()
-                .opacity(0.32)
+                .opacity(0.25)
                 .mask(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.50),
-                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.55),
+                            Color.white.opacity(0.12),
                             .clear
                         ],
                         startPoint: .top,
