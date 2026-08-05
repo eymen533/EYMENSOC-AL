@@ -1027,16 +1027,12 @@ struct NativeHUDView: View {
                         .shadow(color: .black.opacity(0.7), radius: 3, y: 2)
                 }
             }
-            Text("\(Int(abs(model.speed).rounded()))")
-                .font(.system(size: speedFont, weight: .ultraLight, design: .default))
-                .monospacedDigit()
-                .foregroundStyle(dialInk)
-                .minimumScaleFactor(0.5)
-                .lineLimit(1)
-                .tracking(-speedFont * 0.04)
-                .transaction { $0.animation = nil }
-                .shadow(color: .black.opacity(0.85), radius: style == .bare ? 12 : 5, y: style == .bare ? 7 : 3)
-                .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
+            DialSpeedDigits(
+                target: model.speed,
+                fontSize: speedFont,
+                ink: dialInk,
+                bare: style == .bare
+            )
             Text("km/h")
                 .font(.system(size: max(11, size * 0.048), weight: .regular))
                 .foregroundStyle(dialMuted)
@@ -1610,5 +1606,56 @@ struct NativeHUDView: View {
 
     private func displayOrDash(_ s: String) -> String {
         isBlank(s) ? "--" : s
+    }
+}
+
+/// Local-only speed tick — does NOT publish into HUDModel (avoids Metal SIGABRT from 60Hz rebuilds).
+private struct DialSpeedDigits: View {
+    let target: Double
+    let fontSize: CGFloat
+    let ink: Color
+    let bare: Bool
+
+    @State private var shown: Double = 0
+    @State private var booted = false
+
+    /// Shared publisher — one timer for the dial, not a new one every body pass.
+    private static let ticker = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        Text("\(Int(abs(shown).rounded()))")
+            .font(.system(size: fontSize, weight: .ultraLight, design: .default))
+            .monospacedDigit()
+            .foregroundStyle(ink)
+            .minimumScaleFactor(0.5)
+            .lineLimit(1)
+            .tracking(-fontSize * 0.04)
+            .transaction { $0.animation = nil }
+            .shadow(color: .black.opacity(0.85), radius: bare ? 12 : 5, y: bare ? 7 : 3)
+            .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
+            .onAppear {
+                if !booted {
+                    shown = target
+                    booted = true
+                }
+            }
+            .onReceive(Self.ticker) { _ in
+                stepTowardTarget()
+            }
+    }
+
+    private func stepTowardTarget() {
+        let gap = target - shown
+        let absGap = abs(gap)
+        guard absGap >= 0.45 else {
+            if shown != target { shown = target }
+            return
+        }
+        let steps: Double
+        if absGap > 28 { steps = 4 }
+        else if absGap > 14 { steps = 2 }
+        else { steps = 1 }
+        let move = min(absGap, steps)
+        shown = shown + (gap > 0 ? move : -move)
     }
 }
