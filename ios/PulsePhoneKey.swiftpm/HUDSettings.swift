@@ -69,6 +69,21 @@ final class HUDSettings: ObservableObject {
         var id: String { rawValue }
     }
 
+    /// Standard / hybrid / satellite imagery for the HUD map.
+    enum MapImagery: String, CaseIterable, Identifiable {
+        case standard = "Harita"
+        case hybrid = "Hibrit"
+        case satellite = "Uydu"
+        var id: String { rawValue }
+        var systemImage: String {
+            switch self {
+            case .standard: return "map"
+            case .hybrid: return "square.3.layers.3d"
+            case .satellite: return "globe.americas.fill"
+            }
+        }
+    }
+
     enum DialStyle: String, CaseIterable, Identifiable {
         case circle = "Yuvarlak"
         case square = "Kare"
@@ -103,6 +118,12 @@ final class HUDSettings: ObservableObject {
     @Published var mapTheme: MapTheme {
         didSet { UserDefaults.standard.set(mapTheme.rawValue, forKey: "pulse_map_theme") }
     }
+    @Published var mapImagery: MapImagery {
+        didSet { UserDefaults.standard.set(mapImagery.rawValue, forKey: "pulse_map_imagery") }
+    }
+    @Published var mapShowsTraffic: Bool {
+        didSet { UserDefaults.standard.set(mapShowsTraffic, forKey: "pulse_map_traffic") }
+    }
     @Published var gearMulticolor: Bool {
         didSet { UserDefaults.standard.set(gearMulticolor, forKey: "pulse_gear_multicolor") }
     }
@@ -122,7 +143,9 @@ final class HUDSettings: ObservableObject {
         default: mapsProvider = .apple
         }
         autoZoom = d.object(forKey: "pulse_maps_auto_zoom") as? Bool ?? true
-        mapTheme = MapTheme(rawValue: d.string(forKey: "pulse_map_theme") ?? "") ?? .dark
+        mapTheme = MapTheme(rawValue: d.string(forKey: "pulse_map_theme") ?? "") ?? .light
+        mapImagery = MapImagery(rawValue: d.string(forKey: "pulse_map_imagery") ?? "") ?? .standard
+        mapShowsTraffic = d.object(forKey: "pulse_map_traffic") as? Bool ?? true
         gearMulticolor = d.object(forKey: "pulse_gear_multicolor") as? Bool ?? true
     }
 

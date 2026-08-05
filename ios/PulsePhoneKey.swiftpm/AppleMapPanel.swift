@@ -14,6 +14,9 @@ struct AppleMapPanel: View {
     var theme: HUDSettings.MapTheme
     /// Close follow like car nav (not whole-route overview).
     var turnByTurn: Bool = true
+    var imagery: HUDSettings.MapImagery = .standard
+    var showsTraffic: Bool = true
+    var onUserTap: (() -> Void)? = nil
     @Binding var turnDistanceM: Int
     @Binding var turnInstruction: String
     @Binding var turnSymbol: String
@@ -46,7 +49,10 @@ struct AppleMapPanel: View {
                     destination: destCoord,
                     autoZoom: autoZoom,
                     turnByTurn: turnByTurn && (hasDestCoord || resolvedDest != nil || !routeCoords.isEmpty),
-                    dark: theme != .light
+                    dark: theme != .light,
+                    imagery: imagery,
+                    showsTraffic: showsTraffic,
+                    onUserTap: onUserTap
                 )
             } else {
                 Color(red: 0.93, green: 0.94, blue: 0.95)
@@ -58,8 +64,18 @@ struct AppleMapPanel: View {
             }
         }
         .onAppear { fetchRouteIfNeeded(force: true) }
-        .onChangeCompat(of: lat) { _ in maybeRerouteFromMovement() }
-        .onChangeCompat(of: lon) { _ in maybeRerouteFromMovement() }
+        .onChangeCompat(of: lat) { _ in
+            maybeRerouteFromMovement()
+            if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
+                fetchRouteIfNeeded(force: true)
+            }
+        }
+        .onChangeCompat(of: lon) { _ in
+            maybeRerouteFromMovement()
+            if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
+                fetchRouteIfNeeded(force: true)
+            }
+        }
         .onChangeCompat(of: destination) { _ in
             resolvedDest = nil
             lastRouteDestKey = ""
@@ -72,19 +88,6 @@ struct AppleMapPanel: View {
         .onChangeCompat(of: destLon) { _ in
             lastRouteDestKey = ""
             fetchRouteIfNeeded(force: true)
-        }
-        .onChangeCompat(of: lat) { _ in
-            maybeRerouteFromMovement()
-            // First GPS fix while dest already known — build the line immediately.
-            if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
-                fetchRouteIfNeeded(force: true)
-            }
-        }
-        .onChangeCompat(of: lon) { _ in
-            maybeRerouteFromMovement()
-            if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
-                fetchRouteIfNeeded(force: true)
-            }
         }
     }
 
@@ -322,6 +325,9 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
     var autoZoom: Bool
     var turnByTurn: Bool
     var dark: Bool
+    var imagery: HUDSettings.MapImagery
+    var showsTraffic: Bool
+    var onUserTap: (() -> Void)?
 
     /// Hard clip host — MKMapView metal layer otherwise bleeds under siblings / top bar.
     /// Forces light trait collection so Apple Maps tiles stay bright inside a dark HUD.
@@ -365,20 +371,19 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
 
         let map = MKMapView(frame: .zero)
         map.translatesAutoresizingMaskIntoConstraints = false
-        map.isUserInteractionEnabled = false
+        map.isUserInteractionEnabled = true
+        map.isZoomEnabled = true
+        map.isScrollEnabled = true
+        map.isRotateEnabled = true
+        map.isPitchEnabled = true
         map.isOpaque = true
         map.showsCompass = false
-        map.showsTraffic = false
+        map.showsTraffic = showsTraffic
         map.showsPointsOfInterest = true
         map.showsBuildings = true
+        map.delegate = context.coordinator
         map.overrideUserInterfaceStyle = dark ? .dark : .light
-        if #available(iOS 16.0, *) {
-            let cfg = MKStandardMapConfiguration(emphasisStyle: .default)
-            cfg.pointOfInterestFilter = .includingAll
-            map.preferredConfiguration = cfg
-        } else {
-            map.mapType = .standard
-        }
+        Self.applyImagery(imagery, to: map, dark: dark)
         map.clipsToBounds = true
         map.layer.masksToBounds = true
         map.backgroundColor = dark ? UIColor.black : paper
@@ -396,6 +401,14 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.addAnnotation(car)
         context.coordinator.car = car
         context.coordinator.mapView = map
+        context.coordinator.onUserTap = onUserTap
+
+        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coord.handleTap(_:)))
+        tap.numberOfTapsRequired = 1
+        tap.cancelsTouchesInView = false
+        map.addGestureRecognizer(tap)
+        context.coordinator.tapRecognizer = tap
+
         return host
     }
 
@@ -412,17 +425,21 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             return
         }
         context.coordinator.mapView = map
+        context.coordinator.onUserTap = onUserTap
+        map.delegate = context.coordinator
         map.clipsToBounds = true
         map.layer.masksToBounds = true
         map.overrideUserInterfaceStyle = dark ? .dark : .light
         map.backgroundColor = dark ? .black : paper
         map.showsBuildings = true
-        if #available(iOS 16.0, *) {
-            let cfg = MKStandardMapConfiguration(emphasisStyle: .default)
-            cfg.pointOfInterestFilter = .includingAll
-            map.preferredConfiguration = cfg
-        } else {
-            map.mapType = .standard
+        map.showsTraffic = showsTraffic
+        map.isUserInteractionEnabled = true
+        map.isZoomEnabled = true
+        map.isScrollEnabled = true
+        if context.coordinator.lastImagery != imagery || context.coordinator.lastDark != dark {
+            Self.applyImagery(imagery, to: map, dark: dark)
+            context.coordinator.lastImagery = imagery
+            context.coordinator.lastDark = dark
         }
         let c = context.coordinator
 
@@ -458,7 +475,8 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
             c.lastRouteKey = routeKey
         }
 
-        guard autoZoom else { return }
+        // User pinch/pan — don't fight with forced camera until grace expires.
+        guard autoZoom, Date() >= c.userControlUntil else { return }
 
         let now = Date()
         let moved: CLLocationDistance = {
@@ -489,16 +507,61 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         c.lastCameraAt = now
     }
 
+    static func applyImagery(_ imagery: HUDSettings.MapImagery, to map: MKMapView, dark: Bool) {
+        if #available(iOS 16.0, *) {
+            switch imagery {
+            case .standard:
+                let cfg = MKStandardMapConfiguration(emphasisStyle: .default)
+                cfg.pointOfInterestFilter = .includingAll
+                map.preferredConfiguration = cfg
+            case .hybrid:
+                let cfg = MKHybridMapConfiguration(elevationStyle: .realistic)
+                cfg.pointOfInterestFilter = .includingAll
+                map.preferredConfiguration = cfg
+            case .satellite:
+                map.preferredConfiguration = MKImageryMapConfiguration(elevationStyle: .realistic)
+            }
+        } else {
+            switch imagery {
+            case .standard: map.mapType = .standard
+            case .hybrid: map.mapType = .hybrid
+            case .satellite: map.mapType = .satellite
+            }
+        }
+        map.overrideUserInterfaceStyle = dark ? .dark : .light
+    }
+
     func makeCoordinator() -> Coord { Coord() }
 
     final class Coord: NSObject, MKMapViewDelegate {
         weak var mapView: MKMapView?
+        weak var tapRecognizer: UITapGestureRecognizer?
         var car: CarMapAnnotation?
         var dest: DestMapAnnotation?
         var lastCameraCenter: CLLocationCoordinate2D?
         var lastHeading: Double?
         var lastCameraAt = Date.distantPast
         var lastRouteKey = ""
+        var lastImagery: HUDSettings.MapImagery = .standard
+        var lastDark = false
+        var userControlUntil = Date.distantPast
+        var onUserTap: (() -> Void)?
+
+        @objc func handleTap(_ gr: UITapGestureRecognizer) {
+            guard gr.state == .ended else { return }
+            onUserTap?()
+        }
+
+        func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
+            // Detect finger-driven camera changes (pinch / pan / rotate).
+            guard let gestures = mapView.subviews.first?.gestureRecognizers else { return }
+            for g in gestures {
+                if g.state == .began || g.state == .changed {
+                    userControlUntil = Date().addingTimeInterval(10)
+                    return
+                }
+            }
+        }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let p = overlay as? MKPolyline {

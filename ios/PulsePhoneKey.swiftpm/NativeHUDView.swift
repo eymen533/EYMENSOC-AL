@@ -11,6 +11,9 @@ struct NativeHUDView: View {
     var onSettings: (() -> Void)? = nil
 
     @State private var mapExpanded = false
+    /// Map type / traffic icons — flash on tap, then auto-hide.
+    @State private var mapChromeVisible = false
+    @State private var mapChromeHideToken = 0
 
     /// Always black cluster — vehicle day/night theme is ignored (white glare).
     private var night: Bool { true }
@@ -18,6 +21,7 @@ struct NativeHUDView: View {
     private var muted: Color { Color.white.opacity(0.55) }
     private var dim: Color { Color.white.opacity(0.22) }
     private var accent: Color { Color(red: 0.20, green: 0.72, blue: 0.62) }
+    private var dialGlow: Color { Color(red: 1.0, green: 0.82, blue: 0.12) }
     private var canvas: Color { .black }
     private var dialFill: Color { Color(red: 0.08, green: 0.08, blue: 0.09) }
     private var chipFill: Color { Color.black.opacity(0.72) }
@@ -133,10 +137,10 @@ struct NativeHUDView: View {
                     .zIndex(3)
             }
 
-            // Dial plate — slightly translucent so tucked+blurred map reads through.
+            // Dial plate — slightly translucent so tucked map reads through.
             Circle()
-                .fill(cluster.opacity(leftMap || rightMap ? 0.78 : 1))
-                .frame(width: dialW * 1.06, height: dialW * 1.06)
+                .fill(cluster.opacity(leftMap || rightMap ? 0.88 : 1))
+                .frame(width: dialW * 1.02, height: dialW * 1.02)
                 .position(x: cx, y: cy)
                 .zIndex(4)
 
@@ -226,11 +230,11 @@ struct NativeHUDView: View {
     /// Frost strip on the dial-facing edge — light blur, no second map instance.
     @ViewBuilder
     private func mapUnderDialBlur(edge: MapEdge, verticalFromTop: Bool?) -> some View {
-        let band: CGFloat = 96
+        let band: CGFloat = 56
         let frost = Rectangle()
             .fill(.ultraThinMaterial)
             .environment(\.colorScheme, .light)
-            .overlay(Color.black.opacity(0.14))
+            .overlay(Color.black.opacity(0.06))
             .allowsHitTesting(false)
 
         if let fromTop = verticalFromTop {
@@ -241,8 +245,8 @@ struct NativeHUDView: View {
                     .mask(
                         LinearGradient(
                             colors: fromTop
-                                ? [.clear, .white.opacity(0.45), .white]
-                                : [.white, .white.opacity(0.45), .clear],
+                                ? [.clear, .white.opacity(0.35), .white.opacity(0.7)]
+                                : [.white.opacity(0.7), .white.opacity(0.35), .clear],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -258,8 +262,8 @@ struct NativeHUDView: View {
                     .mask(
                         LinearGradient(
                             colors: edge == .leading
-                                ? [.white, .white.opacity(0.45), .clear]
-                                : [.clear, .white.opacity(0.45), .white],
+                                ? [.white.opacity(0.7), .white.opacity(0.35), .clear]
+                                : [.clear, .white.opacity(0.35), .white.opacity(0.7)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -270,28 +274,28 @@ struct NativeHUDView: View {
         }
     }
 
-    /// Soft radial frost behind the dial plate.
+    /// Soft radial frost behind the dial plate — kept light so map stays readable.
     private func underDialFrost(dialW: CGFloat, cx: CGFloat, cy: CGFloat) -> some View {
         Circle()
             .fill(.ultraThinMaterial)
             .environment(\.colorScheme, .dark)
-            .frame(width: dialW * 1.35, height: dialW * 1.35)
+            .frame(width: dialW * 1.18, height: dialW * 1.18)
             .mask(
                 RadialGradient(
                     colors: [
-                        Color.white.opacity(0.85),
-                        Color.white.opacity(0.4),
+                        Color.white.opacity(0.55),
+                        Color.white.opacity(0.18),
                         .clear
                     ],
                     center: .center,
-                    startRadius: dialW * 0.2,
-                    endRadius: dialW * 0.68
+                    startRadius: dialW * 0.28,
+                    endRadius: dialW * 0.58
                 )
             )
             .overlay(
                 Circle()
-                    .fill(Color.black.opacity(0.22))
-                    .frame(width: dialW * 1.12, height: dialW * 1.12)
+                    .fill(Color.black.opacity(0.10))
+                    .frame(width: dialW * 1.04, height: dialW * 1.04)
             )
             .position(x: cx, y: cy)
             .allowsHitTesting(false)
@@ -389,8 +393,8 @@ struct NativeHUDView: View {
             }
 
             Circle()
-                .fill(cluster.opacity(topWing || bottomWing ? 0.78 : 1))
-                .frame(width: dialW * 1.08, height: dialW * 1.08)
+                .fill(cluster.opacity(topWing || bottomWing ? 0.88 : 1))
+                .frame(width: dialW * 1.02, height: dialW * 1.02)
                 .position(x: cx, y: cy)
                 .zIndex(4)
 
@@ -771,6 +775,7 @@ struct NativeHUDView: View {
                     destLon: model.destLongitude,
                     apiKey: model.googleMapsKey,
                     turnByTurn: true,
+                    onUserTap: { flashMapChrome() },
                     turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
                     turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
                     turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 })
@@ -786,6 +791,7 @@ struct NativeHUDView: View {
                     .padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.55)))
                     .padding(12)
+                    .allowsHitTesting(false)
             } else if !mapExpanded, !hasMapGPS, abs(model.destLatitude) < 0.0001, abs(model.destLongitude) < 0.0001 {
                 Text("Konum izni / GPS bekleniyor")
                     .font(.caption.weight(.semibold))
@@ -794,18 +800,86 @@ struct NativeHUDView: View {
                     .padding(.vertical, 8)
                     .background(Capsule().fill(Color.black.opacity(0.5)))
                     .padding(12)
+                    .allowsHitTesting(false)
             }
 
-            if showTapExpand {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = true }
-                    }
-                    .gesture(sideSwipe(side: side))
+            // Small transparent map controls — right edge; flash on tap then fade.
+            if mapChromeVisible {
+                mapChromeRail(showExpand: showTapExpand && !mapExpanded)
+                    .padding(.trailing, 8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+                    .zIndex(5)
             }
         }
         .clipped()
+        .animation(.easeOut(duration: 0.22), value: mapChromeVisible)
+    }
+
+    private func flashMapChrome() {
+        mapChromeHideToken &+= 1
+        let token = mapChromeHideToken
+        withAnimation(.easeOut(duration: 0.18)) { mapChromeVisible = true }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_500_000_000)
+            guard token == mapChromeHideToken else { return }
+            withAnimation(.easeOut(duration: 0.28)) { mapChromeVisible = false }
+        }
+    }
+
+    /// Compact translucent map / satellite / traffic / expand icons.
+    private func mapChromeRail(showExpand: Bool) -> some View {
+        VStack(spacing: 8) {
+            ForEach(HUDSettings.MapImagery.allCases) { kind in
+                mapChromeButton(
+                    systemName: kind.systemImage,
+                    selected: settings.mapImagery == kind
+                ) {
+                    settings.mapImagery = kind
+                    flashMapChrome()
+                }
+            }
+            mapChromeButton(
+                systemName: "car.fill",
+                selected: settings.mapShowsTraffic
+            ) {
+                settings.mapShowsTraffic.toggle()
+                flashMapChrome()
+            }
+            if showExpand {
+                mapChromeButton(systemName: "arrow.up.left.and.arrow.down.right", selected: false) {
+                    withAnimation(.easeInOut(duration: 0.28)) { mapExpanded = true }
+                }
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 7)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color.black.opacity(0.28))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func mapChromeButton(
+        systemName: String,
+        selected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(selected ? Color.white : Color.white.opacity(0.72))
+                .frame(width: 30, height: 30)
+                .background(
+                    Circle()
+                        .fill(selected ? Color.white.opacity(0.22) : Color.white.opacity(0.08))
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     /// Album art fills the panel and tucks under the dial like the map.
@@ -967,30 +1041,14 @@ struct NativeHUDView: View {
         .padding(.horizontal, 8)
 
         return ZStack {
-            // Cast shadow on the wing plane (visible depth cue).
-            if !compact {
-                Ellipse()
-                    .fill(Color.black.opacity(0.70))
-                    .frame(width: size * 1.05, height: size * 0.34)
-                    .blur(radius: 16)
-                    .offset(y: size * 0.42)
-                    .allowsHitTesting(false)
-                Ellipse()
-                    .fill(Color.black.opacity(0.45))
-                    .frame(width: size * 0.78, height: size * 0.16)
-                    .blur(radius: 5)
-                    .offset(y: size * 0.34)
-                    .allowsHitTesting(false)
-            }
-
             // Shell / frame by style — extruded bezel (3D thickness).
             switch style {
             case .circle:
                 // Extrusion stack (side wall).
-                ForEach(0..<5, id: \.self) { i in
+                ForEach(0..<4, id: \.self) { i in
                     Circle()
-                        .fill(Color.black.opacity(0.55 - Double(i) * 0.06))
-                        .offset(y: CGFloat(i) * 1.4 + 2)
+                        .fill(Color.black.opacity(0.42 - Double(i) * 0.06))
+                        .offset(y: CGFloat(i) * 1.1 + 1)
                 }
                 // Raised face.
                 Circle()
@@ -1006,24 +1064,15 @@ struct NativeHUDView: View {
                             endRadius: size * 0.58
                         )
                     )
-                // Chrome rim.
+                // Thin yellow boundary + glow (replaces heavy drop shadow on map).
                 Circle()
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(night ? 0.75 : 0.95),
-                                Color.white.opacity(0.15),
-                                Color.black.opacity(night ? 0.85 : 0.45)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: compact ? 4 : 6
-                    )
-                    .padding(1)
+                    .stroke(dialGlow.opacity(0.95), lineWidth: compact ? 1.0 : 1.25)
+                    .shadow(color: dialGlow.opacity(0.95), radius: compact ? 2.2 : 3.2)
+                    .shadow(color: dialGlow.opacity(0.45), radius: compact ? 5 : 7)
+                    .padding(0.5)
                 Circle()
-                    .stroke(Color.white.opacity(night ? 0.18 : 0.35), lineWidth: 1.2)
-                    .padding(size * 0.05)
+                    .stroke(Color.white.opacity(night ? 0.14 : 0.28), lineWidth: 0.8)
+                    .padding(size * 0.045)
                 if showRing {
                     Circle()
                         .trim(from: 0, to: accel)
@@ -1046,10 +1095,10 @@ struct NativeHUDView: View {
                         .animation(.easeOut(duration: 0.12), value: regen)
                 }
             case .square:
-                ForEach(0..<5, id: \.self) { i in
+                ForEach(0..<4, id: \.self) { i in
                     RoundedRectangle(cornerRadius: squareR, style: .continuous)
-                        .fill(Color.black.opacity(0.55 - Double(i) * 0.06))
-                        .offset(y: CGFloat(i) * 1.4 + 2)
+                        .fill(Color.black.opacity(0.42 - Double(i) * 0.06))
+                        .offset(y: CGFloat(i) * 1.1 + 1)
                 }
                 RoundedRectangle(cornerRadius: squareR, style: .continuous)
                     .fill(
@@ -1064,22 +1113,13 @@ struct NativeHUDView: View {
                         )
                     )
                 RoundedRectangle(cornerRadius: squareR, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(night ? 0.75 : 0.95),
-                                Color.white.opacity(0.12),
-                                Color.black.opacity(night ? 0.85 : 0.45)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: compact ? 4 : 5.5
-                    )
-                    .padding(1)
+                    .stroke(dialGlow.opacity(0.95), lineWidth: compact ? 1.0 : 1.25)
+                    .shadow(color: dialGlow.opacity(0.95), radius: compact ? 2.2 : 3.2)
+                    .shadow(color: dialGlow.opacity(0.45), radius: compact ? 5 : 7)
+                    .padding(0.5)
                 RoundedRectangle(cornerRadius: squareR * 0.85, style: .continuous)
-                    .stroke(Color.white.opacity(night ? 0.14 : 0.28), lineWidth: 1.2)
-                    .padding(size * 0.05)
+                    .stroke(Color.white.opacity(night ? 0.12 : 0.22), lineWidth: 0.8)
+                    .padding(size * 0.045)
                 if showRing {
                     Circle()
                         .trim(from: 0, to: accel)
@@ -1102,12 +1142,12 @@ struct NativeHUDView: View {
                         .animation(.easeOut(duration: 0.12), value: regen)
                 }
             case .bare:
-                // Floating plate + deep type shadow (still 3D, no hard frame).
-                ForEach(0..<4, id: \.self) { i in
+                // Floating plate — thin yellow rim for 3D edge without map-darkening shadow.
+                ForEach(0..<3, id: \.self) { i in
                     Circle()
-                        .fill(Color.black.opacity(0.28 - Double(i) * 0.04))
+                        .fill(Color.black.opacity(0.18 - Double(i) * 0.04))
                         .scaleEffect(0.86)
-                        .offset(y: CGFloat(i) * 1.6 + 2)
+                        .offset(y: CGFloat(i) * 1.2 + 1)
                 }
                 Circle()
                     .fill(
@@ -1122,16 +1162,20 @@ struct NativeHUDView: View {
                         )
                     )
                     .scaleEffect(0.84)
+                Circle()
+                    .stroke(dialGlow.opacity(0.9), lineWidth: 1.1)
+                    .shadow(color: dialGlow.opacity(0.85), radius: 3)
+                    .shadow(color: dialGlow.opacity(0.4), radius: 6)
+                    .scaleEffect(0.86)
             }
 
             content
         }
         .frame(width: size, height: size)
-        // Layered drop shadows — dial clearly in front of left/right wings.
+        // Soft local depth only — no large black bloom over the map.
         .compositingGroup()
-        .shadow(color: .black.opacity(0.85), radius: compact ? 12 : 26, x: 0, y: compact ? 10 : 18)
-        .shadow(color: .black.opacity(0.55), radius: compact ? 5 : 10, x: 0, y: compact ? 4 : 7)
-        .shadow(color: Color.white.opacity(night ? 0.18 : 0.35), radius: 1.5, x: -1.5, y: -1.5)
+        .shadow(color: .black.opacity(0.28), radius: compact ? 3 : 5, x: 0, y: compact ? 2 : 3)
+        .shadow(color: dialGlow.opacity(0.35), radius: compact ? 3 : 5)
     }
 
     /// Doors + lights under the dial (only when relevant).

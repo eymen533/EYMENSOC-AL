@@ -14,10 +14,14 @@ struct GoogleMapPanel: UIViewRepresentable {
     var apiKey: String
     var dark: Bool
     var autoZoom: Bool
+    var imagery: HUDSettings.MapImagery = .standard
+    var showsTraffic: Bool = true
+    var onUserTap: (() -> Void)? = nil
 
     func makeUIView(context: Context) -> WKWebView {
         let cfg = WKWebViewConfiguration()
         cfg.allowsInlineMediaPlayback = true
+        cfg.userContentController.add(context.coordinator, name: "pulseMap")
         let web = WKWebView(frame: .zero, configuration: cfg)
         web.isOpaque = true
         web.clipsToBounds = true
@@ -25,47 +29,71 @@ struct GoogleMapPanel: UIViewRepresentable {
         web.backgroundColor = dark
             ? UIColor(red: 0.10, green: 0.11, blue: 0.12, alpha: 1)
             : UIColor(red: 0.86, green: 0.85, blue: 0.82, alpha: 1)
+        // Page itself shouldn't scroll; Google Maps handles pinch/pan.
         web.scrollView.isScrollEnabled = false
         web.scrollView.bounces = false
+        web.isUserInteractionEnabled = true
         web.navigationDelegate = context.coordinator
         context.coordinator.webView = web
+        context.coordinator.onUserTap = onUserTap
         context.coordinator.load(
             lat: lat, lon: lon, heading: heading,
             destination: destination, destLat: destLat, destLon: destLon,
-            apiKey: apiKey, dark: dark, autoZoom: autoZoom
+            apiKey: apiKey, dark: dark, autoZoom: autoZoom,
+            imagery: imagery, showsTraffic: showsTraffic
         )
         return web
     }
 
     func updateUIView(_ web: WKWebView, context: Context) {
         context.coordinator.webView = web
+        context.coordinator.onUserTap = onUserTap
         context.coordinator.update(
             lat: lat, lon: lon, heading: heading,
             destination: destination, destLat: destLat, destLon: destLon,
-            apiKey: apiKey, dark: dark, autoZoom: autoZoom
+            apiKey: apiKey, dark: dark, autoZoom: autoZoom,
+            imagery: imagery, showsTraffic: showsTraffic
         )
+    }
+
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        uiView.configuration.userContentController.removeScriptMessageHandler(forName: "pulseMap")
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         weak var webView: WKWebView?
+        var onUserTap: (() -> Void)?
         private var lastLoadKey = ""
         private var lastUpdateKey = ""
         private var pageReady = false
         private var pending: (() -> Void)?
 
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            guard message.name == "pulseMap" else { return }
+            let body = (message.body as? String) ?? ""
+            if body == "tap" {
+                DispatchQueue.main.async { self.onUserTap?() }
+            }
+        }
+
         func load(
             lat: Double, lon: Double, heading: Double,
             destination: String, destLat: Double, destLon: Double,
-            apiKey: String, dark: Bool, autoZoom: Bool
+            apiKey: String, dark: Bool, autoZoom: Bool,
+            imagery: HUDSettings.MapImagery, showsTraffic: Bool
         ) {
             let key = "\(apiKey)|dark=\(dark)"
             guard key != lastLoadKey else {
                 update(
                     lat: lat, lon: lon, heading: heading,
                     destination: destination, destLat: destLat, destLon: destLon,
-                    apiKey: apiKey, dark: dark, autoZoom: autoZoom
+                    apiKey: apiKey, dark: dark, autoZoom: autoZoom,
+                    imagery: imagery, showsTraffic: showsTraffic
                 )
                 return
             }
@@ -78,7 +106,8 @@ struct GoogleMapPanel: UIViewRepresentable {
                 self?.update(
                     lat: lat, lon: lon, heading: heading,
                     destination: destination, destLat: destLat, destLon: destLon,
-                    apiKey: apiKey, dark: dark, autoZoom: autoZoom
+                    apiKey: apiKey, dark: dark, autoZoom: autoZoom,
+                    imagery: imagery, showsTraffic: showsTraffic
                 )
             }
         }
@@ -86,14 +115,16 @@ struct GoogleMapPanel: UIViewRepresentable {
         func update(
             lat: Double, lon: Double, heading: Double,
             destination: String, destLat: Double, destLon: Double,
-            apiKey: String, dark: Bool, autoZoom: Bool
+            apiKey: String, dark: Bool, autoZoom: Bool,
+            imagery: HUDSettings.MapImagery, showsTraffic: Bool
         ) {
             guard pageReady, let web = webView else {
                 pending = { [weak self] in
                     self?.update(
                         lat: lat, lon: lon, heading: heading,
                         destination: destination, destLat: destLat, destLon: destLon,
-                        apiKey: apiKey, dark: dark, autoZoom: autoZoom
+                        apiKey: apiKey, dark: dark, autoZoom: autoZoom,
+                        imagery: imagery, showsTraffic: showsTraffic
                     )
                 }
                 return
@@ -101,9 +132,17 @@ struct GoogleMapPanel: UIViewRepresentable {
             let dest = Self.jsEscape(destination)
             let gps = hasGPS(lat, lon)
             let hasDestCoord = abs(destLat) > 0.0001 || abs(destLon) > 0.0001
+            let mapType: String = {
+                switch imagery {
+                case .standard: return "roadmap"
+                case .hybrid: return "hybrid"
+                case .satellite: return "satellite"
+                }
+            }()
             let ukey = String(
-                format: "%.5f,%.5f,%.0f,%@,%.5f,%.5f,%d",
-                lat, lon, heading, destination, destLat, destLon, autoZoom ? 1 : 0
+                format: "%.5f,%.5f,%.0f,%@,%.5f,%.5f,%d,%@,%d",
+                lat, lon, heading, destination, destLat, destLon,
+                autoZoom ? 1 : 0, mapType, showsTraffic ? 1 : 0
             )
             guard ukey != lastUpdateKey else { return }
             lastUpdateKey = ukey
@@ -120,7 +159,9 @@ struct GoogleMapPanel: UIViewRepresentable {
               destLat: \(hasDestCoord ? destLat : 0),
               destLon: \(hasDestCoord ? destLon : 0),
               hasDestCoord: \(hasDestCoord ? "true" : "false"),
-              autoZoom: \(autoZoom ? "true" : "false")
+              autoZoom: \(autoZoom ? "true" : "false"),
+              mapType: '\(mapType)',
+              traffic: \(showsTraffic ? "true" : "false")
             });
             """
             web.evaluateJavaScript(js, completionHandler: nil)
@@ -195,8 +236,9 @@ struct GoogleMapPanel: UIViewRepresentable {
             <div id="msg">Google Maps…</div>
             <div id="map"></div>
             <script>
-            let map, marker, destMarker, directionsService, directionsRenderer;
+            let map, marker, destMarker, directionsService, directionsRenderer, trafficLayer;
             let lastRouteKey = '';
+            let userControlUntil = 0;
             function showMsg(t){
               const el=document.getElementById('msg');
               if(el){ el.textContent=t||''; el.style.display=t?'flex':'none'; }
@@ -204,6 +246,12 @@ struct GoogleMapPanel: UIViewRepresentable {
             function blankDest(t){
               const s=(t||'').trim();
               return !s || s==='—' || s==='-' || s==='--';
+            }
+            function postTap(){
+              try { window.webkit.messageHandlers.pulseMap.postMessage('tap'); } catch(e) {}
+            }
+            function markUserControl(){
+              userControlUntil = Date.now() + 10000;
             }
             function init(){
               if(!window.google || !google.maps){
@@ -218,10 +266,12 @@ struct GoogleMapPanel: UIViewRepresentable {
                 heading: 0,
                 mapTypeId: 'roadmap',
                 disableDefaultUI: true,
-                gestureHandling: 'none',
+                gestureHandling: 'greedy',
                 keyboardShortcuts: false,
                 styles: \(styles)
               });
+              trafficLayer = new google.maps.TrafficLayer();
+              trafficLayer.setMap(map);
               directionsService = new google.maps.DirectionsService();
               directionsRenderer = new google.maps.DirectionsRenderer({
                 map: map,
@@ -258,6 +308,9 @@ struct GoogleMapPanel: UIViewRepresentable {
                 },
                 zIndex: 9
               });
+              map.addListener('click', postTap);
+              map.addListener('dragstart', markUserControl);
+              map.addListener('zoom_changed', markUserControl);
             }
             function clearRoute(){
               if(directionsRenderer) directionsRenderer.set('directions', null);
@@ -280,23 +333,10 @@ struct GoogleMapPanel: UIViewRepresentable {
                 : ('n:' + String(target));
               if(routeKey === lastRouteKey) return;
               lastRouteKey = routeKey;
-
               if(p.hasDestCoord){
-                destMarker.setPosition({ lat: p.destLat, lng: p.destLon });
+                destMarker.setPosition({lat:p.destLat, lng:p.destLon});
                 destMarker.setMap(map);
-              } else {
-                destMarker.setMap(null);
               }
-
-              if(!p.hasGPS){
-                // No car GPS yet — center on destination pin.
-                if(p.hasDestCoord){
-                  map.setCenter({ lat: p.destLat, lng: p.destLon });
-                  map.setZoom(14);
-                }
-                return;
-              }
-
               directionsService.route({
                 origin: origin,
                 destination: target,
@@ -304,11 +344,10 @@ struct GoogleMapPanel: UIViewRepresentable {
               }, (result, status) => {
                 if(status === 'OK' && result){
                   directionsRenderer.setDirections(result);
-                  if(p.autoZoom && result.routes && result.routes[0]){
+                  if(p.autoZoom && Date.now() > userControlUntil && result.routes && result.routes[0]){
                     const b = result.routes[0].bounds;
                     if(b) map.fitBounds(b, 48);
                   }
-                  // Dest marker from geocoded result when only name was known.
                   if(!p.hasDestCoord && result.routes[0] && result.routes[0].legs[0]){
                     const end = result.routes[0].legs[0].end_location;
                     destMarker.setPosition(end);
@@ -319,6 +358,10 @@ struct GoogleMapPanel: UIViewRepresentable {
             }
             window.pulseUpdate = function(p){
               if(!map || !marker) return;
+              if(p.mapType) map.setMapTypeId(p.mapType);
+              if(trafficLayer){
+                trafficLayer.setMap(p.traffic ? map : null);
+              }
               if(!p.hasGPS && !p.hasDestCoord && blankDest(p.destination)){
                 showMsg('Araç GPS / rota bekleniyor');
                 clearRoute();
@@ -326,14 +369,14 @@ struct GoogleMapPanel: UIViewRepresentable {
               }
               showMsg(p.hasGPS ? '' : (blankDest(p.destination) && !p.hasDestCoord ? 'GPS bekleniyor' : ''));
               const pos = { lat: p.lat, lng: p.lon };
+              const follow = p.autoZoom && Date.now() > userControlUntil;
               if(p.hasGPS){
                 marker.setPosition(pos);
                 marker.setMap(map);
                 const icon = Object.assign({}, marker.getIcon() || {});
-                // Map heading-up already orients travel direction — don't also rotate the icon.
                 icon.rotation = 0;
                 marker.setIcon(icon);
-                if(!p.autoZoom || blankDest(p.destination) && !p.hasDestCoord){
+                if(follow && blankDest(p.destination) && !p.hasDestCoord){
                   map.setCenter(pos);
                   map.setZoom(17);
                   if(map.setTilt) map.setTilt(45);
@@ -464,6 +507,7 @@ struct VehicleMapView: View {
     var destLon: Double = 0
     var apiKey: String = ""
     var turnByTurn: Bool = true
+    var onUserTap: (() -> Void)? = nil
     @Binding var turnDistanceM: Int
     @Binding var turnInstruction: String
     @Binding var turnSymbol: String
@@ -506,7 +550,10 @@ struct VehicleMapView: View {
                     destLon: destLon,
                     apiKey: resolvedKey,
                     dark: isDark,
-                    autoZoom: settings.autoZoom
+                    autoZoom: settings.autoZoom,
+                    imagery: settings.mapImagery,
+                    showsTraffic: settings.mapShowsTraffic,
+                    onUserTap: onUserTap
                 )
             case .apple:
                 AppleMapPanel(
@@ -519,6 +566,9 @@ struct VehicleMapView: View {
                     autoZoom: settings.autoZoom,
                     theme: effectiveTheme,
                     turnByTurn: turnByTurn,
+                    imagery: settings.mapImagery,
+                    showsTraffic: settings.mapShowsTraffic,
+                    onUserTap: onUserTap,
                     turnDistanceM: $turnDistanceM,
                     turnInstruction: $turnInstruction,
                     turnSymbol: $turnSymbol
