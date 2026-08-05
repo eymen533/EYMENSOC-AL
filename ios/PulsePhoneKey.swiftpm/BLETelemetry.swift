@@ -202,14 +202,14 @@ final class BLETelemetry {
         writeQueue.removeAll()
         writing = false
         inFlight = 0
-        handshakeCooldownUntil = now.addingTimeInterval(0.35)
+        handshakeCooldownUntil = now.addingTimeInterval(0.25)
         // Don't count soft decrypt as a hard stall unless live data is already stale.
-        if Date().timeIntervalSince(lastLiveDataAt) > 6 {
+        if Date().timeIntervalSince(lastLiveDataAt) > 4 {
             stallRecoveries += 1
         }
         notify(force: true)
 
-        if stallRecoveries >= 10 {
+        if stallRecoveries >= 5 {
             stallRecoveries = 0
             liveOK = false
             status = "Oturum kilitlendi — GATT yenileniyor…"
@@ -262,9 +262,9 @@ final class BLETelemetry {
             writeQueue.removeAll()
         }
 
-        // LIVE stall → soft re-handshake; GATT bounce only after repeated stalls.
-        if liveOK, Date().timeIntervalSince(lastLiveDataAt) > 10.0,
-           Date().timeIntervalSince(stallRecoveryAt) > 9.0 {
+        // LIVE stall → soft re-handshake quickly; GATT bounce after a few tries.
+        if liveOK, Date().timeIntervalSince(lastLiveDataAt) > 4.5,
+           Date().timeIntervalSince(stallRecoveryAt) > 3.5 {
             stallRecoveryAt = Date()
             stallRecoveries += 1
             liveOK = false
@@ -277,7 +277,7 @@ final class BLETelemetry {
             inFlight = 0
             handshakeCooldownUntil = Date()
             notify(force: true)
-            if stallRecoveries >= 6 {
+            if stallRecoveries >= 3 {
                 stallRecoveries = 0
                 status = "Veri yok — GATT yenileniyor…"
                 PulseDiagLog.shared.error(status)

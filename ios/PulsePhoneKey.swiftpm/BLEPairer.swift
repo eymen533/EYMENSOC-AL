@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-66"
+    static let buildId = "xcode-ble-67"
 
     enum Step: String {
         case idle = "Hazir"
@@ -56,6 +56,8 @@ final class BLEPairer: NSObject, ObservableObject {
     private var deadline: Date?
     private var timer: Timer?
     private var reconnectAttempts = 0
+    /// Avoid GATT cancel/connect storms when stalls repeat.
+    private var lastGATTBounceAt = Date.distantPast
     private var vin = ""
     private var privateKey: P256.KeyAgreement.PrivateKey?
     private var pairWriteDone = false

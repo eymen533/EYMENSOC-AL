@@ -28,6 +28,9 @@ struct AppleMapPanel: View {
     @State private var lastRouteDestKey = ""
     @State private var lastRerouteOrigin: CLLocationCoordinate2D?
     @State private var routeBusy = false
+    /// Distance-to-next-turn at last MKDirections result; live GPS subtracts from this.
+    @State private var guidanceBaseM: Int = 0
+    @State private var guidanceAt: CLLocationCoordinate2D?
 
     private var hasGPS: Bool { abs(lat) > 0.0001 || abs(lon) > 0.0001 }
     private var hasDestCoord: Bool { abs(destLat) > 0.0001 || abs(destLon) > 0.0001 }
@@ -69,12 +72,14 @@ struct AppleMapPanel: View {
         .onAppear { fetchRouteIfNeeded(force: true) }
         .onChangeCompat(of: lat) { _ in
             maybeRerouteFromMovement()
+            updateLiveTurnDistance()
             if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
                 fetchRouteIfNeeded(force: true)
             }
         }
         .onChangeCompat(of: lon) { _ in
             maybeRerouteFromMovement()
+            updateLiveTurnDistance()
             if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
                 fetchRouteIfNeeded(force: true)
             }
@@ -108,7 +113,24 @@ struct AppleMapPanel: View {
         }
         let moved = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
             .distance(from: CLLocation(latitude: lat, longitude: lon))
-        if moved > 25 {
+        // Recalc when approaching the maneuver or after meaningful travel.
+        if turnDistanceM > 0, turnDistanceM < 35, moved > 8 {
+            fetchRouteIfNeeded(force: true)
+        } else if moved > 40 {
+            fetchRouteIfNeeded(force: true)
+        }
+    }
+
+    /// Count down meters to the next turn between full MKDirections refreshes.
+    private func updateLiveTurnDistance() {
+        guard hasGPS, guidanceBaseM > 0, let at = guidanceAt else { return }
+        let moved = CLLocation(latitude: at.latitude, longitude: at.longitude)
+            .distance(from: CLLocation(latitude: lat, longitude: lon))
+        let next = max(0, guidanceBaseM - Int(moved.rounded()))
+        if abs(next - turnDistanceM) >= 5 || next == 0 {
+            turnDistanceM = next
+        }
+        if next <= 12 {
             fetchRouteIfNeeded(force: true)
         }
     }
@@ -250,6 +272,8 @@ struct AppleMapPanel: View {
                         instruction: &self.turnInstruction,
                         symbol: &self.turnSymbol
                     )
+                    self.guidanceBaseM = self.turnDistanceM
+                    self.guidanceAt = origin
                 } else {
                     self.routeCoords = [origin, end]
                     self.lastRerouteOrigin = origin
@@ -260,51 +284,132 @@ struct AppleMapPanel: View {
                     )
                     self.turnInstruction = self.destination
                     self.turnSymbol = "flag.fill"
+                    self.guidanceBaseM = self.turnDistanceM
+                    self.guidanceAt = origin
                 }
             }
         }
     }
 
+    /// Skip "continue / head / düz devam" filler steps; sum distance to the next real turn.
     private static func applyTurnGuidance(
         route: MKRoute,
         distanceM: inout Int,
         instruction: inout String,
         symbol: inout String
     ) {
-        let steps = route.steps.filter { !$0.instructions.isEmpty }
-        let step = steps.dropFirst().first ?? steps.first
-        guard let step else {
+        let steps = route.steps.filter { !$0.instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard !steps.isEmpty else {
             distanceM = max(0, Int(route.distance.rounded()))
             instruction = ""
             symbol = "arrow.up"
             return
         }
-        distanceM = max(0, Int(step.distance.rounded()))
-        instruction = shortenInstruction(step.instructions)
-        symbol = symbolFor(step.instructions)
+
+        var metersBefore: CLLocationDistance = 0
+        var chosen: MKRoute.Step?
+        for (idx, step) in steps.enumerated() {
+            // First step is often "Depart" / "Head" — still accumulate its length toward the turn.
+            if idx == 0, !isManeuverStep(step.instructions) {
+                metersBefore += step.distance
+                continue
+            }
+            if isManeuverStep(step.instructions) {
+                chosen = step
+                break
+            }
+            metersBefore += step.distance
+        }
+
+        if let step = chosen {
+            // Distance until the maneuver = filler steps + the maneuver step itself
+            // (MapKit step.distance is length of that segment, ending at/after the turn).
+            distanceM = max(0, Int((metersBefore + step.distance).rounded()))
+            instruction = shortenInstruction(step.instructions)
+            symbol = symbolFor(step.instructions)
+            return
+        }
+
+        // No explicit turn left — show remaining route with straight.
+        let rest = steps.dropFirst()
+        let sum = rest.reduce(CLLocationDistance(0)) { $0 + $1.distance }
+        distanceM = max(0, Int((sum > 1 ? sum : route.distance).rounded()))
+        if let last = steps.last {
+            instruction = shortenInstruction(last.instructions)
+            symbol = symbolFor(last.instructions)
+        } else {
+            instruction = ""
+            symbol = "arrow.up"
+        }
+    }
+
+    /// True for left/right/keep/arrive/roundabout — false for continue/straight filler.
+    private static func isManeuverStep(_ raw: String) -> Bool {
+        let l = raw.lowercased()
+            .folding(options: .diacriticInsensitive, locale: Locale(identifier: "tr_TR"))
+        if l.contains("u-turn") || l.contains("u turn") || l.contains("u-donus") || l.contains("u donus") {
+            return true
+        }
+        if l.contains("roundabout") || l.contains("traffic circle") || l.contains("doner kavsak") {
+            return true
+        }
+        if l.contains("keep left") || l.contains("keep right") || l.contains("bear left") || l.contains("bear right") {
+            return true
+        }
+        if l.contains("arrive") || l.contains("destination") || l.contains("varis") || l.contains("hedefe") {
+            return true
+        }
+        if l.contains("exit") || l.contains("ramp") || l.contains("cikis") {
+            return true
+        }
+        // Turn left / right (EN + TR).
+        if l.contains("turn left") || l.contains("turn right") { return true }
+        if l.contains("sola") || l.contains("saga") { return true }
+        if (l.contains("left") || l.contains("right") || l.contains("sol") || l.contains("sag"))
+            && (l.contains("turn") || l.contains("don") || l.contains("keep") || l.contains("bear")) {
+            return true
+        }
+        if l.contains("turn") || (l.contains("don") && !l.contains("devam")) { return true }
+        return false
     }
 
     private static func shortenInstruction(_ raw: String) -> String {
-        let lower = raw.lowercased()
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = trimmed.lowercased()
+        // Keep the maneuver verb; only trim long "onto …" street tails.
         if let r = lower.range(of: " onto ") {
-            let idx = raw.index(raw.startIndex, offsetBy: lower.distance(from: lower.startIndex, to: r.lowerBound))
-            return String(raw[idx...]).trimmingCharacters(in: .whitespaces)
+            let verb = String(trimmed[..<trimmed.index(trimmed.startIndex, offsetBy: lower.distance(from: lower.startIndex, to: r.lowerBound))])
+                .trimmingCharacters(in: .whitespaces)
+            var street = String(trimmed[trimmed.index(trimmed.startIndex, offsetBy: lower.distance(from: lower.startIndex, to: r.upperBound))...])
+                .trimmingCharacters(in: .whitespaces)
+            if street.count > 28 { street = String(street.prefix(26)) + "…" }
+            if verb.isEmpty { return street }
+            return "\(verb) · \(street)"
         }
-        if let r = lower.range(of: " on ") {
-            let idx = raw.index(raw.startIndex, offsetBy: lower.distance(from: lower.startIndex, to: r.lowerBound))
-            return String(raw[idx...]).trimmingCharacters(in: .whitespaces)
+        if trimmed.count > 42 {
+            return String(trimmed.prefix(40)) + "…"
         }
-        return raw
+        return trimmed
     }
 
     private static func symbolFor(_ raw: String) -> String {
         let l = raw.lowercased()
-        if l.contains("u-turn") || l.contains("u turn") { return "arrow.uturn.left" }
+            .folding(options: .diacriticInsensitive, locale: Locale(identifier: "tr_TR"))
+        if l.contains("u-turn") || l.contains("u turn") || l.contains("u donus") { return "arrow.uturn.left" }
         if l.contains("keep left") || l.contains("bear left") { return "arrow.up.left" }
         if l.contains("keep right") || l.contains("bear right") { return "arrow.up.right" }
-        if l.contains("left") { return "arrow.turn.up.left" }
-        if l.contains("right") { return "arrow.turn.up.right" }
-        if l.contains("arrive") || l.contains("destination") { return "flag.fill" }
+        if l.contains("roundabout") || l.contains("doner kavsak") { return "arrow.triangle.2.circlepath" }
+        if l.contains("sola") || l.contains("turn left") || (l.contains("left") && l.contains("turn")) {
+            return "arrow.turn.up.left"
+        }
+        if l.contains("saga") || l.contains("turn right") || (l.contains("right") && l.contains("turn")) {
+            return "arrow.turn.up.right"
+        }
+        if l.contains("left") || l.contains("sol") { return "arrow.turn.up.left" }
+        if l.contains("right") || l.contains("sag") { return "arrow.turn.up.right" }
+        if l.contains("arrive") || l.contains("destination") || l.contains("varis") || l.contains("hedef") {
+            return "flag.fill"
+        }
         return "arrow.up"
     }
 }
