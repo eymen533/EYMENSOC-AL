@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-57"
+    static let buildId = "xcode-ble-58"
 
     enum Step: String {
         case idle = "Hazir"
@@ -74,12 +74,42 @@ final class BLEPairer: NSObject, ObservableObject {
 
     func keepAliveReconnect() {
         onMain {
-            let maxAttempts = self.resumeTelemetryOnly || self.pairWriteDone || KeyStore.isPaired(vin: self.vin) ? 40 : 8
+            let maxAttempts = self.resumeTelemetryOnly || self.pairWriteDone || KeyStore.isPaired(vin: self.vin) ? 50 : 8
             if let p = self.peripheral, p.state == .connected {
                 self.linkUp = true
                 self.linkLabel = self.bleLiveOK ? "BLE LIVE" : "GATT bagli · oturum…"
+                self.startTelemetryIfPossible(force: false)
                 return
             }
+
+            // Fast path: already-connected Tesla GATT (common when re-entering car).
+            if let central = self.central, central.state == .poweredOn {
+                let linked = central.retrieveConnectedPeripherals(withServices: [self.serviceUUID])
+                if let p = linked.first {
+                    self.peripherals[p.identifier] = p
+                    self.peripheral = p
+                    p.delegate = self
+                    self.logLine("keepalive connected-peripheral")
+                    self.linkLabel = "Yeniden baglan…"
+                    self.status = "BLE yeniden baglaniliyor…"
+                    if p.state == .connected {
+                        self.linkUp = true
+                        p.discoverServices(nil)
+                    } else {
+                        central.connect(p, options: Self.connectOptions)
+                    }
+                    return
+                }
+                if let id = KeyStore.storedPeripheralId(vin: self.vin) {
+                    let known = central.retrievePeripherals(withIdentifiers: [id])
+                    if let p = known.first {
+                        self.peripherals[p.identifier] = p
+                        self.peripheral = p
+                        p.delegate = self
+                    }
+                }
+            }
+
             if let p = self.peripheral, self.reconnectAttempts < maxAttempts {
                 self.reconnectAttempts += 1
                 self.logLine("reconnect #\(self.reconnectAttempts)")
@@ -134,6 +164,24 @@ final class BLEPairer: NSObject, ObservableObject {
                 self.fail("Once Pair Vehicle ile eslestir")
                 return
             }
+
+            // Already working / reconnecting for this VIN — do not tear the session down.
+            if self.vin == v, self.resumeTelemetryOnly {
+                if self.bleLiveOK {
+                    self.logLine("resume skip — already LIVE")
+                    return
+                }
+                if self.linkUp {
+                    self.logLine("resume skip — GATT up, ensure telemetry")
+                    self.startTelemetryIfPossible(force: false)
+                    return
+                }
+                if self.step == .connecting || self.step == .scanning || self.step == .services {
+                    self.logLine("resume skip — \(self.step.rawValue) in flight")
+                    return
+                }
+            }
+
             if let key = try? KeyStore.loadOrCreatePrivateKey(forVIN: v) {
                 self.privateKey = key
             } else {
@@ -173,8 +221,14 @@ final class BLEPairer: NSObject, ObservableObject {
                     self.logLine("retrieve \(id.uuidString.prefix(8))")
                     central.connect(p, options: Self.connectOptions)
                     self.timer?.invalidate()
-                    self.timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                    self.timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
                         self?.tickResumeConnect()
+                    }
+                    // Fail over to scan quickly if retrieve hangs.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
+                        guard let self, self.step == .connecting, self.peripheral?.state != .connected else { return }
+                        self.logLine("retrieve timeout → scan")
+                        self.beginScanPhase(message: "Arac araniyor — otomatik baglanacak", seconds: 120)
                     }
                     return
                 }
@@ -224,15 +278,7 @@ final class BLEPairer: NSObject, ObservableObject {
     private func tickResumeConnect() {
         guard step == .connecting, let p = peripheral else { return }
         if p.state == .connected { return }
-        // 12 sn sonra tarama
-        if reconnectAttempts == 0 {
-            reconnectAttempts = 1
-            DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
-                guard let self, self.step == .connecting, self.peripheral?.state != .connected else { return }
-                self.logLine("retrieve timeout → scan")
-                self.beginScanPhase(message: "Arac araniyor — otomatik baglanacak", seconds: 120)
-            }
-        }
+        // Timer only watches; timeout is scheduled in resumeSession (~3.5s).
     }
 
     func connect(id: UUID) {
@@ -303,6 +349,12 @@ final class BLEPairer: NSObject, ObservableObject {
         if let id = KeyStore.storedPeripheralId(vin: vin) {
             for p in central.retrievePeripherals(withIdentifiers: [id]) {
                 upsertDevice(p, name: p.name ?? "Tesla", rssi: -50)
+                let resume = !forceRePair && (resumeTelemetryOnly || pairWriteDone || KeyStore.isPaired(vin: vin))
+                if resume {
+                    logLine("stored-peripheral auto \(p.name ?? id.uuidString.prefix(8).description)")
+                    connect(id: p.identifier)
+                    return
+                }
             }
         }
 
@@ -403,8 +455,8 @@ final class BLEPairer: NSObject, ObservableObject {
         let interval: TimeInterval
         switch mode {
         case "Düşük": interval = 0.28
-        case "Performans": interval = 0.06
-        default: interval = 0.045 // Anlık — withoutResponse live path
+        case "Performans": interval = 0.045
+        default: interval = 0.032 // Anlık — dash-like speed
         }
         telemetry?.applyPollInterval(interval)
         logLine("refresh \(mode) \(interval)s")
@@ -433,7 +485,7 @@ final class BLEPairer: NSObject, ObservableObject {
             linkLabel = telemetry.liveOK ? "BLE LIVE" : "BLE telemetri…"
             return
         }
-        let delay: TimeInterval = force || staleAttach ? 0.08 : 0.2
+        let delay: TimeInterval = force || staleAttach ? 0.04 : 0.08
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self, let tele = self.telemetry else { return }
             guard let p = self.peripheral, let wc = self.writeChar, let key = self.privateKey,
@@ -441,6 +493,16 @@ final class BLEPairer: NSObject, ObservableObject {
             self.logLine("telemetry attach")
             tele.onUpdate = { [weak self] in
                 self?.syncTelemetryPublished()
+            }
+            tele.onNeedGATTReconnect = { [weak self] in
+                guard let self else { return }
+                self.logLine("GATT bounce (stall)")
+                self.status = "Veri yok — GATT yenileniyor…"
+                if let p = self.peripheral {
+                    self.central?.cancelPeripheralConnection(p)
+                } else {
+                    self.keepAliveReconnect()
+                }
             }
             tele.attach(vin: self.vin, privateKey: key, peripheral: p, writeChar: wc)
             self.linkLabel = "BLE telemetri…"
@@ -560,7 +622,7 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
             || name.range(of: #"S[0-9a-fA-F]{16}C"#, options: .regularExpression) != nil
         let resume = !forceRePair && (resumeTelemetryOnly || pairWriteDone || KeyStore.isPaired(vin: vin))
         // Resume: daha agresif otomatik bağlan; ilk pair: yakın ve Tesla adı
-        let rssiOK = resume ? RSSI.intValue > -92 : RSSI.intValue > -60
+        let rssiOK = resume ? RSSI.intValue > -98 : RSSI.intValue > -60
         if hot, rssiOK {
             logLine("auto-tap \(name) rssi=\(RSSI.intValue) resume=\(resume)")
             connect(id: peripheral.identifier)
@@ -614,7 +676,7 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         if resumeTelemetryOnly || pairWriteDone || paired || KeyStore.isPaired(vin: vin) {
             status = "BLE koptu — yeniden baglaniliyor…"
             readyForDashboard = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
                 self?.keepAliveReconnect()
             }
             return

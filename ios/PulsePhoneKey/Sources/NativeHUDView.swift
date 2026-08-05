@@ -152,13 +152,17 @@ struct NativeHUDView: View {
                 .zIndex(10)
 
             if showTurn {
+                // Keep guidance inside the map panel — never over the dial.
+                let bannerX: CGFloat = {
+                    if leftMap && rightMap { return sideW * 0.48 }
+                    if rightMap && !leftMap { return w - sideW * 0.48 }
+                    return sideW * 0.48
+                }()
+                let bannerY = max(58, min(cy - dialW * 0.55, h * 0.22))
                 turnBanner
-                    .frame(maxWidth: min(300, sideW * 0.95), alignment: .leading)
-                    .position(
-                        x: rightMap && !leftMap ? (w - rightW * 0.5) : (leftW * 0.5),
-                        y: max(72, cy - dialW * 0.38)
-                    )
-                    .zIndex(12)
+                    .frame(maxWidth: min(280, sideW * 0.92), alignment: .leading)
+                    .position(x: bannerX, y: bannerY)
+                    .zIndex(8)
             }
 
             if !isBlank(model.destination) {
@@ -396,11 +400,12 @@ struct NativeHUDView: View {
 
             if showTurn {
                 turnBanner
+                    .frame(maxWidth: min(w - 28, 320), alignment: .leading)
                     .padding(.horizontal, 14)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: topWing ? .top : .bottom)
-                    .padding(.top, topWing ? topChrome + 8 : 0)
-                    .padding(.bottom, bottomWing && !topWing ? 48 : 0)
-                    .zIndex(12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: topWing ? .topLeading : .bottomLeading)
+                    .padding(.top, topWing ? topChrome + 10 : 0)
+                    .padding(.bottom, bottomWing && !topWing ? 56 : 0)
+                    .zIndex(8)
             }
 
             if !isBlank(model.destination) {
@@ -842,11 +847,12 @@ struct NativeHUDView: View {
                     .foregroundStyle(.white.opacity(0.75))
                     .lineLimit(1)
                     .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
+                mediaTransportControls
+                    .padding(.top, 2)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .allowsHitTesting(false)
         }
         .clipped()
         .contentShape(Rectangle())
@@ -1327,8 +1333,8 @@ struct NativeHUDView: View {
 
     private var mediaPanel: some View {
         GeometryReader { geo in
-            // Compact album — small cover, title/artist below, light floor reflection.
-            let artSize = min(64, max(48, min(geo.size.width * 0.40, geo.size.height * 0.22)))
+            // ~50% larger than previous compact cover (was ~48–64).
+            let artSize = min(96, max(72, min(geo.size.width * 0.52, geo.size.height * 0.30)))
             VStack(alignment: .center, spacing: 10) {
                 mediaServiceHeader
                 albumArtWithReflection(size: artSize)
@@ -1343,10 +1349,44 @@ struct NativeHUDView: View {
                     .foregroundStyle(Color.white.opacity(0.72))
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
+                mediaTransportControls
             }
-            .frame(maxWidth: min(200, geo.size.width))
+            .frame(maxWidth: min(240, geo.size.width))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
+    }
+
+    private var mediaTransportControls: some View {
+        HStack(spacing: 28) {
+            Button { model.skipTrack(-1) } label: {
+                Image(systemName: "backward.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button { model.togglePlay() } label: {
+                Image(systemName: model.mediaPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(Circle().fill(Color.white.opacity(0.14)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            Button { model.skipTrack(1) } label: {
+                Image(systemName: "forward.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.top, 4)
     }
 
     private func albumArtWithReflection(size: CGFloat) -> some View {

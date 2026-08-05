@@ -221,7 +221,7 @@ final class HUDModel: ObservableObject {
             if !s.energyAtArrival.isEmpty, s.energyAtArrival != "—" { energyAtArrival = s.energyAtArrival }
             if !s.tripDist.isEmpty, s.tripDist != "—" { tripDist = s.tripDist }
         } else {
-            // Nav ended / not set — clear so map doesn't keep a stale pin.
+            // Session sticky already absorbs flicker; hard clear only when session drops nav.
             destination = "—"
             destLatitude = 0
             destLongitude = 0

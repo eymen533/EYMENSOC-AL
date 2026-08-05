@@ -62,6 +62,8 @@ final class TeslaBLESession {
     private var lastHandshakeUUID: [Domain: Data] = [:]
     /// Consecutive session-tag failures (triggers full domain reset).
     private var sessionTagFails = 0
+    /// Drive ticks without nav proof — keep sticky dest until this crosses threshold.
+    private var routeInactiveStreak = 0
 
     var snapshot = Snapshot()
     var infotainmentReady: Bool { isReady(.infotainment) }
@@ -585,18 +587,22 @@ final class TeslaBLESession {
             }
         }
 
-        // Tesla often keeps stale active_route lat/lon after nav ends — only use
-        // coords when destination name or ETA/miles prove nav is active.
-        let routeActive = sawDestName || sawETA || sawMiles
-        snapshot.routeActive = routeActive
-        if routeActive {
+        // Sticky nav — Tesla often omits dest fields on some Drive ticks; don't wipe the route.
+        let hasPendingCoords: Bool = {
+            guard let dLat = pendingLat, let dLon = pendingLon else { return false }
+            return abs(dLat) <= 90 && abs(dLon) <= 180
+                && (abs(dLat) > 0.0001 || abs(dLon) > 0.0001)
+        }()
+        let routeProof = sawDestName || sawETA || sawMiles || hasPendingCoords
+        if routeProof {
+            routeInactiveStreak = 0
+            snapshot.routeActive = true
             if let dLat = pendingLat, let dLon = pendingLon,
                abs(dLat) <= 90, abs(dLon) <= 180,
                abs(dLat) > 0.0001 || abs(dLon) > 0.0001 {
                 snapshot.destLatitude = dLat
                 snapshot.destLongitude = dLon
             }
-            // Name missing but ETA present — keep last known name, synthesize label from coords.
             if !sawDestName {
                 let cur = snapshot.destination.trimmingCharacters(in: .whitespacesAndNewlines)
                 if cur.isEmpty || cur == "—" || cur == "-" || cur == "--",
@@ -609,12 +615,25 @@ final class TeslaBLESession {
                 }
             }
         } else {
-            snapshot.destination = "—"
-            snapshot.destLatitude = 0
-            snapshot.destLongitude = 0
-            snapshot.eta = "—"
-            snapshot.energyAtArrival = "—"
-            snapshot.tripDist = "—"
+            routeInactiveStreak += 1
+            // Keep last destination/coords for several Drive ticks so the map route doesn't vanish.
+            let destOK: Bool = {
+                let d = snapshot.destination.trimmingCharacters(in: .whitespacesAndNewlines)
+                return !d.isEmpty && d != "—" && d != "-" && d != "--"
+            }()
+            let keepSticky = routeInactiveStreak < 14
+                && (abs(snapshot.destLatitude) > 0.0001 || abs(snapshot.destLongitude) > 0.0001 || destOK)
+            if keepSticky {
+                snapshot.routeActive = true
+            } else {
+                snapshot.routeActive = false
+                snapshot.destination = "—"
+                snapshot.destLatitude = 0
+                snapshot.destLongitude = 0
+                snapshot.eta = "—"
+                snapshot.energyAtArrival = "—"
+                snapshot.tripDist = "—"
+            }
         }
     }
 

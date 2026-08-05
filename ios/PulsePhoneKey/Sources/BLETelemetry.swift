@@ -173,7 +173,7 @@ final class BLETelemetry {
             stallRecoveries += 1
             notify(force: true)
             // Need more consecutive failures before tearing GATT (was too eager).
-            if stallRecoveries >= 5 {
+            if stallRecoveries >= 7 {
                 stallRecoveries = 0
                 status = "Oturum kilitlendi — GATT yenileniyor…"
                 onNeedGATTReconnect?()
@@ -226,8 +226,8 @@ final class BLETelemetry {
         }
 
         // LIVE stall → soft re-handshake; GATT bounce only after repeated stalls.
-        if liveOK, Date().timeIntervalSince(lastLiveDataAt) > 5.5,
-           Date().timeIntervalSince(stallRecoveryAt) > 6.0 {
+        if liveOK, Date().timeIntervalSince(lastLiveDataAt) > 7.5,
+           Date().timeIntervalSince(stallRecoveryAt) > 7.0 {
             stallRecoveryAt = Date()
             stallRecoveries += 1
             liveOK = false
@@ -239,7 +239,7 @@ final class BLETelemetry {
             inFlight = 0
             handshakeCooldownUntil = Date()
             notify(force: true)
-            if stallRecoveries >= 4 {
+            if stallRecoveries >= 6 {
                 stallRecoveries = 0
                 status = "Veri yok — GATT yenileniyor…"
                 onNeedGATTReconnect?()
@@ -273,16 +273,18 @@ final class BLETelemetry {
         enqueueCommand(domain: .infotainment, command: action)
     }
 
-    /// Drive almost every tick — rare secondary fields so speed matches the car.
+    /// Drive almost every tick — location more often so the map tracks the car.
     private func nextPollAction() -> Data {
         pollIndex += 1
         let i = pollIndex
-        if i % 14 == 0 { return TeslaBLESession.actionGetDriveAndLocation() }
-        if i % 22 == 0 { return TeslaBLESession.actionGetMedia() }
-        if i % 28 == 0 { return TeslaBLESession.actionGetCharge() }
-        if i % 34 == 0 { return TeslaBLESession.actionGetTire() }
+        // Location+Drive ~every 4th tick (was 14) — map GPS must keep up with speed.
+        if i % 4 == 0 { return TeslaBLESession.actionGetDriveAndLocation() }
+        if i % 9 == 0 { return TeslaBLESession.actionGetLocation() }
+        if i % 16 == 0 { return TeslaBLESession.actionGetMedia() }
+        if i % 24 == 0 { return TeslaBLESession.actionGetCharge() }
+        if i % 32 == 0 { return TeslaBLESession.actionGetTire() }
         if i % 40 == 0 { return TeslaBLESession.actionGetClimate() }
-        if i % 46 == 0 { return TeslaBLESession.actionGetClosures() }
+        if i % 48 == 0 { return TeslaBLESession.actionGetClosures() }
         return TeslaBLESession.actionGetDrive()
     }
 

@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-57"
+    static let buildId = "xcode-ble-58"
 
     enum Step: String {
         case idle = "Hazir"
@@ -676,7 +676,7 @@ extension BLEPairer: CBCentralManagerDelegate, CBPeripheralDelegate {
         if resumeTelemetryOnly || pairWriteDone || paired || KeyStore.isPaired(vin: vin) {
             status = "BLE koptu — yeniden baglaniliyor…"
             readyForDashboard = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
                 self?.keepAliveReconnect()
             }
             return

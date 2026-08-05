@@ -89,7 +89,7 @@ struct AppleMapPanel: View {
         }
         let moved = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
             .distance(from: CLLocation(latitude: lat, longitude: lon))
-        if moved > 45 {
+        if moved > 25 {
             fetchRouteIfNeeded(force: true)
         }
     }
@@ -490,8 +490,9 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let p = overlay as? MKPolyline {
                 let r = MKPolylineRenderer(polyline: p)
-                r.strokeColor = UIColor(red: 0.15, green: 0.55, blue: 1.0, alpha: 1)
-                r.lineWidth = 8
+                // Bright nav blue on light tiles — readable under dial frost.
+                r.strokeColor = UIColor(red: 0.05, green: 0.45, blue: 0.98, alpha: 1)
+                r.lineWidth = 11
                 r.lineCap = .round
                 r.lineJoin = .round
                 return r
