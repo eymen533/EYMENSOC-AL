@@ -2,519 +2,409 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>Pulse28 — Model Y 3D kapı animasyonu</title>
 <style>
-  :root {
-    --amber: #ff9e2e;
-    --amber-hot: #ffd159;
-    --bg: #07070a;
-  }
+  :root { --amber:#ff9e2e; --amber-hot:#ffd159; --bg:#07070a; }
   * { box-sizing: border-box; }
   html, body {
-    margin: 0;
-    height: 100%;
-    background: var(--bg);
-    color: #fff;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
-    overflow: hidden;
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-user-select: none; user-select: none;
   }
-  #canvas-wrap {
-    position: absolute;
-    inset: 0;
-  }
-  canvas { display: block; width: 100%; height: 100%; }
-
+  #c { display: block; width: 100%; height: 100%; touch-action: none; }
   .hud {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 18px 16px 28px;
-    background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, transparent 28%, transparent 62%, rgba(0,0,0,0.72) 100%);
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    padding: 16px 14px 24px;
+    background: linear-gradient(180deg, rgba(0,0,0,.4) 0%, transparent 26%, transparent 58%, rgba(0,0,0,.75) 100%);
   }
   .title {
-    position: absolute;
-    top: 18px;
-    left: 0; right: 0;
-    text-align: center;
-    font-size: 12px;
-    letter-spacing: 0.14em;
-    font-weight: 700;
-    color: rgba(255,255,255,0.45);
+    position: absolute; top: 16px; left: 0; right: 0; text-align: center;
+    font-size: 11px; letter-spacing: .16em; font-weight: 700; color: rgba(255,255,255,.42);
   }
   .panel {
-    pointer-events: auto;
-    width: min(420px, 94vw);
-    background: rgba(12,12,16,0.82);
-    border: 1px solid rgba(255,158,46,0.35);
-    border-radius: 18px;
-    padding: 14px 14px 12px;
-    backdrop-filter: blur(16px);
-    box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 24px rgba(255,158,46,0.12);
+    pointer-events: auto; width: min(420px, 94vw);
+    background: rgba(12,12,16,.88); border: 1px solid rgba(255,158,46,.38);
+    border-radius: 18px; padding: 12px 12px 10px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.5), 0 0 24px rgba(255,158,46,.12);
   }
-  .label {
-    margin: 0;
-    text-align: center;
-    font-size: 18px;
-    font-weight: 750;
-    color: var(--amber-hot);
-  }
-  .sub {
-    margin: 4px 0 12px;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.65);
-  }
-  .btns {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-  }
+  .label { margin: 0; text-align: center; font-size: 17px; font-weight: 750; color: var(--amber-hot); }
+  .sub { margin: 4px 0 10px; text-align: center; font-size: 12px; font-weight: 600; color: rgba(255,255,255,.65); }
+  .btns { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
   button {
-    appearance: none;
-    border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(255,255,255,0.06);
-    color: #fff;
-    border-radius: 999px;
-    padding: 9px 12px;
-    font-size: 12px;
-    font-weight: 650;
-    cursor: pointer;
+    appearance: none; border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.06); color: #fff; border-radius: 999px;
+    padding: 8px 11px; font-size: 12px; font-weight: 650; cursor: pointer;
   }
-  button:hover { border-color: rgba(255,158,46,0.5); background: rgba(255,158,46,0.14); }
-  button.active {
-    background: rgba(255,158,46,0.28);
-    border-color: var(--amber);
-    color: var(--amber-hot);
-  }
-  .hint {
-    margin-top: 10px;
-    text-align: center;
-    font-size: 11px;
-    color: rgba(255,255,255,0.35);
+  button.active { background: rgba(255,158,46,.28); border-color: var(--amber); color: var(--amber-hot); }
+  .hint { margin: 9px 0 0; text-align: center; font-size: 11px; color: rgba(255,255,255,.35); }
+  #err {
+    display: none; position: absolute; left: 12px; right: 12px; top: 48px;
+    background: rgba(80,0,0,.85); border: 1px solid #f66; border-radius: 10px;
+    padding: 10px; font-size: 12px; z-index: 5; white-space: pre-wrap;
   }
 </style>
 </head>
 <body>
-  <div id="canvas-wrap"></div>
-  <div class="hud">
-    <div class="title">PULSE28 · MODEL Y 3D</div>
-    <div class="panel">
-      <p class="label" id="label">Kapalı</p>
-      <p class="sub" id="sub">Parmakla döndür · panelleri aç</p>
-      <div class="btns">
-        <button type="button" data-key="fl">Sol ön</button>
-        <button type="button" data-key="fr">Sağ ön</button>
-        <button type="button" data-key="rl">Sol arka</button>
-        <button type="button" data-key="rr">Sağ arka</button>
-        <button type="button" data-key="frunk">Frunk</button>
-        <button type="button" data-key="trunk">Bagaj</button>
-        <button type="button" data-key="all">Hepsi</button>
-        <button type="button" data-key="none">Kapat</button>
-      </div>
-      <p class="hint">Gerçek 3D menteşe animasyonu · WebGL</p>
+<canvas id="c"></canvas>
+<div id="err"></div>
+<div class="hud">
+  <div class="title">PULSE28 · MODEL Y 3D</div>
+  <div class="panel">
+    <p class="label" id="label">Kapalı</p>
+    <p class="sub" id="sub">Parmakla döndür · panelleri aç</p>
+    <div class="btns">
+      <button type="button" data-key="fl">Sol ön</button>
+      <button type="button" data-key="fr">Sağ ön</button>
+      <button type="button" data-key="rl">Sol arka</button>
+      <button type="button" data-key="rr">Sağ arka</button>
+      <button type="button" data-key="frunk">Frunk</button>
+      <button type="button" data-key="trunk">Bagaj</button>
+      <button type="button" data-key="all">Hepsi</button>
+      <button type="button" data-key="none">Kapat</button>
     </div>
+    <p class="hint">3D menteşe · WebGL</p>
   </div>
+</div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+<!-- Classic UMD build — works on htmlpreview (no ES modules) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  var errEl = document.getElementById('err');
+  function showErr(e) {
+    errEl.style.display = 'block';
+    errEl.textContent = String(e && e.message ? e.message : e);
   }
-}
-</script>
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+  window.addEventListener('error', function (ev) { showErr(ev.error || ev.message); });
 
-const wrap = document.getElementById('canvas-wrap');
-const labelEl = document.getElementById('label');
-const subEl = document.getElementById('sub');
+  if (typeof THREE === 'undefined') {
+    showErr('Three.js yüklenemedi (ağ / CDN). Sayfayı yenile.');
+    return;
+  }
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
-wrap.appendChild(renderer.domElement);
+  var canvas = document.getElementById('c');
+  var labelEl = document.getElementById('label');
+  var subEl = document.getElementById('sub');
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x07070a);
-scene.fog = new THREE.Fog(0x07070a, 8, 22);
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.setClearColor(0x07070a, 1);
+  if (renderer.outputEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
 
-const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 100);
-camera.position.set(3.6, 2.4, 4.8);
+  var scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x07070a, 9, 24);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.minDistance = 3.2;
-controls.maxDistance = 9;
-controls.maxPolarAngle = Math.PI * 0.48;
-controls.target.set(0, 0.55, 0);
+  var camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(3.8, 2.5, 5.0);
 
-// Lights
-const hemi = new THREE.HemisphereLight(0xb8c4ff, 0x1a1208, 0.55);
-scene.add(hemi);
-const key = new THREE.DirectionalLight(0xfff2dd, 2.2);
-key.position.set(4, 7, 3);
-key.castShadow = true;
-key.shadow.mapSize.set(2048, 2048);
-key.shadow.camera.near = 1;
-key.shadow.camera.far = 20;
-key.shadow.camera.left = -5;
-key.shadow.camera.right = 5;
-key.shadow.camera.top = 5;
-key.shadow.camera.bottom = -5;
-scene.add(key);
-const rim = new THREE.DirectionalLight(0x88aaff, 0.85);
-rim.position.set(-5, 3, -4);
-scene.add(rim);
-const fill = new THREE.PointLight(0xff9e2e, 0.35, 12);
-fill.position.set(0, 1.2, 2.5);
-scene.add(fill);
+  // Lights
+  scene.add(new THREE.HemisphereLight(0xb8c4ff, 0x1a1208, 0.65));
+  var key = new THREE.DirectionalLight(0xfff2dd, 1.35);
+  key.position.set(4, 7, 3);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024);
+  scene.add(key);
+  var rim = new THREE.DirectionalLight(0x88aaff, 0.55);
+  rim.position.set(-5, 3, -4);
+  scene.add(rim);
 
-// Ground
-const ground = new THREE.Mesh(
-  new THREE.CircleGeometry(7, 64),
-  new THREE.MeshStandardMaterial({ color: 0x101014, metalness: 0.4, roughness: 0.85 })
-);
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
+  // Ground
+  var ground = new THREE.Mesh(
+    new THREE.CircleGeometry(7, 48),
+    new THREE.MeshStandardMaterial({ color: 0x101014, metalness: 0.35, roughness: 0.88 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
 
-const ring = new THREE.Mesh(
-  new THREE.RingGeometry(1.35, 1.55, 64),
-  new THREE.MeshBasicMaterial({ color: 0xff9e2e, transparent: true, opacity: 0.22 })
-);
-ring.rotation.x = -Math.PI / 2;
-ring.position.y = 0.01;
-scene.add(ring);
+  var ring = new THREE.Mesh(
+    new THREE.RingGeometry(1.35, 1.55, 48),
+    new THREE.MeshBasicMaterial({ color: 0xff9e2e, transparent: true, opacity: 0.22 })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.012;
+  scene.add(ring);
 
-// Materials
-const paint = new THREE.MeshPhysicalMaterial({
-  color: 0xf2f4f7,
-  metalness: 0.72,
-  roughness: 0.28,
-  clearcoat: 1,
-  clearcoatRoughness: 0.12,
-});
-const paintDark = new THREE.MeshPhysicalMaterial({
-  color: 0xd8dde3,
-  metalness: 0.7,
-  roughness: 0.32,
-  clearcoat: 1,
-  clearcoatRoughness: 0.15,
-});
-const glass = new THREE.MeshPhysicalMaterial({
-  color: 0x0a1218,
-  metalness: 0.1,
-  roughness: 0.05,
-  transmission: 0.55,
-  thickness: 0.4,
-  transparent: true,
-  opacity: 0.85,
-});
-const blackTrim = new THREE.MeshStandardMaterial({ color: 0x111114, metalness: 0.6, roughness: 0.45 });
-const cabinLit = new THREE.MeshStandardMaterial({
-  color: 0xff7a28,
-  emissive: 0xff5a10,
-  emissiveIntensity: 0.0,
-  roughness: 0.8,
-});
-const tire = new THREE.MeshStandardMaterial({ color: 0x151518, roughness: 0.75 });
-const rimMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, metalness: 0.9, roughness: 0.25 });
-
-function box(w, h, d, mat, r = 0.04) {
-  const mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, r), mat);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  return mesh;
-}
-
-/** Pivot helper: child local offset so hinge sits correctly */
-function hinged(pivotPos, child, openAxis, openAngle) {
-  const pivot = new THREE.Group();
-  pivot.position.copy(pivotPos);
-  child.position.sub(pivotPos);
-  pivot.add(child);
-  pivot.userData = {
-    openAxis,
-    openAngle,
-    target: 0,
-    current: 0,
-  };
-  return pivot;
-}
-
-const car = new THREE.Group();
-scene.add(car);
-
-// Proportions ~ Model Y
-const body = box(1.85, 0.52, 4.35, paint, 0.08);
-body.position.set(0, 0.62, 0);
-car.add(body);
-
-const lower = box(1.78, 0.28, 4.15, paintDark, 0.06);
-lower.position.set(0, 0.38, 0);
-car.add(lower);
-
-// Cabin / greenhouse
-const cabin = box(1.62, 0.55, 2.35, glass, 0.1);
-cabin.position.set(0, 1.05, -0.15);
-car.add(cabin);
-
-const roof = box(1.55, 0.06, 2.2, blackTrim, 0.03);
-roof.position.set(0, 1.34, -0.12);
-car.add(roof);
-
-// Interior glow plane
-const interior = new THREE.Mesh(
-  new THREE.PlaneGeometry(1.35, 2.0),
-  cabinLit
-);
-interior.rotation.x = -Math.PI / 2;
-interior.position.set(0, 0.78, -0.1);
-car.add(interior);
-
-// Front bumper / nose
-const nose = box(1.7, 0.35, 0.55, paint, 0.08);
-nose.position.set(0, 0.55, 2.05);
-car.add(nose);
-
-const lightBar = box(1.35, 0.05, 0.08, new THREE.MeshStandardMaterial({
-  color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.8, roughness: 0.3
-}));
-lightBar.position.set(0, 0.62, 2.28);
-car.add(lightBar);
-
-// Rear
-const rear = box(1.72, 0.42, 0.5, paint, 0.07);
-rear.position.set(0, 0.62, -2.1);
-car.add(rear);
-
-const tail = box(1.4, 0.06, 0.06, new THREE.MeshStandardMaterial({
-  color: 0xff2030, emissive: 0xff1020, emissiveIntensity: 0.7, roughness: 0.35
-}));
-tail.position.set(0, 0.72, -2.32);
-car.add(tail);
-
-// Wheels
-function addWheel(x, z) {
-  const g = new THREE.Group();
-  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 28), tire);
-  t.rotation.z = Math.PI / 2;
-  t.castShadow = true;
-  g.add(t);
-  const r = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.25, 20), rimMat);
-  r.rotation.z = Math.PI / 2;
-  g.add(r);
-  g.position.set(x, 0.34, z);
-  car.add(g);
-}
-addWheel(-0.88, 1.35);
-addWheel(0.88, 1.35);
-addWheel(-0.88, -1.35);
-addWheel(0.88, -1.35);
-
-// ---- Doors ----
-function makeDoor(side, front) {
-  // side: -1 left, +1 right; front boolean
-  const door = box(0.08, 0.58, front ? 1.05 : 0.95, paint, 0.03);
-  const win = box(0.04, 0.28, front ? 0.7 : 0.62, glass, 0.02);
-  win.position.set(side * 0.02, 0.28, front ? 0.05 : 0);
-  door.add(win);
-
-  const handle = box(0.03, 0.02, 0.12, blackTrim, 0.01);
-  handle.position.set(side * 0.05, 0.05, front ? -0.25 : -0.2);
-  door.add(handle);
-
-  // World-ish hinge at body side, A/B pillar
-  const hingeX = side * 0.92;
-  const hingeZ = front ? 0.85 : -0.15;
-  const hingeY = 0.68;
-  door.position.set(side * 0.96, hingeY, front ? 0.35 : -0.55);
-
-  const pivot = new THREE.Group();
-  pivot.position.set(hingeX, hingeY, hingeZ);
-  // reparent with local offset
-  const local = door.position.clone().sub(pivot.position);
-  door.position.copy(local);
-  pivot.add(door);
-  pivot.userData = {
-    target: 0,
-    current: 0,
-    openAngle: side < 0 ? Math.PI * 0.62 : -Math.PI * 0.62,
-    axis: 'y',
-  };
-  car.add(pivot);
-  return pivot;
-}
-
-const doors = {
-  fl: makeDoor(-1, true),
-  fr: makeDoor(1, true),
-  rl: makeDoor(-1, false),
-  rr: makeDoor(1, false),
-};
-
-// Frunk hood
-const frunkPanel = box(1.55, 0.06, 1.05, paint, 0.05);
-frunkPanel.position.set(0, 0.9, 1.45);
-const frunkPivot = new THREE.Group();
-frunkPivot.position.set(0, 0.88, 0.95); // hinge near windshield
-{
-  const local = frunkPanel.position.clone().sub(frunkPivot.position);
-  frunkPanel.position.copy(local);
-  frunkPivot.add(frunkPanel);
-}
-frunkPivot.userData = { target: 0, current: 0, openAngle: -Math.PI * 0.55, axis: 'x' };
-car.add(frunkPivot);
-
-// Trunk / liftgate
-const trunkPanel = box(1.55, 0.72, 0.08, paint, 0.05);
-const trunkGlass = box(1.35, 0.42, 0.04, glass, 0.03);
-trunkGlass.position.set(0, 0.18, -0.02);
-trunkPanel.add(trunkGlass);
-trunkPanel.position.set(0, 0.95, -2.15);
-const trunkPivot = new THREE.Group();
-trunkPivot.position.set(0, 1.28, -1.55); // roof hinge
-{
-  const local = trunkPanel.position.clone().sub(trunkPivot.position);
-  trunkPanel.position.copy(local);
-  trunkPivot.add(trunkPanel);
-}
-trunkPivot.userData = { target: 0, current: 0, openAngle: Math.PI * 0.72, axis: 'x' };
-car.add(trunkPivot);
-
-const parts = {
-  fl: doors.fl,
-  fr: doors.fr,
-  rl: doors.rl,
-  rr: doors.rr,
-  frunk: frunkPivot,
-  trunk: trunkPivot,
-};
-
-const names = {
-  fl: 'Sol ön', fr: 'Sağ ön', rl: 'Sol arka', rr: 'Sağ arka',
-  frunk: 'Frunk', trunk: 'Bagaj',
-};
-
-const open = new Set();
-
-function setPart(key, isOpen) {
-  const p = parts[key];
-  if (!p) return;
-  p.userData.target = isOpen ? 1 : 0;
-}
-
-function refreshUI() {
-  const labs = [...open].map(k => names[k]);
-  labelEl.textContent = labs.length ? labs.join(' · ') : 'Kapalı';
-  if (!labs.length) subEl.textContent = 'Parmakla döndür · panelleri aç';
-  else if (open.has('frunk') && labs.length === 1) subEl.textContent = 'Ön kaput açılıyor';
-  else if (open.has('trunk') && labs.length === 1) subEl.textContent = 'Bagaj açılıyor';
-  else subEl.textContent = labs.length > 1 ? 'Açık paneller' : 'Kapı açılıyor';
-
-  document.querySelectorAll('.btns button').forEach(b => {
-    const k = b.dataset.key;
-    if (k === 'all' || k === 'none') return;
-    b.classList.toggle('active', open.has(k));
+  // Materials
+  var paint = new THREE.MeshStandardMaterial({ color: 0xf2f4f7, metalness: 0.65, roughness: 0.28 });
+  var paintDark = new THREE.MeshStandardMaterial({ color: 0xd5dae0, metalness: 0.6, roughness: 0.34 });
+  var glass = new THREE.MeshStandardMaterial({
+    color: 0x0c1520, metalness: 0.2, roughness: 0.08, transparent: true, opacity: 0.72
   });
+  var blackTrim = new THREE.MeshStandardMaterial({ color: 0x111114, metalness: 0.55, roughness: 0.5 });
+  var cabinLit = new THREE.MeshStandardMaterial({
+    color: 0xff7a28, emissive: 0xff5a10, emissiveIntensity: 0, roughness: 0.85
+  });
+  var tire = new THREE.MeshStandardMaterial({ color: 0x151518, roughness: 0.8 });
+  var rimMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, metalness: 0.85, roughness: 0.28 });
 
-  // Cabin glow intensity
-  const any = open.size > 0;
-  cabinLit.emissiveIntensity = any ? 1.4 : 0.0;
-}
+  function boxMesh(w, h, d, mat) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    return m;
+  }
 
-document.querySelectorAll('.btns button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const k = btn.dataset.key;
+  var car = new THREE.Group();
+  scene.add(car);
+
+  var body = boxMesh(1.85, 0.52, 4.35, paint);
+  body.position.set(0, 0.62, 0);
+  car.add(body);
+
+  var lower = boxMesh(1.78, 0.28, 4.15, paintDark);
+  lower.position.set(0, 0.38, 0);
+  car.add(lower);
+
+  var cabin = boxMesh(1.62, 0.55, 2.35, glass);
+  cabin.position.set(0, 1.05, -0.15);
+  car.add(cabin);
+
+  var roof = boxMesh(1.55, 0.06, 2.2, blackTrim);
+  roof.position.set(0, 1.34, -0.12);
+  car.add(roof);
+
+  var interior = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 2.0), cabinLit);
+  interior.rotation.x = -Math.PI / 2;
+  interior.position.set(0, 0.78, -0.1);
+  car.add(interior);
+
+  var nose = boxMesh(1.7, 0.35, 0.55, paint);
+  nose.position.set(0, 0.55, 2.05);
+  car.add(nose);
+
+  var lightBar = boxMesh(1.35, 0.05, 0.08, new THREE.MeshStandardMaterial({
+    color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.85, roughness: 0.3
+  }));
+  lightBar.position.set(0, 0.62, 2.28);
+  car.add(lightBar);
+
+  var rear = boxMesh(1.72, 0.42, 0.5, paint);
+  rear.position.set(0, 0.62, -2.1);
+  car.add(rear);
+
+  var tail = boxMesh(1.4, 0.06, 0.06, new THREE.MeshStandardMaterial({
+    color: 0xff2030, emissive: 0xff1020, emissiveIntensity: 0.75, roughness: 0.35
+  }));
+  tail.position.set(0, 0.72, -2.32);
+  car.add(tail);
+
+  function addWheel(x, z) {
+    var g = new THREE.Group();
+    var t = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 24), tire);
+    t.rotation.z = Math.PI / 2;
+    t.castShadow = true;
+    g.add(t);
+    var r = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.25, 16), rimMat);
+    r.rotation.z = Math.PI / 2;
+    g.add(r);
+    g.position.set(x, 0.34, z);
+    car.add(g);
+  }
+  addWheel(-0.88, 1.35); addWheel(0.88, 1.35);
+  addWheel(-0.88, -1.35); addWheel(0.88, -1.35);
+
+  function makeDoor(side, front) {
+    var door = boxMesh(0.08, 0.58, front ? 1.05 : 0.95, paint);
+    var win = boxMesh(0.04, 0.28, front ? 0.7 : 0.62, glass);
+    win.position.set(side * 0.02, 0.28, front ? 0.05 : 0);
+    door.add(win);
+    var handle = boxMesh(0.03, 0.02, 0.12, blackTrim);
+    handle.position.set(side * 0.05, 0.05, front ? -0.25 : -0.2);
+    door.add(handle);
+
+    var hingeX = side * 0.92;
+    var hingeZ = front ? 0.85 : -0.15;
+    var hingeY = 0.68;
+    door.position.set(side * 0.96, hingeY, front ? 0.35 : -0.55);
+
+    var pivot = new THREE.Group();
+    pivot.position.set(hingeX, hingeY, hingeZ);
+    door.position.sub(pivot.position);
+    pivot.add(door);
+    pivot.userData = {
+      target: 0, current: 0,
+      openAngle: side < 0 ? Math.PI * 0.62 : -Math.PI * 0.62,
+      axis: 'y'
+    };
+    car.add(pivot);
+    return pivot;
+  }
+
+  var parts = {
+    fl: makeDoor(-1, true),
+    fr: makeDoor(1, true),
+    rl: makeDoor(-1, false),
+    rr: makeDoor(1, false)
+  };
+
+  // Frunk
+  var frunkPanel = boxMesh(1.55, 0.06, 1.05, paint);
+  frunkPanel.position.set(0, 0.9, 1.45);
+  var frunkPivot = new THREE.Group();
+  frunkPivot.position.set(0, 0.88, 0.95);
+  frunkPanel.position.sub(frunkPivot.position);
+  frunkPivot.add(frunkPanel);
+  frunkPivot.userData = { target: 0, current: 0, openAngle: -Math.PI * 0.55, axis: 'x' };
+  car.add(frunkPivot);
+  parts.frunk = frunkPivot;
+
+  // Trunk / liftgate
+  var trunkPanel = boxMesh(1.55, 0.72, 0.08, paint);
+  var trunkGlass = boxMesh(1.35, 0.42, 0.04, glass);
+  trunkGlass.position.set(0, 0.18, -0.02);
+  trunkPanel.add(trunkGlass);
+  trunkPanel.position.set(0, 0.95, -2.15);
+  var trunkPivot = new THREE.Group();
+  trunkPivot.position.set(0, 1.28, -1.55);
+  trunkPanel.position.sub(trunkPivot.position);
+  trunkPivot.add(trunkPanel);
+  trunkPivot.userData = { target: 0, current: 0, openAngle: Math.PI * 0.72, axis: 'x' };
+  car.add(trunkPivot);
+  parts.trunk = trunkPivot;
+
+  var names = {
+    fl: 'Sol ön', fr: 'Sağ ön', rl: 'Sol arka', rr: 'Sağ arka',
+    frunk: 'Frunk', trunk: 'Bagaj'
+  };
+  var open = {};
+
+  function setPart(key, isOpen) {
+    open[key] = !!isOpen;
+    parts[key].userData.target = isOpen ? 1 : 0;
+  }
+
+  function refreshUI() {
+    var labs = [];
+    Object.keys(names).forEach(function (k) { if (open[k]) labs.push(names[k]); });
+    labelEl.textContent = labs.length ? labs.join(' · ') : 'Kapalı';
+    if (!labs.length) subEl.textContent = 'Parmakla döndür · panelleri aç';
+    else if (open.frunk && labs.length === 1) subEl.textContent = 'Ön kaput açılıyor';
+    else if (open.trunk && labs.length === 1) subEl.textContent = 'Bagaj açılıyor';
+    else subEl.textContent = labs.length > 1 ? 'Açık paneller' : 'Kapı açılıyor';
+
+    var any = labs.length > 0;
+    cabinLit.emissiveIntensity = any ? 1.35 : 0;
+
+    var buttons = document.querySelectorAll('.btns button');
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons[i];
+      var k = b.getAttribute('data-key');
+      if (k === 'all' || k === 'none') continue;
+      if (open[k]) b.classList.add('active'); else b.classList.remove('active');
+    }
+  }
+
+  document.querySelector('.btns').addEventListener('click', function (ev) {
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    var k = btn.getAttribute('data-key');
     if (k === 'none') {
-      open.clear();
-      Object.keys(parts).forEach(p => setPart(p, false));
+      Object.keys(parts).forEach(function (p) { setPart(p, false); });
     } else if (k === 'all') {
-      Object.keys(parts).forEach(p => { open.add(p); setPart(p, true); });
+      Object.keys(parts).forEach(function (p) { setPart(p, true); });
     } else {
-      if (open.has(k)) { open.delete(k); setPart(k, false); }
-      else { open.add(k); setPart(k, true); }
+      setPart(k, !open[k]);
     }
     refreshUI();
   });
-});
 
-// Demo sequence
-const demoSteps = [
-  ['fl'],
-  ['fl', 'fr'],
-  ['trunk'],
-  ['frunk'],
-  ['fl', 'fr', 'rl', 'rr', 'trunk'],
-  [],
-];
-let demoIdx = 0;
-function runDemoStep() {
-  open.clear();
-  Object.keys(parts).forEach(p => setPart(p, false));
-  for (const k of demoSteps[demoIdx]) {
-    open.add(k);
-    setPart(k, true);
+  // Demo
+  var demoSteps = [
+    ['fl'], ['fl', 'fr'], ['trunk'], ['frunk'],
+    ['fl', 'fr', 'rl', 'rr', 'trunk'], []
+  ];
+  var demoIdx = 0;
+  function runDemo() {
+    Object.keys(parts).forEach(function (p) { setPart(p, false); });
+    demoSteps[demoIdx].forEach(function (k) { setPart(k, true); });
+    refreshUI();
+    demoIdx = (demoIdx + 1) % demoSteps.length;
   }
-  refreshUI();
-  demoIdx = (demoIdx + 1) % demoSteps.length;
-}
-runDemoStep();
-setInterval(runDemoStep, 2800);
+  runDemo();
+  setInterval(runDemo, 2800);
 
-// Smooth spring toward targets
-function animateHinges(dt) {
-  for (const p of Object.values(parts)) {
-    const d = p.userData;
-    // critically-damped-ish
-    d.current += (d.target - d.current) * Math.min(1, dt * 5.2);
-    const a = d.openAngle * easeOutBack(d.current);
-    if (d.axis === 'y') p.rotation.y = a;
-    else p.rotation.x = a;
+  function easeOutBack(t) {
+    var c = 1.15;
+    var t1 = t - 1;
+    return 1 + c * t1 * t1 * t1 + t1 * t1;
   }
-}
 
-function easeOutBack(t) {
-  const c = 1.2;
-  const t1 = t - 1;
-  return 1 + c * t1 * t1 * t1 + t1 * t1;
-}
+  // Orbit (touch / mouse)
+  var spherical = { theta: 0.85, phi: 1.05, radius: 6.6 };
+  var dragging = false;
+  var lastX = 0, lastY = 0;
 
-// Subtle idle
-let t0 = performance.now();
-function tick(now) {
-  const dt = Math.min(0.05, (now - t0) / 1000);
-  t0 = now;
-  animateHinges(dt);
-  car.rotation.y = Math.sin(now * 0.00015) * 0.08;
-  ring.material.opacity = 0.14 + Math.sin(now * 0.002) * 0.06;
-  controls.update();
-  renderer.render(scene, camera);
+  function applyCam() {
+    var phi = Math.max(0.25, Math.min(1.35, spherical.phi));
+    spherical.phi = phi;
+    camera.position.set(
+      spherical.radius * Math.sin(phi) * Math.sin(spherical.theta),
+      spherical.radius * Math.cos(phi) + 0.35,
+      spherical.radius * Math.sin(phi) * Math.cos(spherical.theta)
+    );
+    camera.lookAt(0, 0.55, 0);
+  }
+  applyCam();
+
+  function onDown(x, y) { dragging = true; lastX = x; lastY = y; }
+  function onMove(x, y) {
+    if (!dragging) return;
+    var dx = x - lastX, dy = y - lastY;
+    lastX = x; lastY = y;
+    spherical.theta -= dx * 0.005;
+    spherical.phi -= dy * 0.005;
+    applyCam();
+  }
+  function onUp() { dragging = false; }
+
+  canvas.addEventListener('mousedown', function (e) { onDown(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', function (e) { onMove(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', onUp);
+  canvas.addEventListener('touchstart', function (e) {
+    if (e.touches[0]) onDown(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  window.addEventListener('touchmove', function (e) {
+    if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  window.addEventListener('touchend', onUp);
+
+  canvas.addEventListener('wheel', function (e) {
+    spherical.radius = Math.max(3.4, Math.min(10, spherical.radius + e.deltaY * 0.01));
+    applyCam();
+  }, { passive: true });
+
+  var t0 = performance.now();
+  function tick(now) {
+    var dt = Math.min(0.05, (now - t0) / 1000);
+    t0 = now;
+
+    Object.keys(parts).forEach(function (k) {
+      var p = parts[k];
+      var d = p.userData;
+      d.current += (d.target - d.current) * Math.min(1, dt * 5.2);
+      var a = d.openAngle * easeOutBack(Math.max(0, Math.min(1, d.current)));
+      if (d.axis === 'y') p.rotation.y = a; else p.rotation.x = a;
+    });
+
+    ring.material.opacity = 0.14 + Math.sin(now * 0.002) * 0.06;
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  }
   requestAnimationFrame(tick);
-}
-requestAnimationFrame(tick);
 
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
+  window.addEventListener('resize', function () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+  });
+})();
 </script>
 </body>
 </html>
