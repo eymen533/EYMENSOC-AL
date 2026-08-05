@@ -88,6 +88,9 @@ final class HUDModel: ObservableObject {
     private var useVehicleFeed = false
     private var useBLE = false
     private var localDemo = false
+    /// Latest speed from BLE / live — dial ticks toward this (Tesla pitır-pitır).
+    private var speedTarget: Double = 0
+    private var speedAnimCancellable: AnyCancellable?
     /// Rail icons stay visible this long, then fade (Dashla-like).
     private let railVisibleSeconds: UInt64 = 2_500_000_000
 
@@ -131,6 +134,8 @@ final class HUDModel: ObservableObject {
         telemetrySource = paired ? "BLE bekleniyor" : "baglaniyor"
         feedError = paired ? "Key Card + araç uyanık olmalı" : ""
         speed = 0
+        speedTarget = 0
+        stopSpeedAnim()
         powerKW = 0
         gear = "—"
         driving = false
@@ -173,8 +178,8 @@ final class HUDModel: ObservableObject {
         bleOK = true
         telemetrySource = "BLE"
         feedError = ""
-        // Always mirror car — including 0 speed / P gear.
-        speed = s.speedKmh
+        // Target from car; dial ticks digit-by-digit toward it (not a hard jump).
+        setSpeedTarget(s.speedKmh)
         powerKW = s.powerKW
         gear = s.gear.isEmpty ? "—" : s.gear
         driving = abs(s.speedKmh) > 1.5 || s.gear == "D" || s.gear == "R"
@@ -270,6 +275,50 @@ final class HUDModel: ObservableObject {
         pollTask?.cancel(); pollTask = nil
         leftRailHideTask?.cancel(); leftRailHideTask = nil
         rightRailHideTask?.cancel(); rightRailHideTask = nil
+        stopSpeedAnim()
+    }
+
+    /// Tesla cluster feel: when BLE jumps 60→75, dial runs 61…75 quickly instead of snapping.
+    private func setSpeedTarget(_ kmh: Double) {
+        speedTarget = kmh
+        if abs(speed - kmh) < 0.45 {
+            speed = kmh
+            return
+        }
+        startSpeedAnimIfNeeded()
+    }
+
+    private func startSpeedAnimIfNeeded() {
+        guard speedAnimCancellable == nil else { return }
+        speedAnimCancellable = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.tickDisplayedSpeed()
+            }
+    }
+
+    private func stopSpeedAnim() {
+        speedAnimCancellable?.cancel()
+        speedAnimCancellable = nil
+    }
+
+    private func tickDisplayedSpeed() {
+        let target = speedTarget
+        let cur = speed
+        let gap = target - cur
+        let absGap = abs(gap)
+        if absGap < 0.45 {
+            if speed != target { speed = target }
+            stopSpeedAnim()
+            return
+        }
+        // Whole km/h steps — faster catch-up when telemetry arrived late with a big delta.
+        let steps: Double
+        if absGap > 28 { steps = 4 }
+        else if absGap > 14 { steps = 2 }
+        else { steps = 1 }
+        let move = min(absGap, steps)
+        speed = cur + (gap > 0 ? move : -move)
     }
 
     func toggleDrive() {
@@ -282,6 +331,8 @@ final class HUDModel: ObservableObject {
         } else {
             gear = "P"
             speed = 0
+            speedTarget = 0
+            stopSpeedAnim()
             powerKW = 0
         }
     }
@@ -296,6 +347,8 @@ final class HUDModel: ObservableObject {
         } else {
             driving = false
             speed = 0
+            speedTarget = 0
+            stopSpeedAnim()
             powerKW = 0
         }
     }
@@ -501,7 +554,7 @@ final class HUDModel: ObservableObject {
             if let lon = num(obj["longitude"]) { longitude = lon }
             if let h = num(obj["heading"]) { mapHeading = h }
             if let sp = num(obj["speed_kmh"]) {
-                speed = sp
+                setSpeedTarget(sp)
                 driving = abs(sp) > 1.5 || (obj["gear"] as? String) == "D" || (obj["gear"] as? String) == "R"
             }
             if let pw = num(obj["power_kw"]) { powerKW = pw }
