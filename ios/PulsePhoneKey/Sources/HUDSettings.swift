@@ -86,9 +86,23 @@ final class HUDSettings: ObservableObject {
 
     enum DialStyle: String, CaseIterable, Identifiable {
         case circle = "Yuvarlak"
+        case ring = "Halka"
+        case oval = "Oval"
         case square = "Kare"
         case bare = "Sade"
+        case neon = "Neon"
         var id: String { rawValue }
+
+        var blurb: String {
+            switch self {
+            case .circle: return "Klasik yuvarlak bevel — Tesla cluster hissi."
+            case .ring: return "Mor çift halka — vurgulu çerçeve."
+            case .oval: return "Dikey elips — dar profil."
+            case .square: return "Yumuşak köşeli kare plaka."
+            case .bare: return "Çerçeve yok — hız/vites yüzer."
+            case .neon: return "Cyan ışıma — gece HUD."
+            }
+        }
     }
 
     @Published var refreshMode: RefreshMode {

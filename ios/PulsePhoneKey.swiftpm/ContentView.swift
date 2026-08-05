@@ -344,14 +344,8 @@ struct ContentView: View {
                     Picker("Şekil", selection: $hudSettings.dialStyle) {
                         ForEach(HUDSettings.DialStyle.allCases) { Text($0.rawValue).tag($0) }
                     }
-                    .pickerStyle(.segmented)
-                    Text({
-                        switch hudSettings.dialStyle {
-                        case .circle: return "Yuvarlak: makul boyut, ekstrüde bevel — kanatlar geride 3D."
-                        case .square: return "Kare: makul boyut, ekstrüde bevel — kanatlar geride 3D."
-                        case .bare: return "Sade: çerçeve yok — hız/vites yüzer, derin gölge."
-                        }
-                    }())
+                    .pickerStyle(.menu)
+                    Text(hudSettings.dialStyle.blurb)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

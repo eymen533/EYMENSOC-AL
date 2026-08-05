@@ -1,0 +1,8 @@
+# Slice crops on model-y-top.png (480x720)
+# name x y w h
+door_fl 9 201 125 159
+door_fr 345 201 125 159
+door_rl 9 360 125 158
+door_rr 348 354 125 158
+frunk 88 48 307 158
+trunk 76 516 327 173

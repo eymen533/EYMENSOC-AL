@@ -1,408 +1,435 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Pulse28 — Model Y 3D kapı animasyonu</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Pulse28 — Gerçek Model Y 3D + Kadran</title>
 <style>
-  :root { --amber:#ff9e2e; --amber-hot:#ffd159; --bg:#07070a; }
+  :root { color-scheme: dark; --bg:#05070c; --line:rgba(255,255,255,.1); --txt:#e8eefc; --muted:#8b97b0; --accent:#7c5cff; }
   * { box-sizing: border-box; }
-  html, body {
-    margin: 0; height: 100%; overflow: hidden;
-    background: var(--bg); color: #fff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    -webkit-user-select: none; user-select: none;
+  html, body { margin:0; height:100%; background:radial-gradient(ellipse at 50% 18%, #141c30 0%, var(--bg) 68%); color:var(--txt); font-family:ui-sans-serif,system-ui,-apple-system,sans-serif; }
+  #app { display:grid; grid-template-rows:auto 1fr auto auto; height:100%; }
+  header { padding:12px 16px; border-bottom:1px solid var(--line); display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+  h1 { margin:0; font-size:14px; font-weight:700; letter-spacing:.04em; }
+  .sub { margin:2px 0 0; color:var(--muted); font-size:11px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button, select {
+    appearance:none; border:1px solid var(--line); background:rgba(255,255,255,.05);
+    color:var(--txt); border-radius:999px; padding:8px 12px; font:inherit; font-size:12px; cursor:pointer;
   }
-  #c { display: block; width: 100%; height: 100%; touch-action: none; }
-  .hud {
-    position: absolute; inset: 0; pointer-events: none;
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-    padding: 16px 14px 24px;
-    background: linear-gradient(180deg, rgba(0,0,0,.4) 0%, transparent 26%, transparent 58%, rgba(0,0,0,.75) 100%);
+  button:hover, select:hover { border-color:rgba(124,92,255,.55); }
+  button.active { background:rgba(124,92,255,.28); border-color:rgba(124,92,255,.7); }
+  #stage { position:relative; min-height:0; }
+  canvas { display:block; width:100%; height:100%; }
+  #hud {
+    position:absolute; inset:auto 12px 12px 12px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; pointer-events:none;
   }
-  .title {
-    position: absolute; top: 16px; left: 0; right: 0; text-align: center;
-    font-size: 11px; letter-spacing: .16em; font-weight: 700; color: rgba(255,255,255,.42);
+  .badge {
+    pointer-events:auto; backdrop-filter:blur(14px); background:rgba(10,12,20,.72); border:1px solid rgba(255,255,255,.12);
+    border-radius:14px; padding:10px 12px; min-width:150px;
   }
-  .panel {
-    pointer-events: auto; width: min(420px, 94vw);
-    background: rgba(12,12,16,.88); border: 1px solid rgba(255,158,46,.38);
-    border-radius: 18px; padding: 12px 12px 10px;
-    box-shadow: 0 16px 40px rgba(0,0,0,.5), 0 0 24px rgba(255,158,46,.12);
+  .badge b { display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#c9b8ff; margin-bottom:4px; }
+  .badge span { font-size:12px; color:var(--muted); }
+  footer { padding:10px 16px 12px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; line-height:1.45; }
+  #err { display:none; position:absolute; inset:12px; align-items:center; justify-content:center; text-align:center; padding:20px; background:rgba(8,10,16,.92); border-radius:16px; border:1px solid rgba(255,80,80,.35); color:#ffb4b4; z-index:5; }
+  #err.show { display:flex; }
+  #dials {
+    display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:8px; padding:10px 14px;
+    border-top:1px solid var(--line); background:rgba(0,0,0,.28);
   }
-  .label { margin: 0; text-align: center; font-size: 17px; font-weight: 750; color: var(--amber-hot); }
-  .sub { margin: 4px 0 10px; text-align: center; font-size: 12px; font-weight: 600; color: rgba(255,255,255,.65); }
-  .btns { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
-  button {
-    appearance: none; border: 1px solid rgba(255,255,255,.12);
-    background: rgba(255,255,255,.06); color: #fff; border-radius: 999px;
-    padding: 8px 11px; font-size: 12px; font-weight: 650; cursor: pointer;
+  @media (max-width:900px) { #dials { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+  @media (max-width:520px) { #dials { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .dial-card {
+    border:1px solid var(--line); border-radius:14px; padding:8px; background:rgba(255,255,255,.03);
+    cursor:pointer; text-align:center; transition:border-color .15s, background .15s;
   }
-  button.active { background: rgba(255,158,46,.28); border-color: var(--amber); color: var(--amber-hot); }
-  .hint { margin: 9px 0 0; text-align: center; font-size: 11px; color: rgba(255,255,255,.35); }
-  #err {
-    display: none; position: absolute; left: 12px; right: 12px; top: 48px;
-    background: rgba(80,0,0,.85); border: 1px solid #f66; border-radius: 10px;
-    padding: 10px; font-size: 12px; z-index: 5; white-space: pre-wrap;
+  .dial-card:hover { border-color:rgba(124,92,255,.45); }
+  .dial-card.picked { border-color:rgba(124,92,255,.85); background:rgba(124,92,255,.12); }
+  .dial-card .name { font-size:11px; font-weight:700; margin-top:4px; letter-spacing:.04em; }
+  .dial-card .desc { font-size:10px; color:var(--muted); margin-top:1px; }
+  .dial-preview { width:100%; aspect-ratio:1; display:grid; place-items:center; }
+  .dp {
+    --s: min(72px, 18vw);
+    width:var(--s); height:var(--s); position:relative; display:grid; place-items:center;
+    color:#fff; font-weight:200; font-variant-numeric:tabular-nums;
   }
+  .dp .spd { font-size:calc(var(--s)*0.38); line-height:1; letter-spacing:-.03em; }
+  .dp .unit { position:absolute; bottom:12%; font-size:calc(var(--s)*0.09); letter-spacing:.16em; color:rgba(255,255,255,.55); font-weight:600; }
+  .dp.circle {
+    border-radius:50%;
+    background:radial-gradient(circle at 50% 42%, rgba(255,255,255,.1), rgba(0,0,0,.55));
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.55), 0 0 0 7px rgba(255,255,255,.06);
+  }
+  .dp.ring {
+    border-radius:50%;
+    background:radial-gradient(circle at 50% 40%, rgba(20,24,40,.25), rgba(0,0,0,.72));
+    box-shadow:
+      inset 0 0 0 3px rgba(124,92,255,.95),
+      inset 0 0 0 7px rgba(0,0,0,.85),
+      0 0 0 2px rgba(255,255,255,.15),
+      0 0 20px rgba(124,92,255,.35);
+  }
+  .dp.oval {
+    width:calc(var(--s)*0.78); height:var(--s); border-radius:50%;
+    background:radial-gradient(ellipse at 50% 40%, rgba(255,255,255,.1), rgba(0,0,0,.6));
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.5), 0 0 0 6px rgba(255,255,255,.05);
+  }
+  .dp.square {
+    border-radius:18%;
+    background:linear-gradient(160deg, rgba(255,255,255,.1), rgba(0,0,0,.55));
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.5), 0 0 0 6px rgba(255,255,255,.05);
+  }
+  .dp.bare { background:transparent; box-shadow:none; }
+  .dp.bare .unit { bottom:6%; }
+  .dp.neon {
+    border-radius:50%;
+    background:radial-gradient(circle at 50% 42%, rgba(0,229,255,.12), rgba(0,0,0,.7));
+    box-shadow:
+      inset 0 0 0 2px rgba(0,229,255,.9),
+      0 0 16px rgba(0,229,255,.45),
+      0 0 0 7px rgba(0,229,255,.08);
+  }
+  .dp.neon .spd { text-shadow:0 0 12px rgba(0,229,255,.65); }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div id="err"></div>
-<div class="hud">
-  <div class="title">PULSE28 · MODEL Y 3D</div>
-  <div class="panel">
-    <p class="label" id="label">Kapalı</p>
-    <p class="sub" id="sub">Parmakla döndür · panelleri aç</p>
-    <div class="btns">
-      <button type="button" data-key="fl">Sol ön</button>
-      <button type="button" data-key="fr">Sağ ön</button>
-      <button type="button" data-key="rl">Sol arka</button>
-      <button type="button" data-key="rr">Sağ arka</button>
-      <button type="button" data-key="frunk">Frunk</button>
-      <button type="button" data-key="trunk">Bagaj</button>
-      <button type="button" data-key="all">Hepsi</button>
-      <button type="button" data-key="none">Kapat</button>
+<div id="app">
+  <header>
+    <div>
+      <h1>GERÇEK MODEL Y — KAPILAR / FRUNK / BAGAJ</h1>
+      <p class="sub">ModelYTop PNG dilimleri · menteşeli 3D panel · 6 kadran taslağı</p>
     </div>
-    <p class="hint">3D menteşe · WebGL</p>
+    <div class="row">
+      <select id="cam">
+        <option value="iso">İzometrik</option>
+        <option value="top">Üstten</option>
+        <option value="side">Yandan</option>
+        <option value="rear">Arkadan</option>
+      </select>
+      <button id="cycle" type="button">Tur</button>
+      <button data-part="fl" type="button">Ön sol</button>
+      <button data-part="fr" type="button">Ön sağ</button>
+      <button data-part="rl" type="button">Arka sol</button>
+      <button data-part="rr" type="button">Arka sağ</button>
+      <button data-part="frunk" type="button">Frunk</button>
+      <button data-part="trunk" type="button">Bagaj</button>
+      <button id="all" type="button">Hepsi</button>
+      <button id="reset" type="button">Kapat</button>
+    </div>
+  </header>
+  <div id="stage">
+    <div id="err"></div>
+    <div id="hud">
+      <div class="badge"><b>Durum</b><span id="status">Yükleniyor…</span></div>
+      <div class="badge"><b>Seçili kadran</b><span id="dialPick">Yuvarlak</span></div>
+    </div>
   </div>
+  <div id="dials">
+    <div class="dial-card picked" data-dial="circle"><div class="dial-preview"><div class="dp circle"><span class="spd">72</span><span class="unit">KM/H</span></div></div><div class="name">Yuvarlak</div><div class="desc">Klasik halka</div></div>
+    <div class="dial-card" data-dial="ring"><div class="dial-preview"><div class="dp ring"><span class="spd">72</span><span class="unit">KM/H</span></div></div><div class="name">Halka</div><div class="desc">Mor çift halka</div></div>
+    <div class="dial-card" data-dial="oval"><div class="dial-preview"><div class="dp oval"><span class="spd">72</span><span class="unit">KM/H</span></div></div><div class="name">Oval</div><div class="desc">Dikey elips</div></div>
+    <div class="dial-card" data-dial="square"><div class="dial-preview"><div class="dp square"><span class="spd">72</span><span class="unit">KM/H</span></div></div><div class="name">Kare</div><div class="desc">Yumuşak köşe</div></div>
+    <div class="dial-card" data-dial="bare"><div class="dial-preview"><div class="dp bare"><span class="spd">72</span><span class="unit">KM/H</span></div></div><div class="name">Sade</div><div class="desc">Sadece hız</div></div>
+    <div class="dial-card" data-dial="neon"><div class="dial-preview"><div class="dp neon"><span class="spd">72</span><span class="unit">KM/H</span></div></div><div class="name">Neon</div><div class="desc">Cyan ışıma</div></div>
+  </div>
+  <footer>
+    Gerçek <code>ModelYTop</code> dilimleri · Three.js menteşe ·
+    <a href="https://raw.githack.com/eymen533/EYMENSOC-AL/cursor/hud-day-night-doors-02d8/preview/door-open.html" style="color:#c9b8ff">raw.githack</a>
+    veya jsDelivr ile açın.
+  </footer>
 </div>
 
-<!-- Classic UMD build — works on htmlpreview (no ES modules) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script>
 (function () {
-  var errEl = document.getElementById('err');
-  function showErr(e) {
-    errEl.style.display = 'block';
-    errEl.textContent = String(e && e.message ? e.message : e);
-  }
-  window.addEventListener('error', function (ev) { showErr(ev.error || ev.message); });
+  var BRANCH = "cursor/hud-day-night-doors-02d8";
+  var BASES = [
+    "slices/",
+    "https://cdn.jsdelivr.net/gh/eymen533/EYMENSOC-AL@" + BRANCH + "/preview/slices/",
+    "https://raw.githubusercontent.com/eymen533/EYMENSOC-AL/" + BRANCH + "/preview/slices/"
+  ];
 
-  if (typeof THREE === 'undefined') {
-    showErr('Three.js yüklenemedi (ağ / CDN). Sayfayı yenile.');
+  // Crops on model-y-top.png 480×720 (x,y,w,h) — front = top of image
+  var IMG_W = 480, IMG_H = 720;
+  var CROPS = {
+    fl:    { x: 9,   y: 201, w: 125, h: 159 },
+    fr:    { x: 345, y: 201, w: 125, h: 159 },
+    rl:    { x: 9,   y: 360, w: 125, h: 158 },
+    rr:    { x: 348, y: 354, w: 125, h: 158 },
+    frunk: { x: 88,  y: 48,  w: 307, h: 158 },
+    trunk: { x: 76,  y: 516, w: 327, h: 173 }
+  };
+
+  var CAR_W = 1.55;
+  var CAR_D = 3.1;
+
+  function imgToWorld(ix, iy) {
+    return {
+      x: (ix / IMG_W - 0.5) * CAR_W,
+      z: (0.5 - iy / IMG_H) * CAR_D
+    };
+  }
+
+  var statusEl = document.getElementById("status");
+  var errEl = document.getElementById("err");
+  var stage = document.getElementById("stage");
+  var dialPick = document.getElementById("dialPick");
+
+  var names = { fl:"Ön sol", fr:"Ön sağ", rl:"Arka sol", rr:"Arka sağ", frunk:"Frunk", trunk:"Bagaj" };
+  var open = { fl:false, fr:false, rl:false, rr:false, frunk:false, trunk:false };
+  var targets = { fl:0, fr:0, rl:0, rr:0, frunk:0, trunk:0 };
+  var angles = { fl:0, fr:0, rl:0, rr:0, frunk:0, trunk:0 };
+  var hinges = {};
+  var cycling = false;
+  var cycleTimer = null;
+  var lookAt = new THREE.Vector3(0, 0.15, 0);
+
+  document.querySelectorAll(".dial-card").forEach(function (card) {
+    card.addEventListener("click", function () {
+      document.querySelectorAll(".dial-card").forEach(function (c) { c.classList.remove("picked"); });
+      card.classList.add("picked");
+      dialPick.textContent = card.querySelector(".name").textContent;
+    });
+  });
+
+  function showErr(msg) {
+    errEl.textContent = msg;
+    errEl.classList.add("show");
+    statusEl.textContent = "Hata";
+  }
+
+  function updateStatus() {
+    var openKeys = Object.keys(open).filter(function (k) { return open[k]; });
+    statusEl.textContent = openKeys.length
+      ? openKeys.map(function (k) { return names[k]; }).join(" · ") + " açık"
+      : "Tümü kapalı";
+    document.querySelectorAll("[data-part]").forEach(function (btn) {
+      btn.classList.toggle("active", !!open[btn.getAttribute("data-part")]);
+    });
+  }
+
+  function setPart(key, value) {
+    open[key] = value;
+    targets[key] = value ? 1 : 0;
+    updateStatus();
+  }
+
+  function toggle(key) { setPart(key, !open[key]); }
+  function all(openAll) { Object.keys(open).forEach(function (k) { setPart(k, openAll); }); }
+
+  function setCamera(mode) {
+    if (mode === "top") camera.position.set(0, 4.4, 0.02);
+    else if (mode === "side") camera.position.set(3.8, 1.5, 0.2);
+    else if (mode === "rear") camera.position.set(0, 1.7, -3.6);
+    else camera.position.set(2.55, 2.2, 2.7);
+    camera.lookAt(lookAt);
+  }
+
+  function loadTexture(loader, bases, file) {
+    return new Promise(function (resolve, reject) {
+      var i = 0;
+      function tryNext() {
+        if (i >= bases.length) return reject(new Error("Yüklenemedi: " + file));
+        var url = bases[i++] + file + (bases[i-1].indexOf("http") === 0 ? "?t=" + Date.now() : "");
+        loader.load(url, resolve, undefined, function () { tryNext(); });
+      }
+      tryNext();
+    });
+  }
+
+  if (typeof THREE === "undefined") {
+    showErr("Three.js yüklenemedi. Sayfayı yenileyin.");
     return;
   }
 
-  var canvas = document.getElementById('c');
-  var labelEl = document.getElementById('label');
-  var subEl = document.getElementById('sub');
-
-  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight, false);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0x07070a, 1);
-  if (renderer.outputEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
-
   var scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x07070a, 9, 24);
+  scene.background = new THREE.Color(0x070a12);
+  scene.fog = new THREE.Fog(0x070a12, 9, 20);
 
-  var camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(3.8, 2.5, 5.0);
+  var camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+  var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  stage.insertBefore(renderer.domElement, stage.firstChild);
 
-  // Lights
-  scene.add(new THREE.HemisphereLight(0xb8c4ff, 0x1a1208, 0.65));
-  var key = new THREE.DirectionalLight(0xfff2dd, 1.35);
-  key.position.set(4, 7, 3);
-  key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024);
-  scene.add(key);
-  var rim = new THREE.DirectionalLight(0x88aaff, 0.55);
-  rim.position.set(-5, 3, -4);
+  scene.add(new THREE.HemisphereLight(0xb8c8ff, 0x1a1420, 0.9));
+  var keyL = new THREE.DirectionalLight(0xffffff, 1.1);
+  keyL.position.set(3, 5, 2);
+  scene.add(keyL);
+  var rim = new THREE.DirectionalLight(0x7c5cff, 0.5);
+  rim.position.set(-3, 2, -2);
   scene.add(rim);
 
-  // Ground
   var ground = new THREE.Mesh(
-    new THREE.CircleGeometry(7, 48),
-    new THREE.MeshStandardMaterial({ color: 0x101014, metalness: 0.35, roughness: 0.88 })
+    new THREE.CircleGeometry(4.8, 64),
+    new THREE.MeshStandardMaterial({ color: 0x0b1020, roughness: 0.95, metalness: 0.05 })
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
+  ground.position.y = -0.02;
   scene.add(ground);
-
-  var ring = new THREE.Mesh(
-    new THREE.RingGeometry(1.35, 1.55, 48),
-    new THREE.MeshBasicMaterial({ color: 0xff9e2e, transparent: true, opacity: 0.22 })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.012;
-  scene.add(ring);
-
-  // Materials
-  var paint = new THREE.MeshStandardMaterial({ color: 0xf2f4f7, metalness: 0.65, roughness: 0.28 });
-  var paintDark = new THREE.MeshStandardMaterial({ color: 0xd5dae0, metalness: 0.6, roughness: 0.34 });
-  var glass = new THREE.MeshStandardMaterial({
-    color: 0x0c1520, metalness: 0.2, roughness: 0.08, transparent: true, opacity: 0.72
-  });
-  var blackTrim = new THREE.MeshStandardMaterial({ color: 0x111114, metalness: 0.55, roughness: 0.5 });
-  var cabinLit = new THREE.MeshStandardMaterial({
-    color: 0xff7a28, emissive: 0xff5a10, emissiveIntensity: 0, roughness: 0.85
-  });
-  var tire = new THREE.MeshStandardMaterial({ color: 0x151518, roughness: 0.8 });
-  var rimMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, metalness: 0.85, roughness: 0.28 });
-
-  function boxMesh(w, h, d, mat) {
-    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-    m.castShadow = true;
-    m.receiveShadow = true;
-    return m;
-  }
+  var grid = new THREE.GridHelper(8, 24, 0x2a3350, 0x151a2a);
+  grid.position.y = -0.01;
+  scene.add(grid);
 
   var car = new THREE.Group();
   scene.add(car);
 
-  var body = boxMesh(1.85, 0.52, 4.35, paint);
-  body.position.set(0, 0.62, 0);
-  car.add(body);
+  var loader = new THREE.TextureLoader();
 
-  var lower = boxMesh(1.78, 0.28, 4.15, paintDark);
-  lower.position.set(0, 0.38, 0);
-  car.add(lower);
-
-  var cabin = boxMesh(1.62, 0.55, 2.35, glass);
-  cabin.position.set(0, 1.05, -0.15);
-  car.add(cabin);
-
-  var roof = boxMesh(1.55, 0.06, 2.2, blackTrim);
-  roof.position.set(0, 1.34, -0.12);
-  car.add(roof);
-
-  var interior = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 2.0), cabinLit);
-  interior.rotation.x = -Math.PI / 2;
-  interior.position.set(0, 0.78, -0.1);
-  car.add(interior);
-
-  var nose = boxMesh(1.7, 0.35, 0.55, paint);
-  nose.position.set(0, 0.55, 2.05);
-  car.add(nose);
-
-  var lightBar = boxMesh(1.35, 0.05, 0.08, new THREE.MeshStandardMaterial({
-    color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.85, roughness: 0.3
-  }));
-  lightBar.position.set(0, 0.62, 2.28);
-  car.add(lightBar);
-
-  var rear = boxMesh(1.72, 0.42, 0.5, paint);
-  rear.position.set(0, 0.62, -2.1);
-  car.add(rear);
-
-  var tail = boxMesh(1.4, 0.06, 0.06, new THREE.MeshStandardMaterial({
-    color: 0xff2030, emissive: 0xff1020, emissiveIntensity: 0.75, roughness: 0.35
-  }));
-  tail.position.set(0, 0.72, -2.32);
-  car.add(tail);
-
-  function addWheel(x, z) {
-    var g = new THREE.Group();
-    var t = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 24), tire);
-    t.rotation.z = Math.PI / 2;
-    t.castShadow = true;
-    g.add(t);
-    var r = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.25, 16), rimMat);
-    r.rotation.z = Math.PI / 2;
-    g.add(r);
-    g.position.set(x, 0.34, z);
-    car.add(g);
-  }
-  addWheel(-0.88, 1.35); addWheel(0.88, 1.35);
-  addWheel(-0.88, -1.35); addWheel(0.88, -1.35);
-
-  function makeDoor(side, front) {
-    var door = boxMesh(0.08, 0.58, front ? 1.05 : 0.95, paint);
-    var win = boxMesh(0.04, 0.28, front ? 0.7 : 0.62, glass);
-    win.position.set(side * 0.02, 0.28, front ? 0.05 : 0);
-    door.add(win);
-    var handle = boxMesh(0.03, 0.02, 0.12, blackTrim);
-    handle.position.set(side * 0.05, 0.05, front ? -0.25 : -0.2);
-    door.add(handle);
-
-    var hingeX = side * 0.92;
-    var hingeZ = front ? 0.85 : -0.15;
-    var hingeY = 0.68;
-    door.position.set(side * 0.96, hingeY, front ? 0.35 : -0.55);
-
-    var pivot = new THREE.Group();
-    pivot.position.set(hingeX, hingeY, hingeZ);
-    door.position.sub(pivot.position);
-    pivot.add(door);
-    pivot.userData = {
-      target: 0, current: 0,
-      openAngle: side < 0 ? Math.PI * 0.62 : -Math.PI * 0.62,
-      axis: 'y'
-    };
-    car.add(pivot);
-    return pivot;
+  function planeMat(tex) {
+    tex.encoding = THREE.sRGBEncoding;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    tex.flipY = true;
+    return new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      alphaTest: 0.05,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
   }
 
-  var parts = {
-    fl: makeDoor(-1, true),
-    fr: makeDoor(1, true),
-    rl: makeDoor(-1, false),
-    rr: makeDoor(1, false)
-  };
-
-  // Frunk
-  var frunkPanel = boxMesh(1.55, 0.06, 1.05, paint);
-  frunkPanel.position.set(0, 0.9, 1.45);
-  var frunkPivot = new THREE.Group();
-  frunkPivot.position.set(0, 0.88, 0.95);
-  frunkPanel.position.sub(frunkPivot.position);
-  frunkPivot.add(frunkPanel);
-  frunkPivot.userData = { target: 0, current: 0, openAngle: -Math.PI * 0.55, axis: 'x' };
-  car.add(frunkPivot);
-  parts.frunk = frunkPivot;
-
-  // Trunk / liftgate
-  var trunkPanel = boxMesh(1.55, 0.72, 0.08, paint);
-  var trunkGlass = boxMesh(1.35, 0.42, 0.04, glass);
-  trunkGlass.position.set(0, 0.18, -0.02);
-  trunkPanel.add(trunkGlass);
-  trunkPanel.position.set(0, 0.95, -2.15);
-  var trunkPivot = new THREE.Group();
-  trunkPivot.position.set(0, 1.28, -1.55);
-  trunkPanel.position.sub(trunkPivot.position);
-  trunkPivot.add(trunkPanel);
-  trunkPivot.userData = { target: 0, current: 0, openAngle: Math.PI * 0.72, axis: 'x' };
-  car.add(trunkPivot);
-  parts.trunk = trunkPivot;
-
-  var names = {
-    fl: 'Sol ön', fr: 'Sağ ön', rl: 'Sol arka', rr: 'Sağ arka',
-    frunk: 'Frunk', trunk: 'Bagaj'
-  };
-  var open = {};
-
-  function setPart(key, isOpen) {
-    open[key] = !!isOpen;
-    parts[key].userData.target = isOpen ? 1 : 0;
+  /**
+   * Panel hinged at (hx,hz). Mesh center at (cx,cz). Plane lies on XZ.
+   * axis: 'y' side swing, 'x' lid lift. sign/max control open angle.
+   */
+  function makeHinged(tex, pw, pd, hx, hz, cx, cz, axis, sign, maxRad) {
+    var hinge = new THREE.Group();
+    hinge.position.set(hx, 0.012, hz);
+    var mesh = new THREE.Mesh(new THREE.PlaneGeometry(pw, pd), planeMat(tex));
+    // +PI/2: image top (front of car) → world +Z
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position.set(cx - hx, 0, cz - hz);
+    hinge.add(mesh);
+    hinge.userData = { axis: axis, sign: sign, max: maxRad };
+    return hinge;
   }
 
-  function refreshUI() {
-    var labs = [];
-    Object.keys(names).forEach(function (k) { if (open[k]) labs.push(names[k]); });
-    labelEl.textContent = labs.length ? labs.join(' · ') : 'Kapalı';
-    if (!labs.length) subEl.textContent = 'Parmakla döndür · panelleri aç';
-    else if (open.frunk && labs.length === 1) subEl.textContent = 'Ön kaput açılıyor';
-    else if (open.trunk && labs.length === 1) subEl.textContent = 'Bagaj açılıyor';
-    else subEl.textContent = labs.length > 1 ? 'Açık paneller' : 'Kapı açılıyor';
+  Promise.all([
+    loadTexture(loader, BASES, "body.png"),
+    loadTexture(loader, BASES, "door_fl.png"),
+    loadTexture(loader, BASES, "door_fr.png"),
+    loadTexture(loader, BASES, "door_rl.png"),
+    loadTexture(loader, BASES, "door_rr.png"),
+    loadTexture(loader, BASES, "frunk.png"),
+    loadTexture(loader, BASES, "trunk.png")
+  ]).then(function (texs) {
+    var body = new THREE.Mesh(new THREE.PlaneGeometry(CAR_W, CAR_D), planeMat(texs[0]));
+    body.rotation.x = Math.PI / 2;
+    body.position.y = 0.001;
+    car.add(body);
 
-    var any = labs.length > 0;
-    cabinLit.emissiveIntensity = any ? 1.35 : 0;
+    function panelFromCrop(key, tex, hingeMode) {
+      var c = CROPS[key];
+      var pw = (c.w / IMG_W) * CAR_W;
+      var pd = (c.h / IMG_H) * CAR_D;
+      var center = imgToWorld(c.x + c.w * 0.5, c.y + c.h * 0.5);
+      var hx, hz, axis, sign, maxA;
 
-    var buttons = document.querySelectorAll('.btns button');
-    for (var i = 0; i < buttons.length; i++) {
-      var b = buttons[i];
-      var k = b.getAttribute('data-key');
-      if (k === 'all' || k === 'none') continue;
-      if (open[k]) b.classList.add('active'); else b.classList.remove('active');
+      if (hingeMode === "left") {
+        // hinge on body side = right edge of left door
+        var h = imgToWorld(c.x + c.w, c.y + c.h * 0.5);
+        hx = h.x; hz = h.z; axis = "y"; sign = 1; maxA = 1.05;
+      } else if (hingeMode === "right") {
+        var h2 = imgToWorld(c.x, c.y + c.h * 0.5);
+        hx = h2.x; hz = h2.z; axis = "y"; sign = -1; maxA = 1.05;
+      } else if (hingeMode === "frunk") {
+        // hinge at front edge (top of crop)
+        var hf = imgToWorld(c.x + c.w * 0.5, c.y);
+        hx = hf.x; hz = hf.z; axis = "x"; sign = -1; maxA = 1.2;
+      } else {
+        // trunk hinge at rear edge (bottom of crop)
+        var ht = imgToWorld(c.x + c.w * 0.5, c.y + c.h);
+        hx = ht.x; hz = ht.z; axis = "x"; sign = 1; maxA = 1.25;
+      }
+
+      return makeHinged(tex, pw, pd, hx, hz, center.x, center.z, axis, sign, maxA);
     }
-  }
 
-  document.querySelector('.btns').addEventListener('click', function (ev) {
-    var btn = ev.target.closest('button');
-    if (!btn) return;
-    var k = btn.getAttribute('data-key');
-    if (k === 'none') {
-      Object.keys(parts).forEach(function (p) { setPart(p, false); });
-    } else if (k === 'all') {
-      Object.keys(parts).forEach(function (p) { setPart(p, true); });
-    } else {
-      setPart(k, !open[k]);
-    }
-    refreshUI();
+    hinges.fl = panelFromCrop("fl", texs[1], "left");
+    hinges.fr = panelFromCrop("fr", texs[2], "right");
+    hinges.rl = panelFromCrop("rl", texs[3], "left");
+    hinges.rr = panelFromCrop("rr", texs[4], "right");
+    hinges.frunk = panelFromCrop("frunk", texs[5], "frunk");
+    hinges.trunk = panelFromCrop("trunk", texs[6], "trunk");
+
+    Object.keys(hinges).forEach(function (k) { car.add(hinges[k]); });
+
+    setCamera(document.getElementById("cam").value);
+    statusEl.textContent = "Hazır — gerçek Model Y görseli";
+    updateStatus();
+  }).catch(function (e) {
+    showErr((e && e.message) || String(e));
   });
 
-  // Demo
-  var demoSteps = [
-    ['fl'], ['fl', 'fr'], ['trunk'], ['frunk'],
-    ['fl', 'fr', 'rl', 'rr', 'trunk'], []
-  ];
-  var demoIdx = 0;
-  function runDemo() {
-    Object.keys(parts).forEach(function (p) { setPart(p, false); });
-    demoSteps[demoIdx].forEach(function (k) { setPart(k, true); });
-    refreshUI();
-    demoIdx = (demoIdx + 1) % demoSteps.length;
-  }
-  runDemo();
-  setInterval(runDemo, 2800);
-
-  function easeOutBack(t) {
-    var c = 1.15;
-    var t1 = t - 1;
-    return 1 + c * t1 * t1 * t1 + t1 * t1;
-  }
-
-  // Orbit (touch / mouse)
-  var spherical = { theta: 0.85, phi: 1.05, radius: 6.6 };
-  var dragging = false;
-  var lastX = 0, lastY = 0;
-
-  function applyCam() {
-    var phi = Math.max(0.25, Math.min(1.35, spherical.phi));
-    spherical.phi = phi;
-    camera.position.set(
-      spherical.radius * Math.sin(phi) * Math.sin(spherical.theta),
-      spherical.radius * Math.cos(phi) + 0.35,
-      spherical.radius * Math.sin(phi) * Math.cos(spherical.theta)
-    );
-    camera.lookAt(0, 0.55, 0);
-  }
-  applyCam();
-
-  function onDown(x, y) { dragging = true; lastX = x; lastY = y; }
-  function onMove(x, y) {
-    if (!dragging) return;
-    var dx = x - lastX, dy = y - lastY;
-    lastX = x; lastY = y;
-    spherical.theta -= dx * 0.005;
-    spherical.phi -= dy * 0.005;
-    applyCam();
-  }
-  function onUp() { dragging = false; }
-
-  canvas.addEventListener('mousedown', function (e) { onDown(e.clientX, e.clientY); });
-  window.addEventListener('mousemove', function (e) { onMove(e.clientX, e.clientY); });
-  window.addEventListener('mouseup', onUp);
-  canvas.addEventListener('touchstart', function (e) {
-    if (e.touches[0]) onDown(e.touches[0].clientX, e.touches[0].clientY);
-  }, { passive: true });
-  window.addEventListener('touchmove', function (e) {
-    if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY);
-  }, { passive: true });
-  window.addEventListener('touchend', onUp);
-
-  canvas.addEventListener('wheel', function (e) {
-    spherical.radius = Math.max(3.4, Math.min(10, spherical.radius + e.deltaY * 0.01));
-    applyCam();
-  }, { passive: true });
-
-  var t0 = performance.now();
-  function tick(now) {
-    var dt = Math.min(0.05, (now - t0) / 1000);
-    t0 = now;
-
-    Object.keys(parts).forEach(function (k) {
-      var p = parts[k];
-      var d = p.userData;
-      d.current += (d.target - d.current) * Math.min(1, dt * 5.2);
-      var a = d.openAngle * easeOutBack(Math.max(0, Math.min(1, d.current)));
-      if (d.axis === 'y') p.rotation.y = a; else p.rotation.x = a;
-    });
-
-    ring.material.opacity = 0.14 + Math.sin(now * 0.002) * 0.06;
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-
-  window.addEventListener('resize', function () {
-    camera.aspect = window.innerWidth / window.innerHeight;
+  function resize() {
+    var w = stage.clientWidth || 1;
+    var h = stage.clientHeight || 1;
+    camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    renderer.setSize(w, h, false);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  var clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    var dt = Math.min(clock.getDelta(), 0.05);
+    Object.keys(targets).forEach(function (k) {
+      var h = hinges[k];
+      if (!h) return;
+      angles[k] += (targets[k] - angles[k]) * Math.min(1, dt * 5.2);
+      var a = angles[k] * h.userData.max * h.userData.sign;
+      if (h.userData.axis === "y") h.rotation.y = a;
+      else h.rotation.x = a;
+      h.position.y = 0.012 + angles[k] * 0.05;
+    });
+    if (!cycling) car.rotation.y += dt * 0.07;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  document.querySelectorAll("[data-part]").forEach(function (btn) {
+    btn.addEventListener("click", function () { toggle(btn.getAttribute("data-part")); });
+  });
+  document.getElementById("all").addEventListener("click", function () { all(true); });
+  document.getElementById("reset").addEventListener("click", function () {
+    cycling = false;
+    clearInterval(cycleTimer);
+    document.getElementById("cycle").classList.remove("active");
+    all(false);
+  });
+  document.getElementById("cam").addEventListener("change", function (e) { setCamera(e.target.value); });
+  document.getElementById("cycle").addEventListener("click", function () {
+    cycling = !cycling;
+    this.classList.toggle("active", cycling);
+    clearInterval(cycleTimer);
+    if (!cycling) return;
+    var order = ["fl", "fr", "rl", "rr", "frunk", "trunk"];
+    var i = 0;
+    all(false);
+    cycleTimer = setInterval(function () {
+      all(false);
+      setPart(order[i % order.length], true);
+      i++;
+    }, 1100);
+  });
+
+  var dragging = false, lx = 0, ly = 0;
+  renderer.domElement.addEventListener("pointerdown", function (e) {
+    dragging = true; lx = e.clientX; ly = e.clientY;
+    renderer.domElement.setPointerCapture(e.pointerId);
+  });
+  renderer.domElement.addEventListener("pointerup", function () { dragging = false; });
+  renderer.domElement.addEventListener("pointermove", function (e) {
+    if (!dragging) return;
+    var dx = e.clientX - lx, dy = e.clientY - ly;
+    lx = e.clientX; ly = e.clientY;
+    car.rotation.y += dx * 0.005;
+    car.rotation.x = Math.max(-0.4, Math.min(0.55, car.rotation.x + dy * 0.004));
   });
 })();
 </script>

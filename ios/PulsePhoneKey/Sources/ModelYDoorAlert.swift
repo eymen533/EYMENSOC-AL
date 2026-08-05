@@ -173,11 +173,11 @@ struct ModelYDoorAlert: View {
     private func doorLeaf(open: Bool, front: Bool, left: Bool) -> some View {
         let doorW = carW * 0.22
         let doorH = carH * (front ? 0.22 : 0.20)
-        // Unit-space crop of the car image for this door.
-        let cropX: CGFloat = left ? 0.02 : 0.76
-        let cropY: CGFloat = front ? 0.30 : 0.52
-        let cropW: CGFloat = 0.22
-        let cropH: CGFloat = front ? 0.20 : 0.18
+                // Unit-space crop of the car image for this door (from ModelYTop slices).
+        let cropX: CGFloat = left ? (front ? 0.019 : 0.019) : (front ? 0.719 : 0.725)
+        let cropY: CGFloat = front ? 0.279 : (left ? 0.500 : 0.492)
+        let cropW: CGFloat = 0.260
+        let cropH: CGFloat = front ? 0.221 : 0.219
 
         let hingeX = left ? -carW * 0.28 : carW * 0.28
         let hingeY = front ? -carH * 0.08 : carH * 0.12
