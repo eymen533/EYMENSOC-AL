@@ -710,88 +710,80 @@ struct NativeHUDView: View {
     private func dashlaChrome(leftMap: Bool, rightMap: Bool) -> some View {
         let inkOnDark = Color.white
         let mutedOnDark = Color.white.opacity(0.78)
-        // Over light map: dark pills so text stays readable.
         let mapInk = Color.white
         let mapMuted = Color.white.opacity(0.9)
 
-        return HStack(alignment: .top, spacing: 0) {
-            // Left cluster — sits on left panel (or map if left is Harita).
-            HStack(spacing: 8) {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(inkOnDark)
-                }
-                Text(model.clock.isEmpty ? "--:--" : model.clock)
-                    .font(.title3.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(inkOnDark)
-                Text(BLEPairer.buildId)
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05)))
-                Text(model.outdoorValid ? "\(model.outdoorC)°C" : "--°C")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(mutedOnDark)
-                Image(systemName: "car.fill")
-                    .font(.body)
-                    .foregroundStyle(model.bleOK || model.isLive ? accent : mutedOnDark.opacity(0.55))
-            }
-            .padding(.horizontal, leftMap ? 10 : 0)
-            .padding(.vertical, leftMap ? 6 : 0)
-            .background(
-                Group {
-                    if leftMap {
-                        Capsule().fill(Color.black.opacity(0.45))
-                    }
-                }
-            )
-            .shadow(color: .black.opacity(leftMap ? 0 : 0.55), radius: 3, y: 1)
-
-            Spacer(minLength: 8)
-
-            // Live place — center of the top chrome (was inside the dial).
+        return ZStack(alignment: .top) {
+            // True center — location sits in the middle of the top chrome.
             if settings.liveLocation != .off, !isBlank(model.place) {
                 Text(model.place)
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(Color.black.opacity(0.48)))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Capsule().fill(Color.black.opacity(0.50)))
+                    .frame(maxWidth: 280)
+                    .padding(.top, 10)
             }
 
-            Spacer(minLength: 8)
+            HStack(alignment: .top, spacing: 0) {
+                HStack(spacing: 8) {
+                    Button(action: onBack) {
+                        Image(systemName: "chevron.left")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(inkOnDark)
+                    }
+                    Text(model.clock.isEmpty ? "--:--" : model.clock)
+                        .font(.title3.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(inkOnDark)
+                    Text(model.outdoorValid ? "\(model.outdoorC)°C" : "--°C")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(mutedOnDark)
+                    Image(systemName: "car.fill")
+                        .font(.body)
+                        .foregroundStyle(model.bleOK || model.isLive ? accent : mutedOnDark.opacity(0.55))
+                }
+                .padding(.horizontal, leftMap ? 10 : 0)
+                .padding(.vertical, leftMap ? 6 : 0)
+                .background(
+                    Group {
+                        if leftMap {
+                            Capsule().fill(Color.black.opacity(0.45))
+                        }
+                    }
+                )
+                .shadow(color: .black.opacity(leftMap ? 0 : 0.55), radius: 3, y: 1)
 
-            // Right cluster — floats on map side (Dashla style).
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.75))
-                    .frame(width: 8, height: 8)
-                HStack(spacing: 5) {
-                    Image(systemName: phoneBattIcon)
-                        .font(.subheadline)
-                    Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
-                        .font(.body.monospacedDigit().weight(.semibold))
+                Spacer(minLength: 8)
+
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.75))
+                        .frame(width: 8, height: 8)
+                    HStack(spacing: 5) {
+                        Image(systemName: phoneBattIcon)
+                            .font(.subheadline)
+                        Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
+                            .font(.body.monospacedDigit().weight(.semibold))
+                    }
+                    .foregroundStyle(mapInk)
+                    Button { onSettings?() } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(mapMuted)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .foregroundStyle(mapInk)
-                Button { onSettings?() } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(mapMuted)
-                }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(Color.black.opacity(rightMap ? 0.42 : 0.35)))
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(Capsule().fill(Color.black.opacity(rightMap ? 0.42 : 0.35)))
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        // Critical: no full-width black bar.
         .background(Color.clear)
     }
 
