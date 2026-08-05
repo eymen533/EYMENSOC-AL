@@ -15,8 +15,8 @@ echo ""
 echo "=== BLEPairer.buildId ==="
 grep 'buildId =' ios/PulsePhoneKey/Sources/BLEPairer.swift
 ID="$(grep -o 'xcode-ble-[0-9]*' ios/PulsePhoneKey/Sources/BLEPairer.swift | head -1)"
-if [ "$ID" != "xcode-ble-74" ]; then
-  echo "HATA: beklenen xcode-ble-74, bulunan: $ID"
+if [ "$ID" != "xcode-ble-75" ]; then
+  echo "HATA: beklenen xcode-ble-75, bulunan: $ID"
   exit 1
 fi
 echo "OK — $ID"

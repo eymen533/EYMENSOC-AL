@@ -388,7 +388,8 @@ struct NativeHUDView: View {
         let tuck = dialW * 0.55
         let showTurn = (leftMap || rightMap)
             && (model.turnDistanceM > 0 || !model.turnInstruction.isEmpty)
-        let topChrome: CGFloat = 10
+        // Room for two-row top chrome (clock row + centered place).
+        let topChrome: CGFloat = 56
         let wingH = max(96, (h - dialW - topChrome) / 2)
         let cx = w * 0.5
         let cy = topChrome + wingH + dialW * 0.5
@@ -524,7 +525,7 @@ struct NativeHUDView: View {
                 .position(x: w - 90, y: h - 28)
                 .zIndex(8)
 
-            dashlaChrome(leftMap: leftMap, rightMap: rightMap)
+            dashlaChrome(leftMap: leftMap, rightMap: rightMap, portrait: true)
                 .zIndex(20)
         }
         .frame(width: w, height: h)
@@ -707,14 +708,122 @@ struct NativeHUDView: View {
 
     // MARK: - Dashla chrome (no solid top bar — texts float into panels/map)
 
-    private func dashlaChrome(leftMap: Bool, rightMap: Bool) -> some View {
+    @ViewBuilder
+    private func dashlaChrome(leftMap: Bool, rightMap: Bool, portrait: Bool = false) -> some View {
         let inkOnDark = Color.white
         let mutedOnDark = Color.white.opacity(0.78)
         let mapInk = Color.white
         let mapMuted = Color.white.opacity(0.9)
 
-        return ZStack(alignment: .top) {
-            // True center — location sits in the middle of the top chrome.
+        if portrait {
+            portraitTopChrome(
+                leftMap: leftMap,
+                rightMap: rightMap,
+                inkOnDark: inkOnDark,
+                mutedOnDark: mutedOnDark,
+                mapInk: mapInk,
+                mapMuted: mapMuted
+            )
+        } else {
+            landscapeTopChrome(
+                leftMap: leftMap,
+                rightMap: rightMap,
+                inkOnDark: inkOnDark,
+                mutedOnDark: mutedOnDark,
+                mapInk: mapInk,
+                mapMuted: mapMuted
+            )
+        }
+    }
+
+    /// Portrait: row 1 = controls, row 2 = centered place — never squeeze clock into a vertical stack.
+    private func portraitTopChrome(
+        leftMap: Bool,
+        rightMap: Bool,
+        inkOnDark: Color,
+        mutedOnDark: Color,
+        mapInk: Color,
+        mapMuted: Color
+    ) -> some View {
+        VStack(spacing: 6) {
+            HStack(alignment: .center, spacing: 8) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(inkOnDark)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Text(model.clock.isEmpty ? "--:--" : model.clock)
+                    .font(.subheadline.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(inkOnDark)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+
+                Text(model.outdoorValid ? "\(model.outdoorC)°C" : "--°C")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(mutedOnDark)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+
+                Image(systemName: "car.fill")
+                    .font(.caption)
+                    .foregroundStyle(model.bleOK || model.isLive ? accent : mutedOnDark.opacity(0.55))
+
+                Spacer(minLength: 6)
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(model.isLive || model.bleOK ? Color.green : Color.orange.opacity(0.75))
+                        .frame(width: 7, height: 7)
+                    Image(systemName: phoneBattIcon)
+                        .font(.caption2)
+                    Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                    Button { onSettings?() } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.caption)
+                            .foregroundStyle(mapMuted)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .foregroundStyle(mapInk)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(Color.black.opacity(0.42)))
+            }
+
+            if settings.liveLocation != .off, !isBlank(model.place) {
+                Text(model.place)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.50)))
+                    .frame(maxWidth: 260)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.clear)
+    }
+
+    private func landscapeTopChrome(
+        leftMap: Bool,
+        rightMap: Bool,
+        inkOnDark: Color,
+        mutedOnDark: Color,
+        mapInk: Color,
+        mapMuted: Color
+    ) -> some View {
+        ZStack(alignment: .top) {
             if settings.liveLocation != .off, !isBlank(model.place) {
                 Text(model.place)
                     .font(.title3.weight(.semibold))
@@ -738,9 +847,13 @@ struct NativeHUDView: View {
                     Text(model.clock.isEmpty ? "--:--" : model.clock)
                         .font(.title3.monospacedDigit().weight(.semibold))
                         .foregroundStyle(inkOnDark)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                     Text(model.outdoorValid ? "\(model.outdoorC)°C" : "--°C")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(mutedOnDark)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                     Image(systemName: "car.fill")
                         .font(.body)
                         .foregroundStyle(model.bleOK || model.isLive ? accent : mutedOnDark.opacity(0.55))
@@ -767,6 +880,8 @@ struct NativeHUDView: View {
                             .font(.subheadline)
                         Text("\(model.phoneBattery > 0 ? model.phoneBattery : max(0, Int(model.battery)))%")
                             .font(.body.monospacedDigit().weight(.semibold))
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .foregroundStyle(mapInk)
                     Button { onSettings?() } label: {
