@@ -58,13 +58,6 @@ struct NativeHUDView: View {
         )
     }
 
-    /// Prefer floating over the map wing, beside the dial.
-    private func landscapeDoorAlertX(w: CGFloat, sideW: CGFloat, cx: CGFloat, dialW: CGFloat) -> CGFloat {
-        if rightMap { return w - sideW * 0.42 }
-        if leftMap { return sideW * 0.42 }
-        return min(w - 90, cx + dialW * 0.42 + 78)
-    }
-
     var body: some View {
         GeometryReader { geo in
             let wide = geo.size.width >= geo.size.height
@@ -220,9 +213,9 @@ struct NativeHUDView: View {
 
             if anyApertureOpen {
                 modelYDoorAlertView
-                    .scaleEffect(0.92)
-                    .position(x: landscapeDoorAlertX(w: w, sideW: sideW, cx: cx, dialW: dialW), y: cy)
-                    .zIndex(9)
+                    .scaleEffect(min(1.0, dialW / 220))
+                    .position(x: cx, y: cy)
+                    .zIndex(11)
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .scale(scale: 0.9)),
                         removal: .opacity
@@ -500,16 +493,10 @@ struct NativeHUDView: View {
             }
 
             if anyApertureOpen {
-                // Beside dial, floating over the map wing (prefer bottom/right map).
                 modelYDoorAlertView
-                    .scaleEffect(0.88)
-                    .position(
-                        x: bottomWing ? w * 0.72 : (topWing ? w * 0.28 : w * 0.5),
-                        y: bottomWing
-                            ? min(h - 100, cy + dialW * 0.28)
-                            : max(topChrome + 90, cy - dialW * 0.28)
-                    )
-                    .zIndex(9)
+                    .scaleEffect(min(0.95, dialW / 200))
+                    .position(x: cx, y: cy)
+                    .zIndex(11)
             }
 
             if !isBlank(model.destination) {
@@ -595,10 +582,8 @@ struct NativeHUDView: View {
 
             if anyApertureOpen {
                 modelYDoorAlertView
-                    .scaleEffect(0.9)
-                    .padding(.trailing, 20)
-                    .padding(.top, 100)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .scaleEffect(0.85)
+                    .position(x: geo.size.width * 0.5, y: 48 + dialSize * 0.55)
                     .zIndex(11)
             }
 
@@ -1298,7 +1283,7 @@ struct NativeHUDView: View {
             }
             DialSpeedDigits(
                 target: model.speed,
-                fontSize: speedFont,
+                fontSize: speedFont * 1.15,
                 ink: dialInk,
                 bare: style == .bare
             )
@@ -1794,7 +1779,7 @@ private struct DialSpeedDigits: View {
 
     var body: some View {
         Text("\(Int(abs(shown).rounded()))")
-            .font(.system(size: fontSize, weight: .ultraLight, design: .default))
+            .font(.system(size: fontSize, weight: .thin, design: .default))
             .monospacedDigit()
             .foregroundStyle(ink)
             .minimumScaleFactor(0.5)
