@@ -45,6 +45,26 @@ struct NativeHUDView: View {
         model.turnDistanceM > 0 && model.turnDistanceM <= 55
     }
 
+    private var modelYDoorAlertView: some View {
+        ModelYDoorAlert(
+            doorFL: model.doorFL,
+            doorFR: model.doorFR,
+            doorRL: model.doorRL,
+            doorRR: model.doorRR,
+            frunkOpen: model.frunkOpen,
+            trunkOpen: model.trunkOpen,
+            chargePortOpen: model.chargePortOpen,
+            labels: model.openDoorLabels
+        )
+    }
+
+    /// Prefer floating over the map wing, beside the dial.
+    private func landscapeDoorAlertX(w: CGFloat, sideW: CGFloat, cx: CGFloat, dialW: CGFloat) -> CGFloat {
+        if rightMap { return w - sideW * 0.42 }
+        if leftMap { return sideW * 0.42 }
+        return min(w - 90, cx + dialW * 0.42 + 78)
+    }
+
     var body: some View {
         GeometryReader { geo in
             let wide = geo.size.width >= geo.size.height
@@ -199,25 +219,17 @@ struct NativeHUDView: View {
             }
 
             if anyApertureOpen {
-                ModelYDoorAlert(
-                    doorFL: model.doorFL,
-                    doorFR: model.doorFR,
-                    doorRL: model.doorRL,
-                    doorRR: model.doorRR,
-                    frunkOpen: model.frunkOpen,
-                    trunkOpen: model.trunkOpen,
-                    chargePortOpen: model.chargePortOpen,
-                    labels: model.openDoorLabels
-                )
-                .position(x: cx, y: min(h - 78, cy + dialW * 0.52 + 72))
-                .zIndex(9)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .opacity
-                ))
+                modelYDoorAlertView
+                    .scaleEffect(0.92)
+                    .position(x: landscapeDoorAlertX(w: w, sideW: sideW, cx: cx, dialW: dialW), y: cy)
+                    .zIndex(9)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.9)),
+                        removal: .opacity
+                    ))
             }
 
-            if !isBlank(model.destination), !anyApertureOpen {
+            if !isBlank(model.destination) {
                 Text(model.destination)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
@@ -230,7 +242,7 @@ struct NativeHUDView: View {
             }
 
             dialStatusStrip(maxWidth: dialW * 1.05)
-                .position(x: cx, y: min(h - 22, cy + dialW * 0.52 + (anyApertureOpen ? 148 : 6)))
+                .position(x: cx, y: min(h - 22, cy + dialW * 0.52 + 6))
                 .zIndex(8)
 
             HStack {
@@ -250,12 +262,18 @@ struct NativeHUDView: View {
 
             dashlaChrome(leftMap: leftMap, rightMap: rightMap)
                 .zIndex(20)
+
+            if model.charging {
+                ChargingTopRibbon()
+                    .zIndex(22)
+            }
         }
         .frame(width: w, height: h)
         .clipped()
         .ignoresSafeArea()
         .animation(.spring(response: 0.45, dampingFraction: 0.82), value: anyApertureOpen)
         .animation(.spring(response: 0.42, dampingFraction: 0.78), value: turnImminent)
+        .animation(.easeInOut(duration: 0.35), value: model.charging)
     }
 
     /// Map panel — tucks under dial; dial-facing edge gets soft Material blur.
@@ -482,21 +500,19 @@ struct NativeHUDView: View {
             }
 
             if anyApertureOpen {
-                ModelYDoorAlert(
-                    doorFL: model.doorFL,
-                    doorFR: model.doorFR,
-                    doorRL: model.doorRL,
-                    doorRR: model.doorRR,
-                    frunkOpen: model.frunkOpen,
-                    trunkOpen: model.trunkOpen,
-                    chargePortOpen: model.chargePortOpen,
-                    labels: model.openDoorLabels
-                )
-                .position(x: cx, y: min(h - 90, cy + dialW * 0.55 + 78))
-                .zIndex(9)
+                // Beside dial, floating over the map wing (prefer bottom/right map).
+                modelYDoorAlertView
+                    .scaleEffect(0.88)
+                    .position(
+                        x: bottomWing ? w * 0.72 : (topWing ? w * 0.28 : w * 0.5),
+                        y: bottomWing
+                            ? min(h - 100, cy + dialW * 0.28)
+                            : max(topChrome + 90, cy - dialW * 0.28)
+                    )
+                    .zIndex(9)
             }
 
-            if !isBlank(model.destination), !anyApertureOpen {
+            if !isBlank(model.destination) {
                 Text(model.destination)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white)
@@ -509,7 +525,7 @@ struct NativeHUDView: View {
             }
 
             dialStatusStrip(maxWidth: dialW * 1.05)
-                .position(x: cx, y: min(h - 32, cy + dialW * 0.55 + (anyApertureOpen ? 156 : 8)))
+                .position(x: cx, y: min(h - 32, cy + dialW * 0.55 + 8))
                 .zIndex(8)
 
             batteryChip
@@ -527,12 +543,18 @@ struct NativeHUDView: View {
 
             dashlaChrome(leftMap: leftMap, rightMap: rightMap, portrait: true)
                 .zIndex(20)
+
+            if model.charging {
+                ChargingTopRibbon()
+                    .zIndex(22)
+            }
         }
         .frame(width: w, height: h)
         .clipped()
         .ignoresSafeArea()
         .animation(.spring(response: 0.45, dampingFraction: 0.82), value: anyApertureOpen)
         .animation(.spring(response: 0.42, dampingFraction: 0.78), value: turnImminent)
+        .animation(.easeInOut(duration: 0.35), value: model.charging)
     }
 
     @ViewBuilder
@@ -572,19 +594,12 @@ struct NativeHUDView: View {
                 .zIndex(10)
 
             if anyApertureOpen {
-                ModelYDoorAlert(
-                    doorFL: model.doorFL,
-                    doorFR: model.doorFR,
-                    doorRL: model.doorRL,
-                    doorRR: model.doorRR,
-                    frunkOpen: model.frunkOpen,
-                    trunkOpen: model.trunkOpen,
-                    chargePortOpen: model.chargePortOpen,
-                    labels: model.openDoorLabels
-                )
-                .padding(.bottom, (model.turnDistanceM > 0 || !model.turnInstruction.isEmpty) ? 110 : 36)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .zIndex(11)
+                modelYDoorAlertView
+                    .scaleEffect(0.9)
+                    .padding(.trailing, 20)
+                    .padding(.top, 100)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .zIndex(11)
             }
 
             if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
@@ -614,9 +629,15 @@ struct NativeHUDView: View {
 
             dashlaChrome(leftMap: false, rightMap: true)
                 .zIndex(20)
+
+            if model.charging {
+                ChargingTopRibbon()
+                    .zIndex(22)
+            }
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.82), value: anyApertureOpen)
         .animation(.spring(response: 0.42, dampingFraction: 0.78), value: turnImminent)
+        .animation(.easeInOut(duration: 0.35), value: model.charging)
     }
 
     @ViewBuilder
@@ -708,6 +729,7 @@ struct NativeHUDView: View {
 
     // MARK: - Dashla chrome (no solid top bar — texts float into panels/map)
 
+    @ViewBuilder
     private func dashlaChrome(leftMap: Bool, rightMap: Bool, portrait: Bool = false) -> some View {
         let inkOnDark = Color.white
         let mutedOnDark = Color.white.opacity(0.78)
@@ -715,24 +737,24 @@ struct NativeHUDView: View {
         let mapMuted = Color.white.opacity(0.9)
 
         if portrait {
-            return AnyView(portraitTopChrome(
+            portraitTopChrome(
                 leftMap: leftMap,
                 rightMap: rightMap,
                 inkOnDark: inkOnDark,
                 mutedOnDark: mutedOnDark,
                 mapInk: mapInk,
                 mapMuted: mapMuted
-            ))
+            )
+        } else {
+            landscapeTopChrome(
+                leftMap: leftMap,
+                rightMap: rightMap,
+                inkOnDark: inkOnDark,
+                mutedOnDark: mutedOnDark,
+                mapInk: mapInk,
+                mapMuted: mapMuted
+            )
         }
-
-        return AnyView(landscapeTopChrome(
-            leftMap: leftMap,
-            rightMap: rightMap,
-            inkOnDark: inkOnDark,
-            mutedOnDark: mutedOnDark,
-            mapInk: mapInk,
-            mapMuted: mapMuted
-        ))
     }
 
     /// Portrait: row 1 = controls, row 2 = centered place — never squeeze clock into a vertical stack.

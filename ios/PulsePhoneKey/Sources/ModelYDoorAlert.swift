@@ -35,19 +35,34 @@ struct ModelYDoorAlert: View {
             }
             .frame(maxWidth: 200)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.black.opacity(0.72))
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.42, green: 0.28, blue: 0.72).opacity(0.42),
+                                    Color(red: 0.18, green: 0.12, blue: 0.32).opacity(0.38),
+                                    Color.black.opacity(0.28),
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
                 .overlay(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .stroke(
                             LinearGradient(
                                 colors: [
-                                    amber.opacity(pulse ? 0.55 : 0.28),
-                                    Color.white.opacity(0.10),
-                                    amber.opacity(0.18),
+                                    Color(red: 0.72, green: 0.55, blue: 1.0).opacity(pulse ? 0.65 : 0.35),
+                                    Color.white.opacity(0.18),
+                                    amber.opacity(0.25),
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -55,7 +70,7 @@ struct ModelYDoorAlert: View {
                             lineWidth: 1.2
                         )
                 )
-                .shadow(color: amber.opacity(pulse ? 0.35 : 0.14), radius: pulse ? 16 : 8, y: 4)
+                .shadow(color: Color(red: 0.55, green: 0.35, blue: 0.95).opacity(pulse ? 0.35 : 0.16), radius: pulse ? 16 : 8, y: 4)
         )
         .scaleEffect(appeared ? 1 : 0.78)
         .opacity(appeared ? 1 : 0)
