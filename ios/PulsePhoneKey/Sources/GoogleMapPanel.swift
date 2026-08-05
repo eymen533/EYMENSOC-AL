@@ -17,6 +17,7 @@ struct GoogleMapPanel: UIViewRepresentable {
     var imagery: HUDSettings.MapImagery = .standard
     var showsTraffic: Bool = true
     var onUserTap: (() -> Void)? = nil
+    var onVerticalNudge: ((Int) -> Void)? = nil
 
     func makeUIView(context: Context) -> WKWebView {
         let cfg = WKWebViewConfiguration()
@@ -29,25 +30,36 @@ struct GoogleMapPanel: UIViewRepresentable {
         web.backgroundColor = dark
             ? UIColor(red: 0.10, green: 0.11, blue: 0.12, alpha: 1)
             : UIColor(red: 0.86, green: 0.85, blue: 0.82, alpha: 1)
-        // Page itself shouldn't scroll; Google Maps handles pinch/pan.
+        // Page itself shouldn't scroll; Google Maps handles 2-finger gestures (cooperative).
         web.scrollView.isScrollEnabled = false
         web.scrollView.bounces = false
         web.isUserInteractionEnabled = true
         web.navigationDelegate = context.coordinator
         context.coordinator.webView = web
         context.coordinator.onUserTap = onUserTap
+        context.coordinator.onVerticalNudge = onVerticalNudge
         context.coordinator.load(
             lat: lat, lon: lon, heading: heading,
             destination: destination, destLat: destLat, destLon: destLon,
             apiKey: apiKey, dark: dark, autoZoom: autoZoom,
             imagery: imagery, showsTraffic: showsTraffic
         )
+
+        let oneFingerVertical = UIPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleOneFingerVertical(_:))
+        )
+        oneFingerVertical.maximumNumberOfTouches = 1
+        oneFingerVertical.delegate = context.coordinator
+        web.addGestureRecognizer(oneFingerVertical)
+
         return web
     }
 
     func updateUIView(_ web: WKWebView, context: Context) {
         context.coordinator.webView = web
         context.coordinator.onUserTap = onUserTap
+        context.coordinator.onVerticalNudge = onVerticalNudge
         context.coordinator.update(
             lat: lat, lon: lon, heading: heading,
             destination: destination, destLat: destLat, destLon: destLon,
@@ -62,13 +74,46 @@ struct GoogleMapPanel: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, UIGestureRecognizerDelegate {
         weak var webView: WKWebView?
         var onUserTap: (() -> Void)?
+        var onVerticalNudge: ((Int) -> Void)?
         private var lastLoadKey = ""
         private var lastUpdateKey = ""
         private var pageReady = false
         private var pending: (() -> Void)?
+        private var verticalConsumed = false
+
+        @objc func handleOneFingerVertical(_ gr: UIPanGestureRecognizer) {
+            let t = gr.translation(in: gr.view)
+            switch gr.state {
+            case .began:
+                verticalConsumed = false
+            case .changed, .ended:
+                guard !verticalConsumed else { return }
+                guard abs(t.y) > abs(t.x) * 1.4, abs(t.y) > 36 else { return }
+                verticalConsumed = true
+                let delta = t.y < 0 ? 1 : -1
+                DispatchQueue.main.async { self.onVerticalNudge?(delta) }
+            default:
+                break
+            }
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = gestureRecognizer as? UIPanGestureRecognizer,
+                  pan.maximumNumberOfTouches == 1,
+                  let view = pan.view else { return true }
+            let v = pan.velocity(in: view)
+            return abs(v.y) > abs(v.x) * 1.25
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
 
         func userContentController(
             _ userContentController: WKUserContentController,
@@ -266,7 +311,7 @@ struct GoogleMapPanel: UIViewRepresentable {
                 heading: 0,
                 mapTypeId: 'roadmap',
                 disableDefaultUI: true,
-                gestureHandling: 'greedy',
+                gestureHandling: 'cooperative',
                 keyboardShortcuts: false,
                 styles: \(styles)
               });
@@ -508,6 +553,7 @@ struct VehicleMapView: View {
     var apiKey: String = ""
     var turnByTurn: Bool = true
     var onUserTap: (() -> Void)? = nil
+    var onVerticalNudge: ((Int) -> Void)? = nil
     @Binding var turnDistanceM: Int
     @Binding var turnInstruction: String
     @Binding var turnSymbol: String
@@ -553,7 +599,8 @@ struct VehicleMapView: View {
                     autoZoom: settings.autoZoom,
                     imagery: settings.mapImagery,
                     showsTraffic: settings.mapShowsTraffic,
-                    onUserTap: onUserTap
+                    onUserTap: onUserTap,
+                    onVerticalNudge: onVerticalNudge
                 )
             case .apple:
                 AppleMapPanel(
@@ -569,6 +616,7 @@ struct VehicleMapView: View {
                     imagery: settings.mapImagery,
                     showsTraffic: settings.mapShowsTraffic,
                     onUserTap: onUserTap,
+                    onVerticalNudge: onVerticalNudge,
                     turnDistanceM: $turnDistanceM,
                     turnInstruction: $turnInstruction,
                     turnSymbol: $turnSymbol

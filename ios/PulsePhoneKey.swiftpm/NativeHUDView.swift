@@ -776,6 +776,15 @@ struct NativeHUDView: View {
                     apiKey: model.googleMapsKey,
                     turnByTurn: true,
                     onUserTap: { flashMapChrome() },
+                    onVerticalNudge: { delta in
+                        if side == .left {
+                            model.nudgeLeft(delta)
+                            model.flashLeftRail()
+                        } else {
+                            model.nudgeRight(delta)
+                            model.flashRightRail()
+                        }
+                    },
                     turnDistanceM: Binding(get: { model.turnDistanceM }, set: { model.turnDistanceM = $0 }),
                     turnInstruction: Binding(get: { model.turnInstruction }, set: { model.turnInstruction = $0 }),
                     turnSymbol: Binding(get: { model.turnSymbol }, set: { model.turnSymbol = $0 })

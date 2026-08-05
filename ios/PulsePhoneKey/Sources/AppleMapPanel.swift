@@ -17,6 +17,8 @@ struct AppleMapPanel: View {
     var imagery: HUDSettings.MapImagery = .standard
     var showsTraffic: Bool = true
     var onUserTap: (() -> Void)? = nil
+    /// One-finger vertical swipe → panel slide nudge (+1 up / -1 down).
+    var onVerticalNudge: ((Int) -> Void)? = nil
     @Binding var turnDistanceM: Int
     @Binding var turnInstruction: String
     @Binding var turnSymbol: String
@@ -52,7 +54,8 @@ struct AppleMapPanel: View {
                     dark: theme != .light,
                     imagery: imagery,
                     showsTraffic: showsTraffic,
-                    onUserTap: onUserTap
+                    onUserTap: onUserTap,
+                    onVerticalNudge: onVerticalNudge
                 )
             } else {
                 Color(red: 0.93, green: 0.94, blue: 0.95)
@@ -328,6 +331,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
     var imagery: HUDSettings.MapImagery
     var showsTraffic: Bool
     var onUserTap: (() -> Void)?
+    var onVerticalNudge: ((Int) -> Void)?
 
     /// Hard clip host — MKMapView metal layer otherwise bleeds under siblings / top bar.
     /// Forces light trait collection so Apple Maps tiles stay bright inside a dark HUD.
@@ -373,7 +377,8 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.translatesAutoresizingMaskIntoConstraints = false
         map.isUserInteractionEnabled = true
         map.isZoomEnabled = true
-        map.isScrollEnabled = true
+        // One-finger pan off — panel swipe needs the finger; look around with two fingers.
+        map.isScrollEnabled = false
         map.isRotateEnabled = true
         map.isPitchEnabled = true
         map.isOpaque = true
@@ -402,12 +407,30 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         context.coordinator.car = car
         context.coordinator.mapView = map
         context.coordinator.onUserTap = onUserTap
+        context.coordinator.onVerticalNudge = onVerticalNudge
 
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coord.handleTap(_:)))
         tap.numberOfTapsRequired = 1
         tap.cancelsTouchesInView = false
         map.addGestureRecognizer(tap)
         context.coordinator.tapRecognizer = tap
+
+        let twoFingerPan = UIPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coord.handleTwoFingerPan(_:))
+        )
+        twoFingerPan.minimumNumberOfTouches = 2
+        twoFingerPan.maximumNumberOfTouches = 2
+        twoFingerPan.delegate = context.coordinator
+        map.addGestureRecognizer(twoFingerPan)
+
+        let oneFingerVertical = UIPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coord.handleOneFingerVertical(_:))
+        )
+        oneFingerVertical.maximumNumberOfTouches = 1
+        oneFingerVertical.delegate = context.coordinator
+        map.addGestureRecognizer(oneFingerVertical)
 
         return host
     }
@@ -426,6 +449,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         }
         context.coordinator.mapView = map
         context.coordinator.onUserTap = onUserTap
+        context.coordinator.onVerticalNudge = onVerticalNudge
         map.delegate = context.coordinator
         map.clipsToBounds = true
         map.layer.masksToBounds = true
@@ -435,7 +459,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         map.showsTraffic = showsTraffic
         map.isUserInteractionEnabled = true
         map.isZoomEnabled = true
-        map.isScrollEnabled = true
+        map.isScrollEnabled = false
         if context.coordinator.lastImagery != imagery || context.coordinator.lastDark != dark {
             Self.applyImagery(imagery, to: map, dark: dark)
             context.coordinator.lastImagery = imagery
@@ -533,7 +557,7 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
 
     func makeCoordinator() -> Coord { Coord() }
 
-    final class Coord: NSObject, MKMapViewDelegate {
+    final class Coord: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         weak var mapView: MKMapView?
         weak var tapRecognizer: UITapGestureRecognizer?
         var car: CarMapAnnotation?
@@ -546,14 +570,68 @@ struct AppleMapLegacyRepresentable: UIViewRepresentable {
         var lastDark = false
         var userControlUntil = Date.distantPast
         var onUserTap: (() -> Void)?
+        var onVerticalNudge: ((Int) -> Void)?
+        private var verticalConsumed = false
 
         @objc func handleTap(_ gr: UITapGestureRecognizer) {
             guard gr.state == .ended else { return }
             onUserTap?()
         }
 
+        /// Look around with two fingers (1-finger scroll stays off for panel swipes).
+        @objc func handleTwoFingerPan(_ gr: UIPanGestureRecognizer) {
+            guard let map = mapView, gr.numberOfTouches >= 2 else { return }
+            let translation = gr.translation(in: map)
+            switch gr.state {
+            case .changed:
+                let centerPt = map.convert(map.centerCoordinate, toPointTo: map)
+                let newPt = CGPoint(x: centerPt.x - translation.x, y: centerPt.y - translation.y)
+                map.centerCoordinate = map.convert(newPt, toCoordinateFrom: map)
+                gr.setTranslation(.zero, in: map)
+                userControlUntil = Date().addingTimeInterval(12)
+            case .ended, .cancelled:
+                userControlUntil = Date().addingTimeInterval(12)
+            default:
+                break
+            }
+        }
+
+        /// One-finger vertical → change HUD side panel (Harita / Lastik / …).
+        @objc func handleOneFingerVertical(_ gr: UIPanGestureRecognizer) {
+            let t = gr.translation(in: gr.view)
+            switch gr.state {
+            case .began:
+                verticalConsumed = false
+            case .changed, .ended:
+                guard !verticalConsumed else { return }
+                guard abs(t.y) > abs(t.x) * 1.4, abs(t.y) > 36 else { return }
+                verticalConsumed = true
+                let delta = t.y < 0 ? 1 : -1
+                DispatchQueue.main.async { self.onVerticalNudge?(delta) }
+            default:
+                break
+            }
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = gestureRecognizer as? UIPanGestureRecognizer,
+                  pan.maximumNumberOfTouches == 1,
+                  let view = pan.view else { return true }
+            let v = pan.velocity(in: view)
+            // Only claim 1-finger pans that are clearly vertical.
+            return abs(v.y) > abs(v.x) * 1.25
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
+        ) -> Bool {
+            // Let pinch-zoom run alongside two-finger pan.
+            true
+        }
+
         func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
-            // Detect finger-driven camera changes (pinch / pan / rotate).
+            // Detect finger-driven camera changes (pinch / 2-finger pan / rotate).
             guard let gestures = mapView.subviews.first?.gestureRecognizers else { return }
             for g in gestures {
                 if g.state == .began || g.state == .changed {
