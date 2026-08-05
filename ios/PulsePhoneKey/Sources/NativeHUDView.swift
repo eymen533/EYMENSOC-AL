@@ -918,8 +918,8 @@ struct NativeHUDView: View {
 
     private func dialView(size: CGFloat, compact: Bool = false) -> some View {
         let style = settings.dialStyle
-        // Tesla cluster: large thin digits (Universal Sans–like → SF Pro ultraLight).
-        let speedFont = compact ? size * 0.42 : size * 0.48
+        // Tesla cluster: large thin digits — slight bump for readability.
+        let speedFont = compact ? size * 0.44 : size * 0.52
         let ringW: CGFloat = compact ? 2.5 : 3.2
         let accel = CGFloat(min(1, max(0, model.powerKW) / 180.0))
         let regen = CGFloat(min(1, max(0, -model.powerKW) / 70.0))

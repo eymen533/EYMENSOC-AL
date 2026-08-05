@@ -188,7 +188,7 @@ final class HUDModel: ObservableObject {
         psiFR = s.psiFR
         psiRL = s.psiRL
         psiRR = s.psiRR
-        outdoorC = s.outdoorC
+        if s.outdoorC != 0 { outdoorC = s.outdoorC }
         doorFL = s.doorFL
         doorFR = s.doorFR
         doorRL = s.doorRL

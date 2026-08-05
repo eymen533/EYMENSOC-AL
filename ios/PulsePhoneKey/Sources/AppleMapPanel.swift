@@ -73,6 +73,19 @@ struct AppleMapPanel: View {
             lastRouteDestKey = ""
             fetchRouteIfNeeded(force: true)
         }
+        .onChangeCompat(of: lat) { _ in
+            maybeRerouteFromMovement()
+            // First GPS fix while dest already known — build the line immediately.
+            if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
+                fetchRouteIfNeeded(force: true)
+            }
+        }
+        .onChangeCompat(of: lon) { _ in
+            maybeRerouteFromMovement()
+            if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
+                fetchRouteIfNeeded(force: true)
+            }
+        }
     }
 
     private var nameOK: Bool {

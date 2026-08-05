@@ -57,6 +57,9 @@ final class TeslaBLESession {
     private(set) var lastRequestUUID: Data = Data()
     private(set) var lastRequestDomain: Domain = .infotainment
     private(set) var lastWasAES = false
+    /// Recent AES request tags — late/duplicate notifies still decrypt after next poll.
+    private var recentRequestTags: [Data] = []
+    private let maxRecentRequestTags = 8
     /// Per-domain pending handshake UUIDs — avoids VCSEC/infotainment challenge mixups.
     private var pendingHandshakeUUID: [Domain: Data] = [:]
     private var lastHandshakeUUID: [Domain: Data] = [:]
@@ -64,6 +67,8 @@ final class TeslaBLESession {
     private var sessionTagFails = 0
     /// Drive ticks without nav proof — keep sticky dest until this crosses threshold.
     private var routeInactiveStreak = 0
+    /// Consecutive AES decrypt misses (orphan replies) — soft, no session wipe.
+    private(set) var consecutiveDecryptMisses = 0
 
     var snapshot = Snapshot()
     var infotainmentReady: Bool { isReady(.infotainment) }
@@ -74,6 +79,8 @@ final class TeslaBLESession {
     private(set) var lastSessionTagInvalid = false
     /// True when last AES response decrypt failed (counter/epoch drift).
     private(set) var lastDecryptFailed = false
+    /// True when decrypt failed but was treated as orphan (do not reset session).
+    private(set) var lastDecryptWasOrphan = false
 
     func isReady(_ domain: Domain) -> Bool {
         guard let s = domains[domain] else { return false }
@@ -130,6 +137,9 @@ final class TeslaBLESession {
 
     @discardableResult
     func handleIncoming(_ frame: Data) -> Bool {
+        lastDecryptFailed = false
+        lastDecryptWasOrphan = false
+        lastSessionTagInvalid = false
         let fields = ProtoWire.parseFields(frame)
         var sessionInfoBytes: Data?
         var sessionInfoTag: Data?
@@ -224,12 +234,19 @@ final class TeslaBLESession {
                     fault: fault
                 )
                 payload = plain
+                consecutiveDecryptMisses = 0
+                lastDecryptFailed = false
+                lastDecryptWasOrphan = false
             } catch {
-                lastDecryptFailed = true
-                statusText = "Decrypt fail"
+                // Late/duplicate notify for an older request — ignore without killing the session.
+                consecutiveDecryptMisses += 1
+                lastDecryptWasOrphan = true
+                lastDecryptFailed = consecutiveDecryptMisses >= 6
+                statusText = lastDecryptFailed
+                    ? "Decrypt fail"
+                    : "BLE LIVE"
                 return false
             }
-            lastDecryptFailed = false
         }
 
         if fromDomain == .infotainment {
@@ -384,6 +401,10 @@ final class TeslaBLESession {
         lastRequestTag = tag
         lastWasAES = true
         lastRequestDomain = domain
+        recentRequestTags.insert(tag, at: 0)
+        if recentRequestTags.count > maxRecentRequestTags {
+            recentRequestTags = Array(recentRequestTags.prefix(maxRecentRequestTags))
+        }
 
         // AES_GCM_Personalized_Signature_Data
         var aes = Data()
@@ -423,8 +444,49 @@ final class TeslaBLESession {
         flags: UInt32,
         fault: UInt32
     ) throws -> Data {
+        // Try current + recent request tags (out-of-order / late BLE notifies).
+        var tags = recentRequestTags
+        if !lastRequestTag.isEmpty, tags.first != lastRequestTag {
+            tags.insert(lastRequestTag, at: 0)
+        }
+        if tags.isEmpty, !lastRequestTag.isEmpty {
+            tags = [lastRequestTag]
+        }
+
+        var lastError: Error = SessionError.notReady
+        for reqTag in tags {
+            do {
+                return try decryptResponse(
+                    domain: domain,
+                    key: key,
+                    nonce: nonce,
+                    ciphertext: ciphertext,
+                    tag: tag,
+                    counter: counter,
+                    flags: flags,
+                    fault: fault,
+                    requestTag: reqTag
+                )
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError
+    }
+
+    private func decryptResponse(
+        domain: Domain,
+        key: SymmetricKey,
+        nonce: Data,
+        ciphertext: Data,
+        tag: Data,
+        counter: UInt32,
+        flags: UInt32,
+        fault: UInt32,
+        requestTag: Data
+    ) throws -> Data {
         var requestHash = Data([SignatureType.aesGcmPersonalized.rawValue])
-        requestHash.append(lastRequestTag)
+        requestHash.append(requestTag)
         if requestHash.count < 17 {
             requestHash.append(Data(count: 17 - requestHash.count))
         } else if requestHash.count > 17 {
@@ -461,6 +523,8 @@ final class TeslaBLESession {
     static func actionGetDrive() -> Data { Data(hex: "12040a022200") }
     /// Drive + Location in one round-trip (faster HUD / map).
     static func actionGetDriveAndLocation() -> Data { Data(hex: "12060a0422003a00") }
+    /// Charge + Climate + Drive + Location — battery/temp/GPS in one reply.
+    static func actionGetDriveBundle() -> Data { Data(hex: "120a0a0812001a0022003a00") }
     static func actionGetCharge() -> Data { Data(hex: "12040a021200") }
     static func actionGetTire() -> Data { Data(hex: "12040a027200") }
     /// GetMediaState (15) + GetMediaDetailState (16) — source string / album.
@@ -642,23 +706,18 @@ final class TeslaBLESession {
             switch f.number {
             case 1: // charging_state
                 break
-            // Modern ChargeState field numbers (vehicle-command):
-            case 4: // battery_level
-                if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
-            case 5: // battery_range miles float
-                if let mi = ProtoWire.float32(f.bytes) {
+            case 4: // some firmwares use short ChargeState ids
+                if f.varint > 0, f.varint <= 100 { snapshot.batteryPercent = Double(f.varint) }
+            case 5:
+                if let mi = ProtoWire.float32(f.bytes), mi > 0.5 {
                     snapshot.rangeKm = Int((Double(mi) * 1.60934).rounded())
                 }
-            case 6: // est_battery_range
-                if snapshot.rangeKm <= 0, let mi = ProtoWire.float32(f.bytes) {
-                    snapshot.rangeKm = Int((Double(mi) * 1.60934).rounded())
-                }
-            case 30: // usable_battery_level
+            case 30:
                 if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
-            // Legacy / alternate wire numbers still seen on some builds:
-            case 111: // battery_range miles float
-                if let mi = ProtoWire.float32(f.bytes) {
-                    snapshot.rangeKm = Int((Double(mi) * 1.60934).rounded())
+            case 111, 112, 113: // battery_range / est / ideal (miles)
+                if let mi = ProtoWire.float32(f.bytes), mi > 0.5 {
+                    let km = Int((Double(mi) * 1.60934).rounded())
+                    if km > snapshot.rangeKm { snapshot.rangeKm = km }
                 }
             case 114: // battery_level
                 if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
@@ -880,9 +939,17 @@ final class TeslaBLESession {
     }
 
     private func parseClimate(_ data: Data) {
-        for f in ProtoWire.parseFields(data) where f.number == 102 {
-            if let t = ProtoWire.float32(f.bytes) {
-                snapshot.outdoorC = Int(t.rounded())
+        for f in ProtoWire.parseFields(data) {
+            switch f.number {
+            case 102: // outside_temp_celsius
+                if let t = ProtoWire.float32(f.bytes) {
+                    snapshot.outdoorC = Int(t.rounded())
+                }
+            case 101: // inside_temp — fallback display if outside missing
+                if snapshot.outdoorC == 0, let t = ProtoWire.float32(f.bytes) {
+                    snapshot.outdoorC = Int(t.rounded())
+                }
+            default: break
             }
         }
     }

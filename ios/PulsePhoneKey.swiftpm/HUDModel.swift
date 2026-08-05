@@ -175,15 +175,20 @@ final class HUDModel: ObservableObject {
         powerKW = s.powerKW
         gear = s.gear.isEmpty ? "—" : s.gear
         driving = abs(s.speedKmh) > 1.5 || s.gear == "D" || s.gear == "R"
-        battery = s.batteryPercent
-        rangeKm = s.rangeKm
+        // Sticky battery/range — Charge polls are intermittent; don't wipe with 0.
+        if s.batteryPercent > 0.5 {
+            battery = s.batteryPercent
+        }
+        if s.rangeKm > 0 {
+            rangeKm = s.rangeKm
+        }
         if s.odometerKm > 0 { odometer = s.odometerKm }
         charging = s.charging
         psiFL = s.psiFL
         psiFR = s.psiFR
         psiRL = s.psiRL
         psiRR = s.psiRR
-        outdoorC = s.outdoorC
+        if s.outdoorC != 0 { outdoorC = s.outdoorC }
         doorFL = s.doorFL
         doorFR = s.doorFR
         doorRL = s.doorRL
@@ -201,8 +206,9 @@ final class HUDModel: ObservableObject {
         turnLeft = s.turnLeft
         turnRight = s.turnRight
         // Cluster is always black — ignore vehicle day/night theme (causes white bars).
+        // Map tiles stay light for readability.
         night = true
-        HUDSettings.shared.mapTheme = .dark
+        HUDSettings.shared.mapTheme = .light
         if abs(s.latitude) > 0.0001 || abs(s.longitude) > 0.0001 {
             latitude = s.latitude
             longitude = s.longitude
@@ -220,7 +226,7 @@ final class HUDModel: ObservableObject {
             if !s.energyAtArrival.isEmpty, s.energyAtArrival != "—" { energyAtArrival = s.energyAtArrival }
             if !s.tripDist.isEmpty, s.tripDist != "—" { tripDist = s.tripDist }
         } else {
-            // Nav ended / not set — clear so map doesn't keep a stale pin.
+            // Session sticky already absorbs flicker; hard clear only when session drops nav.
             destination = "—"
             destLatitude = 0
             destLongitude = 0
@@ -530,8 +536,9 @@ final class HUDModel: ObservableObject {
             if let v = obj["turn_left"] as? Bool { turnLeft = v }
             if let v = obj["turn_right"] as? Bool { turnRight = v }
             // Always black cluster — do not follow dash ui_theme day/night.
+            // Map stays light for road readability.
             night = true
-            HUDSettings.shared.mapTheme = .dark
+            HUDSettings.shared.mapTheme = .light
             return true
         } catch {
             feedOK = false

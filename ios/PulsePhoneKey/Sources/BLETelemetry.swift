@@ -116,15 +116,30 @@ final class BLETelemetry {
             guard let session else { continue }
             _ = session.handleIncoming(frame)
             status = session.statusText
-            if session.lastSessionTagInvalid || session.lastDecryptFailed {
-                handleCryptoFailure(session, reason: session.lastDecryptFailed ? "decrypt" : "tag")
+            if session.lastSessionTagInvalid {
+                handleCryptoFailure(session, reason: "tag")
+            } else if session.lastDecryptFailed {
+                // Hard decrypt streak — soft re-handshake, don't spam GATT.
+                handleCryptoFailure(session, reason: "decrypt")
+            } else if session.lastDecryptWasOrphan {
+                // Late reply for an older request — ignore; keep LIVE if we already have data.
+                if session.hasVehicleData {
+                    liveOK = true
+                    phase = .live
+                    status = "BLE LIVE"
+                }
             } else if session.infotainmentReady {
                 phase = .live
                 if session.hasVehicleData {
                     liveOK = true
                     stallRecoveries = 0
-                    if status != "BLE LIVE" {
-                        PulseDiagLog.shared.info("BLE LIVE · bat=\(Int(session.snapshot.batteryPercent))% rng=\(session.snapshot.rangeKm)km")
+                    let bat = Int(session.snapshot.batteryPercent)
+                    let rng = session.snapshot.rangeKm
+                    let dest = session.snapshot.routeActive
+                    if status != "BLE LIVE" || (bat > 0 && snapshot.batteryPercent < 0.5) {
+                        PulseDiagLog.shared.info(
+                            "BLE LIVE · bat=\(bat)% rng=\(rng)km route=\(dest ? "on" : "off") temp=\(session.snapshot.outdoorC)°"
+                        )
                     }
                     status = "BLE LIVE"
                     let next = session.snapshot
@@ -139,7 +154,6 @@ final class BLETelemetry {
                     snapshot = next
                     lastLiveDataAt = Date()
                     gotLiveFrame = true
-                    // Always push live vehicle frames promptly (dash-like).
                     if !speedMoved { speedMoved = true }
                 } else if !liveOK {
                     status = "BLE oturum OK — araç verisi…"
@@ -152,37 +166,42 @@ final class BLETelemetry {
             lastNotifyAt = Date()
             notify(force: speedMoved)
         }
-        // Event-driven next poll — much faster than waiting for timer alone.
+        // Slight delay before next poll — reduces late-reply decrypt races.
         if inFlight == 0, writeQueue.isEmpty, (gotLiveFrame || phase == .live || phase == .handshake) {
-            DispatchQueue.main.async { [weak self] in self?.tick() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
+                self?.tick()
+            }
         }
     }
 
     private func handleCryptoFailure(_ session: TeslaBLESession, reason: String) {
-        liveOK = false
-        phase = .handshake
-        status = reason == "decrypt"
-            ? "Decrypt fail — oturum yenileniyor…"
-            : "Session tag gecersiz — yeniden handshake…"
-        PulseDiagLog.shared.warn(status)
         let now = Date()
-        // Debounce soft resets; avoid GATT churn on transient tag glitches.
-        if now.timeIntervalSince(lastTagFailAt) > 1.8 {
-            lastTagFailAt = now
-            session.resetAllDomains()
-            writeQueue.removeAll()
-            writing = false
-            inFlight = 0
-            handshakeCooldownUntil = now.addingTimeInterval(0.25)
-            stallRecoveries += 1
-            notify(force: true)
-            // Need more consecutive failures before tearing GATT (was too eager).
-            if stallRecoveries >= 7 {
-                stallRecoveries = 0
-                status = "Oturum kilitlendi — GATT yenileniyor…"
-                PulseDiagLog.shared.error(status)
-                onNeedGATTReconnect?()
-            }
+        // Debounce — do not flip LIVE off / reset on every orphan decrypt.
+        guard now.timeIntervalSince(lastTagFailAt) > 2.5 else { return }
+        lastTagFailAt = now
+
+        let msg = reason == "decrypt"
+            ? "Decrypt fail — soft handshake…"
+            : "Session tag gecersiz — soft handshake…"
+        status = msg
+        PulseDiagLog.shared.warn(msg)
+
+        // Soft: reset only infotainment crypto, keep VCSEC, keep last snapshot in HUD.
+        phase = .handshake
+        session.resetDomain(.infotainment)
+        writeQueue.removeAll()
+        writing = false
+        inFlight = 0
+        handshakeCooldownUntil = now.addingTimeInterval(0.2)
+        stallRecoveries += 1
+        notify(force: true)
+
+        if stallRecoveries >= 8 {
+            stallRecoveries = 0
+            liveOK = false
+            status = "Oturum kilitlendi — GATT yenileniyor…"
+            PulseDiagLog.shared.error(status)
+            onNeedGATTReconnect?()
         }
     }
 
@@ -280,17 +299,16 @@ final class BLETelemetry {
         enqueueCommand(domain: .infotainment, command: action)
     }
 
-    /// Drive almost every tick — charge/closures often enough for battery + doors.
+    /// Drive almost every tick; bundled charge/climate/location so bat/temp/GPS arrive.
     private func nextPollAction() -> Data {
         pollIndex += 1
         let i = pollIndex
-        if i % 4 == 0 { return TeslaBLESession.actionGetDriveAndLocation() }
-        if i % 8 == 0 { return TeslaBLESession.actionGetCharge() }
-        if i % 10 == 0 { return TeslaBLESession.actionGetLocation() }
-        if i % 12 == 0 { return TeslaBLESession.actionGetClosures() }
-        if i % 16 == 0 { return TeslaBLESession.actionGetMedia() }
-        if i % 28 == 0 { return TeslaBLESession.actionGetTire() }
-        if i % 36 == 0 { return TeslaBLESession.actionGetClimate() }
+        // Full bundle often — battery + temp + drive + GPS in one decrypt.
+        if i % 3 == 0 { return TeslaBLESession.actionGetDriveBundle() }
+        if i % 5 == 0 { return TeslaBLESession.actionGetDriveAndLocation() }
+        if i % 11 == 0 { return TeslaBLESession.actionGetClosures() }
+        if i % 17 == 0 { return TeslaBLESession.actionGetMedia() }
+        if i % 29 == 0 { return TeslaBLESession.actionGetTire() }
         return TeslaBLESession.actionGetDrive()
     }
 
