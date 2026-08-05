@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-58"
+    static let buildId = "xcode-ble-59"
 
     enum Step: String {
         case idle = "Hazir"
@@ -556,7 +556,16 @@ final class BLEPairer: NSObject, ObservableObject {
         f.dateFormat = "HH:mm:ss"
         let line = "\(f.string(from: Date())) \(s)"
         log.insert(line, at: 0)
-        if log.count > 80 { log = Array(log.prefix(80)) }
+        if log.count > 120 { log = Array(log.prefix(120)) }
+        let lower = s.lowercased()
+        if lower.hasPrefix("err") || lower.contains("hata") || lower.contains("fail") {
+            PulseDiagLog.shared.error(s)
+        } else if lower.contains("disconnect") || lower.contains("koptu") || lower.contains("stall")
+                    || lower.contains("bounce") || lower.contains("yenileniyor") {
+            PulseDiagLog.shared.warn(s)
+        } else {
+            PulseDiagLog.shared.ble(s)
+        }
     }
 
     private func onMain(_ block: @escaping () -> Void) {

@@ -640,14 +640,28 @@ final class TeslaBLESession {
     private func parseCharge(_ data: Data) {
         for f in ProtoWire.parseFields(data) {
             switch f.number {
-            case 1: // charging_state enum/message — treat non-idle as charging loosely via battery fields
+            case 1: // charging_state
                 break
+            // Modern ChargeState field numbers (vehicle-command):
+            case 4: // battery_level
+                if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
+            case 5: // battery_range miles float
+                if let mi = ProtoWire.float32(f.bytes) {
+                    snapshot.rangeKm = Int((Double(mi) * 1.60934).rounded())
+                }
+            case 6: // est_battery_range
+                if snapshot.rangeKm <= 0, let mi = ProtoWire.float32(f.bytes) {
+                    snapshot.rangeKm = Int((Double(mi) * 1.60934).rounded())
+                }
+            case 30: // usable_battery_level
+                if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
+            // Legacy / alternate wire numbers still seen on some builds:
             case 111: // battery_range miles float
                 if let mi = ProtoWire.float32(f.bytes) {
                     snapshot.rangeKm = Int((Double(mi) * 1.60934).rounded())
                 }
             case 114: // battery_level
-                snapshot.batteryPercent = Double(f.varint)
+                if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
             case 115: // usable_battery_level
                 if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
             case 122: // charger_power

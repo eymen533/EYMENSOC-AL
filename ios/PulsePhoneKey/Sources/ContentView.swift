@@ -5,7 +5,9 @@ struct ContentView: View {
     @StateObject private var ble = BLEPairer()
     @StateObject private var hud = HUDModel()
     @ObservedObject private var hudSettings = HUDSettings.shared
+    @ObservedObject private var diagLog = PulseDiagLog.shared
     @State private var vin = Self.loadStoredVIN()
+    @State private var logCopiedFlash = false
     @State private var dashURL = UserDefaults.standard.string(forKey: "pulse_dash_url")
         ?? "https://mon-holds-cloud-grateful.trycloudflare.com"
     @State private var pin = UserDefaults.standard.string(forKey: "pulse_pin") ?? "428462"
@@ -338,6 +340,38 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                Section("Hata / bağlantı logları") {
+                    Text("Kopma veya garip davranış olunca buradaki logları kopyalayıp paylaş — teşhis için.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    NavigationLink {
+                        DiagLogViewer()
+                    } label: {
+                        HStack {
+                            Image(systemName: "doc.text.magnifyingglass")
+                            Text("Logları aç")
+                            Spacer()
+                            Text("\(diagLog.entries.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Button("Logları panoya kopyala") {
+                        UIPasteboard.general.string = {
+                            let header = "Pulse28 \(BLEPairer.buildId) · \(ISO8601DateFormatter().string(from: Date()))\n"
+                            return header + diagLog.entries.reversed().map(\.line).joined(separator: "\n")
+                        }()
+                        PulseDiagLog.shared.info("Log copied to clipboard (\(diagLog.entries.count) lines)")
+                        logCopiedFlash = true
+                    }
+                    if logCopiedFlash {
+                        Text("Kopyalandı — buraya yapıştırıp paylaşabilirsin.")
+                            .font(.footnote)
+                            .foregroundStyle(.green)
+                    }
+                    Button("Logları temizle", role: .destructive) {
+                        diagLog.clear()
+                    }
+                }
                 Section("Dash (yedek)") {
                     TextField("Dash URL", text: $dashURL)
                         .textInputAutocapitalization(.never)
@@ -464,5 +498,64 @@ struct ContentView: View {
             hud.applyBLE(ble.bleSnapshot, linkOK: true)
         }
         screen = .hud
+    }
+}
+
+/// Settings → diagnostic log list with level colors.
+struct DiagLogViewer: View {
+    @ObservedObject private var log = PulseDiagLog.shared
+
+    var body: some View {
+        List {
+            ForEach(log.entries) { e in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(e.level.rawValue)
+                            .font(.caption2.weight(.bold).monospaced())
+                            .foregroundStyle(color(for: e.level))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(color(for: e.level).opacity(0.18)))
+                        Spacer()
+                        Text(time(e.date))
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(e.message)
+                        .font(.footnote.monospaced())
+                        .foregroundStyle(.primary)
+                        .textSelection(.enabled)
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+            }
+        }
+        .navigationTitle("Hata logları")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Kopyala") {
+                    UIPasteboard.general.string =
+                        "Pulse28 \(BLEPairer.buildId)\n"
+                        + log.entries.reversed().map(\.line).joined(separator: "\n")
+                }
+            }
+            ToolbarItem(placement: .destructiveAction) {
+                Button("Temizle", role: .destructive) { log.clear() }
+            }
+        }
+    }
+
+    private func color(for level: PulseDiagLog.Level) -> Color {
+        switch level {
+        case .info: return .secondary
+        case .warn: return .orange
+        case .error: return .red
+        case .ble: return Color(red: 0.25, green: 0.7, blue: 0.95)
+        }
+    }
+
+    private func time(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f.string(from: d)
     }
 }

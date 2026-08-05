@@ -175,8 +175,13 @@ final class HUDModel: ObservableObject {
         powerKW = s.powerKW
         gear = s.gear.isEmpty ? "—" : s.gear
         driving = abs(s.speedKmh) > 1.5 || s.gear == "D" || s.gear == "R"
-        battery = s.batteryPercent
-        rangeKm = s.rangeKm
+        // Sticky battery/range — Charge polls are intermittent; don't wipe with 0.
+        if s.batteryPercent > 0.5 {
+            battery = s.batteryPercent
+        }
+        if s.rangeKm > 0 {
+            rangeKm = s.rangeKm
+        }
         if s.odometerKm > 0 { odometer = s.odometerKm }
         charging = s.charging
         psiFL = s.psiFL

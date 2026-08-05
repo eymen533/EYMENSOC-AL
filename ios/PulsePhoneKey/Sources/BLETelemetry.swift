@@ -123,6 +123,9 @@ final class BLETelemetry {
                 if session.hasVehicleData {
                     liveOK = true
                     stallRecoveries = 0
+                    if status != "BLE LIVE" {
+                        PulseDiagLog.shared.info("BLE LIVE · bat=\(Int(session.snapshot.batteryPercent))% rng=\(session.snapshot.rangeKm)km")
+                    }
                     status = "BLE LIVE"
                     let next = session.snapshot
                     let speedInt = Int(abs(next.speedKmh).rounded())
@@ -161,6 +164,7 @@ final class BLETelemetry {
         status = reason == "decrypt"
             ? "Decrypt fail — oturum yenileniyor…"
             : "Session tag gecersiz — yeniden handshake…"
+        PulseDiagLog.shared.warn(status)
         let now = Date()
         // Debounce soft resets; avoid GATT churn on transient tag glitches.
         if now.timeIntervalSince(lastTagFailAt) > 1.8 {
@@ -176,6 +180,7 @@ final class BLETelemetry {
             if stallRecoveries >= 7 {
                 stallRecoveries = 0
                 status = "Oturum kilitlendi — GATT yenileniyor…"
+                PulseDiagLog.shared.error(status)
                 onNeedGATTReconnect?()
             }
         }
@@ -234,6 +239,7 @@ final class BLETelemetry {
             phase = .handshake
             session.resetDomain(.infotainment)
             status = "Veri durdu — oturum yenileniyor…"
+            PulseDiagLog.shared.warn("\(status) (stall #\(stallRecoveries))")
             writeQueue.removeAll()
             writing = false
             inFlight = 0
@@ -242,6 +248,7 @@ final class BLETelemetry {
             if stallRecoveries >= 6 {
                 stallRecoveries = 0
                 status = "Veri yok — GATT yenileniyor…"
+                PulseDiagLog.shared.error(status)
                 onNeedGATTReconnect?()
                 return
             }
@@ -273,18 +280,17 @@ final class BLETelemetry {
         enqueueCommand(domain: .infotainment, command: action)
     }
 
-    /// Drive almost every tick — location more often so the map tracks the car.
+    /// Drive almost every tick — charge/closures often enough for battery + doors.
     private func nextPollAction() -> Data {
         pollIndex += 1
         let i = pollIndex
-        // Location+Drive ~every 4th tick (was 14) — map GPS must keep up with speed.
         if i % 4 == 0 { return TeslaBLESession.actionGetDriveAndLocation() }
-        if i % 9 == 0 { return TeslaBLESession.actionGetLocation() }
+        if i % 8 == 0 { return TeslaBLESession.actionGetCharge() }
+        if i % 10 == 0 { return TeslaBLESession.actionGetLocation() }
+        if i % 12 == 0 { return TeslaBLESession.actionGetClosures() }
         if i % 16 == 0 { return TeslaBLESession.actionGetMedia() }
-        if i % 24 == 0 { return TeslaBLESession.actionGetCharge() }
-        if i % 32 == 0 { return TeslaBLESession.actionGetTire() }
-        if i % 40 == 0 { return TeslaBLESession.actionGetClimate() }
-        if i % 48 == 0 { return TeslaBLESession.actionGetClosures() }
+        if i % 28 == 0 { return TeslaBLESession.actionGetTire() }
+        if i % 36 == 0 { return TeslaBLESession.actionGetClimate() }
         return TeslaBLESession.actionGetDrive()
     }
 

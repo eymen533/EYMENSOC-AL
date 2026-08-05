@@ -86,7 +86,7 @@ struct NativeHUDView: View {
     private func triadLandscape(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.34, h * 0.78, 300)
+        let dialW = min(w * 0.40, h * 0.88, 340)
         let cx = w * 0.5
         let cy = h * 0.5
         let sideW = max(140, (w - dialW) / 2)
@@ -330,7 +330,7 @@ struct NativeHUDView: View {
     private func triadPortrait(geo: GeometryProxy) -> some View {
         let w = geo.size.width
         let h = geo.size.height
-        let dialW = min(w * 0.46, h * 0.26, 200)
+        let dialW = min(w * 0.52, h * 0.30, 230)
         let tuck = dialW * 0.55
         let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
         let topChrome: CGFloat = 10
@@ -918,8 +918,8 @@ struct NativeHUDView: View {
 
     private func dialView(size: CGFloat, compact: Bool = false) -> some View {
         let style = settings.dialStyle
-        // Slightly smaller relative size + light weight = thin but readable on a larger dial.
-        let speedFont = compact ? size * 0.36 : size * 0.40
+        // Tesla cluster: large thin digits (Universal Sans–like → SF Pro ultraLight).
+        let speedFont = compact ? size * 0.42 : size * 0.48
         let ringW: CGFloat = compact ? 2.5 : 3.2
         let accel = CGFloat(min(1, max(0, model.powerKW) / 180.0))
         let regen = CGFloat(min(1, max(0, -model.powerKW) / 70.0))
@@ -943,21 +943,22 @@ struct NativeHUDView: View {
                 }
             }
             Text("\(Int(abs(model.speed).rounded()))")
-                .font(.system(size: speedFont, weight: .medium, design: .rounded))
+                .font(.system(size: speedFont, weight: .ultraLight, design: .default))
                 .monospacedDigit()
                 .foregroundStyle(dialInk)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
+                .tracking(-speedFont * 0.04)
                 .transaction { $0.animation = nil }
                 .shadow(color: .black.opacity(0.85), radius: style == .bare ? 12 : 5, y: style == .bare ? 7 : 3)
                 .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
             Text("km/h")
-                .font(.system(size: max(11, size * 0.055), weight: .medium))
+                .font(.system(size: max(11, size * 0.048), weight: .regular))
                 .foregroundStyle(dialMuted)
                 .shadow(color: .black.opacity(0.6), radius: 3, y: 2)
             if !compact, settings.liveLocation != .off, !isBlank(model.place) {
                 Text(model.place)
-                    .font(.system(size: max(11, size * 0.052), weight: .medium))
+                    .font(.system(size: max(11, size * 0.048), weight: .medium))
                     .foregroundStyle(dialMuted)
                     .lineLimit(1)
                     .padding(.top, 2)
@@ -1137,19 +1138,25 @@ struct NativeHUDView: View {
     @ViewBuilder
     private func dialStatusStrip(maxWidth: CGFloat) -> some View {
         let doors = model.openDoorLabels
+        let anyDoor = model.doorFL || model.doorFR || model.doorRL || model.doorRR
+            || model.frunkOpen || model.trunkOpen || model.chargePortOpen
         let showLights = model.anyLightOn
         if doors.isEmpty && !showLights && !model.locked {
             EmptyView()
         } else {
-            VStack(spacing: 4) {
-                if !doors.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "door.left.hand.open")
-                            .font(.caption2.weight(.bold))
-                        Text(doors.joined(separator: " · "))
-                            .font(.caption2.weight(.semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
+            VStack(spacing: 6) {
+                if anyDoor {
+                    HStack(spacing: 10) {
+                        doorCarGlyph
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(doors.joined(separator: " · "))
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.75)
+                            Text("Kapı açık")
+                                .font(.caption2)
+                                .foregroundStyle(Color.white.opacity(0.55))
+                        }
                     }
                     .foregroundStyle(Color(red: 1.0, green: 0.55, blue: 0.2))
                 }
@@ -1191,11 +1198,52 @@ struct NativeHUDView: View {
                     .foregroundStyle(muted)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
             .frame(maxWidth: maxWidth)
             .background(Capsule().fill(chipFill))
         }
+    }
+
+    /// Tiny top-down car — open doors glow amber.
+    private var doorCarGlyph: some View {
+        let open = Color(red: 1.0, green: 0.55, blue: 0.18)
+        let shut = Color.white.opacity(0.22)
+        return ZStack {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.white.opacity(0.12))
+                .frame(width: 22, height: 36)
+            // FL
+            Capsule()
+                .fill(model.doorFL ? open : shut)
+                .frame(width: 5, height: 11)
+                .offset(x: -10, y: -7)
+            // FR
+            Capsule()
+                .fill(model.doorFR ? open : shut)
+                .frame(width: 5, height: 11)
+                .offset(x: 10, y: -7)
+            // RL
+            Capsule()
+                .fill(model.doorRL ? open : shut)
+                .frame(width: 5, height: 11)
+                .offset(x: -10, y: 8)
+            // RR
+            Capsule()
+                .fill(model.doorRR ? open : shut)
+                .frame(width: 5, height: 11)
+                .offset(x: 10, y: 8)
+            if model.frunkOpen {
+                Capsule().fill(open).frame(width: 12, height: 4).offset(y: -16)
+            }
+            if model.trunkOpen {
+                Capsule().fill(open).frame(width: 12, height: 4).offset(y: 16)
+            }
+            if model.chargePortOpen {
+                Circle().fill(open).frame(width: 5, height: 5).offset(x: 12, y: -2)
+            }
+        }
+        .frame(width: 34, height: 40)
     }
 
     // MARK: - Panels
