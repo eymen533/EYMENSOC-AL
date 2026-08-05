@@ -558,9 +558,20 @@ final class TeslaBLESession {
     // MARK: - Parse VehicleData / Response
 
     private func parseInfotainmentResponse(_ data: Data) {
-        // car_server.Response field 2 = vehicleData
-        for f in ProtoWire.parseFields(data) where f.number == 2 {
-            parseVehicleData(f.bytes)
+        // car_server.Response: field 1 = ActionStatus, field 2 = vehicleData
+        for f in ProtoWire.parseFields(data) {
+            if f.number == 1 {
+                // result=OK is varint 0 on field 1 of ActionStatus — non-zero = error / denied.
+                for sf in ProtoWire.parseFields(f.bytes) where sf.number == 1 {
+                    if sf.varint != 0 {
+                        // Multi-category GetVehicleData often fails here; keep Drive LIVE.
+                        break
+                    }
+                }
+            }
+            if f.number == 2 {
+                parseVehicleData(f.bytes)
+            }
         }
     }
 
@@ -720,9 +731,17 @@ final class TeslaBLESession {
                     if km > snapshot.rangeKm { snapshot.rangeKm = km }
                 }
             case 114: // battery_level
-                if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
+                if f.varint > 0 {
+                    snapshot.batteryPercent = Double(f.varint)
+                } else if let fl = ProtoWire.float32(f.bytes), fl > 0.5 {
+                    snapshot.batteryPercent = Double(fl)
+                }
             case 115: // usable_battery_level
-                if f.varint > 0 { snapshot.batteryPercent = Double(f.varint) }
+                if f.varint > 0 {
+                    snapshot.batteryPercent = Double(f.varint)
+                } else if let fl = ProtoWire.float32(f.bytes), fl > 0.5 {
+                    snapshot.batteryPercent = Double(fl)
+                }
             case 122: // charger_power
                 if f.varint > 0 { snapshot.charging = true }
             case 127: // charge_port_door_open
@@ -944,10 +963,12 @@ final class TeslaBLESession {
             case 102: // outside_temp_celsius
                 if let t = ProtoWire.float32(f.bytes) {
                     snapshot.outdoorC = Int(t.rounded())
+                    snapshot.outdoorValid = true
                 }
             case 101: // inside_temp — fallback display if outside missing
-                if snapshot.outdoorC == 0, let t = ProtoWire.float32(f.bytes) {
+                if !snapshot.outdoorValid, let t = ProtoWire.float32(f.bytes) {
                     snapshot.outdoorC = Int(t.rounded())
+                    snapshot.outdoorValid = true
                 }
             default: break
             }

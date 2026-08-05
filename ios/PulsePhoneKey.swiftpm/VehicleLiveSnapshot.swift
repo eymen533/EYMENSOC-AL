@@ -14,6 +14,8 @@ struct VehicleLiveSnapshot {
     var psiRL = 0
     var psiRR = 0
     var outdoorC: Int = 0
+    /// True once ClimateState has supplied a temperature (0°C is valid).
+    var outdoorValid: Bool = false
     var latitude: Double = 0
     var longitude: Double = 0
     var heading: Double = 0

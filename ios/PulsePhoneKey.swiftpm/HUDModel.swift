@@ -23,6 +23,7 @@ final class HUDModel: ObservableObject {
     @Published var psiRL = 0
     @Published var psiRR = 0
     @Published var outdoorC: Int = 0
+    @Published var outdoorValid = false
     @Published var night = true
     @Published var doorFL = false
     @Published var doorFR = false
@@ -135,6 +136,8 @@ final class HUDModel: ObservableObject {
         driving = false
         battery = 0
         rangeKm = 0
+        outdoorC = 0
+        outdoorValid = false
         psiFL = 0; psiFR = 0; psiRL = 0; psiRR = 0
         doorFL = false; doorFR = false; doorRL = false; doorRR = false
         frunkOpen = false; trunkOpen = false; chargePortOpen = false; locked = false
@@ -188,7 +191,10 @@ final class HUDModel: ObservableObject {
         psiFR = s.psiFR
         psiRL = s.psiRL
         psiRR = s.psiRR
-        if s.outdoorC != 0 { outdoorC = s.outdoorC }
+        if s.outdoorValid {
+            outdoorC = s.outdoorC
+            outdoorValid = true
+        }
         doorFL = s.doorFL
         doorFR = s.doorFR
         doorRL = s.doorRL

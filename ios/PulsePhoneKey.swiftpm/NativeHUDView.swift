@@ -98,7 +98,8 @@ struct NativeHUDView: View {
         let tuck = dialW * 0.55
         let leftW = sideW + (leftMap ? tuck : 0)
         let rightW = sideW + (rightMap ? tuck : 0)
-        let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
+        let showTurn = (leftMap || rightMap)
+            && (model.turnDistanceM > 0 || !model.turnInstruction.isEmpty)
         let chromeMuted = Color.white.opacity(0.78)
         let cluster = Color(red: 0.07, green: 0.07, blue: 0.08)
 
@@ -336,7 +337,8 @@ struct NativeHUDView: View {
         let h = geo.size.height
         let dialW = min(w * 0.52, h * 0.30, 230)
         let tuck = dialW * 0.55
-        let showTurn = model.turnDistanceM > 0 || !model.turnInstruction.isEmpty
+        let showTurn = (leftMap || rightMap)
+            && (model.turnDistanceM > 0 || !model.turnInstruction.isEmpty)
         let topChrome: CGFloat = 10
         let wingH = max(96, (h - dialW - topChrome) / 2)
         let cx = w * 0.5
@@ -602,7 +604,7 @@ struct NativeHUDView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(Capsule().fill(Color(red: 1.0, green: 0.75, blue: 0.05)))
-                Text(model.outdoorC == 0 ? "--°C" : "\(model.outdoorC)°C")
+                Text(model.outdoorValid ? "\(model.outdoorC)°C" : "--°C")
                     .font(.subheadline)
                     .foregroundStyle(mutedOnDark)
                 Image(systemName: "car.fill")

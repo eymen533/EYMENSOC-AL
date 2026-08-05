@@ -133,12 +133,17 @@ final class BLETelemetry {
                 if session.hasVehicleData {
                     liveOK = true
                     stallRecoveries = 0
-                    let bat = Int(session.snapshot.batteryPercent)
+                    let bat = Int(session.snapshot.batteryPercent.rounded())
                     let rng = session.snapshot.rangeKm
                     let dest = session.snapshot.routeActive
-                    if status != "BLE LIVE" || (bat > 0 && snapshot.batteryPercent < 0.5) {
+                    let temp = session.snapshot.outdoorC
+                    let tempMark = session.snapshot.outdoorValid ? "\(temp)°" : "--°"
+                    // Log when LIVE starts or when bat/temp finally arrive (was stuck at 0).
+                    let batArrived = bat > 0 && Int(snapshot.batteryPercent.rounded()) == 0
+                    let tempArrived = session.snapshot.outdoorValid && !snapshot.outdoorValid
+                    if status != "BLE LIVE" || batArrived || tempArrived {
                         PulseDiagLog.shared.info(
-                            "BLE LIVE · bat=\(bat)% rng=\(rng)km route=\(dest ? "on" : "off") temp=\(session.snapshot.outdoorC)°"
+                            "BLE LIVE · bat=\(bat)% rng=\(rng)km route=\(dest ? "on" : "off") temp=\(tempMark)"
                         )
                     }
                     status = "BLE LIVE"
@@ -299,16 +304,17 @@ final class BLETelemetry {
         enqueueCommand(domain: .infotainment, command: action)
     }
 
-    /// Drive almost every tick; bundled charge/climate/location so bat/temp/GPS arrive.
+    /// One StateCategory per request — Tesla rejects multi-category GetVehicleData.
     private func nextPollAction() -> Data {
         pollIndex += 1
         let i = pollIndex
-        // Full bundle often — battery + temp + drive + GPS in one decrypt.
-        if i % 3 == 0 { return TeslaBLESession.actionGetDriveBundle() }
-        if i % 5 == 0 { return TeslaBLESession.actionGetDriveAndLocation() }
-        if i % 11 == 0 { return TeslaBLESession.actionGetClosures() }
-        if i % 17 == 0 { return TeslaBLESession.actionGetMedia() }
-        if i % 29 == 0 { return TeslaBLESession.actionGetTire() }
+        // Charge / climate / location must be standalone (bundle returned Drive-only → bat=0).
+        if i % 3 == 1 { return TeslaBLESession.actionGetCharge() }
+        if i % 5 == 2 { return TeslaBLESession.actionGetClimate() }
+        if i % 7 == 3 { return TeslaBLESession.actionGetLocation() }
+        if i % 13 == 0 { return TeslaBLESession.actionGetClosures() }
+        if i % 19 == 0 { return TeslaBLESession.actionGetMedia() }
+        if i % 31 == 0 { return TeslaBLESession.actionGetTire() }
         return TeslaBLESession.actionGetDrive()
     }
 
