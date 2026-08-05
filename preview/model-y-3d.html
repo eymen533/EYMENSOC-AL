@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Pulse28 — Model Y 3D (kapı / frunk / bagaj)</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:#2a2c30; color:#eee; font-family:ui-sans-serif,system-ui,-apple-system,sans-serif; }
+  #app { display:grid; grid-template-rows:auto 1fr auto; height:100%; }
+  header {
+    padding:12px 16px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;
+    background:rgba(0,0,0,.35); border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  h1 { margin:0; font-size:14px; letter-spacing:.04em; }
+  .sub { margin:2px 0 0; font-size:11px; color:#aeb4be; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; }
+  button, select {
+    appearance:none; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06);
+    color:#eee; border-radius:999px; padding:8px 12px; font:inherit; font-size:12px; cursor:pointer;
+  }
+  button.active { background:rgba(255,200,80,.22); border-color:rgba(255,200,80,.65); color:#ffe6a8; }
+  #stage { position:relative; min-height:0; background:linear-gradient(#3a3d42,#1e2024); }
+  canvas { display:block; width:100%; height:100%; }
+  #hud {
+    position:absolute; left:12px; bottom:12px; right:12px;
+    display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; pointer-events:none;
+  }
+  .badge {
+    pointer-events:auto; background:rgba(12,12,14,.72); backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:10px 12px; min-width:140px;
+  }
+  .badge b { display:block; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#ffd27a; margin-bottom:4px; }
+  .badge span { font-size:12px; color:#c5cad3; }
+  footer { padding:10px 16px; font-size:11px; color:#9aa1ab; border-top:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.28); }
+  #err {
+    display:none; position:absolute; inset:16px; z-index:5; align-items:center; justify-content:center;
+    text-align:center; padding:20px; border-radius:16px; background:rgba(20,8,8,.92); color:#ffb4b4;
+    border:1px solid rgba(255,80,80,.35);
+  }
+  #err.show { display:flex; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1>MODEL Y 3D — KAPILAR / FRUNK / BAGAJ</h1>
+      <p class="sub">Beyaz stüdyo Model Y · menteşeli paneller · sürükleyerek döndür</p>
+    </div>
+    <div class="row">
+      <select id="cam">
+        <option value="iso">İzometrik</option>
+        <option value="front">Önden</option>
+        <option value="side">Yandan</option>
+        <option value="rear">Arkadan</option>
+        <option value="top">Üstten</option>
+      </select>
+      <button type="button" data-part="fl">Ön sol</button>
+      <button type="button" data-part="fr">Ön sağ</button>
+      <button type="button" data-part="rl">Arka sol</button>
+      <button type="button" data-part="rr">Arka sağ</button>
+      <button type="button" data-part="frunk">Frunk</button>
+      <button type="button" data-part="trunk">Bagaj</button>
+      <button type="button" id="leftBoth">Sol kapılar</button>
+      <button type="button" id="all">Hepsi</button>
+      <button type="button" id="reset">Kapat</button>
+    </div>
+  </header>
+  <div id="stage">
+    <div id="err"></div>
+    <div id="hud">
+      <div class="badge"><b>Durum</b><span id="status">Hazırlanıyor…</span></div>
+      <div class="badge"><b>İpucu</b><span>Sürükle = bakış · buton = panel</span></div>
+    </div>
+  </div>
+  <footer>
+    Harici doku yok — Three.js ile beyaz Model Y mesh. htmlpreview ile açın (jsDelivr sadece kod gösterir).
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+(function () {
+  var statusEl = document.getElementById("status");
+  var errEl = document.getElementById("err");
+  var stage = document.getElementById("stage");
+  var names = { fl:"Ön sol", fr:"Ön sağ", rl:"Arka sol", rr:"Arka sağ", frunk:"Frunk", trunk:"Bagaj" };
+  var open = { fl:false, fr:false, rl:false, rr:false, frunk:false, trunk:false };
+  var targets = { fl:0, fr:0, rl:0, rr:0, frunk:0, trunk:0 };
+  var angles = { fl:0, fr:0, rl:0, rr:0, frunk:0, trunk:0 };
+  var hinges = {};
+
+  function showErr(msg) {
+    errEl.textContent = msg;
+    errEl.classList.add("show");
+    statusEl.textContent = "Hata";
+  }
+
+  function updateStatus() {
+    var keys = Object.keys(open).filter(function (k) { return open[k]; });
+    statusEl.textContent = keys.length ? keys.map(function (k) { return names[k]; }).join(" · ") + " açık" : "Tümü kapalı";
+    document.querySelectorAll("[data-part]").forEach(function (btn) {
+      btn.classList.toggle("active", !!open[btn.getAttribute("data-part")]);
+    });
+  }
+
+  function setPart(k, v) { open[k] = v; targets[k] = v ? 1 : 0; updateStatus(); }
+  function toggle(k) { setPart(k, !open[k]); }
+  function all(v) { Object.keys(open).forEach(function (k) { setPart(k, v); }); }
+
+  if (typeof THREE === "undefined") {
+    showErr("Three.js yüklenemedi.");
+    return;
+  }
+
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x2f3236);
+  scene.fog = new THREE.Fog(0x2f3236, 12, 28);
+
+  var camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+  var renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  stage.insertBefore(renderer.domElement, stage.firstChild);
+
+  // Studio lights — soft grey set like the reference
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x444850, 0.55));
+  var key = new THREE.DirectionalLight(0xffffff, 1.15);
+  key.position.set(4.5, 7, 3.5);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.near = 1;
+  key.shadow.camera.far = 24;
+  key.shadow.camera.left = -6;
+  key.shadow.camera.right = 6;
+  key.shadow.camera.top = 6;
+  key.shadow.camera.bottom = -6;
+  scene.add(key);
+  var fill = new THREE.DirectionalLight(0xdde4ff, 0.45);
+  fill.position.set(-5, 3, -2);
+  scene.add(fill);
+  var rim = new THREE.DirectionalLight(0xfff2d8, 0.35);
+  rim.position.set(0, 4, -6);
+  scene.add(rim);
+
+  // Floor
+  var floorMat = new THREE.MeshStandardMaterial({
+    color: 0xb0b4b8, metalness: 0.15, roughness: 0.35
+  });
+  var floor = new THREE.Mesh(new THREE.CircleGeometry(10, 64), floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+  var shadowPlane = new THREE.Mesh(
+    new THREE.CircleGeometry(3.2, 48),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18 })
+  );
+  shadowPlane.rotation.x = -Math.PI / 2;
+  shadowPlane.position.y = 0.002;
+  scene.add(shadowPlane);
+
+  // Materials
+  var paint = new THREE.MeshPhysicalMaterial({
+    color: 0xf4f4f2, metalness: 0.42, roughness: 0.22,
+    clearcoat: 1.0, clearcoatRoughness: 0.06
+  });
+  var paintDark = new THREE.MeshPhysicalMaterial({
+    color: 0xe8e8e6, metalness: 0.4, roughness: 0.25,
+    clearcoat: 1.0, clearcoatRoughness: 0.08
+  });
+  var glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0x14161a, metalness: 0.2, roughness: 0.05,
+    transparent: true, opacity: 0.72, side: THREE.DoubleSide
+  });
+  var blackTrim = new THREE.MeshStandardMaterial({ color: 0x0d0d0f, metalness: 0.7, roughness: 0.35 });
+  var cabinMat = new THREE.MeshStandardMaterial({ color: 0x121214, metalness: 0.1, roughness: 0.85 });
+  var silver = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, metalness: 0.85, roughness: 0.28 });
+  var tireMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.2, roughness: 0.7 });
+
+  function box(w, h, d, mat, x, y, z) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x || 0, y || 0, z || 0);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    return m;
+  }
+
+
+  var car = new THREE.Group();
+  scene.add(car);
+
+  // --- Body (static shell with door apertures) ---
+  var body = new THREE.Group();
+  car.add(body);
+
+  // Lower rocker / sill
+  body.add(box(1.92, 0.22, 4.55, paint, 0, 0.28, 0));
+  // Main lower body
+  body.add(box(1.88, 0.55, 4.4, paint, 0, 0.62, 0));
+  // Front bumper nose
+  body.add(box(1.78, 0.38, 0.55, paint, 0, 0.48, 2.15));
+  // Rear bumper
+  body.add(box(1.78, 0.4, 0.5, paint, 0, 0.5, -2.15));
+  // Hood / frunk deck (static under lid)
+  body.add(box(1.55, 0.08, 1.05, paintDark, 0, 0.92, 1.55));
+  // Roof rails / cabin base
+  body.add(box(1.55, 0.12, 2.35, blackTrim, 0, 1.05, -0.15));
+  // Glass roof
+  var roof = box(1.42, 0.05, 2.15, glassMat, 0, 1.48, -0.12);
+  body.add(roof);
+  // Cabin interior block (visible when doors open)
+  body.add(box(1.35, 0.72, 2.0, cabinMat, 0, 1.05, -0.1));
+  // A-pillar / B approx black belt
+  body.add(box(1.72, 0.08, 2.5, blackTrim, 0, 0.95, -0.05));
+  // Front fascia light bar cue
+  body.add(box(1.2, 0.04, 0.06, blackTrim, 0, 0.62, 2.38));
+  // Side skirts detail
+  body.add(box(1.96, 0.06, 3.2, blackTrim, 0, 0.18, 0));
+
+  function makeWheel(x, z) {
+    var g = new THREE.Group();
+    var tire = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.26, 32), tireMat);
+    tire.rotation.z = Math.PI / 2;
+    tire.castShadow = true;
+    g.add(tire);
+    var rim = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.28, 24), silver);
+    rim.rotation.z = Math.PI / 2;
+    g.add(rim);
+    var hub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.3, 16), blackTrim);
+    hub.rotation.z = Math.PI / 2;
+    g.add(hub);
+    for (var s = 0; s < 5; s++) {
+      var sp = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.04), silver);
+      var a = (s / 5) * Math.PI * 2;
+      sp.position.set(Math.sin(a) * 0.1, Math.cos(a) * 0.1, 0);
+      sp.rotation.z = -a;
+      g.add(sp);
+    }
+    g.position.set(x, 0.36, z);
+    car.add(g);
+  }
+  makeWheel(-0.82, 1.45);
+  makeWheel(0.82, 1.45);
+  makeWheel(-0.82, -1.45);
+  makeWheel(0.82, -1.45);
+
+  // Helper: hinged door panel
+  function makeDoor(side, front) {
+    // side: -1 left, +1 right; front: true/false
+    var door = new THREE.Group();
+    var zc = front ? 0.55 : -0.55;
+    var hingeX = side * 0.94;
+    door.position.set(hingeX, 0.85, zc);
+
+    var panel = new THREE.Group();
+    // panel extends outward from hinge toward center then... actually door body is inward from outer hinge
+    // Left door: hinge at -0.94, panel center at ~-0.72 (toward +x from hinge)
+    var localX = side * -0.22; // toward vehicle center from hinge
+    var dw = 0.12;
+    var dh = 0.85;
+    var dd = front ? 1.05 : 0.95;
+
+    var shell = box(dw, dh, dd, paint, localX, 0, 0);
+    panel.add(shell);
+    // window
+    var win = box(0.04, 0.38, dd * 0.72, glassMat, localX + side * -0.05, 0.22, front ? -0.05 : 0.02);
+    panel.add(win);
+    // black window frame
+    panel.add(box(0.05, 0.42, dd * 0.78, blackTrim, localX + side * -0.04, 0.22, front ? -0.05 : 0.02));
+    // interior card
+    panel.add(box(0.03, dh * 0.9, dd * 0.92, cabinMat, localX + side * 0.06, 0, 0));
+
+    door.add(panel);
+    door.userData = {
+      axis: "y",
+      sign: side < 0 ? 1 : -1,
+      max: front ? 1.15 : 1.05,
+      baseY: door.position.y
+    };
+    car.add(door);
+    return door;
+  }
+
+  hinges.fl = makeDoor(-1, true);
+  hinges.fr = makeDoor(1, true);
+  hinges.rl = makeDoor(-1, false);
+  hinges.rr = makeDoor(1, false);
+
+  // Frunk lid
+  (function () {
+    var hinge = new THREE.Group();
+    hinge.position.set(0, 0.94, 2.05);
+    var lid = box(1.55, 0.06, 1.0, paint, 0, 0, -0.48);
+    hinge.add(lid);
+    // underside
+    hinge.add(box(1.45, 0.03, 0.9, cabinMat, 0, -0.04, -0.48));
+    hinge.userData = { axis: "x", sign: -1, max: 1.05, baseY: hinge.position.y };
+    car.add(hinge);
+    hinges.frunk = hinge;
+  })();
+
+  // Trunk / liftgate
+  (function () {
+    var hinge = new THREE.Group();
+    hinge.position.set(0, 1.15, -1.35);
+    var lid = box(1.5, 0.08, 1.15, paint, 0, 0.15, -0.55);
+    hinge.add(lid);
+    var glass = box(1.2, 0.05, 0.7, glassMat, 0, 0.28, -0.35);
+    hinge.add(glass);
+    hinge.add(box(1.4, 0.04, 1.05, cabinMat, 0, 0.08, -0.55));
+    hinge.userData = { axis: "x", sign: 1, max: 1.2, baseY: hinge.position.y };
+    car.add(hinge);
+    hinges.trunk = hinge;
+  })();
+
+  // Charge port accent (right rear fender)
+  var port = box(0.08, 0.14, 0.14, blackTrim, 0.96, 0.75, -0.85);
+  body.add(port);
+
+  function setCamera(mode) {
+    if (mode === "front") camera.position.set(0, 1.6, 6.2);
+    else if (mode === "side") camera.position.set(5.5, 1.5, 0.4);
+    else if (mode === "rear") camera.position.set(0, 1.7, -6.2);
+    else if (mode === "top") camera.position.set(0, 8, 0.2);
+    else camera.position.set(4.2, 2.8, 4.6);
+    camera.lookAt(0, 0.7, 0);
+  }
+  setCamera("iso");
+
+  function resize() {
+    var w = stage.clientWidth || 1;
+    var h = stage.clientHeight || 1;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  var clock = new THREE.Clock();
+  var autoSpin = true;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    var dt = Math.min(clock.getDelta(), 0.05);
+    Object.keys(targets).forEach(function (k) {
+      var h = hinges[k];
+      if (!h) return;
+      angles[k] += (targets[k] - angles[k]) * Math.min(1, dt * 4.8);
+      var a = angles[k] * h.userData.max * h.userData.sign;
+      if (h.userData.axis === "y") h.rotation.y = a;
+      else h.rotation.x = a;
+    });
+    if (autoSpin) car.rotation.y += dt * 0.12;
+    renderer.render(scene, camera);
+  }
+  animate();
+  // Gemini referansındaki gibi sol kapıları açık başlat
+  setPart("fl", true);
+  setPart("rl", true);
+  updateStatus();
+
+  document.querySelectorAll("[data-part]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      autoSpin = false;
+      toggle(btn.getAttribute("data-part"));
+    });
+  });
+  document.getElementById("leftBoth").addEventListener("click", function () {
+    autoSpin = false;
+    setPart("fl", true);
+    setPart("rl", true);
+  });
+  document.getElementById("all").addEventListener("click", function () { autoSpin = false; all(true); });
+  document.getElementById("reset").addEventListener("click", function () { all(false); });
+  document.getElementById("cam").addEventListener("change", function (e) {
+    autoSpin = false;
+    setCamera(e.target.value);
+  });
+
+  // Drag orbit
+  var dragging = false, lx = 0, ly = 0, yaw = 0.55, pitch = 0.35, dist = 7.2;
+  function applyOrbit() {
+    camera.position.set(
+      Math.sin(yaw) * Math.cos(pitch) * dist,
+      Math.sin(pitch) * dist + 0.4,
+      Math.cos(yaw) * Math.cos(pitch) * dist
+    );
+    camera.lookAt(0, 0.7, 0);
+  }
+  // sync initial
+  yaw = Math.atan2(camera.position.x, camera.position.z);
+  pitch = Math.asin(Math.min(1, Math.max(-1, (camera.position.y - 0.4) / dist)));
+
+  renderer.domElement.addEventListener("pointerdown", function (e) {
+    dragging = true; lx = e.clientX; ly = e.clientY; autoSpin = false;
+    renderer.domElement.setPointerCapture(e.pointerId);
+  });
+  renderer.domElement.addEventListener("pointerup", function () { dragging = false; });
+  renderer.domElement.addEventListener("pointermove", function (e) {
+    if (!dragging) return;
+    var dx = e.clientX - lx, dy = e.clientY - ly;
+    lx = e.clientX; ly = e.clientY;
+    yaw -= dx * 0.005;
+    pitch = Math.max(0.08, Math.min(1.2, pitch + dy * 0.004));
+    applyOrbit();
+  });
+  renderer.domElement.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    autoSpin = false;
+    dist = Math.max(4, Math.min(12, dist + e.deltaY * 0.01));
+    applyOrbit();
+  }, { passive: false });
+})();
+</script>
+</body>
+</html>

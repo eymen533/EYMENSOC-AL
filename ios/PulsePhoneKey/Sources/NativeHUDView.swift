@@ -1270,7 +1270,6 @@ struct NativeHUDView: View {
         let dialDim: Color = bareLit ? Color.white.opacity(0.30) : dim
         // Raised dark plate — always black cluster (no day-silver).
         let plate: Color = Color(red: 0.12, green: 0.13, blue: 0.15)
-        let squareR = size * 0.16
 
         let content = VStack(spacing: compact ? 0 : 2) {
             HStack(spacing: size * 0.055) {
@@ -1349,7 +1348,53 @@ struct NativeHUDView: View {
                         .animation(.easeOut(duration: 0.12), value: regen)
                 }
 
-            case .ring:
+
+            case .arc:
+                ForEach(0..<3, id: \.self) { i in
+                    Circle()
+                        .fill(Color.black.opacity(0.35 - Double(i) * 0.08))
+                        .offset(y: CGFloat(i) * 1.0 + 1)
+                }
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity(night ? 0.16 : 0.4),
+                                plate,
+                                Color.black.opacity(0.45)
+                            ],
+                            center: UnitPoint(x: 0.4, y: 0.32),
+                            startRadius: 2,
+                            endRadius: size * 0.58
+                        )
+                    )
+                Circle()
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    .padding(size * 0.02)
+                if showRing {
+                    Circle()
+                        .trim(from: 0.08, to: 0.08 + accel * 0.84)
+                        .stroke(
+                            (night ? Color.white : Color.black).opacity(0.9),
+                            style: StrokeStyle(lineWidth: ringW + 0.8, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(90))
+                        .padding(size * 0.05)
+                        .animation(.easeOut(duration: 0.12), value: accel)
+                    Circle()
+                        .trim(from: 0.08, to: 0.08 + regen * 0.84)
+                        .stroke(
+                            Color(red: 0.18, green: 0.78, blue: 0.40),
+                            style: StrokeStyle(lineWidth: ringW + 0.8, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(90))
+                        .scaleEffect(x: -1, y: 1)
+                        .padding(size * 0.05)
+                        .animation(.easeOut(duration: 0.12), value: regen)
+                }
+
+
+            case .sport:
                 ForEach(0..<4, id: \.self) { i in
                     Circle()
                         .fill(Color.black.opacity(0.42 - Double(i) * 0.06))
@@ -1359,9 +1404,9 @@ struct NativeHUDView: View {
                     .fill(
                         RadialGradient(
                             colors: [
-                                Color(red: 0.49, green: 0.36, blue: 1.0).opacity(night ? 0.28 : 0.18),
+                                Color(red: 1.0, green: 0.28, blue: 0.18).opacity(night ? 0.28 : 0.16),
                                 plate,
-                                Color.black.opacity(night ? 0.6 : 0.28)
+                                Color.black.opacity(0.55)
                             ],
                             center: UnitPoint(x: 0.38, y: 0.30),
                             startRadius: 2,
@@ -1369,136 +1414,103 @@ struct NativeHUDView: View {
                         )
                     )
                 Circle()
-                    .stroke(Color(red: 0.49, green: 0.36, blue: 1.0).opacity(0.95), lineWidth: compact ? 2.4 : 3.0)
-                    .shadow(color: Color(red: 0.49, green: 0.36, blue: 1.0).opacity(0.75), radius: compact ? 4 : 7)
-                    .padding(size * 0.01)
-                Circle()
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1.2)
-                    .padding(size * 0.055)
-                Circle()
-                    .stroke(Color(red: 0.49, green: 0.36, blue: 1.0).opacity(0.55), lineWidth: 1.0)
-                    .padding(size * 0.09)
-                if showRing {
-                    Circle()
-                        .trim(from: 0, to: accel)
-                        .stroke(
-                            (night ? Color.white : Color.black).opacity(0.88),
-                            style: StrokeStyle(lineWidth: ringW, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .padding(size * 0.12)
-                        .animation(.easeOut(duration: 0.12), value: accel)
-                    Circle()
-                        .trim(from: 0, to: regen)
-                        .stroke(
-                            Color(red: 0.18, green: 0.78, blue: 0.40),
-                            style: StrokeStyle(lineWidth: ringW, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .scaleEffect(x: -1, y: 1)
-                        .padding(size * 0.12)
-                        .animation(.easeOut(duration: 0.12), value: regen)
-                }
-            case .oval:
-                ForEach(0..<4, id: \.self) { i in
-                    Ellipse()
-                        .fill(Color.black.opacity(0.42 - Double(i) * 0.06))
-                        .frame(width: size * 0.78, height: size)
-                        .offset(y: CGFloat(i) * 1.1 + 1)
-                }
-                Ellipse()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                Color.white.opacity(night ? 0.22 : 0.55),
-                                plate,
-                                Color.black.opacity(night ? 0.55 : 0.22)
-                            ],
-                            center: UnitPoint(x: 0.36, y: 0.30),
-                            startRadius: 2,
-                            endRadius: size * 0.58
-                        )
-                    )
-                    .frame(width: size * 0.78, height: size)
-                Ellipse()
-                    .stroke(dialGlow.opacity(0.95), lineWidth: compact ? 1.0 : 1.25)
-                    .shadow(color: dialGlow.opacity(0.95), radius: compact ? 2.2 : 3.2)
-                    .shadow(color: dialGlow.opacity(0.45), radius: compact ? 5 : 7)
-                    .frame(width: size * 0.78, height: size)
+                    .stroke(Color(red: 1.0, green: 0.28, blue: 0.18).opacity(0.95), lineWidth: compact ? 1.6 : 2.1)
+                    .shadow(color: Color(red: 1.0, green: 0.28, blue: 0.18).opacity(0.7), radius: compact ? 4 : 7)
                     .padding(0.5)
-                Ellipse()
-                    .stroke(Color.white.opacity(night ? 0.14 : 0.28), lineWidth: 0.8)
-                    .frame(width: size * 0.78, height: size)
-                    .padding(size * 0.045)
+                Circle()
+                    .stroke(Color.white.opacity(0.16), lineWidth: 0.8)
+                    .padding(size * 0.05)
                 if showRing {
-                    Ellipse()
+                    Circle()
                         .trim(from: 0, to: accel)
-                        .stroke(
-                            (night ? Color.white : Color.black).opacity(0.88),
-                            style: StrokeStyle(lineWidth: ringW, lineCap: .round)
-                        )
+                        .stroke(Color.white.opacity(0.85), style: StrokeStyle(lineWidth: ringW, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                        .frame(width: size * 0.78, height: size)
                         .padding(size * 0.07)
                         .animation(.easeOut(duration: 0.12), value: accel)
-                    Ellipse()
+                    Circle()
                         .trim(from: 0, to: regen)
-                        .stroke(
-                            Color(red: 0.18, green: 0.78, blue: 0.40),
-                            style: StrokeStyle(lineWidth: ringW, lineCap: .round)
-                        )
+                        .stroke(Color(red: 0.18, green: 0.78, blue: 0.40), style: StrokeStyle(lineWidth: ringW, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .scaleEffect(x: -1, y: 1)
-                        .frame(width: size * 0.78, height: size)
                         .padding(size * 0.07)
                         .animation(.easeOut(duration: 0.12), value: regen)
                 }
 
-            case .square:
+
+            case .capsule:
                 ForEach(0..<4, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: squareR, style: .continuous)
+                    Capsule()
                         .fill(Color.black.opacity(0.42 - Double(i) * 0.06))
+                        .frame(width: size * 0.72, height: size)
                         .offset(y: CGFloat(i) * 1.1 + 1)
                 }
-                RoundedRectangle(cornerRadius: squareR, style: .continuous)
+                Capsule()
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(night ? 0.28 : 0.7),
+                                Color.white.opacity(night ? 0.22 : 0.55),
                                 plate,
-                                Color.black.opacity(night ? 0.5 : 0.18)
+                                Color.black.opacity(night ? 0.5 : 0.2)
                             ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
                     )
-                RoundedRectangle(cornerRadius: squareR, style: .continuous)
+                    .frame(width: size * 0.72, height: size)
+                Capsule()
                     .stroke(dialGlow.opacity(0.95), lineWidth: compact ? 1.0 : 1.25)
-                    .shadow(color: dialGlow.opacity(0.95), radius: compact ? 2.2 : 3.2)
-                    .shadow(color: dialGlow.opacity(0.45), radius: compact ? 5 : 7)
-                    .padding(0.5)
-                RoundedRectangle(cornerRadius: squareR * 0.85, style: .continuous)
-                    .stroke(Color.white.opacity(night ? 0.12 : 0.22), lineWidth: 0.8)
-                    .padding(size * 0.045)
+                    .shadow(color: dialGlow.opacity(0.9), radius: compact ? 2.2 : 3.2)
+                    .frame(width: size * 0.72, height: size)
+                if showRing {
+                    Capsule()
+                        .trim(from: 0, to: accel)
+                        .stroke((night ? Color.white : Color.black).opacity(0.8), style: StrokeStyle(lineWidth: ringW, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: size * 0.72, height: size)
+                        .padding(size * 0.08)
+                        .animation(.easeOut(duration: 0.12), value: accel)
+                }
+
+
+            case .dual:
+                ForEach(0..<4, id: \.self) { i in
+                    Circle()
+                        .fill(Color.black.opacity(0.42 - Double(i) * 0.06))
+                        .offset(y: CGFloat(i) * 1.1 + 1)
+                }
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color(red: 0.49, green: 0.36, blue: 1.0).opacity(night ? 0.22 : 0.12),
+                                plate,
+                                Color.black.opacity(0.5)
+                            ],
+                            center: UnitPoint(x: 0.38, y: 0.3),
+                            startRadius: 2,
+                            endRadius: size * 0.58
+                        )
+                    )
+                Circle()
+                    .stroke(Color.white.opacity(0.95), lineWidth: compact ? 1.4 : 1.8)
+                    .padding(size * 0.01)
+                Circle()
+                    .stroke(Color(red: 0.49, green: 0.36, blue: 1.0).opacity(0.95), lineWidth: compact ? 2.0 : 2.6)
+                    .shadow(color: Color(red: 0.49, green: 0.36, blue: 1.0).opacity(0.55), radius: 6)
+                    .padding(size * 0.055)
                 if showRing {
                     Circle()
                         .trim(from: 0, to: accel)
-                        .stroke(
-                            (night ? Color.white : Color.black).opacity(0.75),
-                            style: StrokeStyle(lineWidth: ringW, lineCap: .round)
-                        )
+                        .stroke((night ? Color.white : Color.black).opacity(0.88), style: StrokeStyle(lineWidth: ringW, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                        .padding(size * 0.1)
+                        .padding(size * 0.11)
                         .animation(.easeOut(duration: 0.12), value: accel)
                     Circle()
                         .trim(from: 0, to: regen)
-                        .stroke(
-                            Color(red: 0.18, green: 0.78, blue: 0.40),
-                            style: StrokeStyle(lineWidth: ringW, lineCap: .round)
-                        )
+                        .stroke(Color(red: 0.18, green: 0.78, blue: 0.40), style: StrokeStyle(lineWidth: ringW, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .scaleEffect(x: -1, y: 1)
-                        .padding(size * 0.1)
+                        .padding(size * 0.11)
                         .animation(.easeOut(duration: 0.12), value: regen)
                 }
 
