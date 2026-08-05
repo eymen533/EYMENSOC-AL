@@ -28,6 +28,7 @@
 		C0FFEE01A1B2C3D4E5F60718 /* PulseDiagLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE02A1B2C3D4E5F60718 /* PulseDiagLog.swift */; };
 		D1A6C001A1B2C3D4E5F60718 /* VINScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A6C002A1B2C3D4E5F60718 /* VINScannerView.swift */; };
 		E2B7D002A1B2C3D4E5F60718 /* ModelYDoorAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2B7D001A1B2C3D4E5F60718 /* ModelYDoorAlert.swift */; };
+		F3C8E002A1B2C3D4E5F60718 /* NavTurnCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3C8E001A1B2C3D4E5F60718 /* NavTurnCue.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 		C0FFEE02A1B2C3D4E5F60718 /* PulseDiagLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PulseDiagLog.swift; sourceTree = "<group>"; };
 		D1A6C002A1B2C3D4E5F60718 /* VINScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VINScannerView.swift; sourceTree = "<group>"; };
 		E2B7D001A1B2C3D4E5F60718 /* ModelYDoorAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelYDoorAlert.swift; sourceTree = "<group>"; };
+		F3C8E001A1B2C3D4E5F60718 /* NavTurnCue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavTurnCue.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +109,7 @@
 				E87A51594EF374B79713CBEB /* KeyStore.swift */,
 				B1C2D3E4F506172839A4B5C6 /* MediaArtwork.swift */,
 				E2B7D001A1B2C3D4E5F60718 /* ModelYDoorAlert.swift */,
+				F3C8E001A1B2C3D4E5F60718 /* NavTurnCue.swift */,
 				C0FFEE02A1B2C3D4E5F60718 /* PulseDiagLog.swift */,
 				D1A6C002A1B2C3D4E5F60718 /* VINScannerView.swift */,
 				3BD7E7B769034A40079F1221 /* NativeHUDView.swift */,
@@ -208,6 +211,7 @@
 				DB4946C6B7F703E2B685FA39 /* VehicleLiveSnapshot.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5C /* MediaArtwork.swift in Sources */,
 				E2B7D002A1B2C3D4E5F60718 /* ModelYDoorAlert.swift in Sources */,
+				F3C8E002A1B2C3D4E5F60718 /* NavTurnCue.swift in Sources */,
 				C0FFEE01A1B2C3D4E5F60718 /* PulseDiagLog.swift in Sources */,
 				D1A6C001A1B2C3D4E5F60718 /* VINScannerView.swift in Sources */,
 			);

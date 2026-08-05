@@ -40,6 +40,10 @@ struct NativeHUDView: View {
         model.doorFL || model.doorFR || model.doorRL || model.doorRR
             || model.frunkOpen || model.trunkOpen || model.chargePortOpen
     }
+    /// Close enough that the illuminated map hero cue should take over.
+    private var turnImminent: Bool {
+        model.turnDistanceM > 0 && model.turnDistanceM <= 55
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -168,10 +172,30 @@ struct NativeHUDView: View {
                     return sideW * 0.48
                 }()
                 let bannerY = max(102, min(cy - dialW * 0.42, h * 0.30))
-                turnBanner
+                // Far / mid: glass chip. Near turn: hero cue sits mid-map.
+                if turnImminent {
+                    NavTurnCue(
+                        distanceM: model.turnDistanceM,
+                        instruction: model.turnInstruction,
+                        symbol: model.turnSymbol,
+                        style: .mapHero
+                    )
+                    .position(
+                        x: rightMap && !leftMap ? (w - sideW * 0.5) : (sideW * 0.5),
+                        y: h * 0.52
+                    )
+                    .zIndex(12)
+                } else {
+                    NavTurnCue(
+                        distanceM: model.turnDistanceM,
+                        instruction: model.turnInstruction,
+                        symbol: model.turnSymbol,
+                        style: .chip
+                    )
                     .frame(maxWidth: min(280, sideW * 0.92), alignment: .leading)
                     .position(x: bannerX, y: bannerY)
                     .zIndex(8)
+                }
             }
 
             if anyApertureOpen {
@@ -231,6 +255,7 @@ struct NativeHUDView: View {
         .clipped()
         .ignoresSafeArea()
         .animation(.spring(response: 0.45, dampingFraction: 0.82), value: anyApertureOpen)
+        .animation(.spring(response: 0.42, dampingFraction: 0.78), value: turnImminent)
     }
 
     /// Map panel — tucks under dial; dial-facing edge gets soft Material blur.
@@ -429,13 +454,30 @@ struct NativeHUDView: View {
                 .zIndex(10)
 
             if showTurn {
-                turnBanner
+                if turnImminent {
+                    NavTurnCue(
+                        distanceM: model.turnDistanceM,
+                        instruction: model.turnInstruction,
+                        symbol: model.turnSymbol,
+                        style: .mapHero
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .padding(.top, topWing ? 40 : 0)
+                    .zIndex(12)
+                } else {
+                    NavTurnCue(
+                        distanceM: model.turnDistanceM,
+                        instruction: model.turnInstruction,
+                        symbol: model.turnSymbol,
+                        style: .chip
+                    )
                     .frame(maxWidth: min(w - 28, 320), alignment: .leading)
                     .padding(.horizontal, 14)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: topWing ? .topLeading : .bottomLeading)
                     .padding(.top, topWing ? topChrome + 52 : 0)
                     .padding(.bottom, bottomWing && !topWing ? 56 : 0)
                     .zIndex(8)
+                }
             }
 
             if anyApertureOpen {
@@ -489,6 +531,7 @@ struct NativeHUDView: View {
         .clipped()
         .ignoresSafeArea()
         .animation(.spring(response: 0.45, dampingFraction: 0.82), value: anyApertureOpen)
+        .animation(.spring(response: 0.42, dampingFraction: 0.78), value: turnImminent)
     }
 
     @ViewBuilder
@@ -544,17 +587,35 @@ struct NativeHUDView: View {
             }
 
             if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
-                turnBanner
-                    .padding(.bottom, 28)
-                    .padding(.horizontal, 16)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .zIndex(12)
+                Group {
+                    if turnImminent {
+                        NavTurnCue(
+                            distanceM: model.turnDistanceM,
+                            instruction: model.turnInstruction,
+                            symbol: model.turnSymbol,
+                            style: .mapHero
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    } else {
+                        NavTurnCue(
+                            distanceM: model.turnDistanceM,
+                            instruction: model.turnInstruction,
+                            symbol: model.turnSymbol,
+                            style: .chip
+                        )
+                        .padding(.bottom, 28)
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    }
+                }
+                .zIndex(12)
             }
 
             dashlaChrome(leftMap: false, rightMap: true)
                 .zIndex(20)
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.82), value: anyApertureOpen)
+        .animation(.spring(response: 0.42, dampingFraction: 0.78), value: turnImminent)
     }
 
     @ViewBuilder
@@ -1569,43 +1630,6 @@ struct NativeHUDView: View {
         if s.contains("spotify") { return Color(red: 0.18, green: 0.72, blue: 0.35) }
         if s.contains("tidal") { return Color(red: 0.12, green: 0.12, blue: 0.14) }
         return Color(red: 0.22, green: 0.55, blue: 0.72)
-    }
-
-    private var turnBanner: some View {
-        HStack(spacing: 14) {
-            Image(systemName: model.turnSymbol.isEmpty ? "arrow.turn.up.right" : model.turnSymbol)
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 34)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(turnDistanceText)
-                    .font(.title.weight(.bold).monospacedDigit())
-                    .foregroundStyle(.white)
-                if !model.turnInstruction.isEmpty {
-                    Text(model.turnInstruction)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Color.white.opacity(0.88))
-                        .lineLimit(2)
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.black.opacity(0.82))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.white.opacity(0.14), lineWidth: 1)
-                )
-        )
-        .allowsHitTesting(false)
-    }
-
-    private var turnDistanceText: String {
-        let m = model.turnDistanceM
-        if m >= 1000 { return String(format: "%.1f km", Double(m) / 1000.0) }
-        return "\(m) m"
     }
 
     private var routeDestination: String {
