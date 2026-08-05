@@ -58,8 +58,18 @@ struct AppleMapPanel: View {
             }
         }
         .onAppear { fetchRouteIfNeeded(force: true) }
-        .onChangeCompat(of: lat) { _ in maybeRerouteFromMovement() }
-        .onChangeCompat(of: lon) { _ in maybeRerouteFromMovement() }
+        .onChangeCompat(of: lat) { _ in
+            maybeRerouteFromMovement()
+            if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
+                fetchRouteIfNeeded(force: true)
+            }
+        }
+        .onChangeCompat(of: lon) { _ in
+            maybeRerouteFromMovement()
+            if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
+                fetchRouteIfNeeded(force: true)
+            }
+        }
         .onChangeCompat(of: destination) { _ in
             resolvedDest = nil
             lastRouteDestKey = ""
@@ -72,19 +82,6 @@ struct AppleMapPanel: View {
         .onChangeCompat(of: destLon) { _ in
             lastRouteDestKey = ""
             fetchRouteIfNeeded(force: true)
-        }
-        .onChangeCompat(of: lat) { _ in
-            maybeRerouteFromMovement()
-            // First GPS fix while dest already known — build the line immediately.
-            if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
-                fetchRouteIfNeeded(force: true)
-            }
-        }
-        .onChangeCompat(of: lon) { _ in
-            maybeRerouteFromMovement()
-            if hasGPS, (hasDestCoord || resolvedDest != nil), routeCoords.count < 2 {
-                fetchRouteIfNeeded(force: true)
-            }
         }
     }
 
