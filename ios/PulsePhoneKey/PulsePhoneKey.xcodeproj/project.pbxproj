@@ -29,7 +29,6 @@
 		D1A6C001A1B2C3D4E5F60718 /* VINScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A6C002A1B2C3D4E5F60718 /* VINScannerView.swift */; };
 		E2B7D002A1B2C3D4E5F60718 /* ModelYDoorAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2B7D001A1B2C3D4E5F60718 /* ModelYDoorAlert.swift */; };
 		F3C8E002A1B2C3D4E5F60718 /* NavTurnCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3C8E001A1B2C3D4E5F60718 /* NavTurnCue.swift */; };
-		A4D9F002A1B2C3D4E5F60718 /* ChargingTopRibbon.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4D9F001A1B2C3D4E5F60718 /* ChargingTopRibbon.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
