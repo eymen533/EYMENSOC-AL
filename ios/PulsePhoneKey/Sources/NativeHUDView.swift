@@ -36,6 +36,10 @@ struct NativeHUDView: View {
     private var leftWing: Bool { leftMap }
     private var rightWing: Bool { rightMap }
     private var anyBleed: Bool { leftWing || rightWing }
+    private var anyApertureOpen: Bool {
+        model.doorFL || model.doorFR || model.doorRL || model.doorRR
+            || model.frunkOpen || model.trunkOpen || model.chargePortOpen
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -170,7 +174,26 @@ struct NativeHUDView: View {
                     .zIndex(8)
             }
 
-            if !isBlank(model.destination) {
+            if anyApertureOpen {
+                ModelYDoorAlert(
+                    doorFL: model.doorFL,
+                    doorFR: model.doorFR,
+                    doorRL: model.doorRL,
+                    doorRR: model.doorRR,
+                    frunkOpen: model.frunkOpen,
+                    trunkOpen: model.trunkOpen,
+                    chargePortOpen: model.chargePortOpen,
+                    labels: model.openDoorLabels
+                )
+                .position(x: cx, y: min(h - 78, cy + dialW * 0.52 + 72))
+                .zIndex(9)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .opacity
+                ))
+            }
+
+            if !isBlank(model.destination), !anyApertureOpen {
                 Text(model.destination)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
@@ -183,7 +206,7 @@ struct NativeHUDView: View {
             }
 
             dialStatusStrip(maxWidth: dialW * 1.05)
-                .position(x: cx, y: min(h - 22, cy + dialW * 0.52 + 6))
+                .position(x: cx, y: min(h - 22, cy + dialW * 0.52 + (anyApertureOpen ? 148 : 6)))
                 .zIndex(8)
 
             HStack {
@@ -207,6 +230,7 @@ struct NativeHUDView: View {
         .frame(width: w, height: h)
         .clipped()
         .ignoresSafeArea()
+        .animation(.spring(response: 0.45, dampingFraction: 0.82), value: anyApertureOpen)
     }
 
     /// Map panel — tucks under dial; dial-facing edge gets soft Material blur.
@@ -414,7 +438,22 @@ struct NativeHUDView: View {
                     .zIndex(8)
             }
 
-            if !isBlank(model.destination) {
+            if anyApertureOpen {
+                ModelYDoorAlert(
+                    doorFL: model.doorFL,
+                    doorFR: model.doorFR,
+                    doorRL: model.doorRL,
+                    doorRR: model.doorRR,
+                    frunkOpen: model.frunkOpen,
+                    trunkOpen: model.trunkOpen,
+                    chargePortOpen: model.chargePortOpen,
+                    labels: model.openDoorLabels
+                )
+                .position(x: cx, y: min(h - 90, cy + dialW * 0.55 + 78))
+                .zIndex(9)
+            }
+
+            if !isBlank(model.destination), !anyApertureOpen {
                 Text(model.destination)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white)
@@ -427,7 +466,7 @@ struct NativeHUDView: View {
             }
 
             dialStatusStrip(maxWidth: dialW * 1.05)
-                .position(x: cx, y: min(h - 32, cy + dialW * 0.55 + 8))
+                .position(x: cx, y: min(h - 32, cy + dialW * 0.55 + (anyApertureOpen ? 156 : 8)))
                 .zIndex(8)
 
             batteryChip
@@ -449,6 +488,7 @@ struct NativeHUDView: View {
         .frame(width: w, height: h)
         .clipped()
         .ignoresSafeArea()
+        .animation(.spring(response: 0.45, dampingFraction: 0.82), value: anyApertureOpen)
     }
 
     @ViewBuilder
@@ -487,6 +527,22 @@ struct NativeHUDView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .zIndex(10)
 
+            if anyApertureOpen {
+                ModelYDoorAlert(
+                    doorFL: model.doorFL,
+                    doorFR: model.doorFR,
+                    doorRL: model.doorRL,
+                    doorRR: model.doorRR,
+                    frunkOpen: model.frunkOpen,
+                    trunkOpen: model.trunkOpen,
+                    chargePortOpen: model.chargePortOpen,
+                    labels: model.openDoorLabels
+                )
+                .padding(.bottom, (model.turnDistanceM > 0 || !model.turnInstruction.isEmpty) ? 110 : 36)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .zIndex(11)
+            }
+
             if model.turnDistanceM > 0 || !model.turnInstruction.isEmpty {
                 turnBanner
                     .padding(.bottom, 28)
@@ -498,6 +554,7 @@ struct NativeHUDView: View {
             dashlaChrome(leftMap: false, rightMap: true)
                 .zIndex(20)
         }
+        .animation(.spring(response: 0.45, dampingFraction: 0.82), value: anyApertureOpen)
     }
 
     @ViewBuilder
@@ -1201,32 +1258,14 @@ struct NativeHUDView: View {
         .shadow(color: dialGlow.opacity(0.35), radius: compact ? 3 : 5)
     }
 
-    /// Doors + lights under the dial (only when relevant).
+    /// Lights / lock under the dial (doors use ModelYDoorAlert figure).
     @ViewBuilder
     private func dialStatusStrip(maxWidth: CGFloat) -> some View {
-        let doors = model.openDoorLabels
-        let anyDoor = model.doorFL || model.doorFR || model.doorRL || model.doorRR
-            || model.frunkOpen || model.trunkOpen || model.chargePortOpen
         let showLights = model.anyLightOn
-        if doors.isEmpty && !showLights && !model.locked {
+        if !showLights && !model.locked {
             EmptyView()
         } else {
             VStack(spacing: 6) {
-                if anyDoor {
-                    HStack(spacing: 10) {
-                        doorCarGlyph
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(doors.joined(separator: " · "))
-                                .font(.caption.weight(.semibold))
-                                .lineLimit(2)
-                                .minimumScaleFactor(0.75)
-                            Text("Kapı açık")
-                                .font(.caption2)
-                                .foregroundStyle(Color.white.opacity(0.55))
-                        }
-                    }
-                    .foregroundStyle(Color(red: 1.0, green: 0.55, blue: 0.2))
-                }
                 if showLights {
                     HStack(spacing: 10) {
                         if model.turnLeft {
@@ -1256,7 +1295,7 @@ struct NativeHUDView: View {
                     }
                     .font(.caption)
                 }
-                if model.locked, doors.isEmpty {
+                if model.locked, !showLights {
                     HStack(spacing: 4) {
                         Image(systemName: "lock.fill")
                         Text("Kilitli")
@@ -1270,47 +1309,6 @@ struct NativeHUDView: View {
             .frame(maxWidth: maxWidth)
             .background(Capsule().fill(chipFill))
         }
-    }
-
-    /// Tiny top-down car — open doors glow amber.
-    private var doorCarGlyph: some View {
-        let open = Color(red: 1.0, green: 0.55, blue: 0.18)
-        let shut = Color.white.opacity(0.22)
-        return ZStack {
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .fill(Color.white.opacity(0.12))
-                .frame(width: 22, height: 36)
-            // FL
-            Capsule()
-                .fill(model.doorFL ? open : shut)
-                .frame(width: 5, height: 11)
-                .offset(x: -10, y: -7)
-            // FR
-            Capsule()
-                .fill(model.doorFR ? open : shut)
-                .frame(width: 5, height: 11)
-                .offset(x: 10, y: -7)
-            // RL
-            Capsule()
-                .fill(model.doorRL ? open : shut)
-                .frame(width: 5, height: 11)
-                .offset(x: -10, y: 8)
-            // RR
-            Capsule()
-                .fill(model.doorRR ? open : shut)
-                .frame(width: 5, height: 11)
-                .offset(x: 10, y: 8)
-            if model.frunkOpen {
-                Capsule().fill(open).frame(width: 12, height: 4).offset(y: -16)
-            }
-            if model.trunkOpen {
-                Capsule().fill(open).frame(width: 12, height: 4).offset(y: 16)
-            }
-            if model.chargePortOpen {
-                Circle().fill(open).frame(width: 5, height: 5).offset(x: 12, y: -2)
-            }
-        }
-        .frame(width: 34, height: 40)
     }
 
     // MARK: - Panels
