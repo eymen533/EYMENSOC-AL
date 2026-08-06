@@ -1,3 +1,8 @@
+# Pulse28 HUD UI (xcode-ble-91)
+
+## Dönüş — gri tabela, beyaz ok, neon sarı kenar
+![ny](turn-cue-neon-yellow.png)
+
 # Pulse28 HUD UI önizleme (xcode-ble-90)
 
 ## Dönüş — Google Live View 3D chevron
