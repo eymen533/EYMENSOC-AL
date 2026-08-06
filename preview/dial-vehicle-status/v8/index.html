@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="tr"><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>v8 menteşe düzeltmesi</title>
+<style>
+body{margin:0;background:#000;color:#eee;font-family:system-ui;padding:20px;max-width:1100px;margin-inline:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+figure{margin:0;border:1px solid #222;border-radius:12px;overflow:hidden}
+img{width:100%;display:block} figcaption{padding:10px;font-size:.8rem;color:#bbb}
+.ok{color:#8d8}
+</style>
+<h1>v8 — kaput + arka kapı menteşeleri</h1>
+<p>Kaput: cam/cowl menteşe, ön kenar kalkıyor. Arka kapılar: FL/FR doğru menteşe geometrisi B-pillar’a kaydırıldı (suicide değil).</p>
+<div class="grid"><figure><img src="01_closed.png"/><figcaption><b>01</b> · <span class="">Kapalı</span></figcaption></figure>
+<figure><img src="02_fl.png"/><figcaption><b>02</b> · <span class="">Ön sol</span></figcaption></figure>
+<figure><img src="03_fr.png"/><figcaption><b>03</b> · <span class="">Ön sağ</span></figcaption></figure>
+<figure><img src="04_rl.png"/><figcaption><b>04</b> · <span class="ok">Arka sol · düzeltildi</span></figcaption></figure>
+<figure><img src="05_rr.png"/><figcaption><b>05</b> · <span class="ok">Arka sağ · düzeltildi</span></figcaption></figure>
+<figure><img src="06_front_both.png"/><figcaption><b>06</b> · <span class="">Ön ikili</span></figcaption></figure>
+<figure><img src="07_left_both.png"/><figcaption><b>07</b> · <span class="ok">Sol ikili · düzeltildi</span></figcaption></figure>
+<figure><img src="08_right_both.png"/><figcaption><b>08</b> · <span class="ok">Sağ ikili · düzeltildi</span></figcaption></figure>
+<figure><img src="09_rear_both.png"/><figcaption><b>09</b> · <span class="ok">Arka ikili · düzeltildi</span></figcaption></figure>
+<figure><img src="10_all_doors.png"/><figcaption><b>10</b> · <span class="ok">Dört kapı · düzeltildi</span></figcaption></figure>
+<figure><img src="11_frunk.png"/><figcaption><b>11</b> · <span class="ok">Kaput · düzeltildi</span></figcaption></figure>
+<figure><img src="12_trunk.png"/><figcaption><b>12</b> · <span class="">Bagaj</span></figcaption></figure>
+<figure><img src="13_fl_rl_rr.png"/><figcaption><b>13</b> · <span class="">FL+RL+RR</span></figcaption></figure>
+<figure><img src="14_fl_fr_rr.png"/><figcaption><b>14</b> · <span class="">FL+FR+RR</span></figcaption></figure>
+<figure><img src="15_frunk_trunk.png"/><figcaption><b>15</b> · <span class="">Kaput+bagaj</span></figcaption></figure>
+<figure><img src="16_all_trunk.png"/><figcaption><b>16</b> · <span class="">Dört+bagaj</span></figcaption></figure>
+<figure><img src="17_charge.png"/><figcaption><b>17</b> · <span class="">Şarj</span></figcaption></figure>
+</div>
