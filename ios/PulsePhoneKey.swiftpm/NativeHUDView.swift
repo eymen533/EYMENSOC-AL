@@ -214,7 +214,7 @@ struct NativeHUDView: View {
             if anyApertureOpen {
                 modelYDoorAlertView
                     .scaleEffect(min(1.0, dialW / 220))
-                    .position(x: cx, y: cy)
+                    .position(x: cx, y: cy + dialW * 0.58)
                     .zIndex(11)
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .scale(scale: 0.9)),
@@ -495,7 +495,7 @@ struct NativeHUDView: View {
             if anyApertureOpen {
                 modelYDoorAlertView
                     .scaleEffect(min(0.95, dialW / 200))
-                    .position(x: cx, y: cy)
+                    .position(x: cx, y: cy + dialW * 0.58)
                     .zIndex(11)
             }
 
@@ -583,7 +583,7 @@ struct NativeHUDView: View {
             if anyApertureOpen {
                 modelYDoorAlertView
                     .scaleEffect(0.85)
-                    .position(x: geo.size.width * 0.5, y: 48 + dialSize * 0.55)
+                    .position(x: geo.size.width * 0.5, y: 48 + dialSize * 1.05)
                     .zIndex(11)
             }
 

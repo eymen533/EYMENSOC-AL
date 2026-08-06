@@ -1,4 +1,4 @@
-# Pulse28 (`xcode-ble-81`)
+# Pulse28 (`xcode-ble-82`)
 
 Bundle id: `com.teslapulse.phonekey28` — **yeni app**, eski Pulse(23) ile karışmaz.
 
@@ -7,7 +7,7 @@ cd ~
 curl -fsSL https://raw.githubusercontent.com/eymen533/EYMENSOC-AL/cursor/hud-day-night-doors-02d8/install-pulse28.sh | bash
 ```
 
-Ana ekranda **Pulse28** ikonunu aç. Sarı: **xcode-ble-81**.
+Ana ekranda **Pulse28** ikonunu aç. Sarı: **xcode-ble-82**.
 
 ## Özellikler → Kadran
 - **Yuvarlak** — klasik bevel
@@ -17,6 +17,9 @@ Ana ekranda **Pulse28** ikonunu aç. Sarı: **xcode-ble-81**.
 - **Kapsül** — dikey hap
 - **Çift** — beyaz + mor halka
 - **Sade** — çerçevesiz
+
+## Kapı uyarısı
+Kadran altında üstten Model Y ikonları (hangi kapı/frunk/bagaj açıksa).
 
 ## Önizleme linkleri (htmlpreview)
 - Model Y 3D: `preview/model-y-3d.html`
