@@ -1,6 +1,6 @@
 # Pulse28 HUD UI
 
-## Dönüş işaretleri — 10 seçenek
-→ [turn-options/README.md](turn-options/README.md)
+## Kalın 3D dönüş okları (yeni)
+→ [turn-3d/README.md](turn-3d/README.md)
 
-![montage](turn-options/montage-10.png)
+![m](turn-3d/montage.png)
