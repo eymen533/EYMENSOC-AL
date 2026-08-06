@@ -369,13 +369,15 @@ struct GoogleMapPanel: UIViewRepresentable {
             }
             function drawRoute(origin, p){
               const target = destTarget(p);
-              if(!directionsService || !target){
+              // Nav cancelled in car → clear polyline + pin immediately.
+              if(!directionsService || !target || (!p.hasDestCoord && blankDest(p.destination))){
                 clearRoute();
                 return;
               }
               const routeKey = p.hasDestCoord
                 ? ('c:' + p.destLat.toFixed(5) + ',' + p.destLon.toFixed(5))
                 : ('n:' + String(target));
+              // New destination → force redraw even if a prior request is mid-flight.
               if(routeKey === lastRouteKey) return;
               lastRouteKey = routeKey;
               if(p.hasDestCoord){
@@ -406,6 +408,15 @@ struct GoogleMapPanel: UIViewRepresentable {
               if(p.mapType) map.setMapTypeId(p.mapType);
               if(trafficLayer){
                 trafficLayer.setMap(p.traffic ? map : null);
+              }
+              // Car stopped navigation — drop route before anything else.
+              if(!p.hasDestCoord && blankDest(p.destination)){
+                clearRoute();
+                if(!p.hasGPS){
+                  showMsg('Araç GPS / rota bekleniyor');
+                  return;
+                }
+                showMsg('');
               }
               if(!p.hasGPS && !p.hasDestCoord && blankDest(p.destination)){
                 showMsg('Araç GPS / rota bekleniyor');

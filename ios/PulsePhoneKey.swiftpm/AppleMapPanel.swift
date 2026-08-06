@@ -135,17 +135,25 @@ struct AppleMapPanel: View {
         }
     }
 
+    private func clearLocalRoute() {
+        routeCoords = []
+        resolvedDest = nil
+        lastRouteDestKey = ""
+        lastRerouteOrigin = nil
+        guidanceBaseM = 0
+        guidanceAt = nil
+        routeBusy = false
+        turnDistanceM = 0
+        turnInstruction = ""
+        turnSymbol = "arrow.up"
+    }
+
     private func fetchRouteIfNeeded(force: Bool) {
         let dest = destination.trimmingCharacters(in: .whitespacesAndNewlines)
         let nameOK = !dest.isEmpty && dest != "—" && dest != "-" && dest != "--"
-        guard hasGPS || hasDestCoord || nameOK else {
-            routeCoords = []
-            resolvedDest = nil
-            lastRouteDestKey = ""
-            lastRerouteOrigin = nil
-            turnDistanceM = 0
-            turnInstruction = ""
-            turnSymbol = "arrow.up"
+        // Car cancelled nav → drop polyline immediately (even if GPS still streaming).
+        guard hasDestCoord || nameOK else {
+            clearLocalRoute()
             return
         }
 
@@ -177,16 +185,7 @@ struct AppleMapPanel: View {
         }
 
         guard nameOK else {
-            routeBusy = false
-            routeCoords = []
-            resolvedDest = nil
-            lastRouteDestKey = ""
-            lastRerouteOrigin = nil
-            guidanceBaseM = 0
-            guidanceAt = nil
-            turnDistanceM = 0
-            turnInstruction = ""
-            turnSymbol = "arrow.up"
+            clearLocalRoute()
             return
         }
 

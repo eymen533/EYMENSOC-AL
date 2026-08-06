@@ -666,20 +666,22 @@ final class TeslaBLESession {
             case 8: // minutes to arrival float
                 if let mins = ProtoWire.float32(f.bytes) {
                     let m = Int(mins.rounded())
-                    if m >= 0 {
+                    // 0 dk alone is not proof — cancelled nav can leave a zero ETA field.
+                    if m > 0 {
                         snapshot.eta = String(format: "%d dk", m)
                         sawETA = true
                     }
                 }
             case 9: // miles to arrival
                 if let mi = ProtoWire.float32(f.bytes) {
-                    snapshot.tripDist = String(format: "%.1f km", Double(mi) * 1.60934)
-                    if mi > 0.01 { sawMiles = true }
+                    if mi > 0.01 {
+                        snapshot.tripDist = String(format: "%.1f km", Double(mi) * 1.60934)
+                        sawMiles = true
+                    }
                 }
-            case 11: // energy at arrival
-                if let e = ProtoWire.float32(f.bytes) {
+            case 11: // energy at arrival — alone does not prove an active route
+                if let e = ProtoWire.float32(f.bytes), e > 0.01 {
                     snapshot.energyAtArrival = String(format: "%.0f%%", e)
-                    sawETA = true
                 }
             case 12: // active_route_coordinates LatLong { lat=1 float, lon=2 float }
                 for sf in ProtoWire.parseFields(f.bytes) {
@@ -695,12 +697,13 @@ final class TeslaBLESession {
             }
         }
 
-        // Sticky nav — Tesla often omits dest fields on some Drive ticks; don't wipe the route.
+        // Sticky nav — Tesla sometimes omits dest on a single Drive tick; clear fast when cancelled.
         let hasPendingCoords: Bool = {
             guard let dLat = pendingLat, let dLon = pendingLon else { return false }
             return abs(dLat) <= 90 && abs(dLon) <= 180
                 && (abs(dLat) > 0.0001 || abs(dLon) > 0.0001)
         }()
+        // Real proof only: name, positive ETA/miles, or fresh coords — not stale energy/%.
         let routeProof = sawDestName || sawETA || sawMiles || hasPendingCoords
         if routeProof {
             routeInactiveStreak = 0
@@ -724,12 +727,12 @@ final class TeslaBLESession {
             }
         } else {
             routeInactiveStreak += 1
-            // Keep last destination/coords for several Drive ticks so the map route doesn't vanish.
+            // 2 Drive ticks without proof ≈ instant cancel in the car (was 5 — felt sticky).
             let destOK: Bool = {
                 let d = snapshot.destination.trimmingCharacters(in: .whitespacesAndNewlines)
                 return !d.isEmpty && d != "—" && d != "-" && d != "--"
             }()
-            let keepSticky = routeInactiveStreak < 5
+            let keepSticky = routeInactiveStreak < 2
                 && (abs(snapshot.destLatitude) > 0.0001 || abs(snapshot.destLongitude) > 0.0001 || destOK)
             if keepSticky {
                 snapshot.routeActive = true
