@@ -1,6 +1,6 @@
 # Pulse28 HUD UI
 
-## Hacimli 3D dönüş işaretleri
-→ [turn-vol/README.md](turn-vol/README.md)
+## Dönüş işaretleri — yeni tur
+→ [turn-r2/README.md](turn-r2/README.md)
 
-![m](turn-vol/montage.png)
+![m](turn-r2/montage.png)
