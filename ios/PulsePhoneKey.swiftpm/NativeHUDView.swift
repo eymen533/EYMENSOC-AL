@@ -673,22 +673,22 @@ struct NativeHUDView: View {
     }
 
     private var miniMediaCard: some View {
-        HStack(spacing: 10) {
-            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: 52)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 12) {
+            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: 92)
+            VStack(alignment: .leading, spacing: 4) {
                 Text(displayOrDash(model.mediaTitle))
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
-                    .lineLimit(1)
+                    .lineLimit(2)
                 Text(displayOrDash(model.mediaArtist))
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(muted)
                     .lineLimit(1)
             }
-            .frame(maxWidth: 140, alignment: .leading)
+            .frame(maxWidth: 180, alignment: .leading)
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 12).fill(chipFill))
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 14).fill(chipFill))
     }
 
     private var miniTiresCard: some View {
@@ -1168,21 +1168,22 @@ struct NativeHUDView: View {
             }
 
             GeometryReader { geo in
-                let artSize = min(158, max(115, min(geo.size.width * 0.70, geo.size.height * 0.43)))
-                VStack(alignment: .center, spacing: 8) {
-                    Spacer(minLength: 8)
+                // Album is the hero of the media wing — keep it large.
+                let artSize = min(268, max(180, min(geo.size.width * 0.86, geo.size.height * 0.58)))
+                VStack(alignment: .center, spacing: 10) {
+                    Spacer(minLength: 4)
                     if !asOverlay {
                         styledMediaBlock(artSize: artSize, lightInk: true)
                     } else {
                         mediaMetaStack(lightInk: true)
                         mediaTransportControls
                     }
-                    Spacer(minLength: 10)
+                    Spacer(minLength: 6)
                 }
-                .frame(maxWidth: min(260, geo.size.width * 0.9))
+                .frame(maxWidth: min(340, geo.size.width * 0.96))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .padding(.leading, side == .left ? 10 : 18)
-                .padding(.trailing, side == .left ? 18 : 10)
+                .padding(.leading, side == .left ? 6 : 12)
+                .padding(.trailing, side == .left ? 12 : 6)
             }
         }
         .clipped()
@@ -1831,47 +1832,47 @@ struct NativeHUDView: View {
 
     private var mediaPanel: some View {
         GeometryReader { geo in
-            let artSize = min(142, max(106, min(geo.size.width * 0.66, geo.size.height * 0.41)))
-            VStack(alignment: .center, spacing: 6) {
+            let artSize = min(250, max(170, min(geo.size.width * 0.82, geo.size.height * 0.56)))
+            VStack(alignment: .center, spacing: 10) {
                 styledMediaBlock(artSize: artSize, lightInk: anyBleed || night)
             }
-            .frame(maxWidth: min(240, geo.size.width * 0.88))
+            .frame(maxWidth: min(320, geo.size.width * 0.95))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
         }
     }
 
     private var mediaTransportControls: some View {
-        HStack(spacing: 18) {
+        HStack(spacing: 22) {
             Button { model.skipTrack(-1) } label: {
                 Image(systemName: "backward.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .frame(width: 32, height: 32)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
             Button { model.togglePlay() } label: {
                 Image(systemName: model.mediaPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Circle().fill(Color.white.opacity(0.12)))
+                    .frame(width: 56, height: 56)
+                    .background(Circle().fill(Color.white.opacity(0.14)))
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
 
             Button { model.skipTrack(1) } label: {
                 Image(systemName: "forward.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .frame(width: 32, height: 32)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.top, 2)
+        .padding(.top, 4)
     }
 
     /// Styled album + meta based on Settings → Medya.
@@ -1905,16 +1906,16 @@ struct NativeHUDView: View {
             default: return Color.white.opacity(0.72)
             }
         }()
-        return VStack(spacing: 3) {
+        return VStack(spacing: 4) {
             Text(displayOrDash(model.mediaTitle))
-                .font(s == .minimal ? .title3.weight(.semibold) : .title3.weight(.bold))
+                .font(s == .minimal ? .title2.weight(.semibold) : .title2.weight(.bold))
                 .foregroundStyle(titleColor)
                 .shadow(color: s == .neon ? Color(red: 1.0, green: 0.3, blue: 0.7).opacity(0.7) : .clear, radius: 8)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.75)
             Text(displayOrDash(model.mediaArtist))
-                .font(.subheadline)
+                .font(.body)
                 .foregroundStyle(artistColor)
                 .multilineTextAlignment(.center)
                 .lineLimit(1)

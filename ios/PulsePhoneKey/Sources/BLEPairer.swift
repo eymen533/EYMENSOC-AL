@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Tesla VCSEC pairer + live BLE telemetry session for Xcode native.
 final class BLEPairer: NSObject, ObservableObject {
-    static let buildId = "xcode-ble-87"
+    static let buildId = "xcode-ble-88"
 
     enum Step: String {
         case idle = "Hazir"

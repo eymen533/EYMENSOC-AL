@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Maps open door / frunk / trunk / charge bits to a dial-filling status asset (v9).
+/// Maps open door / frunk / trunk / charge bits to a dial-filling status asset (v10 photoreal).
 enum DialVehicleStatus {
     /// Asset name for the current aperture combination, or `nil` when all closed.
     static func assetName(
