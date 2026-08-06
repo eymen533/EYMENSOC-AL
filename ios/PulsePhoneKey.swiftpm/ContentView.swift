@@ -391,6 +391,38 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                Section("Dönüş işareti") {
+                    ForEach(HUDSettings.TurnCueStyle.allCases) { style in
+                        Button {
+                            hudSettings.turnCueStyle = style
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: hudSettings.turnCueStyle == style ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(hudSettings.turnCueStyle == style ? Color.cyan : .secondary)
+                                Image(style.assetName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 64, height: 36)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(style.rawValue)
+                                        .foregroundStyle(.primary)
+                                        .font(.body.weight(hudSettings.turnCueStyle == style ? .semibold : .regular))
+                                    Text(style.blurb)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Text("Varsayılan: Kabartma sarı (R9). Yaklaşınca harita üzerinde büyük gösterilir.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 Section("Dashboard Style") {
                     Picker("Speedometer", selection: $hudSettings.speedStyle) {
                         ForEach(HUDSettings.SpeedStyle.allCases) { Text($0.rawValue).tag($0) }

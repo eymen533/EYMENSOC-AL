@@ -135,6 +135,52 @@ final class HUDSettings: ObservableObject {
         }
     }
 
+    /// Turn-by-turn cue plaque (Settings → Dönüş işareti). Default = R9 raised yellow.
+    enum TurnCueStyle: String, CaseIterable, Identifiable {
+        case raisedYellow = "Kabartma sarı"
+        case yellowCharcoal = "Neon sarı · charcoal"
+        case liveViewBlue = "Live View mavi"
+        case amberMetal = "Turuncu metal"
+        case redWhite = "Kırmızı / beyaz"
+        case cyanBlack = "Cyan · siyah"
+        case heroTrail = "Hero + trail"
+        case goldWarm = "Altın · sıcak gri"
+        case limeSteel = "Lime · çelik"
+        case blueFrost = "Mavi · buzlu cam"
+        var id: String { rawValue }
+
+        var blurb: String {
+            switch self {
+            case .raisedYellow: return "R9 · gri tabela · beyaz ok · neon sarı çerçeve"
+            case .yellowCharcoal: return "R1 · charcoal cam · neon sarı kenar"
+            case .liveViewBlue: return "R2 · floating Live View · beyaz + mavi"
+            case .amberMetal: return "R3 · turuncu sinyal · metal slate"
+            case .redWhite: return "R4 · klasik yol tabelası 3D"
+            case .cyanBlack: return "R5 · cyan neon · siyah cluster"
+            case .heroTrail: return "R6 · büyük ok + trail"
+            case .goldWarm: return "R7 · inci beyaz + altın"
+            case .limeSteel: return "R8 · lime neon · çelik"
+            case .blueFrost: return "R10 · mavi · buzlu cam"
+            }
+        }
+
+        /// Asset catalog name for the plaque image.
+        var assetName: String {
+            switch self {
+            case .raisedYellow: return "TurnCue_raisedYellow"
+            case .yellowCharcoal: return "TurnCue_yellowCharcoal"
+            case .liveViewBlue: return "TurnCue_liveViewBlue"
+            case .amberMetal: return "TurnCue_amberMetal"
+            case .redWhite: return "TurnCue_redWhite"
+            case .cyanBlack: return "TurnCue_cyanBlack"
+            case .heroTrail: return "TurnCue_heroTrail"
+            case .goldWarm: return "TurnCue_goldWarm"
+            case .limeSteel: return "TurnCue_limeSteel"
+            case .blueFrost: return "TurnCue_blueFrost"
+            }
+        }
+    }
+
     @Published var refreshMode: RefreshMode {
         didSet { UserDefaults.standard.set(refreshMode.rawValue, forKey: "pulse_refresh_mode") }
     }
@@ -143,6 +189,9 @@ final class HUDSettings: ObservableObject {
     }
     @Published var mediaArtStyle: MediaArtStyle {
         didSet { UserDefaults.standard.set(mediaArtStyle.rawValue, forKey: "pulse_media_art_style") }
+    }
+    @Published var turnCueStyle: TurnCueStyle {
+        didSet { UserDefaults.standard.set(turnCueStyle.rawValue, forKey: "pulse_turn_cue_style") }
     }
     @Published var speedStyle: SpeedStyle {
         didSet { UserDefaults.standard.set(speedStyle.rawValue, forKey: "pulse_speed_style") }
@@ -183,6 +232,7 @@ final class HUDSettings: ObservableObject {
         refreshMode = RefreshMode(rawValue: d.string(forKey: "pulse_refresh_mode") ?? "") ?? .instant
         dialStyle = DialStyle(rawValue: d.string(forKey: "pulse_dial_style") ?? "") ?? .circle
         mediaArtStyle = MediaArtStyle(rawValue: d.string(forKey: "pulse_media_art_style") ?? "") ?? .glass
+        turnCueStyle = TurnCueStyle(rawValue: d.string(forKey: "pulse_turn_cue_style") ?? "") ?? .raisedYellow
         speedStyle = SpeedStyle(rawValue: d.string(forKey: "pulse_speed_style") ?? "") ?? .classic
         speedColor = SpeedColor(rawValue: d.string(forKey: "pulse_speed_color") ?? "") ?? .multicolor
         powerStyle = PowerStyle(rawValue: d.string(forKey: "pulse_power_style") ?? "") ?? .ring
