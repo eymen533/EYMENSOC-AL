@@ -52,6 +52,10 @@ final class BLETelemetry {
     private var lastTagFailAt = Date.distantPast
     private var stallRecoveryAt = Date.distantPast
     private var stallRecoveries = 0
+    /// Quiet crypto nudge before a declared stall (no HUD flip, no WARN spam).
+    private var quietNudgeAt = Date.distantPast
+    private var lastHeartbeatLogAt = Date.distantPast
+    private var orphanStreak = 0
     var pollIntervalSeconds: TimeInterval = 0.035
     private let maxInFlight = 1
 
@@ -75,6 +79,9 @@ final class BLETelemetry {
         inFlight = 0
         handshakeTries = 0
         stallRecoveries = 0
+        quietNudgeAt = .distantPast
+        lastHeartbeatLogAt = .distantPast
+        orphanStreak = 0
         liveOK = false
         lastPublishedSpeed = -1
         lastPublishedSpeedInt = -1
@@ -123,25 +130,40 @@ final class BLETelemetry {
                 handleCryptoFailure(session, reason: "decrypt")
             } else if session.lastDecryptWasOrphan {
                 // Late reply for an older request — ignore; keep LIVE if we already have data.
+                orphanStreak += 1
                 if session.hasVehicleData {
                     liveOK = true
                     phase = .live
                     status = "BLE LIVE"
+                }
+                // Orphan flood usually means counter desync (large Location/Charge) —
+                // quiet reset before a full stall declaration.
+                if orphanStreak >= 10, Date().timeIntervalSince(lastLiveDataAt) > 2.0 {
+                    softRecoverInfotainment(
+                        session,
+                        reason: "orphan-streak",
+                        declareStall: false,
+                        flipLiveOff: false
+                    )
                 }
             } else if session.infotainmentReady {
                 phase = .live
                 if session.hasVehicleData {
                     liveOK = true
                     stallRecoveries = 0
+                    orphanStreak = 0
                     let bat = Int(session.snapshot.batteryPercent.rounded())
                     let rng = session.snapshot.rangeKm
                     let dest = session.snapshot.routeActive
                     let temp = session.snapshot.outdoorC
                     let tempMark = session.snapshot.outdoorValid ? "\(temp)°" : "--°"
-                    // Log when LIVE starts or when bat/temp finally arrive (was stuck at 0).
+                    // First LIVE, bat/temp arrival, or ~10s heartbeat (matches diag screen cadence).
                     let batArrived = bat > 0 && Int(snapshot.batteryPercent.rounded()) == 0
                     let tempArrived = session.snapshot.outdoorValid && !snapshot.outdoorValid
-                    if status != "BLE LIVE" || batArrived || tempArrived {
+                    let firstLive = lastHeartbeatLogAt == .distantPast
+                    let heartbeatDue = Date().timeIntervalSince(lastHeartbeatLogAt) >= 10.0
+                    if firstLive || batArrived || tempArrived || heartbeatDue {
+                        lastHeartbeatLogAt = Date()
                         PulseDiagLog.shared.info(
                             "BLE LIVE · bat=\(bat)% rng=\(rng)km route=\(dest ? "on" : "off") temp=\(tempMark)"
                         )
@@ -193,21 +215,21 @@ final class BLETelemetry {
         let msg = reason == "decrypt"
             ? "Decrypt fail — soft handshake…"
             : "Session tag gecersiz — soft handshake…"
-        status = msg
         PulseDiagLog.shared.warn(msg)
 
         // Soft: reset only infotainment crypto, keep VCSEC, keep last snapshot in HUD.
-        phase = .handshake
-        session.resetDomain(.infotainment)
-        writeQueue.removeAll()
-        writing = false
-        inFlight = 0
-        handshakeCooldownUntil = now.addingTimeInterval(0.25)
+        // Keep liveOK so the dial does not flicker on a single crypto blip.
+        softRecoverInfotainment(
+            session,
+            reason: reason,
+            declareStall: false,
+            flipLiveOff: false,
+            statusOverride: msg
+        )
         // Don't count soft decrypt as a hard stall unless live data is already stale.
         if Date().timeIntervalSince(lastLiveDataAt) > 4 {
             stallRecoveries += 1
         }
-        notify(force: true)
 
         if stallRecoveries >= 5 {
             stallRecoveries = 0
@@ -216,6 +238,42 @@ final class BLETelemetry {
             PulseDiagLog.shared.error(status)
             onNeedGATTReconnect?()
         }
+    }
+
+    /// Reset infotainment crypto and clear the write pipeline without dropping the GATT link.
+    private func softRecoverInfotainment(
+        _ session: TeslaBLESession,
+        reason: String,
+        declareStall: Bool,
+        flipLiveOff: Bool,
+        statusOverride: String? = nil
+    ) {
+        let now = Date()
+        guard now.timeIntervalSince(stallRecoveryAt) > 2.0 || declareStall else { return }
+        stallRecoveryAt = now
+        quietNudgeAt = now
+        orphanStreak = 0
+        if flipLiveOff { liveOK = false }
+        phase = .handshake
+        session.resetDomain(.infotainment)
+        writeQueue.removeAll()
+        writing = false
+        inFlight = 0
+        handshakeCooldownUntil = now.addingTimeInterval(declareStall ? 0.05 : 0.2)
+        if let statusOverride {
+            status = statusOverride
+        } else if declareStall {
+            status = "Veri durdu — oturum yenileniyor…"
+        } else {
+            // Keep BLE LIVE label in pairer while crypto rebuilds underneath.
+            status = liveOK ? "BLE LIVE" : "BLE handshake…"
+        }
+        if declareStall {
+            PulseDiagLog.shared.warn("\(status) (stall #\(stallRecoveries)) [\(reason)]")
+        } else if reason == "orphan-streak" || reason == "quiet-nudge" {
+            PulseDiagLog.shared.ble("soft recover · \(reason)")
+        }
+        notify(force: true)
     }
 
     func setVolume(_ level: Double) {
@@ -262,23 +320,33 @@ final class BLETelemetry {
             writeQueue.removeAll()
         }
 
-        // LIVE stall → soft re-handshake; don't flip off on a single blip.
-        if liveOK, Date().timeIntervalSince(lastLiveDataAt) > 6.0,
+        let silence = Date().timeIntervalSince(lastLiveDataAt)
+
+        // Quiet nudge before a declared stall — rebuild crypto, keep LIVE HUD.
+        if liveOK, silence > 3.8, silence < 7.5,
+           Date().timeIntervalSince(quietNudgeAt) > 4.5 {
+            softRecoverInfotainment(
+                session,
+                reason: "quiet-nudge",
+                declareStall: false,
+                flipLiveOff: false
+            )
+        }
+
+        // Declared stall → soft re-handshake; keep liveOK on early stalls (no HUD flicker).
+        if liveOK, silence > 7.5,
            Date().timeIntervalSince(stallRecoveryAt) > 5.0 {
-            stallRecoveryAt = Date()
             stallRecoveries += 1
-            liveOK = false
-            phase = .handshake
-            session.resetDomain(.infotainment)
-            status = "Veri durdu — oturum yenileniyor…"
-            PulseDiagLog.shared.warn("\(status) (stall #\(stallRecoveries))")
-            writeQueue.removeAll()
-            writing = false
-            inFlight = 0
-            handshakeCooldownUntil = Date()
-            notify(force: true)
+            let flip = stallRecoveries >= 3
+            softRecoverInfotainment(
+                session,
+                reason: String(format: "silence=%.1fs", silence),
+                declareStall: true,
+                flipLiveOff: flip
+            )
             if stallRecoveries >= 4 {
                 stallRecoveries = 0
+                liveOK = false
                 status = "Veri yok — GATT yenileniyor…"
                 PulseDiagLog.shared.error(status)
                 onNeedGATTReconnect?()
@@ -317,11 +385,11 @@ final class BLETelemetry {
     private func nextPollAction() -> Data {
         pollIndex += 1
         let i = pollIndex
-        // Drive-heavy; Location often enough for stable car map without saturating BLE.
+        // Drive-heavy; Location sparse enough to avoid AES orphan stalls on route=on.
         if i % 10 == 3 { return TeslaBLESession.actionGetCharge() }
         if i % 12 == 5 { return TeslaBLESession.actionGetClimate() }
-        // ~every 4th poll → Location (ble-83 was every 3rd — more stalls on some cars).
-        if i % 4 == 1 { return TeslaBLESession.actionGetLocation() }
+        // ~every 6th poll → Location (ble-84 was every 4th — still stalled with route active).
+        if i % 6 == 1 { return TeslaBLESession.actionGetLocation() }
         if i % 15 == 0 { return TeslaBLESession.actionGetClosures() }
         if i % 22 == 0 { return TeslaBLESession.actionGetMedia() }
         if i % 28 == 0 { return TeslaBLESession.actionGetMediaDetail() }
