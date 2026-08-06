@@ -115,11 +115,34 @@ final class HUDSettings: ObservableObject {
         }
     }
 
+    /// Album / now-playing panel look (Settings → Medya).
+    enum MediaArtStyle: String, CaseIterable, Identifiable {
+        case glass = "Cam rozet"
+        case vinyl = "Vinil 3D"
+        case cinematic = "Sinematik"
+        case neon = "Neon"
+        case minimal = "Minimal"
+        var id: String { rawValue }
+
+        var blurb: String {
+            switch self {
+            case .glass: return "Cam kaynak rozeti · cyan ışıma · yansıma"
+            case .vinyl: return "Vinil taşan kapak · amber HUD"
+            case .cinematic: return "Full-bleed kapak · altta yazı"
+            case .neon: return "Çift neon çerçeve · güçlü glow"
+            case .minimal: return "Sade cam kart · lüks boşluk"
+            }
+        }
+    }
+
     @Published var refreshMode: RefreshMode {
         didSet { UserDefaults.standard.set(refreshMode.rawValue, forKey: "pulse_refresh_mode") }
     }
     @Published var dialStyle: DialStyle {
         didSet { UserDefaults.standard.set(dialStyle.rawValue, forKey: "pulse_dial_style") }
+    }
+    @Published var mediaArtStyle: MediaArtStyle {
+        didSet { UserDefaults.standard.set(mediaArtStyle.rawValue, forKey: "pulse_media_art_style") }
     }
     @Published var speedStyle: SpeedStyle {
         didSet { UserDefaults.standard.set(speedStyle.rawValue, forKey: "pulse_speed_style") }
@@ -159,6 +182,7 @@ final class HUDSettings: ObservableObject {
         let d = UserDefaults.standard
         refreshMode = RefreshMode(rawValue: d.string(forKey: "pulse_refresh_mode") ?? "") ?? .instant
         dialStyle = DialStyle(rawValue: d.string(forKey: "pulse_dial_style") ?? "") ?? .circle
+        mediaArtStyle = MediaArtStyle(rawValue: d.string(forKey: "pulse_media_art_style") ?? "") ?? .glass
         speedStyle = SpeedStyle(rawValue: d.string(forKey: "pulse_speed_style") ?? "") ?? .classic
         speedColor = SpeedColor(rawValue: d.string(forKey: "pulse_speed_color") ?? "") ?? .multicolor
         powerStyle = PowerStyle(rawValue: d.string(forKey: "pulse_power_style") ?? "") ?? .ring

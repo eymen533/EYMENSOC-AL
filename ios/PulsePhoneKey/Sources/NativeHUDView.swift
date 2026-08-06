@@ -1169,26 +1169,15 @@ struct NativeHUDView: View {
                 VStack(alignment: .center, spacing: 8) {
                     Spacer(minLength: 8)
                     if !asOverlay {
-                        albumArtWithReflection(size: artSize)
+                        styledMediaBlock(artSize: artSize, lightInk: true)
+                    } else {
+                        mediaMetaStack(lightInk: true)
+                        mediaTransportControls
                     }
-                    mediaServiceHeader
-                    Text(displayOrDash(model.mediaTitle))
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.8)
-                    Text(displayOrDash(model.mediaArtist))
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.78))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(1)
-                    mediaTransportControls
                     Spacer(minLength: 10)
                 }
                 .frame(maxWidth: min(260, geo.size.width * 0.9))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                // Sit mid-wing: a bit away from the outer screen edge, toward the dial.
                 .padding(.leading, side == .left ? 10 : 18)
                 .padding(.trailing, side == .left ? 18 : 10)
             }
@@ -1793,26 +1782,10 @@ struct NativeHUDView: View {
 
     private var mediaPanel: some View {
         GeometryReader { geo in
-            // Cover sized for the wing; reflection ~33% under art.
             let artSize = min(142, max(106, min(geo.size.width * 0.66, geo.size.height * 0.41)))
             VStack(alignment: .center, spacing: 6) {
-                mediaServiceHeader
-                albumArtWithReflection(size: artSize)
-                Text(displayOrDash(model.mediaTitle))
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(ink)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                    .padding(.top, 2)
-                Text(displayOrDash(model.mediaArtist))
-                    .font(.subheadline)
-                    .foregroundStyle(Color.white.opacity(0.72))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(1)
-                mediaTransportControls
+                styledMediaBlock(artSize: artSize, lightInk: anyBleed || night)
             }
-            // Center in the wing (between screen edge and dial), not hugging the outer edge.
             .frame(maxWidth: min(240, geo.size.width * 0.88))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .padding(.horizontal, 10)
@@ -1852,49 +1825,206 @@ struct NativeHUDView: View {
         .padding(.top, 2)
     }
 
-    private func albumArtWithReflection(size: CGFloat) -> some View {
-        // ~33% height mirror — visible “floor” reflection under the cover.
-        let reflectH = size * 0.33
-        return VStack(spacing: 0) {
-            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
-                .scaleEffect(x: 1, y: -1)
-                .frame(height: reflectH, alignment: .top)
-                .clipped()
-                .opacity(0.42)
-                .mask(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.85),
-                            Color.white.opacity(0.35),
-                            Color.white.opacity(0.08),
-                            .clear
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .blur(radius: 0.4)
-                .allowsHitTesting(false)
+    /// Styled album + meta based on Settings → Medya.
+    @ViewBuilder
+    private func styledMediaBlock(artSize: CGFloat, lightInk: Bool) -> some View {
+        let style = settings.mediaArtStyle
+        switch style {
+        case .cinematic:
+            cinematicMediaBlock(artSize: artSize)
+        default:
+            VStack(spacing: style == .minimal ? 10 : 8) {
+                styledAlbumArt(size: artSize, style: style)
+                mediaMetaStack(lightInk: lightInk, style: style)
+                mediaTransportControls
+            }
         }
     }
 
-    private var mediaServiceHeader: some View {
-        HStack(spacing: 8) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(serviceAccent)
-                    .frame(width: 22, height: 22)
-                Image(systemName: serviceIcon)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.white)
+    private func mediaMetaStack(lightInk: Bool, style: HUDSettings.MediaArtStyle? = nil) -> some View {
+        let s = style ?? settings.mediaArtStyle
+        let titleColor: Color = {
+            switch s {
+            case .neon: return Color(red: 1.0, green: 0.45, blue: 0.85)
+            case .vinyl: return .white
+            default: return lightInk ? .white : ink
             }
-            Text(displayOrDash(model.mediaService))
-                .font(.body.weight(.semibold))
-                .foregroundStyle(anyBleed || night ? Color.white : ink)
+        }()
+        let artistColor: Color = {
+            switch s {
+            case .neon: return Color(red: 0.45, green: 0.95, blue: 1.0).opacity(0.9)
+            default: return Color.white.opacity(0.72)
+            }
+        }()
+        return VStack(spacing: 3) {
+            Text(displayOrDash(model.mediaTitle))
+                .font(s == .minimal ? .title3.weight(.semibold) : .title3.weight(.bold))
+                .foregroundStyle(titleColor)
+                .shadow(color: s == .neon ? Color(red: 1.0, green: 0.3, blue: 0.7).opacity(0.7) : .clear, radius: 8)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+            Text(displayOrDash(model.mediaArtist))
+                .font(.subheadline)
+                .foregroundStyle(artistColor)
+                .multilineTextAlignment(.center)
                 .lineLimit(1)
         }
+    }
+
+    private func cinematicMediaBlock(artSize: CGFloat) -> some View {
+        let h = artSize * 1.35
+        return VStack(spacing: 10) {
+            ZStack(alignment: .bottom) {
+                AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: artSize)
+                    .frame(width: artSize, height: h)
+                    .clipped()
+                    .overlay(alignment: .top) {
+                        mediaSourceBadge(onCover: true)
+                            .padding(.top, 10)
+                    }
+                    .overlay(
+                        LinearGradient(
+                            colors: [.clear, .clear, Color.black.opacity(0.75), Color.black.opacity(0.92)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .overlay(alignment: .bottom) {
+                        VStack(spacing: 4) {
+                            Text(displayOrDash(model.mediaTitle))
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(.white)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                            Text(displayOrDash(model.mediaArtist))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.8))
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 12)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .shadow(color: .black.opacity(0.45), radius: 12, y: 6)
+            }
+            mediaTransportControls
+        }
+    }
+
+    @ViewBuilder
+    private func styledAlbumArt(size: CGFloat, style: HUDSettings.MediaArtStyle) -> some View {
+        let corner: CGFloat = style == .minimal ? 14 : 10
+        let cover = AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
+            .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+            .overlay(alignment: .top) {
+                mediaSourceBadge(onCover: true)
+                    .padding(.top, 8)
+            }
+
+        switch style {
+        case .glass:
+            VStack(spacing: 0) {
+                cover
+                    .overlay(
+                        RoundedRectangle(cornerRadius: corner, style: .continuous)
+                            .stroke(Color(red: 0.4, green: 0.9, blue: 1.0).opacity(0.55), lineWidth: 1.4)
+                    )
+                    .shadow(color: Color(red: 0.3, green: 0.85, blue: 1.0).opacity(0.35), radius: 14)
+                albumReflection(size: size, height: size * 0.30, corner: corner)
+            }
+        case .vinyl:
+            ZStack {
+                // Vinyl peek behind cover
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color(white: 0.15), Color.black],
+                            center: .center,
+                            startRadius: 4,
+                            endRadius: size * 0.42
+                        )
+                    )
+                    .frame(width: size * 0.88, height: size * 0.88)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            .frame(width: size * 0.22, height: size * 0.22)
+                    )
+                    .offset(x: size * 0.28)
+                    .shadow(color: .black.opacity(0.5), radius: 8, y: 4)
+                cover
+                    .rotationEffect(.degrees(-3))
+                    .shadow(color: Color(red: 1.0, green: 0.55, blue: 0.15).opacity(0.35), radius: 12)
+            }
+            .frame(width: size * 1.2, height: size)
+        case .neon:
+            cover
+                .overlay(
+                    RoundedRectangle(cornerRadius: corner, style: .continuous)
+                        .stroke(Color(red: 1.0, green: 0.3, blue: 0.85), lineWidth: 2)
+                        .padding(2)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: corner + 2, style: .continuous)
+                        .stroke(Color(red: 0.3, green: 0.95, blue: 1.0), lineWidth: 2)
+                        .padding(-2)
+                )
+                .shadow(color: Color(red: 1.0, green: 0.2, blue: 0.8).opacity(0.45), radius: 12)
+                .shadow(color: Color(red: 0.2, green: 0.9, blue: 1.0).opacity(0.35), radius: 18)
+        case .minimal:
+            cover
+                .shadow(color: .black.opacity(0.45), radius: 16, y: 8)
+                .padding(.bottom, 4)
+        case .cinematic:
+            cover
+        }
+    }
+
+    private func albumReflection(size: CGFloat, height: CGFloat, corner: CGFloat) -> some View {
+        AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
+            .scaleEffect(x: 1, y: -1)
+            .frame(height: height, alignment: .top)
+            .clipped()
+            .opacity(0.40)
+            .mask(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.85),
+                        Color.white.opacity(0.3),
+                        Color.white.opacity(0.06),
+                        .clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+            .allowsHitTesting(false)
+    }
+
+    /// Source chip — sits on top of the album cover (Spotify / YouTube Music / …).
+    private func mediaSourceBadge(onCover: Bool) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: serviceIcon)
+                .font(.system(size: 10, weight: .bold))
+            Text(displayOrDash(model.mediaService))
+                .font(.caption2.weight(.bold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            Capsule()
+                .fill(serviceAccent.opacity(onCover ? 0.92 : 0.85))
+                .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.8))
+                .shadow(color: serviceAccent.opacity(0.45), radius: 6)
+        )
+    }
+
+    private var mediaServiceHeader: some View {
+        mediaSourceBadge(onCover: false)
     }
 
     private var serviceIcon: String {
@@ -1902,16 +2032,19 @@ struct NativeHUDView: View {
         if s.contains("youtube") { return "play.rectangle.fill" }
         if s.contains("spotify") { return "music.note.list" }
         if s.contains("tidal") { return "waveform" }
+        if s.contains("apple") { return "applelogo" }
         if s.contains("bluetooth") { return "wave.3.right" }
         return "music.note"
     }
 
     private var serviceAccent: Color {
         let s = model.mediaService.lowercased()
-        if s.contains("youtube") { return Color(red: 0.78, green: 0.16, blue: 0.16) }
-        if s.contains("spotify") { return Color(red: 0.18, green: 0.72, blue: 0.35) }
-        if s.contains("tidal") { return Color(red: 0.12, green: 0.12, blue: 0.14) }
-        return Color(red: 0.22, green: 0.55, blue: 0.72)
+        if s.contains("youtube") { return Color(red: 0.95, green: 0.15, blue: 0.2) }
+        if s.contains("spotify") { return Color(red: 0.15, green: 0.75, blue: 0.4) }
+        if s.contains("tidal") { return Color(red: 0.1, green: 0.1, blue: 0.12) }
+        if s.contains("apple") { return Color(red: 0.95, green: 0.3, blue: 0.45) }
+        if s.contains("bluetooth") { return Color(red: 0.25, green: 0.55, blue: 0.95) }
+        return Color(red: 0.35, green: 0.4, blue: 0.5)
     }
 
     private var routeDestination: String {

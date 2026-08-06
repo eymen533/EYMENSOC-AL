@@ -364,6 +364,33 @@ struct ContentView: View {
                         .buttonStyle(.plain)
                     }
                 }
+                Section("Medya · albüm kapağı") {
+                    ForEach(HUDSettings.MediaArtStyle.allCases) { style in
+                        Button {
+                            hudSettings.mediaArtStyle = style
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: hudSettings.mediaArtStyle == style ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(hudSettings.mediaArtStyle == style ? Color.cyan : .secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(style.rawValue)
+                                        .foregroundStyle(.primary)
+                                        .font(.body.weight(hudSettings.mediaArtStyle == style ? .semibold : .regular))
+                                    Text(style.blurb)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Text("Kaynak (Spotify / YouTube Music / …) her stilde albüm kapağının üstünde.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 Section("Dashboard Style") {
                     Picker("Speedometer", selection: $hudSettings.speedStyle) {
                         ForEach(HUDSettings.SpeedStyle.allCases) { Text($0.rawValue).tag($0) }
