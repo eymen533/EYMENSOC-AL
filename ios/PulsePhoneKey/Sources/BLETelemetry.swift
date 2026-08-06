@@ -317,10 +317,11 @@ final class BLETelemetry {
     private func nextPollAction() -> Data {
         pollIndex += 1
         let i = pollIndex
-        // ~1/10 ticks → Charge (was every 3rd; large replies → decrypt orphan → stall).
+        // Drive-heavy; Location often so map follows the car (not phone).
         if i % 10 == 3 { return TeslaBLESession.actionGetCharge() }
         if i % 12 == 5 { return TeslaBLESession.actionGetClimate() }
-        if i % 8 == 2 { return TeslaBLESession.actionGetLocation() }
+        // ~every 3rd poll → Location (was every 8th — map jumped between fixes).
+        if i % 3 == 1 { return TeslaBLESession.actionGetLocation() }
         if i % 15 == 0 { return TeslaBLESession.actionGetClosures() }
         if i % 22 == 0 { return TeslaBLESession.actionGetMedia() }
         if i % 28 == 0 { return TeslaBLESession.actionGetMediaDetail() }

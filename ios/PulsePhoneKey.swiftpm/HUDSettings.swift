@@ -62,6 +62,14 @@ final class HUDSettings: ObservableObject {
         var id: String { rawValue }
     }
 
+    /// Where the HUD map pins the car.
+    enum MapGPSSource: String, CaseIterable, Identifiable {
+        case vehicle = "Araç GPS"
+        case phone = "Telefon GPS"
+        case auto = "Otomatik"
+        var id: String { rawValue }
+    }
+
     enum MapTheme: String, CaseIterable, Identifiable {
         case auto = "Auto"
         case light = "Light"
@@ -128,6 +136,9 @@ final class HUDSettings: ObservableObject {
     @Published var mapsProvider: MapsProvider {
         didSet { UserDefaults.standard.set(mapsProvider.rawValue, forKey: "pulse_maps_provider") }
     }
+    @Published var mapGPSSource: MapGPSSource {
+        didSet { UserDefaults.standard.set(mapGPSSource.rawValue, forKey: "pulse_map_gps_source") }
+    }
     @Published var autoZoom: Bool {
         didSet { UserDefaults.standard.set(autoZoom, forKey: "pulse_maps_auto_zoom") }
     }
@@ -152,6 +163,7 @@ final class HUDSettings: ObservableObject {
         speedColor = SpeedColor(rawValue: d.string(forKey: "pulse_speed_color") ?? "") ?? .multicolor
         powerStyle = PowerStyle(rawValue: d.string(forKey: "pulse_power_style") ?? "") ?? .ring
         liveLocation = LiveLocation(rawValue: d.string(forKey: "pulse_live_location") ?? "") ?? .bottom
+        mapGPSSource = MapGPSSource(rawValue: d.string(forKey: "pulse_map_gps_source") ?? "") ?? .vehicle
         let storedProvider = d.string(forKey: "pulse_maps_provider") ?? ""
         // Migrate old short labels.
         switch storedProvider {

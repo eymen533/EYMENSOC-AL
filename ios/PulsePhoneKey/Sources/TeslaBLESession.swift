@@ -729,7 +729,7 @@ final class TeslaBLESession {
                 let d = snapshot.destination.trimmingCharacters(in: .whitespacesAndNewlines)
                 return !d.isEmpty && d != "—" && d != "-" && d != "--"
             }()
-            let keepSticky = routeInactiveStreak < 14
+            let keepSticky = routeInactiveStreak < 5
                 && (abs(snapshot.destLatitude) > 0.0001 || abs(snapshot.destLongitude) > 0.0001 || destOK)
             if keepSticky {
                 snapshot.routeActive = true
@@ -984,9 +984,9 @@ final class TeslaBLESession {
             }
         }
 
-        // Prefer WGS84 GPS for Apple Maps (plain / geo). Native can be a local datum.
-        let lat = latPlain ?? latGeo ?? latNative
-        let lon = lonPlain ?? lonGeo ?? lonNative
+        // Prefer native (car map) then plain/geo WGS84.
+        let lat = latNative ?? latPlain ?? latGeo
+        let lon = lonNative ?? lonPlain ?? lonGeo
         if let lat, let lon, abs(lat) <= 90, abs(lon) <= 180, (abs(lat) > 0.0001 || abs(lon) > 0.0001) {
             snapshot.latitude = lat
             snapshot.longitude = lon

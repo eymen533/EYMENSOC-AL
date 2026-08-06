@@ -680,8 +680,117 @@ extension PhoneLocationStore: CLLocationManagerDelegate {
     }
 }
 
-/// Vehicle nav map — Apple Maps or Google Maps (Settings). Car destination → Directions route.
-/// Falls back to phone GPS when the vehicle is not connected (Dashla-style).
+/// Smooths sparse BLE vehicle GPS between Location polls (dead-reckon + lerp).
+@MainActor
+final class VehicleLocationStore: ObservableObject {
+    static let shared = VehicleLocationStore()
+
+    @Published var latitude: Double = 0
+    @Published var longitude: Double = 0
+    @Published var heading: Double = 0
+    @Published var hasFix = false
+
+    private var rawLat = 0.0
+    private var rawLon = 0.0
+    private var rawHeading = -1.0
+    private var speedMps = 0.0
+    private var lastFixAt = Date.distantPast
+    private var displayLat = 0.0
+    private var displayLon = 0.0
+    private var displayHeading = 0.0
+    private var displayBooted = false
+    private var tick: AnyCancellable?
+
+    func ingest(lat: Double, lon: Double, heading: Double, speedKmh: Double = -1) {
+        guard abs(lat) > 0.0001 || abs(lon) > 0.0001 else { return }
+        rawLat = lat
+        rawLon = lon
+        lastFixAt = Date()
+        if speedKmh >= 0 { speedMps = speedKmh / 3.6 }
+        if heading >= 0 {
+            var h = heading.truncatingRemainder(dividingBy: 360)
+            if h < 0 { h += 360 }
+            rawHeading = h
+        }
+        if !hasFix || !displayBooted {
+            displayLat = rawLat
+            displayLon = rawLon
+            displayHeading = rawHeading >= 0 ? rawHeading : 0
+            displayBooted = true
+            latitude = displayLat
+            longitude = displayLon
+            self.heading = displayHeading
+            hasFix = true
+        } else {
+            let jump = CLLocation(latitude: displayLat, longitude: displayLon)
+                .distance(from: CLLocation(latitude: rawLat, longitude: rawLon))
+            if jump > 90 {
+                displayLat = rawLat
+                displayLon = rawLon
+                if rawHeading >= 0 { displayHeading = rawHeading }
+                latitude = displayLat
+                longitude = displayLon
+                self.heading = displayHeading
+            }
+        }
+        ensureTick()
+    }
+
+    private func ensureTick() {
+        guard tick == nil else { return }
+        tick = Timer.publish(every: 1.0 / 20.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in self?.tickSmooth() }
+    }
+
+    private func tickSmooth() {
+        guard hasFix else { return }
+        let age = min(1.6, max(0, Date().timeIntervalSince(lastFixAt)))
+        var predLat = rawLat
+        var predLon = rawLon
+        if rawHeading >= 0, speedMps > 0.5, age > 0 {
+            let dist = speedMps * age
+            let rad = rawHeading * .pi / 180
+            let dLat = (dist * cos(rad)) / 111_320.0
+            let cosLat = max(0.2, cos(predLat * .pi / 180))
+            let dLon = (dist * sin(rad)) / (111_320.0 * cosLat)
+            predLat += dLat
+            predLon += dLon
+        }
+        let targetH = rawHeading >= 0 ? rawHeading : displayHeading
+        let errM = CLLocation(latitude: displayLat, longitude: displayLon)
+            .distance(from: CLLocation(latitude: predLat, longitude: predLon))
+        let a = errM > 40 ? 0.42 : (errM > 15 ? 0.26 : 0.16)
+        displayLat += (predLat - displayLat) * a
+        displayLon += (predLon - displayLon) * a
+        displayHeading = lerpHeading(displayHeading, targetH, t: min(0.32, a + 0.06))
+
+        let moved = CLLocation(latitude: latitude, longitude: longitude)
+            .distance(from: CLLocation(latitude: displayLat, longitude: displayLon))
+        let hDelta = abs(shortestHeadingDelta(heading, displayHeading))
+        guard moved >= 0.4 || hDelta >= 1.0 else { return }
+        latitude = displayLat
+        longitude = displayLon
+        heading = displayHeading
+    }
+
+    private func lerpHeading(_ from: Double, _ to: Double, t: Double) -> Double {
+        let d = shortestHeadingDelta(from, to)
+        var out = from + d * t
+        out = out.truncatingRemainder(dividingBy: 360)
+        if out < 0 { out += 360 }
+        return out
+    }
+
+    private func shortestHeadingDelta(_ from: Double, _ to: Double) -> Double {
+        var d = (to - from).truncatingRemainder(dividingBy: 360)
+        if d > 180 { d -= 360 }
+        if d < -180 { d += 360 }
+        return d
+    }
+}
+
+/// Vehicle nav map — Apple / Google. Prefer BLE vehicle GPS; phone is fallback.
 struct VehicleMapView: View {
     var lat: Double
     var lon: Double
@@ -696,26 +805,52 @@ struct VehicleMapView: View {
     @Binding var turnDistanceM: Int
     @Binding var turnInstruction: String
     @Binding var turnSymbol: String
-    /// When set, overrides settings map theme (vehicle day/night).
     var forceDark: Bool? = nil
     @ObservedObject private var settings = HUDSettings.shared
     @ObservedObject private var phone = PhoneLocationStore.shared
+    @ObservedObject private var vehicle = VehicleLocationStore.shared
 
-    private var hasCarGPS: Bool { abs(lat) > 0.0001 || abs(lon) > 0.0001 }
-
-    /// Prefer phone GPS for live map position (faster than BLE); keep car as fallback.
-    private var mapLat: Double { phone.hasFix ? phone.latitude : lat }
-    private var mapLon: Double { phone.hasFix ? phone.longitude : lon }
+    private var mapLat: Double {
+        switch settings.mapGPSSource {
+        case .vehicle:
+            return vehicle.hasFix ? vehicle.latitude : lat
+        case .phone:
+            return phone.hasFix ? phone.latitude : (vehicle.hasFix ? vehicle.latitude : lat)
+        case .auto:
+            if vehicle.hasFix { return vehicle.latitude }
+            if abs(lat) > 0.0001 || abs(lon) > 0.0001 { return lat }
+            return phone.latitude
+        }
+    }
+    private var mapLon: Double {
+        switch settings.mapGPSSource {
+        case .vehicle:
+            return vehicle.hasFix ? vehicle.longitude : lon
+        case .phone:
+            return phone.hasFix ? phone.longitude : (vehicle.hasFix ? vehicle.longitude : lon)
+        case .auto:
+            if vehicle.hasFix { return vehicle.longitude }
+            if abs(lat) > 0.0001 || abs(lon) > 0.0001 { return lon }
+            return phone.longitude
+        }
+    }
     private var mapHeading: Double {
-        if phone.hasFix, phone.heading >= 0 { return phone.heading }
-        return heading
+        switch settings.mapGPSSource {
+        case .vehicle:
+            if vehicle.hasFix, vehicle.heading >= 0 { return vehicle.heading }
+            return heading
+        case .phone:
+            if phone.hasFix, phone.heading >= 0 { return phone.heading }
+            if vehicle.hasFix, vehicle.heading >= 0 { return vehicle.heading }
+            return heading
+        case .auto:
+            if vehicle.hasFix, vehicle.heading >= 0 { return vehicle.heading }
+            if heading >= 0 { return heading }
+            return phone.heading
+        }
     }
 
-    private var effectiveTheme: HUDSettings.MapTheme {
-        // Light map tiles — cluster chrome stays black separately.
-        .light
-    }
-
+    private var effectiveTheme: HUDSettings.MapTheme { .light }
     private var isDark: Bool { effectiveTheme != .light }
 
     private var resolvedKey: String {
@@ -768,6 +903,20 @@ struct VehicleMapView: View {
         .background(isDark ? Color.black : Color(red: 0.95, green: 0.96, blue: 0.97))
         .preferredColorScheme(isDark ? .dark : .light)
         .clipped()
-        .onAppear { phone.start() }
+        .onAppear {
+            phone.start()
+            if abs(lat) > 0.0001 || abs(lon) > 0.0001 {
+                vehicle.ingest(lat: lat, lon: lon, heading: heading)
+            }
+        }
+        .onChangeCompat(of: lat) { _ in
+            vehicle.ingest(lat: lat, lon: lon, heading: heading)
+        }
+        .onChangeCompat(of: lon) { _ in
+            vehicle.ingest(lat: lat, lon: lon, heading: heading)
+        }
+        .onChangeCompat(of: heading) { _ in
+            vehicle.ingest(lat: lat, lon: lon, heading: heading)
+        }
     }
 }

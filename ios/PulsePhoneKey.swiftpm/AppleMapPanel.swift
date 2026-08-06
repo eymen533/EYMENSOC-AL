@@ -178,6 +178,15 @@ struct AppleMapPanel: View {
 
         guard nameOK else {
             routeBusy = false
+            routeCoords = []
+            resolvedDest = nil
+            lastRouteDestKey = ""
+            lastRerouteOrigin = nil
+            guidanceBaseM = 0
+            guidanceAt = nil
+            turnDistanceM = 0
+            turnInstruction = ""
+            turnSymbol = "arrow.up"
             return
         }
 

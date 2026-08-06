@@ -388,9 +388,22 @@ struct ContentView: View {
                         ForEach(HUDSettings.MapsProvider.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
+                    Picker("Konum kaynağı", selection: $hudSettings.mapGPSSource) {
+                        ForEach(HUDSettings.MapGPSSource.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    Text({
+                        switch hudSettings.mapGPSSource {
+                        case .vehicle: return "Araç GPS: BLE araç konumu (önerilen) — telefon GPS yok sayılır."
+                        case .phone: return "Telefon GPS: iPhone konumu (araç dışı deneme)."
+                        case .auto: return "Otomatik: araç GPS varsa onu, yoksa telefonu kullanır."
+                        }
+                    }())
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                     Text(hudSettings.mapsProvider == .google
-                        ? "Google Maps: araçta seçilen destinasyon Directions ile rotaya dönüşür. Maps JavaScript + Directions API key gerekir."
-                        : "Apple Maps: API key yok. Konum/hedef arabadan (BLE); rota Apple Directions.")
+                        ? "Google Maps: araç destinasyonu Directions rotası. API key gerekir."
+                        : "Apple Maps: araç destinasyonu Directions rotası; rota bitince temizlenir.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if hudSettings.mapsProvider == .google {

@@ -221,6 +221,15 @@ final class HUDModel: ObservableObject {
             longitude = s.longitude
         }
         mapHeading = s.heading
+        // Smooth vehicle GPS for the map (BLE Location polls are sparse).
+        if abs(s.latitude) > 0.0001 || abs(s.longitude) > 0.0001 {
+            VehicleLocationStore.shared.ingest(
+                lat: s.latitude,
+                lon: s.longitude,
+                heading: s.heading,
+                speedKmh: s.speedKmh
+            )
+        }
         if s.routeActive {
             if !s.destination.isEmpty, s.destination != "—", s.destination != "-", s.destination != "--" {
                 destination = s.destination
