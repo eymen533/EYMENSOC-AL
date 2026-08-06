@@ -45,19 +45,6 @@ struct NativeHUDView: View {
         model.turnDistanceM > 0 && model.turnDistanceM <= 55
     }
 
-    private var modelYDoorAlertView: some View {
-        ModelYDoorAlert(
-            doorFL: model.doorFL,
-            doorFR: model.doorFR,
-            doorRL: model.doorRL,
-            doorRR: model.doorRR,
-            frunkOpen: model.frunkOpen,
-            trunkOpen: model.trunkOpen,
-            chargePortOpen: model.chargePortOpen,
-            labels: model.openDoorLabels
-        )
-    }
-
     var body: some View {
         GeometryReader { geo in
             let wide = geo.size.width >= geo.size.height
@@ -211,15 +198,19 @@ struct NativeHUDView: View {
                 }
             }
 
+            // Door/frunk status fills the dial — compact label under dial only.
             if anyApertureOpen {
-                modelYDoorAlertView
-                    .scaleEffect(min(1.0, dialW / 220))
-                    .position(x: cx, y: cy + dialW * 0.58)
+                Text(model.openDoorLabels.isEmpty ? "Açık" : model.openDoorLabels.joined(separator: " · "))
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.35))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                    .position(x: cx, y: cy + dialW * 0.56)
                     .zIndex(11)
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.9)),
-                        removal: .opacity
-                    ))
+                    .transition(.opacity)
             }
 
             if !isBlank(model.destination) {
@@ -493,9 +484,15 @@ struct NativeHUDView: View {
             }
 
             if anyApertureOpen {
-                modelYDoorAlertView
-                    .scaleEffect(min(0.95, dialW / 200))
-                    .position(x: cx, y: cy + dialW * 0.58)
+                Text(model.openDoorLabels.isEmpty ? "Açık" : model.openDoorLabels.joined(separator: " · "))
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.35))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                    .position(x: cx, y: cy + dialW * 0.56)
                     .zIndex(11)
             }
 
@@ -581,8 +578,14 @@ struct NativeHUDView: View {
                 .zIndex(10)
 
             if anyApertureOpen {
-                modelYDoorAlertView
-                    .scaleEffect(0.85)
+                Text(model.openDoorLabels.isEmpty ? "Açık" : model.openDoorLabels.joined(separator: " · "))
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.35))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.55)))
                     .position(x: geo.size.width * 0.5, y: 48 + dialSize * 1.05)
                     .zIndex(11)
             }
@@ -1259,6 +1262,51 @@ struct NativeHUDView: View {
         let dialDim: Color = bareLit ? Color.white.opacity(0.30) : dim
         // Raised dark plate — always black cluster (no day-silver).
         let plate: Color = Color(red: 0.12, green: 0.13, blue: 0.15)
+        let statusAsset = DialVehicleStatus.assetName(
+            doorFL: model.doorFL,
+            doorFR: model.doorFR,
+            doorRL: model.doorRL,
+            doorRR: model.doorRR,
+            frunkOpen: model.frunkOpen,
+            trunkOpen: model.trunkOpen,
+            chargePortOpen: model.chargePortOpen
+        )
+
+        // When doors/frunk/trunk are open, park speed and fill the dial with vehicle status.
+        if let statusAsset {
+            return AnyView(
+                ZStack {
+                    Image(statusAsset)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipShape(Circle())
+                    Circle()
+                        .stroke(dialGlow.opacity(0.95), lineWidth: compact ? 1.0 : 1.25)
+                        .shadow(color: dialGlow.opacity(0.95), radius: compact ? 2.2 : 3.2)
+                        .shadow(color: dialGlow.opacity(0.45), radius: compact ? 5 : 7)
+                        .padding(0.5)
+                    // Gear row stays readable over the status art.
+                    VStack {
+                        HStack(spacing: size * 0.055) {
+                            ForEach(["P", "R", "N", "D"], id: \.self) { g in
+                                Text(g)
+                                    .font(.system(size: max(11, size * 0.06), weight: .semibold))
+                                    .foregroundStyle(settings.gearColor(g, active: model.gear == g, ink: .white, dim: Color.white.opacity(0.35)))
+                                    .shadow(color: .black.opacity(0.85), radius: 3, y: 1)
+                            }
+                        }
+                        .padding(.top, size * 0.08)
+                        Spacer(minLength: 0)
+                    }
+                }
+                .frame(width: size, height: size)
+                .compositingGroup()
+                .shadow(color: .black.opacity(0.28), radius: compact ? 3 : 5, x: 0, y: compact ? 2 : 3)
+                .shadow(color: dialGlow.opacity(0.35), radius: compact ? 3 : 5)
+                .animation(.easeInOut(duration: 0.25), value: statusAsset)
+            )
+        }
 
         let content = VStack(spacing: compact ? 0 : 2) {
             HStack(spacing: size * 0.055) {
@@ -1282,7 +1330,7 @@ struct NativeHUDView: View {
         }
         .padding(.horizontal, 8)
 
-        return ZStack {
+        return AnyView(ZStack {
             // Shell / frame by style — extruded bezel (3D thickness).
             switch style {
             case .circle:
@@ -1588,9 +1636,10 @@ struct NativeHUDView: View {
         .compositingGroup()
         .shadow(color: .black.opacity(0.28), radius: compact ? 3 : 5, x: 0, y: compact ? 2 : 3)
         .shadow(color: dialGlow.opacity(0.35), radius: compact ? 3 : 5)
+        )
     }
 
-    /// Lights / lock under the dial (doors use ModelYDoorAlert figure).
+    /// Lights / lock under the dial (doors/frunk fill the dial face when open).
     @ViewBuilder
     private func dialStatusStrip(maxWidth: CGFloat) -> some View {
         let showLights = model.anyLightOn

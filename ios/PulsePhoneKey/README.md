@@ -1,4 +1,4 @@
-# Pulse28 (`xcode-ble-86`)
+# Pulse28 (`xcode-ble-87`)
 
 Bundle id: `com.teslapulse.phonekey28` — **yeni app**, eski Pulse(23) ile karışmaz.
 
@@ -7,7 +7,7 @@ cd ~
 curl -fsSL https://raw.githubusercontent.com/eymen533/EYMENSOC-AL/cursor/hud-day-night-doors-02d8/install-pulse28.sh | bash
 ```
 
-Ana ekranda **Pulse28** ikonunu aç. Sarı: **xcode-ble-86**.
+Ana ekranda **Pulse28** ikonunu aç. Sarı: **xcode-ble-87**.
 
 ## Özellikler → Kadran
 - **Yuvarlak** — klasik bevel
@@ -22,8 +22,8 @@ Ana ekranda **Pulse28** ikonunu aç. Sarı: **xcode-ble-86**.
 Varsayılan **Araç GPS** (BLE). Ayarlar → Harita → Konum kaynağı.
 Araçta rota açılınca HUD Directions çizer; rota bitince temizler.
 
-## Kapı uyarısı
-Kadran altında üstten Model Y ikonları (hangi kapı/frunk/bagaj açıksa).
+## Kapı / frunk / bagaj
+Açıkken hız yerine kadranı Model Y durum görseli doldurur (v9: ayna menteşeli ön kapı, doğru frunk). Altta kısa amber etiket.
 
 ## Önizleme linkleri (htmlpreview)
 - Model Y 3D: `preview/model-y-3d.html`
