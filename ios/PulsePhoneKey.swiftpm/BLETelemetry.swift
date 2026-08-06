@@ -178,7 +178,7 @@ final class BLETelemetry {
         }
         // Slight delay before next poll — reduces late-reply decrypt races.
         if inFlight == 0, writeQueue.isEmpty, (gotLiveFrame || phase == .live || phase == .handshake) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.055) { [weak self] in
                 self?.tick()
             }
         }
@@ -262,9 +262,9 @@ final class BLETelemetry {
             writeQueue.removeAll()
         }
 
-        // LIVE stall → soft re-handshake quickly; GATT bounce after a few tries.
-        if liveOK, Date().timeIntervalSince(lastLiveDataAt) > 4.5,
-           Date().timeIntervalSince(stallRecoveryAt) > 3.5 {
+        // LIVE stall → soft re-handshake; don't flip off on a single blip.
+        if liveOK, Date().timeIntervalSince(lastLiveDataAt) > 6.0,
+           Date().timeIntervalSince(stallRecoveryAt) > 5.0 {
             stallRecoveryAt = Date()
             stallRecoveries += 1
             liveOK = false
@@ -277,7 +277,7 @@ final class BLETelemetry {
             inFlight = 0
             handshakeCooldownUntil = Date()
             notify(force: true)
-            if stallRecoveries >= 3 {
+            if stallRecoveries >= 4 {
                 stallRecoveries = 0
                 status = "Veri yok — GATT yenileniyor…"
                 PulseDiagLog.shared.error(status)
@@ -317,11 +317,11 @@ final class BLETelemetry {
     private func nextPollAction() -> Data {
         pollIndex += 1
         let i = pollIndex
-        // Drive-heavy; Location often so map follows the car (not phone).
+        // Drive-heavy; Location often enough for stable car map without saturating BLE.
         if i % 10 == 3 { return TeslaBLESession.actionGetCharge() }
         if i % 12 == 5 { return TeslaBLESession.actionGetClimate() }
-        // ~every 3rd poll → Location (was every 8th — map jumped between fixes).
-        if i % 3 == 1 { return TeslaBLESession.actionGetLocation() }
+        // ~every 4th poll → Location (ble-83 was every 3rd — more stalls on some cars).
+        if i % 4 == 1 { return TeslaBLESession.actionGetLocation() }
         if i % 15 == 0 { return TeslaBLESession.actionGetClosures() }
         if i % 22 == 0 { return TeslaBLESession.actionGetMedia() }
         if i % 28 == 0 { return TeslaBLESession.actionGetMediaDetail() }
