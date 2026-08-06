@@ -1,11 +1,10 @@
 import SwiftUI
 
-/// Map-integrated turn guidance — elegant far away, illuminated when the turn is due.
+/// Map-integrated turn guidance — chip far away; Live-View style triple glow arrows when due.
 struct NavTurnCue: View {
     var distanceM: Int
     var instruction: String
     var symbol: String
-    /// Compact chip vs large map-center cue.
     var style: Style = .chip
 
     enum Style {
@@ -15,6 +14,9 @@ struct NavTurnCue: View {
 
     @State private var pulse = false
     @State private var sweep = false
+    /// 0…2 — which of the three arrows is lit (chase).
+    @State private var chaseIndex = 0
+    @State private var chaseTick: Timer?
 
     private var sym: String { symbol.isEmpty ? "arrow.turn.up.right" : symbol }
     private var imminent: Bool { distanceM > 0 && distanceM <= 55 }
@@ -24,6 +26,7 @@ struct NavTurnCue: View {
     private let ice = Color(red: 0.72, green: 0.95, blue: 1.0)
     private let teal = Color(red: 0.18, green: 0.86, blue: 0.78)
     private let amber = Color(red: 1.0, green: 0.78, blue: 0.28)
+    private let glowCyan = Color(red: 0.35, green: 0.92, blue: 1.0)
 
     var body: some View {
         Group {
@@ -32,28 +35,51 @@ struct NavTurnCue: View {
                 chipBody
             case .mapHero:
                 if imminent {
-                    heroBody
+                    liveViewHero
                 } else {
                     chipBody
                 }
             }
         }
         .allowsHitTesting(false)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                pulse = true
-            }
-            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
-                sweep = true
-            }
+        .onAppear { startAnimations() }
+        .onDisappear { chaseTick?.invalidate(); chaseTick = nil }
+        .onChangeCompat(of: imminent) { hot in
+            if hot { startChase() } else { chaseTick?.invalidate(); chaseTick = nil }
         }
     }
 
-    // MARK: - Chip (always / far)
+    private func startAnimations() {
+        withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+            pulse = true
+        }
+        withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+            sweep = true
+        }
+        if imminent { startChase() }
+    }
+
+    private func startChase() {
+        chaseTick?.invalidate()
+        chaseIndex = 0
+        // Sequential light-up: 1 → 2 → 3 → repeat (Google Live View feel).
+        chaseTick = Timer.scheduledTimer(withTimeInterval: 0.28, repeats: true) { _ in
+            Task { @MainActor in
+                withAnimation(.easeOut(duration: 0.18)) {
+                    chaseIndex = (chaseIndex + 1) % 3
+                }
+            }
+        }
+        if let t = chaseTick {
+            RunLoop.main.add(t, forMode: .common)
+        }
+    }
+
+    // MARK: - Chip (far)
 
     private var chipBody: some View {
         HStack(spacing: approaching ? 14 : 12) {
-            arrowGlyph(size: approaching ? 30 : 24, heavy: approaching)
+            arrowGlyph(size: approaching ? 30 : 24, heavy: approaching, lit: true)
                 .frame(width: approaching ? 44 : 36, height: approaching ? 44 : 36)
                 .background(
                     Circle()
@@ -91,93 +117,110 @@ struct NavTurnCue: View {
         .background(glassBackground(corner: 16, hot: approaching))
     }
 
-    // MARK: - Hero (on map when turn is due)
+    // MARK: - Live View hero (3 chasing glow arrows)
 
-    private var heroBody: some View {
-        VStack(spacing: 14) {
+    private var liveViewHero: some View {
+        VStack(spacing: 16) {
+            // Soft map bloom
             ZStack {
-                // Soft bloom into the map.
-                Circle()
+                Ellipse()
                     .fill(
                         RadialGradient(
                             colors: [
-                                (now ? amber : teal).opacity(pulse ? 0.38 : 0.18),
-                                (now ? amber : teal).opacity(0.08),
+                                (now ? amber : glowCyan).opacity(pulse ? 0.42 : 0.22),
+                                (now ? amber : glowCyan).opacity(0.08),
                                 .clear,
                             ],
                             center: .center,
-                            startRadius: 10,
-                            endRadius: 110
+                            startRadius: 8,
+                            endRadius: 130
                         )
                     )
-                    .frame(width: 210, height: 210)
-                    .scaleEffect(pulse ? 1.06 : 0.94)
+                    .frame(width: 280, height: 160)
+                    .blur(radius: 6)
 
-                // Concentric light rings.
-                ForEach(0..<3, id: \.self) { i in
-                    Circle()
-                        .stroke(
-                            (now ? amber : ice).opacity(pulse ? 0.45 - Double(i) * 0.12 : 0.22 - Double(i) * 0.06),
-                            lineWidth: 1.4
-                        )
-                        .frame(width: CGFloat(88 + i * 28), height: CGFloat(88 + i * 28))
-                        .scaleEffect(pulse ? 1.04 : 0.96)
+                // Three arrows side-by-side — light up in sequence.
+                HStack(spacing: now ? 18 : 14) {
+                    ForEach(0..<3, id: \.self) { i in
+                        chaseArrow(index: i)
+                    }
                 }
-
-                // Glass disc + arrow.
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .environment(\.colorScheme, .dark)
-                    .frame(width: 96, height: 96)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        .white.opacity(0.65),
-                                        (now ? amber : teal).opacity(0.7),
-                                        .white.opacity(0.15),
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: UnitPoint(x: sweep ? 1 : 0.2, y: sweep ? 1 : 0.3)
-                                ),
-                                lineWidth: 2.2
-                            )
-                    )
-                    .shadow(color: (now ? amber : teal).opacity(pulse ? 0.65 : 0.35), radius: pulse ? 22 : 12)
-                    .overlay(
-                        arrowGlyph(size: 44, heavy: true)
-                    )
+                .padding(.horizontal, 10)
             }
 
-            VStack(spacing: 4) {
+            VStack(spacing: 5) {
                 Text(now ? "ŞİMDİ" : distanceText)
-                    .font(.system(size: now ? 28 : 26, weight: .bold, design: .rounded))
+                    .font(.system(size: now ? 30 : 26, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.55), radius: 4, y: 2)
 
                 Text(now ? turnVerb : (instruction.isEmpty ? "Dönüş" : instruction))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.white.opacity(0.9))
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Color.white.opacity(0.92))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
 
-                if !now, !instruction.isEmpty {
-                    Text("DÖNÜŞ")
-                        .font(.caption.weight(.heavy))
-                        .foregroundStyle(amber)
-                        .tracking(1.2)
-                        .padding(.top, 2)
-                }
+                Text(now ? "DÖN" : "DÖNÜŞE YAKLAŞ")
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(now ? amber : glowCyan)
+                    .tracking(1.4)
+                    .padding(.top, 2)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
-            .background(glassBackground(corner: 14, hot: true))
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(glassBackground(corner: 16, hot: true))
         }
-        .frame(maxWidth: 260)
-        .transition(.scale(scale: 0.85).combined(with: .opacity))
+        .frame(maxWidth: 300)
+        .transition(.scale(scale: 0.88).combined(with: .opacity))
+    }
+
+    /// One of three Live-View chevrons — glows when `chaseIndex` hits it (and stays brighter if already passed in cycle).
+    private func chaseArrow(index: Int) -> some View {
+        let active = chaseIndex == index
+        // Trailing glow: previous arrow fades, next is dim — chase feels directional.
+        let trail = (chaseIndex - index + 3) % 3
+        let intensity: Double = {
+            if active { return 1.0 }
+            if trail == 1 { return 0.45 }
+            return 0.18
+        }()
+        let accent = now ? amber : glowCyan
+        let size: CGFloat = now ? 52 : 46
+
+        return ZStack {
+            // Outer glow bloom
+            Image(systemName: sym)
+                .font(.system(size: size, weight: .black))
+                .foregroundStyle(accent.opacity(0.55 * intensity))
+                .blur(radius: active ? 14 : 8)
+                .scaleEffect(active ? 1.18 : 1.0)
+
+            // Mid glow
+            Image(systemName: sym)
+                .font(.system(size: size, weight: .heavy))
+                .foregroundStyle(accent.opacity(0.75 * intensity))
+                .blur(radius: active ? 6 : 3)
+                .scaleEffect(active ? 1.08 : 1.0)
+
+            // Core arrow
+            Image(systemName: sym)
+                .font(.system(size: size * 0.92, weight: .bold))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: active
+                            ? [.white, accent, .white.opacity(0.9)]
+                            : [Color.white.opacity(0.35 + 0.4 * intensity), accent.opacity(0.5 + 0.4 * intensity)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .shadow(color: accent.opacity(active ? 0.95 : 0.25), radius: active ? 16 : 4)
+                .scaleEffect(active ? 1.1 : 0.94)
+        }
+        .frame(width: size + 18, height: size + 18)
+        .opacity(0.35 + 0.65 * intensity)
+        .animation(.easeOut(duration: 0.18), value: chaseIndex)
     }
 
     private var turnVerb: String {
@@ -194,7 +237,7 @@ struct NavTurnCue: View {
         return "\(max(0, distanceM)) m"
     }
 
-    private func arrowGlyph(size: CGFloat, heavy: Bool) -> some View {
+    private func arrowGlyph(size: CGFloat, heavy: Bool, lit: Bool) -> some View {
         ZStack {
             Image(systemName: sym)
                 .font(.system(size: size, weight: .black))
@@ -212,7 +255,7 @@ struct NavTurnCue: View {
                         endPoint: .bottom
                     )
                 )
-                .shadow(color: (now ? amber : teal).opacity(0.8), radius: heavy ? 10 : 5)
+                .shadow(color: (now ? amber : teal).opacity(lit ? 0.8 : 0.4), radius: heavy ? 10 : 5)
         }
     }
 
