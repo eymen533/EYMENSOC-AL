@@ -144,11 +144,16 @@ struct NativeHUDView: View {
             if leftMap || rightMap {
                 underDialFrost(dialW: dialW, cx: cx, cy: cy)
                     .zIndex(3)
+                // Soft vertical veil at dial edges — Dashla-style, no panel remask.
+                wingEdgeSoftener(vertical: false, at: cx - dialW * 0.48, length: h, band: 56)
+                    .zIndex(3)
+                wingEdgeSoftener(vertical: false, at: cx + dialW * 0.48, length: h, band: 56)
+                    .zIndex(3)
             }
 
-            // Dial plate — slightly translucent so tucked map reads through.
+            // Dial plate — opaque enough to avoid wing tint bleed-through.
             Circle()
-                .fill(cluster.opacity(leftMap || rightMap ? 0.88 : 1))
+                .fill(cluster.opacity(leftMap || rightMap ? 0.94 : 1))
                 .frame(width: dialW * 1.02, height: dialW * 1.02)
                 .position(x: cx, y: cy)
                 .zIndex(4)
@@ -279,14 +284,14 @@ struct NativeHUDView: View {
         .background(Color(red: 0.93, green: 0.94, blue: 0.95))
     }
 
-    /// Frost strip on the dial-facing edge — light blur, no second map instance.
+    /// Frost strip on the dial-facing edge — wider soft blur (Dashla-style).
     @ViewBuilder
     private func mapUnderDialBlur(edge: MapEdge, verticalFromTop: Bool?) -> some View {
-        let band: CGFloat = 56
+        let band: CGFloat = 80
         let frost = Rectangle()
             .fill(.ultraThinMaterial)
             .environment(\.colorScheme, .light)
-            .overlay(Color.black.opacity(0.06))
+            .overlay(Color.black.opacity(0.08))
             .allowsHitTesting(false)
 
         if let fromTop = verticalFromTop {
@@ -294,11 +299,12 @@ struct NativeHUDView: View {
                 if !fromTop { Spacer(minLength: 0) }
                 frost
                     .frame(height: band)
+                    .blur(radius: 2)
                     .mask(
                         LinearGradient(
                             colors: fromTop
-                                ? [.clear, .white.opacity(0.35), .white.opacity(0.7)]
-                                : [.white.opacity(0.7), .white.opacity(0.35), .clear],
+                                ? [.clear, .white.opacity(0.2), .white.opacity(0.5), .white.opacity(0.82)]
+                                : [.white.opacity(0.82), .white.opacity(0.5), .white.opacity(0.2), .clear],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -311,11 +317,12 @@ struct NativeHUDView: View {
                 if edge == .trailing { Spacer(minLength: 0) }
                 frost
                     .frame(width: band)
+                    .blur(radius: 2)
                     .mask(
                         LinearGradient(
                             colors: edge == .leading
-                                ? [.white.opacity(0.7), .white.opacity(0.35), .clear]
-                                : [.clear, .white.opacity(0.35), .white.opacity(0.7)],
+                                ? [.white.opacity(0.82), .white.opacity(0.5), .white.opacity(0.2), .clear]
+                                : [.clear, .white.opacity(0.2), .white.opacity(0.5), .white.opacity(0.82)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -326,31 +333,66 @@ struct NativeHUDView: View {
         }
     }
 
-    /// Soft radial frost behind the dial plate — kept light so map stays readable.
+    /// Soft dark veil behind dial when map tucks — solid (no Material mottling).
     private func underDialFrost(dialW: CGFloat, cx: CGFloat, cy: CGFloat) -> some View {
         Circle()
-            .fill(.ultraThinMaterial)
-            .environment(\.colorScheme, .dark)
-            .frame(width: dialW * 1.18, height: dialW * 1.18)
-            .mask(
+            .fill(
                 RadialGradient(
                     colors: [
-                        Color.white.opacity(0.55),
-                        Color.white.opacity(0.18),
+                        Color(red: 0.07, green: 0.07, blue: 0.08).opacity(0.88),
+                        Color(red: 0.07, green: 0.07, blue: 0.08).opacity(0.45),
+                        Color(red: 0.07, green: 0.07, blue: 0.08).opacity(0.12),
                         .clear
                     ],
                     center: .center,
-                    startRadius: dialW * 0.28,
-                    endRadius: dialW * 0.58
+                    startRadius: dialW * 0.22,
+                    endRadius: dialW * 0.62
                 )
             )
-            .overlay(
-                Circle()
-                    .fill(Color.black.opacity(0.10))
-                    .frame(width: dialW * 1.04, height: dialW * 1.04)
-            )
+            .frame(width: dialW * 1.28, height: dialW * 1.28)
+            .blur(radius: 6)
             .position(x: cx, y: cy)
             .allowsHitTesting(false)
+    }
+
+    /// Soft blurred gradient strip at a wing/dial seam (overlay only — does not remask panels).
+    private func wingEdgeSoftener(vertical: Bool, at position: CGFloat, length: CGFloat, band: CGFloat) -> some View {
+        Group {
+            if vertical {
+                // Horizontal strip (portrait seam).
+                LinearGradient(
+                    colors: [
+                        .clear,
+                        Color.black.opacity(0.22),
+                        Color.black.opacity(0.38),
+                        Color.black.opacity(0.22),
+                        .clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(width: length, height: band)
+                .blur(radius: 10)
+                .position(x: length * 0.5, y: position)
+            } else {
+                // Vertical strip (landscape seam).
+                LinearGradient(
+                    colors: [
+                        .clear,
+                        Color.black.opacity(0.22),
+                        Color.black.opacity(0.38),
+                        Color.black.opacity(0.22),
+                        .clear
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: band, height: length)
+                .blur(radius: 10)
+                .position(x: position, y: length * 0.5)
+            }
+        }
+        .allowsHitTesting(false)
     }
 
     /// Album art same full-height tuck as map.
@@ -444,10 +486,14 @@ struct NativeHUDView: View {
             if topWing || bottomWing {
                 underDialFrost(dialW: dialW, cx: cx, cy: cy)
                     .zIndex(3)
+                wingEdgeSoftener(vertical: true, at: cy - dialW * 0.48, length: w, band: 48)
+                    .zIndex(3)
+                wingEdgeSoftener(vertical: true, at: cy + dialW * 0.48, length: w, band: 48)
+                    .zIndex(3)
             }
 
             Circle()
-                .fill(cluster.opacity(topWing || bottomWing ? 0.88 : 1))
+                .fill(cluster.opacity(topWing || bottomWing ? 0.94 : 1))
                 .frame(width: dialW * 1.02, height: dialW * 1.02)
                 .position(x: cx, y: cy)
                 .zIndex(4)
@@ -982,6 +1028,13 @@ struct NativeHUDView: View {
             .padding(.bottom, showBattery ? 44 : 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
+            // Soft dissolve toward dial — landscape sides / portrait dial edge.
+            if portraitAligned {
+                dialFadeVertical(fromTop: side == .right)
+            } else {
+                dialFade(edge: side == .left ? .trailing : .leading)
+            }
+
             if showBattery {
                 batteryChip
                     .padding(.leading, 16)
@@ -1195,27 +1248,39 @@ struct NativeHUDView: View {
         }
     }
 
-    /// Soft blend into dial — wider, gentler for color unity with cluster panel.
+    /// Soft blend into dial — wider + blurred for Dashla-style wing join.
     private func dialFade(edge: MapEdge) -> some View {
         let dialSide: UnitPoint = edge == .leading ? .leading : .trailing
         let outerSide: UnitPoint = edge == .leading ? .trailing : .leading
         return LinearGradient(
-            colors: [fadeIntoDial.opacity(0.22), fadeIntoDial.opacity(0.06), .clear],
+            colors: [
+                fadeIntoDial.opacity(0.50),
+                fadeIntoDial.opacity(0.28),
+                fadeIntoDial.opacity(0.10),
+                .clear
+            ],
             startPoint: dialSide,
             endPoint: outerSide
         )
-        .frame(width: 28)
+        .frame(width: 64)
+        .blur(radius: 5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edge == .leading ? .leading : .trailing)
         .allowsHitTesting(false)
     }
 
     private func dialFadeVertical(fromTop: Bool) -> some View {
         LinearGradient(
-            colors: [fadeIntoDial.opacity(0.22), fadeIntoDial.opacity(0.06), .clear],
+            colors: [
+                fadeIntoDial.opacity(0.50),
+                fadeIntoDial.opacity(0.28),
+                fadeIntoDial.opacity(0.10),
+                .clear
+            ],
             startPoint: fromTop ? .top : .bottom,
             endPoint: fromTop ? .bottom : .top
         )
-        .frame(height: 24)
+        .frame(height: 56)
+        .blur(radius: 5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: fromTop ? .top : .bottom)
         .allowsHitTesting(false)
     }
@@ -1327,9 +1392,11 @@ struct NativeHUDView: View {
                 bare: style == .bare
             )
             Text("km/h")
-                .font(.system(size: max(11, size * 0.048), weight: .regular))
+                .font(.system(size: max(13, size * 0.055), weight: .bold))
                 .foregroundStyle(dialMuted)
                 .shadow(color: .black.opacity(0.6), radius: 3, y: 2)
+                .padding(.top, 4)
+                .padding(.bottom, size * 0.10)
         }
         .padding(.horizontal, 8)
 
