@@ -323,8 +323,8 @@ final class BLETelemetry {
         // ~every 4th poll → Location (ble-83 was every 3rd — more stalls on some cars).
         if i % 4 == 1 { return TeslaBLESession.actionGetLocation() }
         if i % 15 == 0 { return TeslaBLESession.actionGetClosures() }
-        if i % 22 == 0 { return TeslaBLESession.actionGetMedia() }
-        if i % 28 == 0 { return TeslaBLESession.actionGetMediaDetail() }
+        if i % 12 == 0 { return TeslaBLESession.actionGetMedia() }
+        if i % 14 == 0 { return TeslaBLESession.actionGetMediaDetail() }
         if i % 35 == 0 { return TeslaBLESession.actionGetTire() }
         return TeslaBLESession.actionGetDrive()
     }

@@ -372,6 +372,15 @@ struct ContentView: View {
                             HStack(spacing: 12) {
                                 Image(systemName: hudSettings.mediaArtStyle == style ? "checkmark.circle.fill" : "circle")
                                     .foregroundStyle(hudSettings.mediaArtStyle == style ? Color.cyan : .secondary)
+                                Image(style.assetName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 48, height: 64)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .stroke(Color.secondary.opacity(0.25), lineWidth: 0.5)
+                                    )
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(style.rawValue)
                                         .foregroundStyle(.primary)

@@ -1318,6 +1318,8 @@ struct NativeHUDView: View {
                         .shadow(color: .black.opacity(0.7), radius: 3, y: 2)
                 }
             }
+            // Keep gears clear of the top power/regen rim.
+            .padding(.top, size * 0.085)
             DialSpeedDigits(
                 target: model.speed,
                 fontSize: speedFont * 1.15,
@@ -1365,24 +1367,25 @@ struct NativeHUDView: View {
                     .stroke(Color.white.opacity(night ? 0.14 : 0.28), lineWidth: 0.8)
                     .padding(size * 0.045)
                 if showRing {
+                    // Outer-top rim only — clear of P/R/N/D gear row.
                     Circle()
-                        .trim(from: 0, to: accel)
+                        .trim(from: 0.02, to: 0.02 + accel * 0.22)
                         .stroke(
                             (night ? Color.white : Color.black).opacity(0.88),
                             style: StrokeStyle(lineWidth: ringW, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
-                        .padding(size * 0.06)
+                        .padding(size * 0.018)
                         .animation(.easeOut(duration: 0.12), value: accel)
                     Circle()
-                        .trim(from: 0, to: regen)
+                        .trim(from: 0.02, to: 0.02 + regen * 0.22)
                         .stroke(
                             Color(red: 0.18, green: 0.78, blue: 0.40),
                             style: StrokeStyle(lineWidth: ringW, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
                         .scaleEffect(x: -1, y: 1)
-                        .padding(size * 0.06)
+                        .padding(size * 0.018)
                         .animation(.easeOut(duration: 0.12), value: regen)
                 }
 
@@ -1460,17 +1463,17 @@ struct NativeHUDView: View {
                     .padding(size * 0.05)
                 if showRing {
                     Circle()
-                        .trim(from: 0, to: accel)
+                        .trim(from: 0.02, to: 0.02 + accel * 0.22)
                         .stroke(Color.white.opacity(0.85), style: StrokeStyle(lineWidth: ringW, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                        .padding(size * 0.07)
+                        .padding(size * 0.018)
                         .animation(.easeOut(duration: 0.12), value: accel)
                     Circle()
-                        .trim(from: 0, to: regen)
+                        .trim(from: 0.02, to: 0.02 + regen * 0.22)
                         .stroke(Color(red: 0.18, green: 0.78, blue: 0.40), style: StrokeStyle(lineWidth: ringW, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .scaleEffect(x: -1, y: 1)
-                        .padding(size * 0.07)
+                        .padding(size * 0.018)
                         .animation(.easeOut(duration: 0.12), value: regen)
                 }
 
@@ -1538,17 +1541,17 @@ struct NativeHUDView: View {
                     .padding(size * 0.055)
                 if showRing {
                     Circle()
-                        .trim(from: 0, to: accel)
+                        .trim(from: 0.02, to: 0.02 + accel * 0.22)
                         .stroke((night ? Color.white : Color.black).opacity(0.88), style: StrokeStyle(lineWidth: ringW, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                        .padding(size * 0.11)
+                        .padding(size * 0.04)
                         .animation(.easeOut(duration: 0.12), value: accel)
                     Circle()
-                        .trim(from: 0, to: regen)
+                        .trim(from: 0.02, to: 0.02 + regen * 0.22)
                         .stroke(Color(red: 0.18, green: 0.78, blue: 0.40), style: StrokeStyle(lineWidth: ringW, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .scaleEffect(x: -1, y: 1)
-                        .padding(size * 0.11)
+                        .padding(size * 0.04)
                         .animation(.easeOut(duration: 0.12), value: regen)
                 }
 
@@ -1582,23 +1585,23 @@ struct NativeHUDView: View {
                     .padding(size * 0.05)
                 if showRing {
                     Circle()
-                        .trim(from: 0, to: accel)
+                        .trim(from: 0.02, to: 0.02 + accel * 0.22)
                         .stroke(
                             Color(red: 0.0, green: 0.90, blue: 1.0).opacity(0.95),
                             style: StrokeStyle(lineWidth: ringW, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
-                        .padding(size * 0.07)
+                        .padding(size * 0.018)
                         .animation(.easeOut(duration: 0.12), value: accel)
                     Circle()
-                        .trim(from: 0, to: regen)
+                        .trim(from: 0.02, to: 0.02 + regen * 0.22)
                         .stroke(
                             Color(red: 0.18, green: 0.78, blue: 0.40),
                             style: StrokeStyle(lineWidth: ringW, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
                         .scaleEffect(x: -1, y: 1)
-                        .padding(size * 0.07)
+                        .padding(size * 0.018)
                         .animation(.easeOut(duration: 0.12), value: regen)
                 }
 
@@ -1875,16 +1878,35 @@ struct NativeHUDView: View {
         .padding(.top, 4)
     }
 
-    /// Styled album + meta based on Settings → Medya.
+    /// Styled album + meta based on Settings → Medya (A1–A10).
     @ViewBuilder
     private func styledMediaBlock(artSize: CGFloat, lightInk: Bool) -> some View {
         let style = settings.mediaArtStyle
         switch style {
         case .cinematic:
             cinematicMediaBlock(artSize: artSize)
-        default:
-            VStack(spacing: style == .minimal ? 10 : 8) {
+        case .sideBySide:
+            sideBySideMediaBlock(artSize: artSize * 0.72)
+        case .magazine:
+            magazineMediaBlock(artSize: artSize)
+        case .sourceBar:
+            VStack(spacing: 8) {
+                mediaSourceBanner
                 styledAlbumArt(size: artSize, style: style)
+                mediaMetaStack(lightInk: lightInk, style: style)
+                mediaTransportControls
+            }
+        case .polaroid:
+            VStack(spacing: 10) {
+                styledAlbumArt(size: artSize, style: style)
+                mediaTransportControls
+            }
+        default:
+            VStack(spacing: 8) {
+                styledAlbumArt(size: artSize, style: style)
+                if style == .waveform {
+                    mediaWaveformBar(width: artSize)
+                }
                 mediaMetaStack(lightInk: lightInk, style: style)
                 mediaTransportControls
             }
@@ -1896,19 +1918,21 @@ struct NativeHUDView: View {
         let titleColor: Color = {
             switch s {
             case .neon: return Color(red: 1.0, green: 0.45, blue: 0.85)
-            case .vinyl: return .white
+            case .vinyl, .tiltFloat: return .white
+            case .polaroid: return Color(red: 0.12, green: 0.12, blue: 0.14)
             default: return lightInk ? .white : ink
             }
         }()
         let artistColor: Color = {
             switch s {
             case .neon: return Color(red: 0.45, green: 0.95, blue: 1.0).opacity(0.9)
+            case .polaroid: return Color.black.opacity(0.55)
             default: return Color.white.opacity(0.72)
             }
         }()
         return VStack(spacing: 4) {
             Text(displayOrDash(model.mediaTitle))
-                .font(s == .minimal ? .title2.weight(.semibold) : .title2.weight(.bold))
+                .font(.title2.weight(.bold))
                 .foregroundStyle(titleColor)
                 .shadow(color: s == .neon ? Color(red: 1.0, green: 0.3, blue: 0.7).opacity(0.7) : .clear, radius: 8)
                 .multilineTextAlignment(.center)
@@ -1929,9 +1953,10 @@ struct NativeHUDView: View {
                 AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: artSize)
                     .frame(width: artSize, height: h)
                     .clipped()
-                    .overlay(alignment: .top) {
+                    .overlay(alignment: .topLeading) {
                         mediaSourceBadge(onCover: true)
                             .padding(.top, 10)
+                            .padding(.leading, 10)
                     }
                     .overlay(
                         LinearGradient(
@@ -1940,19 +1965,19 @@ struct NativeHUDView: View {
                             endPoint: .bottom
                         )
                     )
-                    .overlay(alignment: .bottom) {
-                        VStack(spacing: 4) {
+                    .overlay(alignment: .bottomLeading) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(displayOrDash(model.mediaTitle))
                                 .font(.headline.weight(.bold))
                                 .foregroundStyle(.white)
-                                .multilineTextAlignment(.center)
+                                .multilineTextAlignment(.leading)
                                 .lineLimit(2)
                             Text(displayOrDash(model.mediaArtist))
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.white.opacity(0.8))
                                 .lineLimit(1)
                         }
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, 12)
                         .padding(.bottom, 12)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -1962,30 +1987,121 @@ struct NativeHUDView: View {
         }
     }
 
+    private func sideBySideMediaBlock(artSize: CGFloat) -> some View {
+        VStack(spacing: 10) {
+            HStack(alignment: .center, spacing: 14) {
+                styledAlbumArt(size: artSize, style: .sideBySide)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(displayOrDash(model.mediaTitle))
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                    Text(displayOrDash(model.mediaArtist))
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.72))
+                        .lineLimit(1)
+                    Circle()
+                        .trim(from: 0, to: 0.72)
+                        .stroke(Color.cyan.opacity(0.85), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .frame(width: 28, height: 28)
+                        .rotationEffect(.degrees(-90))
+                }
+                Spacer(minLength: 0)
+            }
+            mediaTransportControls
+        }
+    }
+
+    private func magazineMediaBlock(artSize: CGFloat) -> some View {
+        VStack(spacing: 10) {
+            ZStack(alignment: .bottom) {
+                AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: artSize)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(alignment: .topLeading) {
+                        mediaSourceBadge(onCover: true)
+                            .padding(10)
+                    }
+                    .overlay(alignment: .bottom) {
+                        HStack(spacing: 6) {
+                            Text(displayOrDash(model.mediaTitle))
+                                .font(.caption.weight(.bold))
+                                .lineLimit(1)
+                            Text("·")
+                                .font(.caption.weight(.bold))
+                            Text(displayOrDash(model.mediaArtist))
+                                .font(.caption)
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.black.opacity(0.88))
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            mediaTransportControls
+        }
+    }
+
+    private var mediaSourceBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: serviceIcon)
+                .font(.system(size: 14, weight: .bold))
+            Text(mediaSourceLabel)
+                .font(.subheadline.weight(.bold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity)
+        .background(
+            Capsule()
+                .fill(serviceAccent.opacity(0.95))
+                .shadow(color: serviceAccent.opacity(0.45), radius: 8)
+        )
+    }
+
+    private func mediaWaveformBar(width: CGFloat) -> some View {
+        HStack(alignment: .center, spacing: 2) {
+            ForEach(0..<18, id: \.self) { i in
+                let h = 4 + CGFloat((i * 7) % 11)
+                Capsule()
+                    .fill(Color.cyan.opacity(0.75))
+                    .frame(width: 3, height: h)
+            }
+        }
+        .frame(width: width, height: 18)
+    }
+
     @ViewBuilder
     private func styledAlbumArt(size: CGFloat, style: HUDSettings.MediaArtStyle) -> some View {
-        let corner: CGFloat = style == .minimal ? 14 : 10
+        let corner: CGFloat = style == .polaroid ? 4 : 10
         let cover = AlbumArtView(image: art.image, url: art.imageURL, loading: art.loading, size: size)
             .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
-            .overlay(alignment: .top) {
+            .overlay(alignment: style == .waveform ? .top : .topLeading) {
                 mediaSourceBadge(onCover: true)
                     .padding(.top, 8)
+                    .padding(.leading, style == .waveform ? 0 : 8)
             }
 
         switch style {
-        case .glass:
+        case .glass, .sourceBar, .sideBySide:
             VStack(spacing: 0) {
                 cover
                     .overlay(
                         RoundedRectangle(cornerRadius: corner, style: .continuous)
-                            .stroke(Color(red: 0.4, green: 0.9, blue: 1.0).opacity(0.55), lineWidth: 1.4)
+                            .stroke(Color(red: 0.4, green: 0.9, blue: 1.0).opacity(style == .glass ? 0.55 : 0.25), lineWidth: 1.4)
                     )
-                    .shadow(color: Color(red: 0.3, green: 0.85, blue: 1.0).opacity(0.35), radius: 14)
-                albumReflection(size: size, height: size * 0.30, corner: corner)
+                    .shadow(color: Color(red: 0.3, green: 0.85, blue: 1.0).opacity(style == .glass ? 0.35 : 0.15), radius: 14)
+                if style == .glass {
+                    albumReflection(size: size, height: size * 0.30, corner: corner)
+                }
             }
         case .vinyl:
             ZStack {
-                // Vinyl peek behind cover
                 Circle()
                     .fill(
                         RadialGradient(
@@ -2022,12 +2138,27 @@ struct NativeHUDView: View {
                 )
                 .shadow(color: Color(red: 1.0, green: 0.2, blue: 0.8).opacity(0.45), radius: 12)
                 .shadow(color: Color(red: 0.2, green: 0.9, blue: 1.0).opacity(0.35), radius: 18)
-        case .minimal:
+        case .polaroid:
+            VStack(spacing: 0) {
+                cover
+                    .padding(10)
+                    .padding(.bottom, 0)
+                mediaMetaStack(lightInk: false, style: .polaroid)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 12)
+                    .padding(.top, 8)
+            }
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .shadow(color: .black.opacity(0.45), radius: 12, y: 6)
+        case .waveform, .magazine, .cinematic:
             cover
-                .shadow(color: .black.opacity(0.45), radius: 16, y: 8)
-                .padding(.bottom, 4)
-        case .cinematic:
+        case .tiltFloat:
             cover
+                .rotationEffect(.degrees(-8))
+                .shadow(color: .black.opacity(0.55), radius: 16, y: 10)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 8)
         }
     }
 
@@ -2055,10 +2186,11 @@ struct NativeHUDView: View {
 
     /// Source chip — sits on top of the album cover (Spotify / YouTube Music / …).
     private func mediaSourceBadge(onCover: Bool) -> some View {
-        HStack(spacing: 5) {
+        let label = mediaSourceLabel
+        return HStack(spacing: 5) {
             Image(systemName: serviceIcon)
-                .font(.system(size: 10, weight: .bold))
-            Text(displayOrDash(model.mediaService))
+                .font(.system(size: 11, weight: .bold))
+            Text(label)
                 .font(.caption2.weight(.bold))
                 .lineLimit(1)
         }
@@ -2067,10 +2199,19 @@ struct NativeHUDView: View {
         .padding(.vertical, 5)
         .background(
             Capsule()
-                .fill(serviceAccent.opacity(onCover ? 0.92 : 0.85))
-                .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.8))
-                .shadow(color: serviceAccent.opacity(0.45), radius: 6)
+                .fill(serviceAccent.opacity(onCover ? 0.95 : 0.88))
+                .overlay(Capsule().stroke(Color.white.opacity(0.28), lineWidth: 0.8))
+                .shadow(color: serviceAccent.opacity(0.5), radius: 6)
         )
+        .zIndex(5)
+    }
+
+    /// Prefer a readable source name even when BLE only sent an enum / empty.
+    private var mediaSourceLabel: String {
+        let s = model.mediaService.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !isBlank(s) { return s }
+        if !isBlank(model.mediaTitle) || !isBlank(model.mediaArtist) { return "Medya" }
+        return "Medya"
     }
 
     private var mediaServiceHeader: some View {

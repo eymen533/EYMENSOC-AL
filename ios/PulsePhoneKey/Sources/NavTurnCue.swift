@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Turn guidance — photoreal volumetric plaque (R1–R10 styles). Default R9 raised yellow.
+/// Turn guidance — photoreal volumetric plaque (R1–R10). Default R9. Compact size.
 struct NavTurnCue: View {
     var distanceM: Int
     var instruction: String
@@ -29,6 +29,7 @@ struct NavTurnCue: View {
         return .straight
     }
 
+    /// Forces SwiftUI to swap the Image when settings change.
     private var plaqueAsset: String { settings.turnCueStyle.assetName }
 
     var body: some View {
@@ -44,26 +45,33 @@ struct NavTurnCue: View {
                 }
             }
         }
+        .id(plaqueAsset) // re-render when style changes in Settings
         .allowsHitTesting(false)
         .onAppear {
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
                 pulse = true
             }
         }
+        .onChangeCompat(of: settings.turnCueStyle) { _ in
+            pulse = false
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
     }
 
-    // MARK: - Chip (far)
+    // MARK: - Chip (far) — compact plaque
 
     private var chipBody: some View {
-        HStack(spacing: 12) {
-            plaqueImage(width: approaching ? 72 : 60)
+        HStack(spacing: 10) {
+            plaqueImage(width: approaching ? 52 : 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text(distanceText)
-                    .font(approaching ? .title2.weight(.bold).monospacedDigit() : .title3.weight(.bold).monospacedDigit())
+                    .font(approaching ? .title3.weight(.bold).monospacedDigit() : .headline.weight(.bold).monospacedDigit())
                     .foregroundStyle(.white)
                 if !instruction.isEmpty {
                     Text(instruction)
-                        .font(.caption.weight(.semibold))
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(Color.white.opacity(0.9))
                         .lineLimit(2)
                 }
@@ -74,51 +82,51 @@ struct NavTurnCue: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.black.opacity(0.55))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(Color.white.opacity(0.14), lineWidth: 1)
                 )
         )
     }
 
-    // MARK: - Hero (imminent)
+    // MARK: - Hero (imminent) — smaller than before
 
     private var heroBody: some View {
-        VStack(spacing: 12) {
-            plaqueImage(width: now ? 280 : 250)
-                .scaleEffect(pulse ? 1.03 : 0.98)
-                .shadow(color: .black.opacity(0.45), radius: 16, y: 8)
+        VStack(spacing: 8) {
+            plaqueImage(width: now ? 148 : 128)
+                .scaleEffect(pulse ? 1.04 : 0.98)
+                .shadow(color: .black.opacity(0.4), radius: 10, y: 5)
                 .shadow(
-                    color: Color(red: 1.0, green: 0.9, blue: 0.2).opacity(pulse ? 0.35 : 0.12),
-                    radius: pulse ? 18 : 8
+                    color: Color(red: 1.0, green: 0.9, blue: 0.2).opacity(pulse ? 0.28 : 0.1),
+                    radius: pulse ? 12 : 6
                 )
 
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text(now ? "ŞİMDİ" : distanceText)
-                        .font(.system(size: now ? 26 : 22, weight: .bold, design: .rounded))
+                        .font(.system(size: now ? 20 : 17, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                     Text(now ? turnVerb : (instruction.isEmpty ? turnVerb : instruction))
-                        .font(.subheadline.weight(.semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(Color.white.opacity(0.95))
                         .lineLimit(2)
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .frame(minWidth: 240, maxWidth: 300)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: 200)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color.black.opacity(0.62))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .stroke(Color.white.opacity(0.16), lineWidth: 1)
                     )
             )

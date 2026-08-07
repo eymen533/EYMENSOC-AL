@@ -938,11 +938,13 @@ final class TeslaBLESession {
         case 8: return "Bluetooth"
         case 9: return "AUX"
         case 12: return "Spotify"
+        case 13, 14, 27, 28: return "YouTube Music"
         case 17: return "TuneIn"
         case 20: return "Tidal"
         case 21, 22: return "QQ Music"
         case 26: return "NetEase"
-        default: return ""
+        case 30, 31: return "Apple Music"
+        default: return v > 0 ? "Medya" : ""
         }
     }
 

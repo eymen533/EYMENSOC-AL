@@ -114,9 +114,9 @@ struct AppleMapPanel: View {
         let moved = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
             .distance(from: CLLocation(latitude: lat, longitude: lon))
         // Recalc when approaching the maneuver or after meaningful travel.
-        if turnDistanceM > 0, turnDistanceM < 35, moved > 8 {
+        if turnDistanceM > 0, turnDistanceM < 50, moved > 6 {
             fetchRouteIfNeeded(force: true)
-        } else if moved > 40 {
+        } else if moved > 28 {
             fetchRouteIfNeeded(force: true)
         }
     }
@@ -126,13 +126,55 @@ struct AppleMapPanel: View {
         guard hasGPS, guidanceBaseM > 0, let at = guidanceAt else { return }
         let moved = CLLocation(latitude: at.latitude, longitude: at.longitude)
             .distance(from: CLLocation(latitude: lat, longitude: lon))
-        let next = max(0, guidanceBaseM - Int(moved.rounded()))
-        if abs(next - turnDistanceM) >= 5 || next == 0 {
+        // Prefer along-route remaining distance when we have a polyline.
+        let along = remainingDistanceAlongRoute()
+        let next: Int
+        if let along, along >= 0 {
+            next = along
+        } else {
+            next = max(0, guidanceBaseM - Int(moved.rounded()))
+        }
+        if abs(next - turnDistanceM) >= 3 || next == 0 {
             turnDistanceM = next
         }
-        if next <= 12 {
+        // Refresh early so the next maneuver appears before we overshoot.
+        if next <= 25 {
             fetchRouteIfNeeded(force: true)
         }
+    }
+
+    /// Meters from car to the next maneuver point along the active polyline (first sharp bend / dest).
+    private func remainingDistanceAlongRoute() -> Int? {
+        guard routeCoords.count >= 2, hasGPS else { return nil }
+        let car = CLLocation(latitude: lat, longitude: lon)
+        // Find nearest polyline vertex.
+        var bestIdx = 0
+        var best = Double.greatestFiniteMagnitude
+        for (i, c) in routeCoords.enumerated() {
+            let d = car.distance(from: CLLocation(latitude: c.latitude, longitude: c.longitude))
+            if d < best {
+                best = d
+                bestIdx = i
+            }
+        }
+        // Sum remaining polyline length from nearest vertex to end (proxy for next turn if guidanceBase is local).
+        var sum: CLLocationDistance = 0
+        if bestIdx + 1 < routeCoords.count {
+            for i in bestIdx..<(routeCoords.count - 1) {
+                let a = routeCoords[i]
+                let b = routeCoords[i + 1]
+                sum += CLLocation(latitude: a.latitude, longitude: a.longitude)
+                    .distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude))
+            }
+        }
+        // Blend: when guidanceBaseM is set for the next turn, cap by countdown from origin.
+        if let at = guidanceAt, guidanceBaseM > 0 {
+            let moved = car.distance(from: CLLocation(latitude: at.latitude, longitude: at.longitude))
+            let byMove = max(0, Double(guidanceBaseM) - moved)
+            // Use the tighter of the two so we don't overshoot the turn cue.
+            return Int(min(sum, byMove).rounded())
+        }
+        return Int(sum.rounded())
     }
 
     private func clearLocalRoute() {
@@ -330,9 +372,8 @@ struct AppleMapPanel: View {
         }
 
         if let step = chosen {
-            // Distance until the maneuver = filler steps + the maneuver step itself
-            // (MapKit step.distance is length of that segment, ending at/after the turn).
-            distanceM = max(0, Int((metersBefore + step.distance).rounded()))
+            // Distance TO the maneuver (do NOT add step.distance — that made cues late).
+            distanceM = max(0, Int(metersBefore.rounded()))
             instruction = shortenInstruction(step.instructions)
             symbol = symbolFor(step.instructions)
             return

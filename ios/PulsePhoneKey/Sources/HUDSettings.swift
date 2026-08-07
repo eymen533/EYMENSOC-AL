@@ -115,22 +115,65 @@ final class HUDSettings: ObservableObject {
         }
     }
 
-    /// Album / now-playing panel look (Settings → Medya).
+    /// Album / now-playing panel look (Settings → Medya). A1–A10.
     enum MediaArtStyle: String, CaseIterable, Identifiable {
         case glass = "Cam rozet"
-        case vinyl = "Vinil 3D"
         case cinematic = "Sinematik"
-        case neon = "Neon"
-        case minimal = "Minimal"
+        case vinyl = "Vinil 3D"
+        case neon = "Çift neon"
+        case sourceBar = "Kaynak şeridi"
+        case sideBySide = "Yan yana"
+        case polaroid = "Polaroid"
+        case waveform = "Dalga formu"
+        case magazine = "Magazine crop"
+        case tiltFloat = "Eğik 3D"
         var id: String { rawValue }
 
         var blurb: String {
             switch self {
-            case .glass: return "Cam kaynak rozeti · cyan ışıma · yansıma"
-            case .vinyl: return "Vinil taşan kapak · amber HUD"
-            case .cinematic: return "Full-bleed kapak · altta yazı"
-            case .neon: return "Çift neon çerçeve · güçlü glow"
-            case .minimal: return "Sade cam kart · lüks boşluk"
+            case .glass: return "A1 · cam rozet + kaynak · yansıma"
+            case .cinematic: return "A2 · full-bleed kapak · altta yazı"
+            case .vinyl: return "A3 · vinil taşan kapak"
+            case .neon: return "A4 · çift neon çerçeve"
+            case .sourceBar: return "A5 · üstte büyük kaynak şeridi"
+            case .sideBySide: return "A6 · kapak + meta yan yana"
+            case .polaroid: return "A7 · polaroid kart"
+            case .waveform: return "A8 · altta waveform"
+            case .magazine: return "A9 · magazine crop şerit"
+            case .tiltFloat: return "A10 · eğik 3D float"
+            }
+        }
+
+        var assetName: String {
+            switch self {
+            case .glass: return "MediaArt_a1"
+            case .cinematic: return "MediaArt_a2"
+            case .vinyl: return "MediaArt_a3"
+            case .neon: return "MediaArt_a4"
+            case .sourceBar: return "MediaArt_a5"
+            case .sideBySide: return "MediaArt_a6"
+            case .polaroid: return "MediaArt_a7"
+            case .waveform: return "MediaArt_a8"
+            case .magazine: return "MediaArt_a9"
+            case .tiltFloat: return "MediaArt_a10"
+            }
+        }
+
+        /// Migrate old stored labels.
+        static func resolved(from stored: String?) -> MediaArtStyle {
+            switch stored {
+            case "Cam rozet": return .glass
+            case "Sinematik": return .cinematic
+            case "Vinil 3D": return .vinyl
+            case "Neon", "Çift neon": return .neon
+            case "Minimal": return .glass
+            case "Kaynak şeridi": return .sourceBar
+            case "Yan yana": return .sideBySide
+            case "Polaroid": return .polaroid
+            case "Dalga formu": return .waveform
+            case "Magazine crop": return .magazine
+            case "Eğik 3D": return .tiltFloat
+            default: return MediaArtStyle(rawValue: stored ?? "") ?? .glass
             }
         }
     }
@@ -231,7 +274,7 @@ final class HUDSettings: ObservableObject {
         let d = UserDefaults.standard
         refreshMode = RefreshMode(rawValue: d.string(forKey: "pulse_refresh_mode") ?? "") ?? .instant
         dialStyle = DialStyle(rawValue: d.string(forKey: "pulse_dial_style") ?? "") ?? .circle
-        mediaArtStyle = MediaArtStyle(rawValue: d.string(forKey: "pulse_media_art_style") ?? "") ?? .glass
+        mediaArtStyle = MediaArtStyle.resolved(from: d.string(forKey: "pulse_media_art_style"))
         turnCueStyle = TurnCueStyle(rawValue: d.string(forKey: "pulse_turn_cue_style") ?? "") ?? .raisedYellow
         speedStyle = SpeedStyle(rawValue: d.string(forKey: "pulse_speed_style") ?? "") ?? .classic
         speedColor = SpeedColor(rawValue: d.string(forKey: "pulse_speed_color") ?? "") ?? .multicolor
